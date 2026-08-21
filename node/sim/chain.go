@@ -370,12 +370,15 @@ func window(w uint64) engine.Window {
 
 // ChainInfo is the chain's global position.
 type ChainInfo struct {
-	Height         uint64   `json:"height"`
-	Timestamp      string   `json:"timestamp"`
-	Epoch          uint64   `json:"epoch"`
-	GenesisHeight  uint64   `json:"genesis_height"`
-	SettledHeight  uint64   `json:"settled_height"`
-	MigratedSupply string   `json:"migrated_supply"`
+	Height         uint64 `json:"height"`
+	Timestamp      string `json:"timestamp"`
+	Epoch          uint64 `json:"epoch"`
+	GenesisHeight  uint64 `json:"genesis_height"`
+	SettledHeight  uint64 `json:"settled_height"`
+	MigratedSupply string `json:"migrated_supply"`
+	// SnapshotTotal is burned + claimable as committed at genesis (claim
+	// model); equals MigratedSupply once every claim has landed or swept.
+	SnapshotTotal  string   `json:"snapshot_total"`
 	TotalEmitted   string   `json:"total_emitted"`
 	TotalBurned    string   `json:"total_burned"`
 	TotalShares    string   `json:"total_shares"`
@@ -408,6 +411,7 @@ func (c *Chain) Info() ChainInfo {
 		GenesisHeight:  state.GenesisHeight(c.store),
 		SettledHeight:  state.SettledHeight(c.store),
 		MigratedSupply: dec(state.MigratedSupply(c.store)),
+		SnapshotTotal:  dec(state.SnapshotTotal(c.store)),
 		TotalEmitted:   dec(state.TotalEmitted(c.store)),
 		TotalBurned:    dec(state.TotalBurned(c.store)),
 		TotalShares:    dec(engine.Amount(state.TotalShares(c.store))),

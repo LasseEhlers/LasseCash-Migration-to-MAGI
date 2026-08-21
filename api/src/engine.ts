@@ -29,6 +29,9 @@ interface Bridge {
   shareRate(genesisHeight: string, height: string): string;
   shareRateHbd(genesisHeight: string, height: string,
     lcReserve: string, hbdReserve: string): string;
+  supplyLimits(snapshotTotal: string): {
+    hardcap: string; emissionCap: string; maxEver: string; lost: string;
+  };
   dailyRewards(genesisHeight: string, height: string): {
     total: string; proofOfBrain: string; lshare: string;
     liquidity: string; viral: string; deep: string;
@@ -334,6 +337,17 @@ export function shareRateHbd(
   const v = must().shareRateHbd(
     String(genesisHeight), String(height), lcReserveUnits, hbdReserveUnits);
   return v === "" ? null : u(v);
+}
+
+/** The hardcap picture for a committed snapshot total. EXACT. */
+export interface SupplyLimits {
+  hardcap: Amount; emissionCap: Amount; maxEver: Amount;
+  /** Issued on the old chains, held by nobody, mintable by no one. */
+  lost: Amount;
+}
+export function supplyLimits(snapshotTotalUnits: string): SupplyLimits {
+  const r = must().supplyLimits(snapshotTotalUnits);
+  return { hardcap: u(r.hardcap), emissionCap: u(r.emissionCap), maxEver: u(r.maxEver), lost: u(r.lost) };
 }
 
 /** The day's emission at a height, split into pools. EXACT — closed-form. */

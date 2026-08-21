@@ -41,6 +41,7 @@ func main() {
 		"routePayout":        js.FuncOf(routePayout),
 		"blockSplit":         js.FuncOf(blockSplit),
 		"dailyRewards":       js.FuncOf(dailyRewards),
+		"supplyLimits":       js.FuncOf(supplyLimits),
 
 		// governed values — exact for the state rows handed in, but chain state
 		// moves, so re-read before signing
@@ -301,6 +302,25 @@ func dailyRewards(_ js.Value, a []js.Value) any {
 		"liquidity":    amt(al.Liquidity),
 		"viral":        amt(viral),
 		"deep":         amt(deep),
+	}
+}
+
+// supplyLimits(snapshotTotal) — the hardcap picture: the committed snapshot
+// plus the full emission cap against the historic 51M. `lost` is what was
+// issued on the old chains but no account holds any more: never mintable by
+// anyone, because nobody can issue. EXACT.
+func supplyLimits(_ js.Value, a []js.Value) any {
+	snapshot := arg(a, 0)
+	maxEver := snapshot + engine.EmissionCap
+	lost := engine.HistoricHardCap - maxEver
+	if lost < 0 {
+		lost = 0
+	}
+	return map[string]any{
+		"hardcap":     amt(engine.HistoricHardCap),
+		"emissionCap": amt(engine.EmissionCap),
+		"maxEver":     amt(maxEver),
+		"lost":        amt(lost),
 	}
 }
 

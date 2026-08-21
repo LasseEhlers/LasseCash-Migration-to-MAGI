@@ -7,18 +7,23 @@
    */
   import { chain } from "$lib/chain.svelte.js";
   import { displayName, lc, lcShort } from "$lib/format.js";
-  import { blockSplit, constants, toBaseUnitArg } from "$api/index.js";
+  import { blockSplit, constants, supplyLimits, toBaseUnitArg } from "$api/index.js";
 
   const info = $derived(chain.info);
   const C = $derived(chain.ready ? constants() : null);
 
-  const HARDCAP = 51_000_000;
-  const EMISSION_CAP = 20_000_000;
-
-  /** Headroom under the 51M hardcap: migrated + everything still to be emitted. */
-  const maxEver = $derived(
-    info ? Number(info.migrated_supply) + EMISSION_CAP : 0,
+  /**
+   * The hardcap picture, from the engine: the committed SNAPSHOT total
+   * (burned + claimable, fixed at genesis — not merely what has been claimed
+   * so far) plus the full emission cap, against the historic 51M. What is
+   * left over was issued on the old chains and is held by nobody: lost, and
+   * mintable by no one, because nobody can issue.
+   */
+  const limits = $derived(
+    chain.ready && info ? supplyLimits(toBaseUnitArg(info.snapshot_total)) : null,
   );
+  const HARDCAP = $derived(limits ? Number(limits.hardcap) : 51_000_000);
+  const EMISSION_CAP = $derived(limits ? Number(limits.emissionCap) : 20_000_000);
   const emittedPct = $derived(
     info ? (Number(info.total_emitted) / EMISSION_CAP) * 100 : 0,
   );
@@ -36,9 +41,9 @@
 <div class="grid">
   <section class="stats">
     <div class="panel stat">
-      <div class="label">Migrated supply</div>
-      <div class="value">{info ? lcShort(info.migrated_supply) : "—"}</div>
-      <div class="sub">credited at the snapshot</div>
+      <div class="label">Snapshot supply</div>
+      <div class="value">{info ? lcShort(info.snapshot_total) : "—"}</div>
+      <div class="sub">burned + claimable, fixed at genesis · {info ? lcShort(info.migrated_supply) : "—"} landed so far</div>
     </div>
     <div class="panel stat">
       <div class="label">Emitted since genesis</div>
@@ -48,7 +53,7 @@
     <div class="panel stat">
       <div class="label">Burned</div>
       <div class="value">{info ? lcShort(info.total_burned) : "—"}</div>
-      <div class="sub">destroyed permanently</div>
+      <div class="sub">held by @null — unspendable, visible forever</div>
     </div>
     <div class="panel stat">
       <div class="label">Chain age</div>
@@ -62,28 +67,33 @@
       <h2>Supply against the hardcap</h2>
       {#if info}
         <div class="bar">
-          <div class="seg migrated" style="width:{(Number(info.migrated_supply) / HARDCAP) * 100}%"></div>
+          <div class="seg migrated" style="width:{(Number(info.snapshot_total) / HARDCAP) * 100}%"></div>
           <div class="seg emitted" style="width:{(Number(info.total_emitted) / HARDCAP) * 100}%"></div>
           <div class="seg future" style="width:{((EMISSION_CAP - Number(info.total_emitted)) / HARDCAP) * 100}%"></div>
         </div>
         <div class="legend">
-          <span><i class="migrated"></i> migrated {lcShort(info.migrated_supply)}</span>
+          <span><i class="migrated"></i> snapshot {lcShort(info.snapshot_total)}</span>
           <span><i class="emitted"></i> emitted {lcShort(info.total_emitted)}</span>
           <span><i class="future"></i> still to emit</span>
-          <span><i class="head"></i> headroom</span>
+          <span><i class="head"></i> lost on the old chains</span>
         </div>
+        {#if limits}
         <dl>
-          <dt>Migrated supply</dt><dd class="mono">{lc(info.migrated_supply)}</dd>
-          <dt>+ maximum future emission</dt><dd class="mono">20,000,000.000</dd>
-          <dt>= maximum ever</dt><dd class="mono gold">{lc(String(maxEver.toFixed(8)))}</dd>
-          <dt>Historic hardcap</dt><dd class="mono">51,000,000.000</dd>
-          <dt><strong>Headroom</strong></dt>
-          <dd class="mono green"><strong>{lc(String((HARDCAP - maxEver).toFixed(8)))}</strong></dd>
+          <dt>Snapshot supply (burned + claimable)</dt><dd class="mono">{lc(info.snapshot_total)}</dd>
+          <dt>+ maximum future emission</dt><dd class="mono">{lc(limits.emissionCap)}</dd>
+          <dt>= maximum that will ever exist</dt><dd class="mono gold">{lc(limits.maxEver)}</dd>
+          <dt>Historic hardcap</dt><dd class="mono">{lc(limits.hardcap)}</dd>
+          <dt><strong>Lost on the old chains — never mintable</strong></dt>
+          <dd class="mono dim"><strong>{lc(limits.lost)}</strong></dd>
         </dl>
+        {/if}
         <small class="dim">
           The 51M cap covers everything ever issued, before and after migration.
-          Emission approaches 20M asymptotically and never reaches it — every
-          division floors, so rounding can only ever under-issue.
+          The difference is LASSECASH that was issued on Steem-Engine and
+          Hive-Engine but is held by no account any more — dust lost in those
+          years. Nobody can ever mint it: there is no issuer. Emission approaches
+          20M asymptotically and never reaches it — every division floors, so
+          rounding can only ever under-issue.
         </small>
       {/if}
     </section>

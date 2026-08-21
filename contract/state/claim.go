@@ -31,6 +31,7 @@ const (
 	keyMigTotal   = "cfg_migtotal" // committed total of all QUALIFYING leaves
 	keyMigClaimed = "sup_claimed"  // how much of that has been claimed
 	keyMigSwept   = "cfg_migswept" // "1" once the unclaimed remainder recycled
+	keyMigBurn    = "cfg_migburn"  // the burn total credited to null at commit
 )
 
 // ClaimDeadlineHeight is when claiming closes: the end of the migration
@@ -67,11 +68,20 @@ func SetSnapshot(s Store, rootHex string, qualifierTotal, burnTotal engine.Amoun
 	}
 	s.Set(keyMigRoot, rootHex)
 	setAmount(s, keyMigTotal, qualifierTotal)
+	setAmount(s, keyMigBurn, burnTotal)
 	if burnTotal > 0 {
 		burn(s, burnTotal)
 		setAmount(s, keyMigrated, MigratedSupply(s)+burnTotal)
 	}
 	return ok("snapshot committed")
+}
+
+// SnapshotTotal is the whole committed snapshot — burned + claimable — fixed
+// at genesis. This, not MigratedSupply (which only counts what has been
+// CLAIMED so far), is the figure the hardcap picture must use: the claims
+// are coming whether or not they have landed yet.
+func SnapshotTotal(s Store) engine.Amount {
+	return getAmount(s, keyMigTotal) + getAmount(s, keyMigBurn)
 }
 
 // MigrationRoot reports the committed root, if any.

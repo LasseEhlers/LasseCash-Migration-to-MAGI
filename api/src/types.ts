@@ -19,6 +19,8 @@ export interface ChainInfo {
   genesis_height: number;
   settled_height: number;
   migrated_supply: Amount;
+  /** Burned + claimable as committed at genesis; the hardcap figure. */
+  snapshot_total: Amount;
   total_emitted: Amount;
   total_burned: Amount;
   total_shares: Amount;
