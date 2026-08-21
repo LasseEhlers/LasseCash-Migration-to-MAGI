@@ -794,7 +794,7 @@ burn, NEVER above the voted posts — money and votes are not mixed. Contract
 rules: refused on comments, after payout, **once 75% of the window has
 elapsed** (`engine.PromoteCutoffPct`; no burning for a slot that ends in ten
 minutes), and below the governed minimum **`promote.min_burn`: floor 1,
-default 100, ceiling 1,000,000 LASSECASH** — the ceiling on the MINIMUM
+default 100, ceiling 10,000 LASSECASH** (Lasse: 1M "would be crazy"; the ceiling is on the MINIMUM, no cap on what one may burn — a loud confirm on the button guards fat fingers) — the ceiling on the MINIMUM
 stops a captured top-10 from abolishing promotion for everyone but
 themselves. Pinned by `TestPostingThresholdBoundsArePinned`; behaviour by
 `TestPromoteBurnsToNullWithinTheWindow`. Production contract: 28

@@ -137,11 +137,11 @@ func NewRegistry() *Registry {
 	// SAME trending list, ordered by burn, never above the voted posts; the
 	// slot rule lives in the frontend. The floor kills dust promotions; the
 	// ceiling on the MINIMUM stops a captured top-10 from abolishing
-	// promotion for everyone but themselves. Promotion closes at 75% of the
+	// promotion for everyone but themselves (at most a ~$10 burn). Promotion closes at 75% of the
 	// post's window (engine.PromoteCutoff) — no burning for nothing.
 	r.register(Param{
 		Key: ParamPromoteMinBurn, Value: int64(100 * Unit),
-		Min: Unit, Max: int64(1_000_000 * Unit),
+		Min: Unit, Max: int64(10_000 * Unit),
 		Desc: "minimum LASSECASH burn to promote a post",
 	})
 	return r
