@@ -1198,3 +1198,37 @@ the live chain or pinned by tests, so changing them would break code.
 | **We build our own frontend swap page** rather than relying on third parties | §6 | Unchanged — built, four pages live. |
 | **Transactions rely on Magi RC and Hive RC** | §6 | Unchanged and now verified: RC is the *entire* cost. |
 | The golden rule — **one Go engine everywhere**, the chain is the only source of truth | preamble | Unchanged and enforced by a test that runs identical inputs through the browser WASM and the chain and requires byte-identical output. |
+
+---
+
+## Added 2026-08-21 (evening) — the migration is CLAIM-based
+
+### 45. Holders claim their own migration with a Merkle proof; the owner commits one root
+
+**Spec says** (§1, *Migration*): the migration is executed by crediting every
+qualifying account (implicitly a push by the issuer).
+
+**Now:** the owner commits ONE Merkle root of the whole snapshot at genesis
+(`set_snapshot`); every holder claims their own leaf (`claim_migration`) with a
+short proof, paying their own free RC. The full tree — every account, qualifying
+and burned, with liquid and staked figures — is published in the GitHub repo and
+its root in a Hive post, so who held what is provable forever. Burned leaves
+cannot be claimed; anyone may record their receipt on-chain (`record_burn`).
+The burn total is credited to `hive:null` at genesis.
+
+**The claim is the mint, on a shared clock from genesis:** claim before day 30 →
+liquid + a 30-day migration mint (earns and votes from the claim onward); day
+30–60 → liquid + the full minted amount as liquid; day 60–150 → the surviving
+fraction, the bled part to the L-Share pool; after day 150 → closed, and
+`sweep_unclaimed` recycles everything unclaimed (stake AND liquid) into the
+L-Share reward pool. Identical economics to the push model; nobody earns or
+votes before claiming.
+
+**Decided:** 2026-08-21. The push model needs ~8.8M RC (thousands of HBD parked
+on MAGI for weeks); Lasse: *"I dont even have this kind of money right now"*.
+On the record: *"The tree itself is the record. THAT IS SO GOOD."* Pool over
+null for the unclaimed remainder: *"pool for consistency, I take that."*
+
+**Status:** built and tested (contract, tree tool, Claim panel, simulator);
+gas being measured on the devnet. Production contract: 26 entrypoints, no push
+path (`migrate`/`migrate_batch`/`burn_batch` remain only behind `-tags push`).
