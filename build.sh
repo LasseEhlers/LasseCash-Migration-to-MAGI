@@ -5,6 +5,7 @@
 #   ./build.sh test     engine + contract + simulator tests
 #   ./build.sh wasm     build the MAGI contract + the browser engine
 #   ./build.sh wasm-test  the 240x-clock TESTWINDOWS contract (throwaways only)
+#   ./build.sh tree     rebuild the migration Merkle tree + static proofs
 #   ./build.sh node     run the dev chain on :8080
 #   ./build.sh web      run the frontend on :5173
 #
@@ -50,6 +51,19 @@ check_web() {
   echo "==> frontend typecheck"
   ( cd web && npx svelte-kit sync >/dev/null 2>&1 && \
     npx svelte-check --tsconfig ./tsconfig.json --threshold error )
+}
+
+# The migration Merkle tree. Its ROOT is what the owner commits on-chain with
+# set_snapshot, and the shard files under web/static/migration/proofs are what
+# a holder's browser fetches to build one claim. Re-run after ANY change to
+# tools/snapshot/data/migration_set.json — a stale tree means every claim is
+# rejected by a root nobody can reproduce.
+run_tree() {
+  echo "==> migration Merkle tree"
+  docker run --rm -v "$PWD":/repo -w /repo/node "$GO_IMAGE" \
+    go run ./cmd/merkletree \
+      -snapshot ../tools/snapshot/data/migration_set.json \
+      -out ../web/static/migration
 }
 
 run_node() {
@@ -105,8 +119,9 @@ case "${1:-all}" in
   test) run_tests ;;
   wasm) run_wasm; run_browser_engine ;;
   wasm-test) run_wasm_test ;;
+  tree) run_tree ;;
   node) run_node ;;
   web)  run_web ;;
   all)  run_browser_engine; run_tests; run_wasm; echo; echo "All green." ;;
-  *)    echo "usage: $0 [test|wasm|node|web]" >&2; exit 1 ;;
+  *)    echo "usage: $0 [test|wasm|wasm-test|tree|node|web]" >&2; exit 1 ;;
 esac

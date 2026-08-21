@@ -245,6 +245,13 @@ export class AiohaSigner implements Signer {
     "transfer", "burn", "mint", "claim_mint", "good_accounting",
     "add_liquidity", "remove_liquidity", "claim_pool",
     "swap_lc_hbd", "swap_hbd_lc", "migrate", "migrate_batch",
+    // claim_migration credits the caller's snapshot balance and creates their
+    // migration mint — it moves value TO them, which is still value, and
+    // posting authority must never be able to touch it.
+    "claim_migration",
+    // record_burn is deliberately NOT here: it moves nothing (null was
+    // credited when the root was committed) and writing someone's receipt is
+    // a public good anyone should be able to do cheaply.
   ]);
 
   /**
@@ -295,6 +302,11 @@ export class AiohaSigner implements Signer {
     claim_pool: 2_500,
     swap_lc_hbd: 2_000,
     swap_hbd_lc: 2_000,
+    // A claim is a mint-sized write set (balance, mint record, share board,
+    // accrual) plus ~14 Merkle hashes to walk the proof to the root.
+    claim_migration: 5_000,
+    // A receipt is one state write and the same proof walk, nothing else.
+    record_burn: 1_500,
   };
 
   static readonly HBD_DRAW_OPS: Record<string, number> = {

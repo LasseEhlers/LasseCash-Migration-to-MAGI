@@ -30,6 +30,7 @@ import (
 	"contract-template/state"
 
 	"github.com/lassecash/engine"
+	"github.com/lassecash/node/migtree"
 	"github.com/lassecash/node/sim"
 )
 
@@ -40,6 +41,7 @@ func main() {
 	genesis := flag.Uint64("genesis", 109_200_000, "genesis Hive block height")
 	seed := flag.Bool("seed", true, "seed a demo economy on startup")
 	snapshot := flag.String("snapshot", "", "seed the REAL migration snapshot (path to migration_set.json) instead of the demo")
+	push := flag.Bool("push", false, "seed the snapshot by PUSHING balances (migrate_batch/burn_batch) instead of committing a Merkle root")
 	flag.Parse()
 
 	c, err := sim.New(*genesis, time.Date(2026, 8, 20, 12, 0, 0, 0, time.UTC))
@@ -49,11 +51,15 @@ func main() {
 	chain = c
 
 	if *snapshot != "" {
-		n, total, err := seedSnapshot(c, *snapshot)
-		if err != nil {
+		if *push {
+			n, total, err := pushSnapshot(c, *snapshot)
+			if err != nil {
+				log.Fatalf("snapshot push: %v", err)
+			}
+			log.Printf("  PUSHED REAL snapshot: %d accounts, %s LC", n, total)
+		} else if err := seedSnapshot(c, *snapshot); err != nil {
 			log.Fatalf("snapshot seed: %v", err)
 		}
-		log.Printf("  seeded REAL snapshot: %d accounts, %s LC", n, total)
 	} else if *seed {
 		seedDemo(c)
 	}
@@ -434,10 +440,83 @@ func seedDemo(c *sim.Chain) {
 	}
 }
 
-// seedSnapshot credits the real migration set through the SAME migrate_batch
-// entrypoint the production migration uses, so the dev chain carries the
-// genuine 6,039 balances and the frontend is exercised against real data.
-func seedSnapshot(c *sim.Chain, path string) (int, string, error) {
+// seedSnapshot commits the migration as a MERKLE ROOT and credits nobody.
+//
+// This is the production model (state/claim.go): the owner commits one root
+// with `set_snapshot`, and every holder claims their own leaf, paying their
+// own free RC. Pushing 9,921 accounts would cost ~8.8M RC — thousands of HBD
+// parked on MAGI — so the dev chain must exercise the path that actually
+// ships, including the part where an account starts with NOTHING until it
+// clicks Claim.
+//
+// The tree is built by the same package `./cmd/merkletree` publishes with, so
+// the root committed here is the root the static proofs in
+// web/static/migration verify against. When those files disagree, that is a
+// stale-artifact bug the operator must see immediately — every claim would be
+// rejected with nothing on the page to explain it — so it is logged loudly
+// rather than silently tolerated.
+func seedSnapshot(c *sim.Chain, path string) error {
+	tree, err := migtree.BuildFromFile(path)
+	if err != nil {
+		return err
+	}
+	root := tree.RootHex()
+	args := root + "|" +
+		strconv.FormatInt(tree.QualifierTotal, 10) + "|" +
+		strconv.FormatInt(tree.BurnTotal, 10)
+	if r := c.Submit("system", "set_snapshot", args); !r.OK {
+		return fmt.Errorf("set_snapshot: %s", r.Msg)
+	}
+
+	// Mirror launch day: Lasse holds 100 HBD on MAGI for the opening pool.
+	c.FundHBD("hive:lasseehlers", 100*100_000_000)
+
+	qualifying := 0
+	for _, e := range tree.Entries {
+		if !e.Burned {
+			qualifying++
+		}
+	}
+	log.Printf("  committed migration root %s", root)
+	log.Printf("    %d leaves (%d claimable, %d burned)", len(tree.Entries),
+		qualifying, len(tree.Entries)-qualifying)
+	log.Printf("    claimable %s LC, burned to null %s LC",
+		dec(tree.QualifierTotal), dec(tree.BurnTotal))
+	log.Printf("    nobody is credited until they claim — that is the point")
+	checkPublishedRoot(root)
+	return nil
+}
+
+// checkPublishedRoot warns when the served proofs were built from a different
+// snapshot than the one just committed.
+func checkPublishedRoot(root string) {
+	const published = "../web/static/migration/root.json"
+	raw, err := os.ReadFile(published)
+	if err != nil {
+		log.Printf("  ⚠️  no published tree at %s — run ./build.sh tree, or the "+
+			"claim page has no proofs to offer", published)
+		return
+	}
+	var doc struct {
+		Root string `json:"root"`
+	}
+	if err := json.Unmarshal(raw, &doc); err != nil || doc.Root != root {
+		log.Printf("  ⚠️  %s carries root %q, NOT the committed %q — "+
+			"re-run ./build.sh tree or every claim will be rejected",
+			published, doc.Root, root)
+	}
+}
+
+// dec renders base units at the fixed 8 decimals.
+func dec(units int64) string {
+	return fmt.Sprintf("%d.%08d", units/100_000_000, units%100_000_000)
+}
+
+// pushSnapshot is the OLD, pre-claim seeding path: it credits every account
+// directly through the same migrate_batch / burn_batch entrypoints
+// tools/migrate.py uses. Kept behind -push for migration rehearsals and as a
+// fallback for comparing the two models; it is NOT how the migration ships.
+func pushSnapshot(c *sim.Chain, path string) (int, string, error) {
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		return 0, "", err

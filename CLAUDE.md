@@ -331,6 +331,63 @@ to the 25% emission slice (~2,283 LC/day in era 1) and arbitrage keeps the
 price honest at any depth. The pool deepens as others add liquidity; the
 opening RATIO is what matters, not the size.
 
+## CLAIM-BASED MIGRATION — DECIDED AND BUILT 2026-08-21 (supersedes push)
+
+**Why.** The push model (owner credits every account via `migrate_batch` /
+`burn_batch`) needs ~8.8M RC ≈ thousands of HBD parked on MAGI for weeks;
+Lasse's MAGI RC capacity is ~120k (110 HBD). *"I dont even have this kind of
+money right now."* So the migration is PULL: the owner commits ONE Merkle
+root; every holder claims their own leaf with a proof, paying their own free
+RC (10,000 per account; a claim costs ~5,000 — judgement, measure on devnet).
+Owner cost: three transactions (`init`, `set_snapshot`, done).
+
+**The tree IS the record.** Every account — qualifying AND burned — is a leaf
+`sha256("lassecash-migration-leaf-v1|" + hive:acct + "|" + liquid + "|" +
+staked + "|" + m|b)`; sorted-pair parents, odd node promoted, no direction
+bits (`engine/merkle.go`, own 2 KB SHA-256 pinned to stdlib — crypto/sha256
+cost 54 KB of WASM). Root on-chain (`cfg_migroot`), full leaf list published
+in this repo (`web/static/migration/leaves.json`) and by root hash in a Hive
+post — anyone can prove forever what any account held and whether it burned.
+Lasse: *"THAT IS SO GOOD... we can do claim and still record everything
+forever."* Proofs are served as ~617 per-prefix shard files; the page fetches
+one. Tool: `./build.sh tree` (`node/migtree`, `node/cmd/merkletree`) — rerun
+after ANY snapshot change; a test fails if the published root goes stale.
+
+**THE CLAIM IS THE MINT.** Every migration mint runs on the shared clock from
+genesis whether or not claimed — identical economics to push:
+
+| claim on | the staked part |
+|---|---|
+| day 0–30 | a real 30-day mint, earning and voting from the claim onward |
+| day 30–60 (grace) | the full minted amount, straight to liquid, no yield |
+| day 60–150 (bleed) | the surviving fraction; the bled part recycles to the L-Share pool |
+| after day 150 | refused; `sweep_unclaimed` (permissionless, once) recycles ALL unclaimed — stake and liquid — to the L-Share pool (Lasse chose pool over null: it is the tail of the same bleed) |
+
+Liquid is always credited in full on claim. Nobody earns or votes before
+claiming (Lasse: fine). `ClaimDeadlineHeight = genesis + (30+30+90) days` —
+derived, not a new constant. Burned leaves can never be claimed; anyone may
+`record_burn` a receipt (`mig_<acct> = burned|liquid|staked`) at their own
+RC — moves nothing; null gets the burn total at `set_snapshot`. Supply
+identity holds throughout: `sup_migrated` grows on commit (burn), on each
+claim, and on the sweep; `sup_claimed ≤ cfg_migtotal` is checked.
+
+Entrypoints: `set_snapshot <rootHex>|<qualifierTotal>|<burnTotal>` (owner,
+once), `claim_migration <liquid>|<staked>|<proofHex,…>`, `record_burn
+<acct>|<liquid>|<staked>|<proof>`, `sweep_unclaimed`. 29 entrypoints; WASM
+95,479 bytes. Push entrypoints remain as the rehearsed fallback (simulator
+`-push` flag). UI: `ClaimMigration.svelte` at the top of LasseMint — hides
+itself once `mig_<acct>` exists, refuses to offer a button if the served
+root differs from the chain's, previews every figure via `previewMintClose`
+on the synthetic genesis mint. Current root (3-month set, signed-ops
+criteria, unstakes+delegations counted): `62bcdd58…53eaf3`, 9,921 leaves
+(1,986 claimable, 7,935 burned). Verified end to end on the simulator.
+
+**Launch-day consequences:** Hive-Engine LASSECASH keeps existing; the
+announcement and the token's info tab must say it is dead. Everyone needs a
+MAGI-capable wallet to claim (they need it to use anything anyway).
+Claim window: 5 months. The founder claims first and holds most early
+shares for the one migration month — accepted.
+
 ## LASSECASH:HBD pool — BUILT 2026-08-20
 
 **We build the AMM ourselves.** Verified: the contract SDK exposes NO pool,

@@ -9,12 +9,12 @@
  * that no endpoint returns, add a backend quote — do not compute it here. See
  * CLAUDE.md, golden rule.
  */
-import { toBaseUnitArg } from "./amount.js";
+import { fromUnits, toBaseUnitArg } from "./amount.js";
 import type { Backend, Signer } from "./backend.js";
 import { BackendError } from "./backend.js";
 import type {
-  AccountView, ChainInfo, Content, LiquidityQuote, MintQuote, MintView,
-  PostView, PublishResult, ResourceCredits, SwapDirection, SwapQuote,
+  AccountView, ChainInfo, Content, LiquidityQuote, MigrationRecord, MintQuote,
+  MintView, PostView, PublishResult, ResourceCredits, SwapDirection, SwapQuote,
   TrancheView, TxResult, Window,
 } from "./types.js";
 import { Entrypoint } from "./types.js";
@@ -27,6 +27,11 @@ export interface ClientOptions {
 /** Joins the pipe-delimited argument list an entrypoint expects. */
 function args(...parts: (string | number)[]): string {
   return parts.map(String).join("|");
+}
+
+/** Raw base units from a state key, as the decimal Amount the UI renders. */
+function units(raw: string | undefined): string {
+  return fromUnits(BigInt(raw || "0"));
 }
 
 export class LasseCashClient {
@@ -57,6 +62,53 @@ export class LasseCashClient {
 
   /** Content, newest first. */
   posts(limit = 50): Promise<PostView[]> { return this.backend.posts(limit); }
+
+  // --- migration ----------------------------------------------------------
+  //
+  // The migration is CLAIM-based: the owner commits one Merkle root, every
+  // holder claims their own leaf with a proof. The proofs are STATIC FILES
+  // served with the site (web/static/migration), never computed here — a
+  // proof is data plumbing, and the only arithmetic in sight (the leaf hash)
+  // happens in the contract, in Go.
+
+  /**
+   * The committed migration root, or null while none has been committed.
+   *
+   * 64 lowercase hex characters. A page can compare it against the root.json
+   * shipped with the proofs and refuse to offer a claim the chain would
+   * reject.
+   */
+  async migrationRoot(): Promise<string | null> {
+    const st = await this.backend.state(["cfg_migroot"]);
+    const root = st["cfg_migroot"];
+    return root ? root : null;
+  }
+
+  /**
+   * An account's permanent migration receipt, or null if it has not been
+   * claimed or recorded yet.
+   *
+   * This is the one-credit guard the contract itself checks, so it is also the
+   * honest answer to "has this account already migrated?" — a balance is not,
+   * because a claimed account can spend down to zero.
+   */
+  async migrationRecord(account: string): Promise<MigrationRecord | null> {
+    const key = `mig_${account}`;
+    const st = await this.backend.state([key]);
+    const raw = st[key];
+    // A MISSING KEY ON MAGI READS AS AN EMPTY STRING, not as absent. Treating
+    // "" as a receipt would tell every unclaimed holder they had claimed.
+    if (!raw) return null;
+    const f = raw.split("|");
+    if (f.length === 3 && f[0] === "burned") {
+      return { burned: true, liquid: units(f[1]), staked: units(f[2]) };
+    }
+    if (f.length === 2) {
+      return { burned: false, liquid: units(f[0]), staked: units(f[1]) };
+    }
+    // The legacy "1" marker from the first rehearsals: migrated, figures lost.
+    return { burned: false, liquid: "0.00000000", staked: "0.00000000" };
+  }
 
   /** One article body. Null when registered on-chain but never published. */
   content(author: string, permlink: string): Promise<Content | null> {
@@ -141,6 +193,42 @@ export class LasseCashClient {
 
   async burn(amount: string): Promise<TxResult> {
     return this.#send(Entrypoint.Burn, args(toBaseUnitArg(amount)));
+  }
+
+  /**
+   * Claim this account's migration position.
+   *
+   * `liquidUnits` and `stakedUnits` are BASE UNITS exactly as they appear in
+   * the published leaf — NOT decimals. They are inside the Merkle leaf hash,
+   * so converting or rounding them by a single unit makes the proof fail; this
+   * is the one write on the client that deliberately skips `toBaseUnitArg`.
+   *
+   * The staked half becomes the 30-day migration mint, which has been running
+   * on the shared clock since genesis whether or not it was claimed: before
+   * day 30 the claimer gets a live mint, after day 60 it is bleeding, and
+   * after day 150 the window is shut. Preview with `previewMintClose` before
+   * showing a figure.
+   */
+  async claimMigration(
+    liquidUnits: string, stakedUnits: string, proof: string[],
+  ): Promise<TxResult> {
+    return this.#send(Entrypoint.ClaimMigration,
+      args(liquidUnits, stakedUnits, proof.join(",")));
+  }
+
+  /**
+   * Write the permanent on-chain receipt for a BURNED leaf.
+   *
+   * Permissionless and moves nothing — @null was credited with the whole burn
+   * total when the root was committed. This exists so "this account held this
+   * and did not qualify" is readable on MAGI forever rather than only implied
+   * by a lump sum. Same base-unit rule as `claimMigration`.
+   */
+  async recordBurn(
+    account: string, liquidUnits: string, stakedUnits: string, proof: string[],
+  ): Promise<TxResult> {
+    return this.#send(Entrypoint.RecordBurn,
+      args(account, liquidUnits, stakedUnits, proof.join(",")));
   }
 
   /** Lock LASSECASH for `days` (1..1095, sliding scale). */

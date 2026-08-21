@@ -230,8 +230,25 @@ export const Entrypoint = {
   ClaimPool: "claim_pool",
   SwapLcHbd: "swap_lc_hbd",
   SwapHbdLc: "swap_hbd_lc",
+  ClaimMigration: "claim_migration",
+  RecordBurn: "record_burn",
 } as const;
 export type Entrypoint = (typeof Entrypoint)[keyof typeof Entrypoint];
+
+/**
+ * An account's permanent migration receipt — the `mig_<account>` key.
+ *
+ * Written once and never rewritten: by a claim, by `record_burn`, or by the
+ * old push-model batches. Its PRESENCE is the one-credit guard, so a non-null
+ * result means "this account is done, whatever it holds now".
+ */
+export interface MigrationRecord {
+  /** True when the account did not qualify and its holdings went to @null. */
+  burned: boolean;
+  /** What it held on Hive-Engine at the snapshot. */
+  liquid: Amount;
+  staked: Amount;
+}
 
 /** Governable parameter keys, with their hardcoded bounds enforced on-chain. */
 export const Param = {

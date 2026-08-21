@@ -78,6 +78,8 @@ export interface EngineConstants {
   goodAcctArmDays: number;
   goodAcctGrace: number;
   loyaltyMaxDays: number;
+  /** Days the migration mint (legacy LASSECASH POWER) is locked for. */
+  migrationMintDays: number;
   heightsPerDay: string;
   heightsPerYear: string;
   secondsPerHeight: number;

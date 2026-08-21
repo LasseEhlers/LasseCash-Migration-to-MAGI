@@ -56,23 +56,28 @@ func main() {
 
 		// constants, so the UI never hardcodes a bound the chain enforces
 		"constants": js.ValueOf(map[string]any{
-			"decimals":         engine.Decimals,
-			"unit":             str(engine.Unit),
-			"multScale":        str(engine.MultScale),
-			"minMintDays":      engine.MinMintDays,
-			"maxMintDays":      engine.MaxMintDays,
-			"minMintAmount":    amt(engine.MinMintAmount),
-			"graceDays":        engine.GraceDays,
-			"bleedDays":        engine.BleedDays,
-			"goodAcctArmDays":  engine.GoodAccountingArmDays,
-			"goodAcctGrace":    engine.GoodAccountingGraceDays,
-			"loyaltyMaxDays":   engine.LoyaltyMaxDays,
-			"heightsPerDay":    str(int64(engine.HeightsPerDay)),
-			"heightsPerYear":   str(int64(engine.HeightsPerYear)),
-			"secondsPerHeight": engine.SecondsPerHeight,
-			"viralPayoutDays":  engine.ViralPayoutDays,
-			"deepPayoutDays":   engine.DeepPayoutDays,
-			"fullVoteCostPct":  engine.FullVoteCostPct,
+			"decimals":        engine.Decimals,
+			"unit":            str(engine.Unit),
+			"multScale":       str(engine.MultScale),
+			"minMintDays":     engine.MinMintDays,
+			"maxMintDays":     engine.MaxMintDays,
+			"minMintAmount":   amt(engine.MinMintAmount),
+			"graceDays":       engine.GraceDays,
+			"bleedDays":       engine.BleedDays,
+			"goodAcctArmDays": engine.GoodAccountingArmDays,
+			"goodAcctGrace":   engine.GoodAccountingGraceDays,
+			"loyaltyMaxDays":  engine.LoyaltyMaxDays,
+			// The lock on the mint an account's legacy LASSECASH POWER becomes.
+			// The claim page needs it to build the synthetic mint it previews,
+			// and a hardcoded 30 in TypeScript would be exactly the second
+			// implementation the golden rule exists to prevent.
+			"migrationMintDays": engine.MigrationMintDays,
+			"heightsPerDay":     str(int64(engine.HeightsPerDay)),
+			"heightsPerYear":    str(int64(engine.HeightsPerYear)),
+			"secondsPerHeight":  engine.SecondsPerHeight,
+			"viralPayoutDays":   engine.ViralPayoutDays,
+			"deepPayoutDays":    engine.DeepPayoutDays,
+			"fullVoteCostPct":   engine.FullVoteCostPct,
 
 			// The governable parameter keys, so a caller never hardcodes a
 			// string the registry owns.

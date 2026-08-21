@@ -2,6 +2,7 @@
   /** LasseMint — the dashboard. */
   import { chain } from "$lib/chain.svelte.js";
   import { displayName, lc, lcShort, durationWords } from "$lib/format.js";
+  import ClaimMigration from "$lib/ClaimMigration.svelte";
   import MintForm from "$lib/MintForm.svelte";
   import MintCard from "$lib/MintCard.svelte";
   import RateChart from "$lib/RateChart.svelte";
@@ -112,6 +113,12 @@
 </script>
 
 <div class="grid">
+  <!-- FIRST, above everything. An unclaimed migration position is on a clock
+       that started at genesis: it matures on day 30 and bleeds to nothing by
+       day 150 whether or not anyone looks. The panel hides itself when there
+       is nothing to claim. -->
+  <ClaimMigration />
+
   {#if alarming.length > 0}
     <div class="alarm-bar">
       <strong>{alarming.length} mint{alarming.length > 1 ? "s are" : " is"} bleeding.</strong>

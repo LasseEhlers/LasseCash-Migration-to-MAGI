@@ -131,3 +131,45 @@ test("formatting produces something a human reads", { skip: !up }, async () => {
   const pretty = format(info.migrated_supply, { decimals: 2 });
   assert.match(pretty, /^[\d,]+\.\d{2}$/, `got ${pretty}`);
 });
+
+/**
+ * The migration receipt is read from a RAW STATE KEY, and MAGI reports a
+ * missing key as a NON-NIL POINTER TO AN EMPTY STRING — the bug that bricked
+ * the first live deploy. Reading "" as a receipt would tell every unclaimed
+ * holder they had already claimed and hide the claim button forever, which is
+ * unrecoverable after the key burn. So the parse is pinned against a fake
+ * backend rather than left to an integration test that may not run.
+ */
+test("a migration receipt is parsed, and an empty key is NOT a receipt", async () => {
+  const rows: Record<string, string> = {
+    "mig_hive:alice": "22141356699780|700127599037966",
+    "mig_hive:dead": "burned|130502359425576|0",
+    "mig_hive:nobody": "", // a key MAGI has never been written
+    cfg_migroot: "62bcdd583a4b1aca248b583859f52a26e4906da7b616034755cd6743c753eaf3",
+  };
+  const backend = {
+    name: "fake",
+    state: async (keys: string[]) =>
+      Object.fromEntries(keys.map((k) => [k, rows[k] ?? ""])),
+  } as unknown as ConstructorParameters<typeof LasseCashClient>[0]["backend"];
+  const c = new LasseCashClient({ backend });
+
+  const alice = await c.migrationRecord("hive:alice");
+  assert.deepEqual(alice, {
+    burned: false, liquid: "221413.56699780", staked: "7001275.99037966",
+  });
+
+  const dead = await c.migrationRecord("hive:dead");
+  assert.equal(dead?.burned, true, "a burned leaf must read as burned");
+  assert.equal(dead?.liquid, "1305023.59425576");
+
+  assert.equal(await c.migrationRecord("hive:nobody"), null,
+    "an empty key means NOT MIGRATED, never migrated-with-zero");
+  assert.equal(await c.migrationRoot(), rows["cfg_migroot"]);
+
+  const noRoot = new LasseCashClient({
+    backend: { name: "f", state: async () => ({ cfg_migroot: "" }) } as never,
+  });
+  assert.equal(await noRoot.migrationRoot(), null,
+    "an uncommitted snapshot must read as null, not as an empty root");
+});
