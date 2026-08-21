@@ -84,6 +84,9 @@ run_browser_engine() {
   echo "    api/src/wasm/engine.wasm  $(stat -c%s api/src/wasm/engine.wasm) bytes (synced to web/static)"
 }
 
+# The production contract carries NO push-migration entrypoints (migrate,
+# migrate_batch, burn_batch live in app/push.go behind `-tags push`). The
+# simulator still has them, for rehearsals; a frozen contract does not.
 run_wasm() {
   echo "==> TinyGo build of the MAGI contract"
   mkdir -p contract/artifacts

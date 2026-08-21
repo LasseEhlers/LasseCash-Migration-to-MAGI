@@ -373,9 +373,10 @@ claim, and on the sweep; `sup_claimed ≤ cfg_migtotal` is checked.
 
 Entrypoints: `set_snapshot <rootHex>|<qualifierTotal>|<burnTotal>` (owner,
 once), `claim_migration <liquid>|<staked>|<proofHex,…>`, `record_burn
-<acct>|<liquid>|<staked>|<proof>`, `sweep_unclaimed`. 29 entrypoints; WASM
-95,479 bytes. Push entrypoints remain as the rehearsed fallback (simulator
-`-push` flag). UI: `ClaimMigration.svelte` at the top of LasseMint — hides
+<acct>|<liquid>|<staked>|<proof>`, `sweep_unclaimed`. **The production build
+carries 26 entrypoints and NO push path** — `migrate`/`migrate_batch`/
+`burn_batch` moved to `app/push.go` behind `-tags push` (rehearsal/fallback
+only; the simulator keeps them). WASM 90,499 bytes. UI: `ClaimMigration.svelte` at the top of LasseMint — hides
 itself once `mig_<acct>` exists, refuses to offer a button if the served
 root differs from the chain's, previews every figure via `previewMintClose`
 on the synthetic genesis mint. Current root (3-month set, signed-ops
