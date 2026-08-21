@@ -1,7 +1,5 @@
 package engine
 
-import "crypto/sha256"
-
 // The migration snapshot as a Merkle tree.
 //
 // DECIDED 2026-08-21: the migration is CLAIM-based. The owner commits ONE
@@ -14,8 +12,8 @@ import "crypto/sha256"
 // (verification) and the tools (tree building). If they ever differ, every
 // claim fails — loudly, and before any money moves.
 //
-// Pure Go, no reflect, no fmt: crypto/sha256 compiles under TinyGo's
-// wasm-unknown target.
+// Pure Go, no reflect, no fmt, and its own 2 KB SHA-256 (sha256.go) — the
+// standard library's cost 54 KB of contract binary.
 
 // Hash is a SHA-256 digest.
 type Hash [32]byte
@@ -38,7 +36,7 @@ func LeafHash(account string, liquid, staked Amount, burned bool) Hash {
 	if burned {
 		kind = "b"
 	}
-	return sha256.Sum256([]byte(leafDomain + account + "|" +
+	return Sha256([]byte(leafDomain + account + "|" +
 		itoa(int64(liquid)) + "|" + itoa(int64(staked)) + "|" + kind))
 }
 
@@ -51,7 +49,7 @@ func ParentHash(a, b Hash) Hash {
 	var buf [64]byte
 	copy(buf[:32], a[:])
 	copy(buf[32:], b[:])
-	return sha256.Sum256(buf[:])
+	return Sha256(buf[:])
 }
 
 func lessHash(a, b Hash) bool {

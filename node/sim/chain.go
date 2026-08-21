@@ -169,6 +169,34 @@ func (c *Chain) Submit(sender, entrypoint, payload string) Result {
 			r = state.BurnMigrationBatch(s, entries)
 		}
 
+	// claim-based migration
+	case "set_snapshot":
+		total, okT := args.Amount(1)
+		burnT, okB := args.Amount(2)
+		if args.Str(0) == "" || !okT || !okB {
+			r = bad("usage: <rootHex>|<qualifierTotal>|<burnTotal>")
+		} else {
+			r = state.SetSnapshot(s, args.Str(0), total, burnT)
+		}
+	case "claim_migration":
+		liquid, okL := args.Amount(0)
+		staked, okS := args.Amount(1)
+		if !okL || !okS {
+			r = bad("usage: <liquid>|<staked>|<proofHex,…>")
+		} else {
+			r = state.ClaimMigration(s, ctx, liquid, staked, state.ParseProof(args.Str(2)))
+		}
+	case "record_burn":
+		liquid, okL := args.Amount(1)
+		staked, okS := args.Amount(2)
+		if args.Str(0) == "" || !okL || !okS {
+			r = bad("usage: <account>|<liquid>|<staked>|<proofHex,…>")
+		} else {
+			r = state.RecordBurn(s, args.Str(0), liquid, staked, state.ParseProof(args.Str(3)))
+		}
+	case "sweep_unclaimed":
+		r = state.SweepUnclaimed(s, ctx)
+
 	// ledger
 	case "transfer":
 		amount, ok := args.Amount(1)

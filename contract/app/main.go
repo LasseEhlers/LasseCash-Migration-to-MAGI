@@ -186,6 +186,69 @@ func BurnBatch(a *string) *string {
 	return finish(state.BurnMigrationBatch(store{}, parseTriples(*a)))
 }
 
+// set_snapshot commits the Merkle root of the migration tree, the total of
+// all claimable leaves, and the burn total (credited to hive:null here).
+// Owner only, genesis phase, once. Claim-based migration — see state/claim.go.
+//
+//	args: <rootHex>|<qualifierTotal>|<burnTotal>
+//
+//go:wasmexport set_snapshot
+func SetSnapshot(a *string) *string {
+	_, env := ctx()
+	requireOwner(env)
+	args := state.ParseArgs(*a)
+	total, okT := args.Amount(1)
+	burnT, okB := args.Amount(2)
+	if args.Str(0) == "" || !okT || !okB {
+		sdk.Abort("usage: <rootHex>|<qualifierTotal>|<burnTotal>")
+	}
+	return finish(state.SetSnapshot(store{}, args.Str(0), total, burnT))
+}
+
+// claim_migration collects the caller's snapshot position with a Merkle
+// proof. Anyone in the tree, paying their own RC. Before day 30 the staked
+// part becomes the 30-day migration mint; after, it pays out on the mint's
+// own grace/bleed curve; after day 150 the window is closed.
+//
+//	args: <liquid>|<staked>|<proofHex,proofHex,…>
+//
+//go:wasmexport claim_migration
+func ClaimMigration(a *string) *string {
+	c, _ := ctx()
+	args := state.ParseArgs(*a)
+	liquid, okL := args.Amount(0)
+	staked, okS := args.Amount(1)
+	if !okL || !okS {
+		sdk.Abort("usage: <liquid>|<staked>|<proofHex,…>")
+	}
+	return finish(state.ClaimMigration(store{}, c, liquid, staked, state.ParseProof(args.Str(2))))
+}
+
+// record_burn writes the permanent receipt for a burned leaf. Permissionless,
+// moves nothing — the tree already proves it; this puts it in state.
+//
+//	args: <account>|<liquid>|<staked>|<proofHex,…>
+//
+//go:wasmexport record_burn
+func RecordBurn(a *string) *string {
+	args := state.ParseArgs(*a)
+	liquid, okL := args.Amount(1)
+	staked, okS := args.Amount(2)
+	if args.Str(0) == "" || !okL || !okS {
+		sdk.Abort("usage: <account>|<liquid>|<staked>|<proofHex,…>")
+	}
+	return finish(state.RecordBurn(store{}, args.Str(0), liquid, staked, state.ParseProof(args.Str(3))))
+}
+
+// sweep_unclaimed recycles whatever was committed but never claimed into the
+// L-Share reward pool once the claim window has closed. Permissionless, once.
+//
+//go:wasmexport sweep_unclaimed
+func SweepUnclaimed(_ *string) *string {
+	c, _ := ctx()
+	return finish(state.SweepUnclaimed(store{}, c))
+}
+
 // parseTriples reads `<account>,<liquid>,<staked>|…`. Commas inside a triple,
 // pipe between triples: account names (hive:… and did:pkh:…) can contain
 // colons but never commas, and amounts are bare integers, so splitting each
