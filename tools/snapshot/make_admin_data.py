@@ -70,7 +70,8 @@ def main() -> None:
     all_accounts = [
         {
             "account": account,
-            "liquid": to_base_units(row["balance"]),
+            "liquid": (to_base_units(row["balance"]) + to_base_units(row.get("pooled", "0"))
+                       + to_base_units(row.get("onOrder", "0"))),
             # POWER = own stake + unstaking cooldown + delegated out (still the
             # delegator's). Mirrors apply_criteria.py; delegationsIn excluded.
             "staked": (to_base_units(row["stake"])

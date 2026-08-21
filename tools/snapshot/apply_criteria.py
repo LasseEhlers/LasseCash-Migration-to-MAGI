@@ -101,7 +101,10 @@ def evaluate(balances, activity, cutoff):
         # theirs; the receiver's `delegationsIn` is NOT theirs and is not
         # counted). Both were under lock, so they migrate as staked power —
         # the 30-day migration mint — like any other LASSECASH POWER.
-        liquid = to_units(bal["balance"])
+        # Liquid = balance + the account's LASSECASH in the Diesel pool + its
+        # open sell orders (owned, but held by contracts — see fetch.py).
+        liquid = (to_units(bal["balance"]) + to_units(bal.get("pooled", "0"))
+                  + to_units(bal.get("onOrder", "0")))
         staked = (to_units(bal["stake"]) + to_units(bal.get("pendingUnstake", "0"))
                   + to_units(bal.get("delegationsOut", "0")))
         units = liquid + staked

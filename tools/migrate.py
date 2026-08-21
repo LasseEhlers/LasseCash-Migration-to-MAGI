@@ -48,7 +48,7 @@ RESUME = ROOT / "tools/snapshot/data/migration_progress.json"
 # Pinned against the current migration_set.json (3-month window, signed-ops
 # criteria, pending unstakes + delegations counted). Re-pin after the final
 # pre-snapshot rescan, re-verifying against the 51M hardcap.
-EXPECTED_TOTAL = 3_039_065_213_214_940  # 30,390,652.13214940 LC (incl. pending unstakes + delegations out; negative HE dust clamped)
+EXPECTED_TOTAL = 3_099_419_767_245_149  # 30,994,197.67245149 LC (balances + unstaking + delegations out + Diesel pool + open orders; negative HE dust clamped)
 DEV_URL = "http://localhost:8081"
 
 

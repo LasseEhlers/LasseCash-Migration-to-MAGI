@@ -1892,6 +1892,21 @@ intends to mint only ~500k–1M voluntarily afterwards.
 
 `apply_criteria.py` defaults to 3 months.
 
+**SECOND SNAPSHOT GAP FIXED 2026-08-22 (Lasse: "I would not think it would
+be 600,000").** The 609k "lost" under the cap was NOT dust: **553,160.29 LC
+in the SWAP.HIVE:LASSECASH Diesel pool (125 LPs, each owning
+shares/totalShares of the reserve) and 50,355.25 LC in open SELL orders on
+the Hive-Engine market** — owned, but held by contracts, not balances.
+`fetch.py balances` now reads `marketpools` pools + liquidityPositions and
+`market` sellBook and credits both to their owners as LIQUID (`pooled`,
+`onOrder` fields). Full snapshot: **30,994,197.67245149 LC** — genuinely
+lost dust is **5,802.33 LC** against Hive-Engine's 31M issued. Corrected
+3-month set: 2,260 accounts, 13,728,741.07919908 LC migrate;
+17,265,456.59325241 LC to hive:null; founder 52.94% (he is an LP too).
+Root `f22793d7…e9af2`. Executor re-pinned. Lesson: the only honest check
+of a snapshot is reconciling to the token's ISSUED supply, to the base
+unit, and explaining every gap by name.
+
 **SNAPSHOT GAP FIXED 2026-08-21 (Lasse's "waiting on hive engine" remark):**
 the scan counted only `balance + stake`. Two more buckets hold owners' real
 tokens: `pendingUnstake` (93 accounts, 525,759.59 LC mid-cooldown) and

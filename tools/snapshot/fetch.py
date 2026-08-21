@@ -102,6 +102,14 @@ def get(url, tries=4, timeout=45):
     return None
 
 
+def he_find_one(contract, table, query):
+    d = post(HE_RPC, {"jsonrpc": "2.0", "id": 1, "method": "findOne",
+                      "params": {"contract": contract, "table": table, "query": query}})
+    if not d or "result" not in d:
+        return None
+    return d["result"]
+
+
 def he_find(contract, table, query, limit=1000, offset=0):
     d = post(HE_RPC, {"jsonrpc": "2.0", "id": 1, "method": "find",
                       "params": {"contract": contract, "table": table,
@@ -162,6 +170,51 @@ def fetch_balances():
         save(BALANCES, rows)
         print(f"  {len(rows):,} accounts (last _id {last_id})")
 
+    save(BALANCES, rows)
+
+    # LASSECASH that is OWNED but not in any account balance — found
+    # 2026-08-22 when the "lost" gap under the 51M cap turned out to be
+    # 603k of people's money: (a) the SWAP.HIVE:LASSECASH Diesel pool, where
+    # each liquidity provider owns shares/totalShares of the LASSECASH
+    # reserve, and (b) open SELL orders on the Hive-Engine market, where the
+    # seller's tokens sit in the market contract until filled. Both are
+    # credited to their owners as LIQUID. Without this, 125 LPs and 29
+    # sellers would have been burned at the snapshot.
+    from decimal import Decimal, ROUND_DOWN
+    pooled, on_order = {}, {}
+    pool = he_find_one("marketpools", "pools", {"tokenPair": "SWAP.HIVE:LASSECASH"})
+    if pool:
+        reserve = Decimal(pool["quoteQuantity"])   # quote = LASSECASH
+        total_shares = Decimal(pool["totalShares"])
+        offset = 0
+        while True:
+            batch = he_find("marketpools", "liquidityPositions",
+                            {"tokenPair": "SWAP.HIVE:LASSECASH"}, limit=1000, offset=offset) or []
+            for lp in batch:
+                share = (Decimal(lp["shares"]) * reserve / total_shares).quantize(
+                    Decimal("0.00000001"), rounding=ROUND_DOWN)
+                pooled[lp["account"]] = pooled.get(lp["account"], Decimal(0)) + share
+            if len(batch) < 1000:
+                break
+            offset += 1000
+        print(f"  Diesel pool: {reserve} LASSECASH across {len(pooled)} LPs")
+    else:
+        print("  ! could not read the Diesel pool — pooled LASSECASH NOT captured")
+    offset = 0
+    while True:
+        batch = he_find("market", "sellBook", {"symbol": "LASSECASH"}, limit=1000, offset=offset) or []
+        for o in batch:
+            on_order[o["account"]] = on_order.get(o["account"], Decimal(0)) + Decimal(o["quantity"])
+        if len(batch) < 1000:
+            break
+        offset += 1000
+    print(f"  open sell orders: {sum(on_order.values(), Decimal(0))} LASSECASH across {len(on_order)} sellers")
+    for acct, amt in pooled.items():
+        rows.setdefault(acct, {"_id": 0, "balance": "0", "stake": "0", "pendingUnstake": "0",
+                               "delegationsIn": "0", "delegationsOut": "0"})["pooled"] = str(amt)
+    for acct, amt in on_order.items():
+        rows.setdefault(acct, {"_id": 0, "balance": "0", "stake": "0", "pendingUnstake": "0",
+                               "delegationsIn": "0", "delegationsOut": "0"})["onOrder"] = str(amt)
     save(BALANCES, rows)
 
     liquid = sum(float(r["balance"]) for r in rows.values())

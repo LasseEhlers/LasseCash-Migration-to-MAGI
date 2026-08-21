@@ -1,11 +1,11 @@
 {
- "generated": "2026-08-21T15:14:02.159724+00:00",
+ "generated": "2026-08-21T23:28:53.029668+00:00",
  "window_months": 3,
  "migrate": {
   "lasseehlers": {
-   "liquid": 22141356699780,
+   "liquid": 26711308660893,
    "staked": 700127599037966,
-   "total": 722268955737746,
+   "total": 726838907698859,
    "reason": "active_key+lassecash",
    "last_active_op": "2026-08-21T01:12:15",
    "last_lassecash": 1787295744
@@ -203,9 +203,9 @@
    "last_lassecash": 1705706385
   },
   "fredkese": {
-   "liquid": 17769459671,
+   "liquid": 2338151956868,
    "staked": 504511997869,
-   "total": 522281457540,
+   "total": 2842663954737,
    "reason": "active_key+lassecash",
    "last_active_op": "2026-08-09T21:58:36",
    "last_lassecash": 1787271618
@@ -227,9 +227,9 @@
    "last_lassecash": 1692096732
   },
   "krakonos": {
-   "liquid": 27429858,
+   "liquid": 2199031491,
    "staked": 1582477511780,
-   "total": 1582504941638,
+   "total": 1584676543271,
    "reason": "active_key+lassecash",
    "last_active_op": "2026-08-13T06:25:51",
    "last_lassecash": 1787154837
@@ -411,9 +411,9 @@
    "last_lassecash": null
   },
   "jjprac": {
-   "liquid": 0,
+   "liquid": 19244598540326,
    "staked": 921963615786,
-   "total": 921963615786,
+   "total": 20166562156112,
    "reason": "active_key+lassecash",
    "last_active_op": "2026-08-20T09:21:24",
    "last_lassecash": 1786712364
@@ -702,7 +702,7 @@
    "liquid": 0,
    "staked": 1350715138,
    "total": 1350715138,
-   "reason": "active_key+lassecash",
+   "reason": "active_key",
    "last_active_op": "2026-06-29T13:40:33",
    "last_lassecash": 1779576930
   },
@@ -739,9 +739,9 @@
    "last_lassecash": 1679521800
   },
   "aggroed": {
-   "liquid": 176000377389,
+   "liquid": 584735599731,
    "staked": 30236529621327,
-   "total": 30412529998716,
+   "total": 30821265221058,
    "reason": "active_key+lassecash",
    "last_active_op": "2026-08-09T17:35:54",
    "last_lassecash": 1780060314
@@ -1426,14 +1426,6 @@
    "last_active_op": "2026-07-09T20:15:09",
    "last_lassecash": 1673415009
   },
-  "claudio83": {
-   "liquid": 9686355,
-   "staked": 309043612,
-   "total": 318729967,
-   "reason": "active_key",
-   "last_active_op": "2026-05-23T17:01:03",
-   "last_lassecash": null
-  },
   "cyberblock": {
    "liquid": 0,
    "staked": 496651088,
@@ -1627,9 +1619,9 @@
    "last_lassecash": null
   },
   "cryptospa": {
-   "liquid": 263202393470,
+   "liquid": 496678417544,
    "staked": 379091893,
-   "total": 263581485363,
+   "total": 497057509437,
    "reason": "active_key+lassecash",
    "last_active_op": "2026-05-31T06:00:24",
    "last_lassecash": 1785899556
@@ -2539,17 +2531,17 @@
    "last_lassecash": null
   },
   "forykw": {
-   "liquid": 16227779,
+   "liquid": 742242974,
    "staked": 122150913443,
-   "total": 122167141222,
+   "total": 122893156417,
    "reason": "active_key",
    "last_active_op": "2026-08-21T10:22:18",
    "last_lassecash": 1661423820
   },
   "bitandi": {
-   "liquid": 13390529010,
+   "liquid": 19286493014,
    "staked": 315449985200,
-   "total": 328840514210,
+   "total": 334736478214,
    "reason": "active_key",
    "last_active_op": "2026-08-08T08:09:51",
    "last_lassecash": 1763306934
@@ -3571,9 +3563,9 @@
    "last_lassecash": null
   },
   "manuvert": {
-   "liquid": 717102449228,
+   "liquid": 980342271091,
    "staked": 1165692648997,
-   "total": 1882795098225,
+   "total": 2146034920088,
    "reason": "active_key",
    "last_active_op": "2026-08-01T05:50:54",
    "last_lassecash": 1768725189
@@ -3795,9 +3787,9 @@
    "last_lassecash": null
   },
   "imfarhad": {
-   "liquid": 76909986686,
+   "liquid": 153642446858,
    "staked": 889217091690,
-   "total": 966127078376,
+   "total": 1042859538548,
    "reason": "active_key+lassecash",
    "last_active_op": "2026-08-20T06:49:39",
    "last_lassecash": 1785943134
@@ -4051,9 +4043,9 @@
    "last_lassecash": 1775989230
   },
   "bilpcoinbpc": {
-   "liquid": 10676482958,
+   "liquid": 10712980449,
    "staked": 493148919371,
-   "total": 503825402329,
+   "total": 503861899820,
    "reason": "active_key",
    "last_active_op": "2026-07-09T20:05:15",
    "last_lassecash": 1673351475
@@ -4139,9 +4131,9 @@
    "last_lassecash": null
   },
   "yintercept": {
-   "liquid": 11367029,
+   "liquid": 2142845540,
    "staked": 1441534230605,
-   "total": 1441545597634,
+   "total": 1443677076145,
    "reason": "+lassecash",
    "last_active_op": null,
    "last_lassecash": 1787248617
@@ -4763,9 +4755,9 @@
    "last_lassecash": 1677495801
   },
   "master-lamps": {
-   "liquid": 974937042595,
+   "liquid": 1025966771064,
    "staked": 29532445,
-   "total": 974966575040,
+   "total": 1025996303509,
    "reason": "active_key",
    "last_active_op": "2026-08-20T04:52:09",
    "last_lassecash": 1722121458
@@ -4986,14 +4978,6 @@
    "last_active_op": "2026-07-16T09:46:48",
    "last_lassecash": 1768332504
   },
-  "ivanc": {
-   "liquid": 173547667,
-   "staked": 0,
-   "total": 173547667,
-   "reason": "active_key",
-   "last_active_op": "2026-05-23T15:45:18",
-   "last_lassecash": 1676834562
-  },
   "amphlux": {
    "liquid": 943560,
    "staked": 186882,
@@ -5200,14 +5184,6 @@
    "total": 3842,
    "reason": "active_key",
    "last_active_op": "2026-08-21T04:37:03",
-   "last_lassecash": null
-  },
-  "eriq": {
-   "liquid": 950,
-   "staked": 8556,
-   "total": 9506,
-   "reason": "active_key",
-   "last_active_op": "2026-05-23T16:58:33",
    "last_lassecash": null
   },
   "dickturpin": {
@@ -5819,9 +5795,9 @@
    "last_lassecash": 1786789089
   },
   "hellene8": {
-   "liquid": 29231412,
+   "liquid": 49285887,
    "staked": 26959894,
-   "total": 56191306,
+   "total": 76245781,
    "reason": "active_key",
    "last_active_op": "2026-07-08T11:30:54",
    "last_lassecash": 1768917033
@@ -6067,9 +6043,9 @@
    "last_lassecash": null
   },
   "sembrandounpais": {
-   "liquid": 1173237659,
+   "liquid": 2346475318,
    "staked": 0,
-   "total": 1173237659,
+   "total": 2346475318,
    "reason": "active_key",
    "last_active_op": "2026-08-03T16:56:12",
    "last_lassecash": 1713977712
@@ -6395,9 +6371,9 @@
    "last_lassecash": null
   },
   "chorock": {
-   "liquid": 173161709386,
+   "liquid": 183965285355,
    "staked": 31955701,
-   "total": 173193665087,
+   "total": 183997241056,
    "reason": "active_key",
    "last_active_op": "2026-08-15T12:53:15",
    "last_lassecash": null
@@ -6563,9 +6539,9 @@
    "last_lassecash": null
   },
   "bokica80": {
-   "liquid": 1417740849,
+   "liquid": 66562518652,
    "staked": 60136974549,
-   "total": 61554715398,
+   "total": 126699493201,
    "reason": "+lassecash",
    "last_active_op": "2026-01-15T20:24:36",
    "last_lassecash": 1783627020
@@ -7131,9 +7107,9 @@
    "last_lassecash": null
   },
   "akumagai": {
-   "liquid": 1330470469,
+   "liquid": 1393707378,
    "staked": 12259225345,
-   "total": 13589695814,
+   "total": 13652932723,
    "reason": "active_key",
    "last_active_op": "2026-05-26T03:51:15",
    "last_lassecash": 1661473773
@@ -7227,9 +7203,9 @@
    "last_lassecash": 1659256848
   },
   "newigennity": {
-   "liquid": 4199127,
+   "liquid": 82382502,
    "staked": 3387778464,
-   "total": 3391977591,
+   "total": 3470160966,
    "reason": "active_key",
    "last_active_op": "2026-08-18T20:27:24",
    "last_lassecash": 1772222889
@@ -7299,9 +7275,9 @@
    "last_lassecash": null
   },
   "presidentx": {
-   "liquid": 1262076982741,
+   "liquid": 1302810660260,
    "staked": 20257961088,
-   "total": 1282334943829,
+   "total": 1323068621348,
    "reason": "active_key",
    "last_active_op": "2026-06-26T18:42:24",
    "last_lassecash": null
@@ -7347,9 +7323,9 @@
    "last_lassecash": null
   },
   "petertag": {
-   "liquid": 39,
+   "liquid": 4737631642,
    "staked": 0,
-   "total": 39,
+   "total": 4737631642,
    "reason": "active_key+lassecash",
    "last_active_op": "2026-08-18T18:40:51",
    "last_lassecash": 1784051196
@@ -7555,9 +7531,9 @@
    "last_lassecash": 1643760930
   },
   "buffalobison": {
-   "liquid": 0,
+   "liquid": 221871,
    "staked": 23916826,
-   "total": 23916826,
+   "total": 24138697,
    "reason": "+lassecash",
    "last_active_op": "2024-02-29T18:07:30",
    "last_lassecash": 1787210073
@@ -8395,9 +8371,9 @@
    "last_lassecash": null
   },
   "new.things": {
-   "liquid": 141503183,
+   "liquid": 182081736,
    "staked": 583752977,
-   "total": 725256160,
+   "total": 765834713,
    "reason": "active_key",
    "last_active_op": "2026-08-17T01:40:30",
    "last_lassecash": 1719049323
@@ -8675,17 +8651,17 @@
    "last_lassecash": 1675498380
   },
   "h3m4n7": {
-   "liquid": 3138027,
+   "liquid": 362707090,
    "staked": 0,
-   "total": 3138027,
+   "total": 362707090,
    "reason": "active_key+lassecash",
    "last_active_op": "2026-06-07T13:18:36",
    "last_lassecash": 1786425930
   },
   "fighter4-freedom": {
-   "liquid": 12118015912782,
+   "liquid": 20529004301699,
    "staked": 0,
-   "total": 12118015912782,
+   "total": 20529004301699,
    "reason": "+lassecash",
    "last_active_op": "2025-12-01T03:13:12",
    "last_lassecash": 1784587452
@@ -8739,9 +8715,9 @@
    "last_lassecash": 1772467938
   },
   "hiroshige": {
-   "liquid": 316546301,
+   "liquid": 29919495227,
    "staked": 0,
-   "total": 316546301,
+   "total": 29919495227,
    "reason": "active_key+lassecash",
    "last_active_op": "2026-08-07T06:40:03",
    "last_lassecash": 1787073381
@@ -9347,9 +9323,9 @@
    "last_lassecash": 1663311687
   },
   "middle-earthling": {
-   "liquid": 339873958649,
+   "liquid": 4859717462244,
    "staked": 636745064079,
-   "total": 976619022728,
+   "total": 5496462526323,
    "reason": "+lassecash",
    "last_active_op": "2026-05-20T04:48:12",
    "last_lassecash": 1785178485
@@ -9435,9 +9411,9 @@
    "last_lassecash": null
   },
   "davot": {
-   "liquid": 1721199249,
+   "liquid": 1796112062,
    "staked": 0,
-   "total": 1721199249,
+   "total": 1796112062,
    "reason": "active_key",
    "last_active_op": "2026-07-18T13:54:21",
    "last_lassecash": null
@@ -9587,9 +9563,9 @@
    "last_lassecash": null
   },
   "tydynrain": {
-   "liquid": 274078044,
+   "liquid": 6717712449,
    "staked": 120818637561,
-   "total": 121092715605,
+   "total": 127536350010,
    "reason": "active_key",
    "last_active_op": "2026-08-01T03:48:06",
    "last_lassecash": 1777237953
@@ -9635,9 +9611,9 @@
    "last_lassecash": 1678203363
   },
   "aliveandthriving": {
-   "liquid": 446936762,
+   "liquid": 2068270380,
    "staked": 63559969056,
-   "total": 64006905818,
+   "total": 65628239436,
    "reason": "active_key",
    "last_active_op": "2026-08-21T00:03:48",
    "last_lassecash": 1752102378
@@ -9875,9 +9851,9 @@
    "last_lassecash": null
   },
   "heartbeatonhive": {
-   "liquid": 1654552686,
+   "liquid": 4596053448,
    "staked": 91370225276,
-   "total": 93024777962,
+   "total": 95966278724,
    "reason": "active_key",
    "last_active_op": "2026-08-18T20:30:06",
    "last_lassecash": 1739042574
@@ -10195,9 +10171,9 @@
    "last_lassecash": 1774115781
   },
   "lrekt01": {
-   "liquid": 29936877,
+   "liquid": 459689608,
    "staked": 0,
-   "total": 29936877,
+   "total": 459689608,
    "reason": "active_key+lassecash",
    "last_active_op": "2026-08-19T20:34:27",
    "last_lassecash": 1786107825
@@ -10235,9 +10211,9 @@
    "last_lassecash": null
   },
   "quekery": {
-   "liquid": 809072035211,
+   "liquid": 851462294959,
    "staked": 6031517109833,
-   "total": 6840589145044,
+   "total": 6882979404792,
    "reason": "active_key",
    "last_active_op": "2026-07-30T15:47:33",
    "last_lassecash": null
@@ -10459,9 +10435,9 @@
    "last_lassecash": 1768572678
   },
   "pedrobrito2004": {
-   "liquid": 1295699451,
+   "liquid": 3887098331,
    "staked": 16044781,
-   "total": 1311744232,
+   "total": 3903143112,
    "reason": "active_key+lassecash",
    "last_active_op": "2026-08-03T17:33:24",
    "last_lassecash": 1787293773
@@ -10523,9 +10499,9 @@
    "last_lassecash": 1723767147
   },
   "chaosmagic23": {
-   "liquid": 38695408253,
+   "liquid": 309687935554,
    "staked": 52614777354,
-   "total": 91310185607,
+   "total": 362302712908,
    "reason": "active_key+lassecash",
    "last_active_op": "2026-08-21T10:34:36",
    "last_lassecash": 1786634976
@@ -10555,9 +10531,9 @@
    "last_lassecash": null
   },
   "luckyone18": {
-   "liquid": 181446175,
+   "liquid": 19741507030,
    "staked": 0,
-   "total": 181446175,
+   "total": 19741507030,
    "reason": "active_key",
    "last_active_op": "2026-08-03T17:28:48",
    "last_lassecash": 1665116925
@@ -10595,9 +10571,9 @@
    "last_lassecash": 1680899376
   },
   "stiant": {
-   "liquid": 479869236129,
+   "liquid": 1842763848486,
    "staked": 0,
-   "total": 479869236129,
+   "total": 1842763848486,
    "reason": "+lassecash",
    "last_active_op": "2026-02-09T13:20:06",
    "last_lassecash": 1786543974
@@ -12163,9 +12139,9 @@
    "last_lassecash": 1658533617
   },
   "themcgwire": {
-   "liquid": 2569554607,
+   "liquid": 483278386418,
    "staked": 2607610554795,
-   "total": 2610180109402,
+   "total": 3090888941213,
    "reason": "active_key+lassecash",
    "last_active_op": "2026-08-16T01:06:30",
    "last_lassecash": 1786839261
@@ -12387,9 +12363,9 @@
    "last_lassecash": null
   },
   "hivedream": {
-   "liquid": 231,
+   "liquid": 374,
    "staked": 0,
-   "total": 231,
+   "total": 374,
    "reason": "active_key",
    "last_active_op": "2026-07-19T09:28:54",
    "last_lassecash": 1758660276
@@ -12707,9 +12683,9 @@
    "last_lassecash": 1724283045
   },
   "salviani": {
-   "liquid": 0,
+   "liquid": 49135331,
    "staked": 0,
-   "total": 0,
+   "total": 49135331,
    "reason": "active_key+lassecash",
    "last_active_op": "2026-05-26T10:07:57",
    "last_lassecash": 1785578826
@@ -12798,7 +12774,7 @@
    "liquid": 0,
    "staked": 0,
    "total": 0,
-   "reason": "active_key+lassecash",
+   "reason": "+lassecash",
    "last_active_op": "2026-05-23T20:05:48",
    "last_lassecash": 1779777750
   },
@@ -12891,9 +12867,9 @@
    "last_lassecash": null
   },
   "m0ssa99": {
-   "liquid": 1,
+   "liquid": 12348,
    "staked": 13828090617,
-   "total": 13828090618,
+   "total": 13828102965,
    "reason": "+lassecash",
    "last_active_op": "2025-12-14T08:00:18",
    "last_lassecash": 1787277390
@@ -13379,9 +13355,9 @@
    "last_lassecash": null
   },
   "sebaf": {
-   "liquid": 473723157,
+   "liquid": 2419618988,
    "staked": 20606783722,
-   "total": 21080506879,
+   "total": 23026402710,
    "reason": "active_key+lassecash",
    "last_active_op": "2026-08-06T04:55:57",
    "last_lassecash": 1783353990
@@ -13971,9 +13947,9 @@
    "last_lassecash": null
   },
   "virtualgrowth": {
-   "liquid": 27090222,
+   "liquid": 83579221,
    "staked": 31,
-   "total": 27090253,
+   "total": 83579252,
    "reason": "active_key",
    "last_active_op": "2026-08-07T16:16:57",
    "last_lassecash": 1675454217
@@ -14763,9 +14739,9 @@
    "last_lassecash": 1691943741
   },
   "pepetoken": {
-   "liquid": 20236186,
+   "liquid": 36552375,
    "staked": 691953245,
-   "total": 712189431,
+   "total": 728505620,
    "reason": "active_key",
    "last_active_op": "2026-08-17T19:04:09",
    "last_lassecash": 1772832741
@@ -15419,9 +15395,9 @@
    "last_lassecash": 1786770894
   },
   "insanejane": {
-   "liquid": 41476851,
+   "liquid": 1009677338,
    "staked": 29922036,
-   "total": 71398887,
+   "total": 1039599374,
    "reason": "active_key+lassecash",
    "last_active_op": "2026-08-07T19:22:57",
    "last_lassecash": 1786543974
@@ -16163,9 +16139,9 @@
    "last_lassecash": 1783512573
   },
   "zaddyboy": {
-   "liquid": 149421153456,
+   "liquid": 232093777302,
    "staked": 831043310,
-   "total": 150252196766,
+   "total": 232924820612,
    "reason": "active_key",
    "last_active_op": "2026-06-06T16:11:48",
    "last_lassecash": 1750445556
@@ -16851,9 +16827,9 @@
    "last_lassecash": 1787241327
   },
   "shturm": {
-   "liquid": 0,
+   "liquid": 11222206,
    "staked": 18055065,
-   "total": 18055065,
+   "total": 29277271,
    "reason": "active_key",
    "last_active_op": "2026-08-20T05:37:48",
    "last_lassecash": null
@@ -16985,14 +16961,6 @@
    "reason": "active_key+lassecash",
    "last_active_op": "2026-07-27T09:59:51",
    "last_lassecash": 1784996625
-  },
-  "ataraksja": {
-   "liquid": 414227993,
-   "staked": 3728051943,
-   "total": 4142279936,
-   "reason": "active_key",
-   "last_active_op": "2026-05-23T21:02:21",
-   "last_lassecash": null
   },
   "charladeportiva": {
    "liquid": 2424104,
@@ -17299,9 +17267,9 @@
    "last_lassecash": null
   },
   "rajpootg": {
-   "liquid": 309837089,
+   "liquid": 3052331501,
    "staked": 5787605889,
-   "total": 6097442978,
+   "total": 8839937390,
    "reason": "active_key+lassecash",
    "last_active_op": "2026-08-03T23:19:09",
    "last_lassecash": 1785358989
@@ -17563,9 +17531,9 @@
    "last_lassecash": 1783373112
   },
   "keithtaylor": {
-   "liquid": 88138,
+   "liquid": 1775819666,
    "staked": 0,
-   "total": 88138,
+   "total": 1775819666,
    "reason": "active_key",
    "last_active_op": "2026-08-20T12:43:03",
    "last_lassecash": null
@@ -17611,9 +17579,9 @@
    "last_lassecash": null
   },
   "heartbeatvault01": {
-   "liquid": 10889140,
+   "liquid": 44295943,
    "staked": 0,
-   "total": 10889140,
+   "total": 44295943,
    "reason": "active_key",
    "last_active_op": "2026-07-07T22:15:15",
    "last_lassecash": null
@@ -17715,9 +17683,9 @@
    "last_lassecash": null
   },
   "beelshops": {
-   "liquid": 364162052,
+   "liquid": 38561155043,
    "staked": 323488824465,
-   "total": 323852986517,
+   "total": 362049979508,
    "reason": "active_key",
    "last_active_op": "2026-08-19T14:22:18",
    "last_lassecash": 1776105660
@@ -18027,9 +17995,9 @@
    "last_lassecash": null
   },
   "nexo0702": {
-   "liquid": 425009349,
+   "liquid": 68030311257,
    "staked": 0,
-   "total": 425009349,
+   "total": 68030311257,
    "reason": "active_key+lassecash",
    "last_active_op": "2026-08-19T03:33:21",
    "last_lassecash": 1785589329
@@ -18083,17 +18051,17 @@
    "last_lassecash": 1786817403
   },
   "psyopdailydao": {
-   "liquid": 161885012,
+   "liquid": 39550461953,
    "staked": 10000000000,
-   "total": 10161885012,
+   "total": 49550461953,
    "reason": "active_key+lassecash",
    "last_active_op": "2026-08-16T17:29:03",
    "last_lassecash": 1786845171
   },
   "buratus": {
-   "liquid": 0,
+   "liquid": 296865846,
    "staked": 0,
-   "total": 0,
+   "total": 296865846,
    "reason": "active_key",
    "last_active_op": "2026-08-21T04:12:30",
    "last_lassecash": null
@@ -18105,6 +18073,14 @@
    "reason": "active_key",
    "last_active_op": "2026-08-11T18:11:18",
    "last_lassecash": null
+  },
+  "ogart": {
+   "liquid": 0,
+   "staked": 3000000000,
+   "total": 3000000000,
+   "reason": "active_key+lassecash",
+   "last_active_op": "2026-08-20T18:03:48",
+   "last_lassecash": 1787248638
   }
  },
  "burn_inactive": {
@@ -18949,9 +18925,9 @@
    "last_lassecash": 1656984210
   },
   "petrvl": {
-   "liquid": 54929798213,
+   "liquid": 57690406536,
    "staked": 956374,
-   "total": 54930754587,
+   "total": 57691362910,
    "last_active_op": "2024-12-18T03:52:45",
    "last_lassecash": 1671946134
   },
@@ -23275,11 +23251,18 @@
    "last_lassecash": null
   },
   "bilpcoin.pay": {
-   "liquid": 55626828,
+   "liquid": 58135394,
    "staked": 172698316,
-   "total": 228325144,
+   "total": 230833710,
    "last_active_op": "2025-01-07T19:22:45",
    "last_lassecash": 1659086847
+  },
+  "claudio83": {
+   "liquid": 9686355,
+   "staked": 309043612,
+   "total": 318729967,
+   "last_active_op": "2026-05-23T17:01:03",
+   "last_lassecash": null
   },
   "coinchaos": {
    "liquid": 0,
@@ -23303,9 +23286,9 @@
    "last_lassecash": null
   },
   "bilpcoin": {
-   "liquid": 169691619,
+   "liquid": 174584868,
    "staked": 267620413,
-   "total": 437312032,
+   "total": 442205281,
    "last_active_op": "2025-10-25T13:56:24",
    "last_lassecash": null
   },
@@ -23590,9 +23573,9 @@
    "last_lassecash": null
   },
   "luciannagy": {
-   "liquid": 174086054441,
+   "liquid": 177823546467,
    "staked": 300090049593,
-   "total": 474176104034,
+   "total": 477913596060,
    "last_active_op": "2024-05-26T19:19:15",
    "last_lassecash": 1668027498
   },
@@ -25732,9 +25715,9 @@
    "last_lassecash": 1593856716
   },
   "ciderjunkie": {
-   "liquid": 160656563085,
+   "liquid": 160778262301,
    "staked": 0,
-   "total": 160656563085,
+   "total": 160778262301,
    "last_active_op": "2026-04-09T18:16:27",
    "last_lassecash": 1695306783
   },
@@ -26586,9 +26569,9 @@
    "last_lassecash": null
   },
   "kobusu": {
-   "liquid": 52862697437,
+   "liquid": 55357344519,
    "staked": 2147691,
-   "total": 52864845128,
+   "total": 55359492210,
    "last_active_op": "2026-03-25T09:30:51",
    "last_lassecash": 1666090158
   },
@@ -28266,9 +28249,9 @@
    "last_lassecash": 1716238053
   },
   "apprentice001": {
-   "liquid": 5985059237157,
+   "liquid": 6232490637211,
    "staked": 31668778880491,
-   "total": 37653838117648,
+   "total": 37901269517702,
    "last_active_op": "2025-10-05T08:35:51",
    "last_lassecash": 1678251447
   },
@@ -28504,9 +28487,9 @@
    "last_lassecash": null
   },
   "bilpcoinbot": {
-   "liquid": 1517943178,
+   "liquid": 1576691267,
    "staked": 2897623219,
-   "total": 4415566397,
+   "total": 4474314486,
    "last_active_op": "2024-09-30T16:25:24",
    "last_lassecash": null
   },
@@ -30442,6 +30425,13 @@
    "last_active_op": "2023-09-14T09:39:00",
    "last_lassecash": 1678437399
   },
+  "ivanc": {
+   "liquid": 173547667,
+   "staked": 0,
+   "total": 173547667,
+   "last_active_op": "2026-05-23T15:45:18",
+   "last_lassecash": 1676834562
+  },
   "thebigsweed": {
    "liquid": 295262,
    "staked": 766645,
@@ -30882,6 +30872,13 @@
    "total": 32152082757,
    "last_active_op": "2024-06-26T07:25:33",
    "last_lassecash": 1639507494
+  },
+  "eriq": {
+   "liquid": 950,
+   "staked": 8556,
+   "total": 9506,
+   "last_active_op": "2026-05-23T16:58:33",
+   "last_lassecash": null
   },
   "por500bolos": {
    "liquid": 52609481,
@@ -36799,9 +36796,9 @@
    "last_lassecash": null
   },
   "bityobit": {
-   "liquid": 3207942109,
+   "liquid": 3344658116,
    "staked": 7305,
-   "total": 3207949414,
+   "total": 3344665421,
    "last_active_op": "2023-05-21T11:34:15",
    "last_lassecash": 1647798948
   },
@@ -37366,9 +37363,9 @@
    "last_lassecash": null
   },
   "jsynnthagr8": {
-   "liquid": 5884902388,
+   "liquid": 7773386287,
    "staked": 0,
-   "total": 5884902388,
+   "total": 7773386287,
    "last_active_op": "2024-03-21T03:53:03",
    "last_lassecash": 1754292078
   },
@@ -37667,9 +37664,9 @@
    "last_lassecash": 1657788807
   },
   "megalithic": {
-   "liquid": 262020002624,
+   "liquid": 2133812866697,
    "staked": 0,
-   "total": 262020002624,
+   "total": 2133812866697,
    "last_active_op": "2025-07-14T19:08:09",
    "last_lassecash": null
   },
@@ -37681,9 +37678,9 @@
    "last_lassecash": 1651514289
   },
   "franciscopr": {
-   "liquid": 1994398326429,
+   "liquid": 2083002930945,
    "staked": 0,
-   "total": 1994398326429,
+   "total": 2083002930945,
    "last_active_op": "2022-10-06T11:16:06",
    "last_lassecash": 1652481429
   },
@@ -39382,9 +39379,9 @@
    "last_lassecash": null
   },
   "vibrokinetic": {
-   "liquid": 1007774276220,
+   "liquid": 1065444958623,
    "staked": 219507038234,
-   "total": 1227281314454,
+   "total": 1284951996857,
    "last_active_op": "2024-02-04T14:37:00",
    "last_lassecash": 1707057600
   },
@@ -39557,9 +39554,9 @@
    "last_lassecash": null
   },
   "ana-maria": {
-   "liquid": 126252010429,
+   "liquid": 229890676563,
    "staked": 752000000000,
-   "total": 878252010429,
+   "total": 981890676563,
    "last_active_op": "2026-04-16T05:58:00",
    "last_lassecash": 1773011685
   },
@@ -39627,16 +39624,16 @@
    "last_lassecash": null
   },
   "nectar-queen": {
-   "liquid": 1010444001591,
+   "liquid": 3967179183322,
    "staked": 0,
-   "total": 1010444001591,
+   "total": 3967179183322,
    "last_active_op": "2025-04-10T01:37:39",
    "last_lassecash": null
   },
   "swearingradio": {
-   "liquid": 247875144116,
+   "liquid": 473816871418,
    "staked": 0,
-   "total": 247875144116,
+   "total": 473816871418,
    "last_active_op": "2026-05-04T05:37:00",
    "last_lassecash": 1682295774
   },
@@ -39802,9 +39799,9 @@
    "last_lassecash": 1641062079
   },
   "silver-edge": {
-   "liquid": 947012862295,
+   "liquid": 983121853871,
    "staked": 0,
-   "total": 947012862295,
+   "total": 983121853871,
    "last_active_op": "2024-10-21T20:52:45",
    "last_lassecash": null
   },
@@ -39998,9 +39995,9 @@
    "last_lassecash": null
   },
   "machinations": {
-   "liquid": 136197956,
+   "liquid": 137167162,
    "staked": 0,
-   "total": 136197956,
+   "total": 137167162,
    "last_active_op": "2021-10-18T22:48:33",
    "last_lassecash": null
   },
@@ -40089,9 +40086,9 @@
    "last_lassecash": null
   },
   "luciengre": {
-   "liquid": 5357380627,
+   "liquid": 5653826335,
    "staked": 0,
-   "total": 5357380627,
+   "total": 5653826335,
    "last_active_op": "2023-12-11T23:34:45",
    "last_lassecash": 1673916960
   },
@@ -41083,9 +41080,9 @@
    "last_lassecash": null
   },
   "elbiasto": {
-   "liquid": 5157926126,
+   "liquid": 5396696772,
    "staked": 0,
-   "total": 5157926126,
+   "total": 5396696772,
    "last_active_op": "2023-03-07T22:54:42",
    "last_lassecash": null
   },
@@ -41370,9 +41367,9 @@
    "last_lassecash": null
   },
   "aniemand": {
-   "liquid": 591513775,
+   "liquid": 625394197,
    "staked": 624197998,
-   "total": 1215711773,
+   "total": 1249592195,
    "last_active_op": "2023-01-24T10:36:24",
    "last_lassecash": 1707133944
   },
@@ -41622,9 +41619,9 @@
    "last_lassecash": null
   },
   "dechuck": {
-   "liquid": 6752561328,
+   "liquid": 7117142068,
    "staked": 312114993,
-   "total": 7064676321,
+   "total": 7429257061,
    "last_active_op": "2025-11-03T12:38:09",
    "last_lassecash": 1647607668
   },
@@ -42854,9 +42851,9 @@
    "last_lassecash": null
   },
   "witchfort": {
-   "liquid": 10725723225,
+   "liquid": 13009097436,
    "staked": 35690421690,
-   "total": 46416144915,
+   "total": 48699519126,
    "last_active_op": "2023-01-17T06:11:03",
    "last_lassecash": 1746590091
   },
@@ -42903,9 +42900,9 @@
    "last_lassecash": null
   },
   "jarvie": {
-   "liquid": 555422329602,
+   "liquid": 580096616185,
    "staked": 0,
-   "total": 555422329602,
+   "total": 580096616185,
    "last_active_op": "2026-03-02T15:36:18",
    "last_lassecash": null
   },
@@ -42966,9 +42963,9 @@
    "last_lassecash": null
   },
   "drschizo": {
-   "liquid": 35049248986,
+   "liquid": 36565072871,
    "staked": 0,
-   "total": 35049248986,
+   "total": 36565072871,
    "last_active_op": "2025-05-18T15:06:24",
    "last_lassecash": null
   },
@@ -46277,9 +46274,9 @@
    "last_lassecash": null
   },
   "dexy50": {
-   "liquid": 95442155678,
+   "liquid": 100155958739,
    "staked": 0,
-   "total": 95442155678,
+   "total": 100155958739,
    "last_active_op": "2022-11-27T09:27:45",
    "last_lassecash": null
   },
@@ -46410,9 +46407,9 @@
    "last_lassecash": null
   },
   "t42": {
-   "liquid": 5518356049,
+   "liquid": 5642732198,
    "staked": 0,
-   "total": 5518356049,
+   "total": 5642732198,
    "last_active_op": "2025-07-07T12:12:15",
    "last_lassecash": null
   },
@@ -47908,9 +47905,9 @@
    "last_lassecash": null
   },
   "hundredtonmantis": {
-   "liquid": 587539135991,
+   "liquid": 602470639446,
    "staked": 0,
-   "total": 587539135991,
+   "total": 602470639446,
    "last_active_op": "2022-10-24T04:10:18",
    "last_lassecash": 1661476650
   },
@@ -49931,9 +49928,9 @@
    "last_lassecash": null
   },
   "woodathegsd": {
-   "liquid": 644517239,
+   "liquid": 673223645,
    "staked": 1396111781,
-   "total": 2040629020,
+   "total": 2069335426,
    "last_active_op": "2025-04-07T16:05:48",
    "last_lassecash": 1704923022
   },
@@ -50393,9 +50390,9 @@
    "last_lassecash": null
   },
   "jshpvsqz": {
-   "liquid": 89027814638,
+   "liquid": 95468445957,
    "staked": 1804183,
-   "total": 89029618821,
+   "total": 95470250140,
    "last_active_op": "2025-02-08T09:47:39",
    "last_lassecash": 1703619678
   },
@@ -51583,9 +51580,9 @@
    "last_lassecash": 1708004097
   },
   "niccolo45": {
-   "liquid": 11445423,
+   "liquid": 11669047,
    "staked": 0,
-   "total": 11445423,
+   "total": 11669047,
    "last_active_op": null,
    "last_lassecash": 1644948744
   },
@@ -52129,9 +52126,9 @@
    "last_lassecash": null
   },
   "frodobaggins": {
-   "liquid": 11043084915951,
+   "liquid": 11703969933183,
    "staked": 0,
-   "total": 11043084915951,
+   "total": 11703969933183,
    "last_active_op": "2024-04-12T00:03:36",
    "last_lassecash": 1680566097
   },
@@ -53186,9 +53183,9 @@
    "last_lassecash": null
   },
   "jackthefapper": {
-   "liquid": 1378643336,
+   "liquid": 1444664726,
    "staked": 0,
-   "total": 1378643336,
+   "total": 1444664726,
    "last_active_op": "2026-04-14T10:25:09",
    "last_lassecash": null
   },
@@ -53963,9 +53960,9 @@
    "last_lassecash": null
   },
   "signumpizza": {
-   "liquid": 130502359425576,
+   "liquid": 136968624024713,
    "staked": 0,
-   "total": 130502359425576,
+   "total": 136968624024713,
    "last_active_op": "2022-03-01T06:08:00",
    "last_lassecash": 1651891737
   },
@@ -55048,9 +55045,9 @@
    "last_lassecash": null
   },
   "lordwindgrace": {
-   "liquid": 46038600609,
+   "liquid": 56418906591,
    "staked": 0,
-   "total": 46038600609,
+   "total": 56418906591,
    "last_active_op": "2025-12-27T18:33:45",
    "last_lassecash": 1747903545
   },
@@ -55202,9 +55199,9 @@
    "last_lassecash": null
   },
   "litkitdiginews": {
-   "liquid": 550980934,
+   "liquid": 573804159,
    "staked": 3471822,
-   "total": 554452756,
+   "total": 577275981,
    "last_active_op": "2022-07-26T18:59:30",
    "last_lassecash": 1646163789
   },
@@ -55398,9 +55395,9 @@
    "last_lassecash": 1650951249
   },
   "cunctator89": {
-   "liquid": 13478603138,
+   "liquid": 13855190183,
    "staked": 0,
-   "total": 13478603138,
+   "total": 13855190183,
    "last_active_op": "2023-06-26T13:32:09",
    "last_lassecash": null
   },
@@ -55685,9 +55682,9 @@
    "last_lassecash": null
   },
   "laryoung": {
-   "liquid": 90503097,
+   "liquid": 94748429,
    "staked": 0,
-   "total": 90503097,
+   "total": 94748429,
    "last_active_op": "2024-11-22T00:09:33",
    "last_lassecash": 1666702509
   },
@@ -56000,9 +55997,9 @@
    "last_lassecash": 1668324711
   },
   "supermani": {
-   "liquid": 13056745,
+   "liquid": 13110664,
    "staked": 0,
-   "total": 13056745,
+   "total": 13110664,
    "last_active_op": "2025-10-23T07:16:00",
    "last_lassecash": null
   },
@@ -57463,9 +57460,9 @@
    "last_lassecash": 1668984108
   },
   "rubenski2020": {
-   "liquid": 161059467425,
+   "liquid": 212100643852,
    "staked": 773132309359,
-   "total": 934191776784,
+   "total": 985232953211,
    "last_active_op": "2026-03-05T15:50:57",
    "last_lassecash": 1753785390
   },
@@ -59591,9 +59588,9 @@
    "last_lassecash": 1663869345
   },
   "ssorcram": {
-   "liquid": 3428293250,
+   "liquid": 3619819272,
    "staked": 68196241,
-   "total": 3496489491,
+   "total": 3688015513,
    "last_active_op": "2024-02-15T23:34:09",
    "last_lassecash": 1698799737
   },
@@ -60760,9 +60757,9 @@
    "last_lassecash": null
   },
   "blesker": {
-   "liquid": 28385895,
+   "liquid": 29395858,
    "staked": 0,
-   "total": 28385895,
+   "total": 29395858,
    "last_active_op": "2024-10-07T04:35:30",
    "last_lassecash": null
   },
@@ -60774,9 +60771,9 @@
    "last_lassecash": null
   },
   "hotrod94": {
-   "liquid": 351571009788,
+   "liquid": 368104633965,
    "staked": 15006980334,
-   "total": 366577990122,
+   "total": 383111614299,
    "last_active_op": "2022-07-18T17:31:42",
    "last_lassecash": 1683569367
   },
@@ -61201,9 +61198,9 @@
    "last_lassecash": 1704691902
   },
   "groot35": {
-   "liquid": 3623871184,
+   "liquid": 3834168886,
    "staked": 0,
-   "total": 3623871184,
+   "total": 3834168886,
    "last_active_op": "2022-08-10T23:21:06",
    "last_lassecash": 1652837931
   },
@@ -61299,9 +61296,9 @@
    "last_lassecash": null
   },
   "bdp187": {
-   "liquid": 2884066,
+   "liquid": 3003160,
    "staked": 0,
-   "total": 2884066,
+   "total": 3003160,
    "last_active_op": "2023-04-01T04:34:33",
    "last_lassecash": 1663459002
   },
@@ -61663,9 +61660,9 @@
    "last_lassecash": null
   },
   "filmmaking4hive": {
-   "liquid": 2115392231396,
+   "liquid": 2208002537896,
    "staked": 0,
-   "total": 2115392231396,
+   "total": 2208002537896,
    "last_active_op": "2026-03-03T03:02:27",
    "last_lassecash": null
   },
@@ -63049,9 +63046,9 @@
    "last_lassecash": 1671365751
   },
   "madnessinsane": {
-   "liquid": 2033214939711,
+   "liquid": 2123292472838,
    "staked": 0,
-   "total": 2033214939711,
+   "total": 2123292472838,
    "last_active_op": "2021-11-19T22:29:57",
    "last_lassecash": null
   },
@@ -63168,9 +63165,9 @@
    "last_lassecash": null
   },
   "cyrptogamer620": {
-   "liquid": 38456410,
+   "liquid": 39520824,
    "staked": 0,
-   "total": 38456410,
+   "total": 39520824,
    "last_active_op": "2022-12-28T06:09:51",
    "last_lassecash": null
   },
@@ -63238,9 +63235,9 @@
    "last_lassecash": 1660470858
   },
   "ikau": {
-   "liquid": 825891499775,
+   "liquid": 994434886193,
    "staked": 0,
-   "total": 825891499775,
+   "total": 994434886193,
    "last_active_op": "2023-04-09T17:45:00",
    "last_lassecash": null
   },
@@ -63259,9 +63256,9 @@
    "last_lassecash": null
   },
   "pooky": {
-   "liquid": 260830677,
+   "liquid": 275070453,
    "staked": 0,
-   "total": 260830677,
+   "total": 275070453,
    "last_active_op": "2025-12-23T01:16:27",
    "last_lassecash": null
   },
@@ -63560,9 +63557,9 @@
    "last_lassecash": null
   },
   "alex2alex": {
-   "liquid": 749082592293,
+   "liquid": 792906730840,
    "staked": 117347127,
-   "total": 749199939420,
+   "total": 793024077967,
    "last_active_op": "2024-05-05T17:07:27",
    "last_lassecash": 1658167071
   },
@@ -63686,9 +63683,9 @@
    "last_lassecash": 1662023862
   },
   "high8125theta": {
-   "liquid": 1227603054177,
+   "liquid": 1319495549513,
    "staked": 309102837179,
-   "total": 1536705891356,
+   "total": 1628598386692,
    "last_active_op": "2025-12-07T23:40:15",
    "last_lassecash": 1742064774
   },
@@ -64008,16 +64005,16 @@
    "last_lassecash": 1664067069
   },
   "emic": {
-   "liquid": 1332479075,
+   "liquid": 1819165256,
    "staked": 0,
-   "total": 1332479075,
+   "total": 1819165256,
    "last_active_op": "2025-10-15T04:07:00",
    "last_lassecash": null
   },
   "digitalsalt": {
-   "liquid": 2049259952514,
+   "liquid": 2193448877097,
    "staked": 915280537990,
-   "total": 2964540490504,
+   "total": 3108729415087,
    "last_active_op": "2024-02-07T15:05:24",
    "last_lassecash": 1736464866
   },
@@ -64610,9 +64607,9 @@
    "last_lassecash": 1661292534
   },
   "truth2": {
-   "liquid": 21372170532,
+   "liquid": 26451017248,
    "staked": 31698879202,
-   "total": 53071049734,
+   "total": 58149896450,
    "last_active_op": "2025-09-16T16:41:54",
    "last_lassecash": 1749059010
   },
@@ -65926,9 +65923,9 @@
    "last_lassecash": null
   },
   "aghilyx22": {
-   "liquid": 10745637,
+   "liquid": 12954290,
    "staked": 30628199,
-   "total": 41373836,
+   "total": 43582489,
    "last_active_op": "2023-03-03T14:13:21",
    "last_lassecash": 1756443519
   },
@@ -66248,9 +66245,9 @@
    "last_lassecash": null
   },
   "synergized": {
-   "liquid": 82084075033,
+   "liquid": 94797706441,
    "staked": 120552302553,
-   "total": 202636377586,
+   "total": 215350008994,
    "last_active_op": "2026-04-24T02:21:21",
    "last_lassecash": 1704256824
   },
@@ -66808,9 +66805,9 @@
    "last_lassecash": null
   },
   "azeul": {
-   "liquid": 127782782490,
+   "liquid": 134570474386,
    "staked": 0,
-   "total": 127782782490,
+   "total": 134570474386,
    "last_active_op": "2022-02-06T14:27:30",
    "last_lassecash": null
   },
@@ -67396,9 +67393,9 @@
    "last_lassecash": null
   },
   "salomfishbee": {
-   "liquid": 1169632941,
+   "liquid": 1244126709,
    "staked": 85292636,
-   "total": 1254925577,
+   "total": 1329419345,
    "last_active_op": "2022-08-19T09:08:51",
    "last_lassecash": null
   },
@@ -67641,9 +67638,9 @@
    "last_lassecash": null
   },
   "abecorleone": {
-   "liquid": 25789635,
+   "liquid": 26999687,
    "staked": 349012,
-   "total": 26138647,
+   "total": 27348699,
    "last_active_op": "2022-08-10T03:05:00",
    "last_lassecash": 1665164028
   },
@@ -69468,9 +69465,9 @@
    "last_lassecash": null
   },
   "maksim55555": {
-   "liquid": 49668332091,
+   "liquid": 49669960583,
    "staked": 1000000000,
-   "total": 50668332091,
+   "total": 50669960583,
    "last_active_op": "2024-06-27T06:38:09",
    "last_lassecash": 1720649031
   },
@@ -69769,9 +69766,9 @@
    "last_lassecash": null
   },
   "viricon": {
-   "liquid": 15460829,
+   "liquid": 16349422,
    "staked": 0,
-   "total": 15460829,
+   "total": 16349422,
    "last_active_op": "2024-03-06T03:48:06",
    "last_lassecash": 1702278993
   },
@@ -72030,9 +72027,9 @@
    "last_lassecash": 1694271171
   },
   "vocup": {
-   "liquid": 4480710852421,
+   "liquid": 6912140615418,
    "staked": 15389043790387,
-   "total": 19869754642808,
+   "total": 22301184405805,
    "last_active_op": "2026-04-01T22:58:30",
    "last_lassecash": 1773852861
   },
@@ -72247,9 +72244,9 @@
    "last_lassecash": null
   },
   "keechadkikali": {
-   "liquid": 2681619700,
+   "liquid": 2694426913,
    "staked": 135966588,
-   "total": 2817586288,
+   "total": 2830393501,
    "last_active_op": "2026-04-23T08:14:48",
    "last_lassecash": 1692249726
   },
@@ -72975,9 +72972,9 @@
    "last_lassecash": null
   },
   "amywalls": {
-   "liquid": 62991943,
+   "liquid": 78355188,
    "staked": 224981320,
-   "total": 287973263,
+   "total": 303336508,
    "last_active_op": "2025-12-08T02:37:03",
    "last_lassecash": 1749936975
   },
@@ -73367,9 +73364,9 @@
    "last_lassecash": null
   },
   "bluma": {
-   "liquid": 3212042598893,
+   "liquid": 3380738104126,
    "staked": 0,
-   "total": 3212042598893,
+   "total": 3380738104126,
    "last_active_op": "2022-10-12T20:31:21",
    "last_lassecash": null
   },
@@ -73948,9 +73945,9 @@
    "last_lassecash": null
   },
   "anarchy999": {
-   "liquid": 106118171602,
+   "liquid": 128618984011,
    "staked": 4449485,
-   "total": 106122621087,
+   "total": 128623433496,
    "last_active_op": "2025-09-22T16:50:24",
    "last_lassecash": 1746465357
   },
@@ -74186,9 +74183,9 @@
    "last_lassecash": null
   },
   "djinpy": {
-   "liquid": 60098869,
+   "liquid": 63498152,
    "staked": 100000,
-   "total": 60198869,
+   "total": 63598152,
    "last_active_op": "2024-12-09T05:03:21",
    "last_lassecash": 1732378512
   },
@@ -74256,9 +74253,9 @@
    "last_lassecash": null
   },
   "poolweb": {
-   "liquid": 79285592358,
+   "liquid": 107607777300,
    "staked": 0,
-   "total": 79285592358,
+   "total": 107607777300,
    "last_active_op": "2025-01-05T11:13:39",
    "last_lassecash": 1758395037
   },
@@ -74795,9 +74792,9 @@
    "last_lassecash": null
   },
   "airanmilian": {
-   "liquid": 25641057399458,
+   "liquid": 26080499304943,
    "staked": 15146829081977,
-   "total": 40787886481435,
+   "total": 41227328386920,
    "last_active_op": "2022-11-10T15:05:03",
    "last_lassecash": null
   },
@@ -74823,9 +74820,9 @@
    "last_lassecash": 1678008834
   },
   "corrupter": {
-   "liquid": 664950,
+   "liquid": 705594,
    "staked": 128803,
-   "total": 793753,
+   "total": 834397,
    "last_active_op": "2024-06-14T20:57:39",
    "last_lassecash": 1701981105
   },
@@ -75222,9 +75219,9 @@
    "last_lassecash": null
   },
   "manic.calm": {
-   "liquid": 47479894276,
+   "liquid": 49803364858,
    "staked": 0,
-   "total": 47479894276,
+   "total": 49803364858,
    "last_active_op": "2025-05-14T16:17:48",
    "last_lassecash": 1678251555
   },
@@ -75236,9 +75233,9 @@
    "last_lassecash": null
   },
   "entrepreneur.one": {
-   "liquid": 20533193754,
+   "liquid": 21862214848,
    "staked": 0,
-   "total": 20533193754,
+   "total": 21862214848,
    "last_active_op": "2026-03-04T18:22:09",
    "last_lassecash": 1725403890
   },
@@ -75278,16 +75275,16 @@
    "last_lassecash": null
   },
   "truth2.cent": {
-   "liquid": 13623332766,
+   "liquid": 14505109707,
    "staked": 0,
-   "total": 13623332766,
+   "total": 14505109707,
    "last_active_op": "2024-09-06T23:37:54",
    "last_lassecash": 1725403524
   },
   "hutty": {
-   "liquid": 8508819259,
+   "liquid": 8831924752,
    "staked": 0,
-   "total": 8508819259,
+   "total": 8831924752,
    "last_active_op": "2024-07-05T11:34:33",
    "last_lassecash": null
   },
@@ -75859,9 +75856,9 @@
    "last_lassecash": null
   },
   "converter.bonus": {
-   "liquid": 1034239344514,
+   "liquid": 1065519927075,
    "staked": 136689799,
-   "total": 1034376034313,
+   "total": 1065656616874,
    "last_active_op": "2025-12-16T21:52:03",
    "last_lassecash": 1736111910
   },
@@ -77245,9 +77242,9 @@
    "last_lassecash": null
   },
   "pepe.voter": {
-   "liquid": 69323396714,
+   "liquid": 84020665350,
    "staked": 239344622362,
-   "total": 308668019076,
+   "total": 323365287712,
    "last_active_op": "2025-10-14T17:41:03",
    "last_lassecash": 1723846458
   },
@@ -77413,9 +77410,9 @@
    "last_lassecash": null
   },
   "mamontden": {
-   "liquid": 13463769,
+   "liquid": 13691003,
    "staked": 522504,
-   "total": 13986273,
+   "total": 14213507,
    "last_active_op": "2024-06-10T03:52:12",
    "last_lassecash": 1710218112
   },
@@ -77987,9 +77984,9 @@
    "last_lassecash": null
   },
   "gregscloud": {
-   "liquid": 637702,
+   "liquid": 798155,
    "staked": 198978926307,
-   "total": 198979564009,
+   "total": 198979724462,
    "last_active_op": "2026-01-07T19:19:57",
    "last_lassecash": 1750518657
   },
@@ -79834,6 +79831,13 @@
    "last_active_op": "2026-01-28T19:07:18",
    "last_lassecash": null
   },
+  "ataraksja": {
+   "liquid": 414227993,
+   "staked": 3728051943,
+   "total": 4142279936,
+   "last_active_op": "2026-05-23T21:02:21",
+   "last_lassecash": null
+  },
   "god0-dec": {
    "liquid": 2505637235465,
    "staked": 0,
@@ -80045,9 +80049,9 @@
    "last_lassecash": null
   },
   "codehivedev": {
-   "liquid": 49707669153,
+   "liquid": 66393290077,
    "staked": 0,
-   "total": 49707669153,
+   "total": 66393290077,
    "last_active_op": "2025-08-14T09:23:00",
    "last_lassecash": null
   },
@@ -80059,9 +80063,9 @@
    "last_lassecash": 1759065420
   },
   "goreh": {
-   "liquid": 378419010171,
+   "liquid": 1365870464527,
    "staked": 318511019,
-   "total": 378737521190,
+   "total": 1366188975546,
    "last_active_op": "2025-09-25T13:12:24",
    "last_lassecash": 1757667840
   },
