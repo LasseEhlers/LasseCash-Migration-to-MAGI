@@ -1,0 +1,149 @@
+/**
+ * Backend for the local dev chain (`./build.sh node`).
+ *
+ * The dev chain runs the SAME Go engine the MAGI contract runs, so every number
+ * here is already the number the real chain would produce. What it lacks is
+ * signing, finality and a real clock — so this backend can also drive time,
+ * which the MAGI backend cannot.
+ */
+import { BackendError, type Backend, type Signer } from "./backend.js";
+import type {
+  AccountView, ChainInfo, Content, LiquidityQuote, MintQuote, PostView,
+  PublishResult, SwapDirection, SwapQuote, TxResult,
+} from "./types.js";
+
+export interface DevBackendOptions {
+  url?: string;
+  fetch?: typeof globalThis.fetch;
+  timeoutMs?: number;
+}
+
+export class DevBackend implements Backend {
+  readonly name = "dev";
+  readonly #url: string;
+  readonly #fetch: typeof globalThis.fetch;
+  readonly #timeoutMs: number;
+
+  constructor(opts: DevBackendOptions = {}) {
+    this.#url = (opts.url ?? "http://localhost:8080").replace(/\/+$/, "");
+    this.#fetch = opts.fetch ?? globalThis.fetch.bind(globalThis);
+    this.#timeoutMs = opts.timeoutMs ?? 10_000;
+  }
+
+  async #req<T>(path: string, init?: RequestInit): Promise<T> {
+    // Always time out. A hung dev chain must surface as an error the UI can
+    // show, not a spinner that never resolves.
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), this.#timeoutMs);
+    let res: Response;
+    try {
+      res = await this.#fetch(`${this.#url}${path}`, { ...init, signal: ctrl.signal });
+    } catch (cause) {
+      throw new BackendError(`dev chain unreachable at ${this.#url}${path}`, undefined, cause);
+    } finally {
+      clearTimeout(timer);
+    }
+
+    const text = await res.text();
+    let body: unknown;
+    try {
+      body = text ? JSON.parse(text) : null;
+    } catch {
+      throw new BackendError(`dev chain returned non-JSON (${res.status})`, res.status, text);
+    }
+    // 422 is a rejected transaction, which is a legitimate result the caller
+    // must be able to read — not a transport failure.
+    if (!res.ok && res.status !== 422) {
+      throw new BackendError(`dev chain error ${res.status}`, res.status, body);
+    }
+    return body as T;
+  }
+
+  chain(): Promise<ChainInfo> { return this.#req("/chain"); }
+
+  account(name: string): Promise<AccountView> {
+    return this.#req(`/account/${encodeURIComponent(name)}`);
+  }
+
+  state(keys: string[]): Promise<Record<string, string>> {
+    return this.#req(`/state?keys=${encodeURIComponent(keys.join(","))}`);
+  }
+
+  posts(limit = 50): Promise<PostView[]> {
+    return this.#req(`/posts?limit=${limit}`);
+  }
+
+  async content(author: string, permlink: string): Promise<Content | null> {
+    try {
+      return await this.#req<Content>(
+        `/content/${encodeURIComponent(author)}/${encodeURIComponent(permlink)}`);
+    } catch {
+      return null; // an unpublished registration is a normal state, not a fault
+    }
+  }
+
+  /** Requires a signer; the dev chain takes the account name unsigned. */
+  publish(input: {
+    title: string; body: string; summary: string; tags: string[];
+    window: number; payoutMode: number; sender?: string;
+  }): Promise<PublishResult> {
+    return this.#req<PublishResult>("/publish", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...input, sender: input.sender ?? "" }),
+    });
+  }
+
+  quoteSwap(direction: SwapDirection, amountUnits: string): Promise<SwapQuote> {
+    return this.#req(`/quote/swap?direction=${direction}&amount=${amountUnits}`);
+  }
+
+  quoteMint(amountUnits: string, days: number): Promise<MintQuote> {
+    return this.#req(`/quote/mint?amount=${amountUnits}&days=${days}`);
+  }
+
+  quoteLiquidity(amountUnits: string): Promise<LiquidityQuote> {
+    return this.#req(`/quote/liquidity?amount=${amountUnits}`);
+  }
+
+  /**
+   * The dev chain has no RC model — transactions are free here.
+   *
+   * Returns null (UNKNOWN) rather than a fake full meter, so the guard is
+   * exercised honestly rather than being trivially satisfied in development
+   * and then failing in production.
+   */
+  async resourceCredits(): Promise<null> {
+    return null;
+  }
+
+  async advanceDays(days: number): Promise<number> {
+    const r = await this.#req<{ height: number }>("/dev/advance", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ days }),
+    });
+    return r.height;
+  }
+
+  /** Submit a transaction as `account`. The dev chain does not verify signatures. */
+  submit(account: string, entrypoint: string, args: string): Promise<TxResult> {
+    return this.#req<TxResult>("/tx", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sender: account, entrypoint, args }),
+    });
+  }
+}
+
+/** A signer for the dev chain: no keys, just an account name. */
+export class DevSigner implements Signer {
+  constructor(
+    readonly account: string,
+    private readonly backend: DevBackend,
+  ) {}
+
+  submit(entrypoint: string, args: string): Promise<TxResult> {
+    return this.backend.submit(this.account, entrypoint, args);
+  }
+}

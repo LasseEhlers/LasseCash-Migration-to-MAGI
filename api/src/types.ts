@@ -1,0 +1,244 @@
+/**
+ * The shapes the frontend consumes.
+ *
+ * Every field here was computed on-chain. If you find yourself wanting to add a
+ * field the backend does not already provide, the fix is a backend quote
+ * endpoint — not a calculation in TypeScript. See CLAUDE.md, golden rule.
+ */
+import type { Amount } from "./amount.js";
+
+/** Content windows. Viral pays in 7 days, Deep in 30. */
+export const Window = { Viral: 0, Deep: 1 } as const;
+export type Window = (typeof Window)[keyof typeof Window];
+
+/** Global chain position. */
+export interface ChainInfo {
+  height: number;
+  timestamp: string;
+  epoch: number;
+  genesis_height: number;
+  settled_height: number;
+  migrated_supply: Amount;
+  total_emitted: Amount;
+  total_burned: Amount;
+  total_shares: Amount;
+  pool_lshare: Amount;
+  pool_viral: Amount;
+  pool_deep: Amount;
+  pool_liquidity: Amount;
+  amm_lc: Amount;
+  amm_hbd: Amount;
+  amm_shares: Amount;
+  consensus_group: string[];
+}
+
+/** One time-lock position, with every displayed figure precomputed. */
+export interface MintView {
+  id: number;
+  principal: Amount;
+  shares: Amount;
+  start_height: number;
+  days: number;
+  maturity_height: number;
+  maturity_time: string;
+  mature: boolean;
+  good_accounting: boolean;
+  can_arm_good_accounting: boolean;
+  ended: boolean;
+  pending_yield: Amount;
+  /** What the owner receives if they claim right now. Engine-computed. */
+  if_claimed_now: Amount;
+  /** What would be slashed or bled away if they claimed right now. */
+  slashed_if_claimed_now: Amount;
+  /** Fraction of value surviving the post-maturity bleed, 1.0 = untouched. */
+  bleed_remaining_pct: Amount;
+}
+
+/** One liquidity position. */
+export interface TrancheView {
+  id: number;
+  shares: Amount;
+  start_height: number;
+  age_days: number;
+  /** 1.00 fresh, rising to 1.90 at 90 days. */
+  loyalty_multiplier: Amount;
+  weight: Amount;
+  closed: boolean;
+  value_lc: Amount;
+  value_hbd: Amount;
+  /** What "Claim rewards" would pay right now. Engine-computed. */
+  pending_reward: Amount;
+}
+
+/** Everything shown for one account. */
+export interface AccountView {
+  account: string;
+  balance: Amount;
+  shares: Amount;
+  pending: Amount;
+  /**
+   * Curation claims queued for automatic settlement on the 1st.
+   * Informational — the user never has to act on it.
+   */
+  pending_curation: number;
+  mint_duration_days: number;
+  hbd: number;
+  vote_power: { viral: Amount; deep: Amount };
+  mints: MintView[];
+  tranches: TrancheView[];
+  is_consensus_member: boolean;
+}
+
+/** One post, with its payout position already worked out on the backend. */
+export interface PostView {
+  author: string;
+  permlink: string;
+  window: "viral" | "deep";
+  created_height: number;
+  created_time: string;
+  payout_height: number;
+  payout_time: string;
+  rshares: string;
+  /** 0 = 20/80 split, 1 = 100% to the monthly mint, 2 = burned. Author only. */
+  payout_mode: number;
+  title: string;
+  summary: string;
+  /** The opening of the article — enough for a cover image and a preview. */
+  body_excerpt: string;
+  tags: string[] | null;
+  votes: number;
+  paid_out: boolean;
+  /** True once the window has closed and anyone may trigger the payout. */
+  payable: boolean;
+  /** What the post would earn if it paid out right now. Engine-computed. */
+  pending_payout: Amount;
+  curator_pot: Amount;
+  /** Height at which an unclaimed curator pot may be recycled. 0 until paid out. */
+  curation_expires_at: number;
+}
+
+/** Result of submitting a transaction. */
+export interface TxResult {
+  ok: boolean;
+  /** Diagnostic. Contains RAW BASE UNITS — never render this to a user. */
+  msg: string;
+  height: number;
+}
+
+export interface SwapQuote {
+  amount_in: Amount;
+  amount_out: Amount;
+  rate: Amount;
+  price_impact_pct: Amount;
+  reserve_in: Amount;
+  reserve_out: Amount;
+  ok: boolean;
+  msg: string;
+}
+
+export interface MintQuote {
+  principal: Amount;
+  days: number;
+  shares: Amount;
+  share_rate: Amount;
+  duration_multiplier: Amount;
+  volume_multiplier: Amount;
+  combined_multiplier: Amount;
+  maturity_height: number;
+  maturity_time: string;
+  ok: boolean;
+  msg: string;
+}
+
+export interface LiquidityQuote {
+  lc_in: Amount;
+  hbd_needed: Amount;
+  shares: Amount;
+  pool_share_pct: Amount;
+  is_first_deposit: boolean;
+  ok: boolean;
+  msg: string;
+}
+
+/**
+ * How an author's own reward is delivered. Set at publication, frozen with the
+ * post, and applying to the AUTHOR only — curators always take the standard
+ * split, because one person's choice must not dictate another's pay.
+ */
+export const PayoutMode = {
+  /** 20% liquid now, 80% into the monthly mint. */
+  Split: 0,
+  /** 100% into the monthly mint. */
+  PowerUp: 1,
+  /** Destroyed. Recorded against total burned. */
+  Burn: 2,
+} as const;
+export type PayoutMode = (typeof PayoutMode)[keyof typeof PayoutMode];
+
+/** An article body. Lives off-chain — on Hive in production. */
+export interface Content {
+  title: string;
+  body: string;
+  summary: string;
+  tags: string[] | null;
+}
+
+/** What publishing returns. */
+export interface PublishResult {
+  ok: boolean;
+  msg: string;
+  height: number;
+  /** The slug the post was registered under — the contract's key for it. */
+  permlink: string;
+}
+
+/**
+ * An account's resource credits.
+ *
+ * RC is what a transaction actually costs on MAGI — there are no fees. Spending
+ * it all leaves a user unable to post, vote or transfer, so any background work
+ * the app does on their behalf has to leave them plenty.
+ */
+export interface ResourceCredits {
+  /** Currently available. */
+  amount: number;
+  /** Ceiling, from staked balance. */
+  max: number;
+}
+
+/** Swap direction. */
+export type SwapDirection = "lc_hbd" | "hbd_lc";
+
+/** Contract entrypoints, exactly as the WASM exports them. */
+export const Entrypoint = {
+  Transfer: "transfer",
+  Burn: "burn",
+  Settle: "settle",
+  Mint: "mint",
+  ClaimMint: "claim_mint",
+  GoodAccounting: "good_accounting",
+  SetDuration: "set_duration",
+  SettlePending: "settle_pending",
+  Promote: "promote",
+  SetParam: "set_param",
+  Post: "post",
+  Vote: "vote",
+  Payout: "payout",
+  ClaimCuration: "claim_curation",
+  AddLiquidity: "add_liquidity",
+  RemoveLiquidity: "remove_liquidity",
+  ClaimPool: "claim_pool",
+  SwapLcHbd: "swap_lc_hbd",
+  SwapHbdLc: "swap_hbd_lc",
+} as const;
+export type Entrypoint = (typeof Entrypoint)[keyof typeof Entrypoint];
+
+/** Governable parameter keys, with their hardcoded bounds enforced on-chain. */
+export const Param = {
+  VolumeStart: "mint.volume_start",
+  VolumeEnd: "mint.volume_end",
+  PostThresholdViral: "post.threshold_viral",
+  PostThresholdDeep: "post.threshold_deep",
+  // No swap-fee key: the LASSECASH:HBD fee is hardcoded to zero, not governed.
+} as const;
+export type Param = (typeof Param)[keyof typeof Param];

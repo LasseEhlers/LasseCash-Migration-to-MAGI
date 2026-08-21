@@ -1,0 +1,81 @@
+/**
+ * Display helpers.
+ *
+ * PRESENTATION ONLY. Nothing here derives an economic value — it renders what
+ * the chain or the engine already decided. See CLAUDE.md, golden rule.
+ */
+import { format, type Amount } from "$api/index.js";
+
+/** LASSECASH for display: grouped, 3 decimals by default. */
+export function lc(amount: Amount, decimals = 3): string {
+  return format(amount, { decimals });
+}
+
+/** A short form for headline figures. */
+export function lcShort(amount: Amount): string {
+  const whole = Number(amount.split(".")[0] ?? "0");
+  if (Math.abs(whole) >= 1_000_000) return `${(whole / 1_000_000).toFixed(2)}M`;
+  if (Math.abs(whole) >= 1_000) return `${(whole / 1_000).toFixed(1)}k`;
+  return format(amount, { decimals: 2 });
+}
+
+/** A multiplier the engine computed: "2.25000000" -> "2.25x". */
+export function mult(m: Amount): string {
+  return `${format(m, { decimals: 2, group: false })}x`;
+}
+
+/** A percentage the engine computed. */
+export function pct(p: Amount, decimals = 2): string {
+  return `${format(p, { decimals, group: false })}%`;
+}
+
+/** A fraction the engine computed (1.0 = 100%), rendered as a percentage. */
+export function fractionPct(f: Amount, decimals = 1): string {
+  const n = Number(f) * 100;
+  return `${n.toFixed(decimals)}%`;
+}
+
+/** Heights to a human duration. Heights are 3 seconds. */
+export function heightsToDuration(heights: number): string {
+  if (heights <= 0) return "now";
+  const days = Math.floor(heights / 28_800);
+  if (days >= 365) {
+    const years = Math.floor(days / 365);
+    const rem = days % 365;
+    return rem > 30 ? `${years}y ${Math.floor(rem / 30)}mo` : `${years}y`;
+  }
+  if (days >= 1) return `${days}d`;
+  const hours = Math.floor((heights % 28_800) / 1_200);
+  return hours >= 1 ? `${hours}h` : `${Math.floor((heights % 1_200) / 20)}m`;
+}
+
+/**
+ * Duration in words — "29 days", "3 years 2 months", "5 hours". Use this
+ * wherever the text is uppercased or set in monospace: the compact "29d"
+ * renders as "29D", which reads as 290 (Lasse, 2026-08-21).
+ */
+export function durationWords(heights: number): string {
+  if (heights <= 0) return "now";
+  const plural = (n: number, unit: string) => `${n} ${unit}${n === 1 ? "" : "s"}`;
+  const days = Math.floor(heights / 28_800);
+  if (days >= 365) {
+    const years = Math.floor(days / 365);
+    const months = Math.floor((days % 365) / 30);
+    return months >= 1 ? `${plural(years, "year")} ${plural(months, "month")}` : plural(years, "year");
+  }
+  if (days >= 1) return plural(days, "day");
+  const hours = Math.floor((heights % 28_800) / 1_200);
+  if (hours >= 1) return plural(hours, "hour");
+  return plural(Math.floor((heights % 1_200) / 20), "minute");
+}
+
+export function shortDate(iso: string): string {
+  return new Date(iso).toLocaleDateString(undefined, {
+    year: "numeric", month: "short", day: "numeric",
+  });
+}
+
+/** Strip the "hive:" prefix for display. */
+export function displayName(account: string): string {
+  return account.replace(/^hive:/, "@");
+}

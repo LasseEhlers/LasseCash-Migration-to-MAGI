@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 apply_criteria.py --months 12)",
+      "Bash(python3 apply_criteria.py --months 3)",
+      "Bash(python3 apply_criteria.py --months 12 --write)",
+      "Bash(curl -s -X POST https://api.vsc.eco/api/v1/graphql -H 'Content-Type: application/json' -d '{\"query\":\"{__type\\(name:\\\\\"ContractCallSimulationResult\\\\\"\\){fields{name description}}}\"}')",
+      "Bash(curl -s -X POST https://api.vsc.eco/api/v1/graphql -H 'Content-Type: application/json' -d '{\"query\":\"{__type\\(name:\\\\\"AccountRC\\\\\"\\){fields{name description}}}\"}')",
+      "Bash(curl -s -X POST https://api.vsc.eco/api/v1/graphql -H 'Content-Type: application/json' -d '{\"query\":\"{getAccountRC\\(account:\\\\\"hive:lasseehlers\\\\\"\\){__typename}}\"}')",
+      "Bash(curl -s -X POST https://api.vsc.eco/api/v1/graphql -H 'Content-Type: application/json' -d '{\"query\":\"{__schema{types{name}}}\"}')",
+      "Bash(curl -s -X POST https://api.vsc.eco/api/v1/graphql -H 'Content-Type: application/json' -d '{\"query\":\"{getAccountRC\\(account:\\\\\"hive:lasseehlers\\\\\"\\){account amount max_rcs block_height}}\"}')",
+      "Bash(cp ../engine/*.go /dev/null)",
+      "Bash(mkdir -p artifacts)",
+      "Bash(docker run *)",
+      "Bash(awk '{print $5\" bytes\"}')",
+      "Bash(chmod +x build.sh)",
+      "Bash(./build.sh)",
+      "Skill(claude-api)",
+      "Skill(claude-api:*)"
+    ]
+  }
+}

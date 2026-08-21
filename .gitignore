@@ -1,0 +1,24 @@
+# SECRETS — the mainnet deployer key lives here. Never commit.
+deploy-data/
+*.pem
+*.key
+.env.local
+.env.*.local
+
+# Build artifacts and dependencies
+node_modules/
+api/dist/
+web/.svelte-kit/
+web/build/
+contract/artifacts/*.wasm
+api/engine-wasm/engine.wasm
+
+# Scratch / progress files
+tools/snapshot/data/migration_progress.json
+tools/snapshot/data/*.tmp
+*.log
+.DS_Store
+
+# Personal editor / agent settings
+.claude/settings.local.json
+.vscode/

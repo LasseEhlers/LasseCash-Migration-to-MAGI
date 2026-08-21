@@ -1,0 +1,345 @@
+/*
+ * LasseCash — anarcho-capitalist cyberpunk.
+ *
+ * The palette is not decoration: black and gold IS the AnCap flag. Leaning on
+ * it hard is on-brand and on-ideology at the same time. Cyan is the only
+ * secondary, used for machine/terminal chrome so it never competes with gold.
+ *
+ * Rules that keep "cyberpunk" from becoming "unreadable":
+ *  - Glow is for HERO NUMBERS ONLY. If everything glows, nothing reads.
+ *  - Body copy stays high-contrast on near-black. No neon paragraphs.
+ *  - Monospace for every number; tabular figures so digits do not jump.
+ *  - RED IS RESERVED for value actively being lost — the bleed, the early-end
+ *    slash. Never for ordinary validation errors, or it stops meaning
+ *    "you are losing money right now".
+ */
+
+:root {
+  --bg: #07090d;
+  --bg-2: #0b0f16;
+  --panel: #10151f;
+  --panel-2: #161d29;
+  --line: #23303f;
+  --line-soft: #1a2430;
+  --line-hot: #3a4c63;
+
+  --ink: #eef3fa;
+  --dim: #8492a5;
+  --dimmer: #5a6879;
+
+  --gold: #ffd23f;
+  --gold-hot: #ffe27a;
+  --gold-dim: #a8892a;
+  --cyan: #2ee6d6;
+  --green: #35d07f;
+  --red: #ff4d4d;
+  --amber: #ffa53f;
+  --blue: #4d9fff;
+
+  --glow-gold: 0 0 12px rgba(255, 210, 63, 0.45), 0 0 34px rgba(255, 210, 63, 0.16);
+  --glow-cyan: 0 0 12px rgba(46, 230, 214, 0.4);
+  --glow-green: 0 0 12px rgba(53, 208, 127, 0.4);
+  --glow-red: 0 0 12px rgba(255, 77, 77, 0.45);
+
+  --r: 4px;
+  --r-sm: 3px;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+  --t-micro: 0.66rem;
+  --t-tiny: 0.74rem;
+  --t-sm: 0.84rem;
+  --t-base: 0.94rem;
+  --t-lg: 1.12rem;
+  --t-xl: 1.6rem;
+  --t-hero: 2rem;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  color: var(--ink);
+  font: var(--t-base)/1.55 var(--sans);
+  -webkit-font-smoothing: antialiased;
+  background-color: var(--bg);
+  /* Faint engineering grid + a warm gold bloom behind the header. */
+  background-image:
+    radial-gradient(900px 380px at 50% -140px, rgba(255, 210, 63, 0.07), transparent 70%),
+    linear-gradient(rgba(35, 48, 63, 0.30) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(35, 48, 63, 0.30) 1px, transparent 1px);
+  background-size: auto, 44px 44px, 44px 44px;
+  background-attachment: fixed;
+}
+
+a { color: inherit; text-decoration: none; }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+/* --- shell ------------------------------------------------------------- */
+
+.shell { min-height: 100vh; display: flex; flex-direction: column; }
+
+header {
+  display: flex; align-items: center; gap: 1.1rem;
+  padding: 0.65rem 1.15rem;
+  border-bottom: 1px solid var(--line);
+  background: rgba(11, 15, 22, 0.9);
+  backdrop-filter: blur(10px);
+  position: sticky; top: 0; z-index: 30;
+  flex-wrap: wrap;
+}
+/* A thin gold rule under the header — the flag edge. */
+header::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 1px;
+  background: linear-gradient(90deg, var(--gold), transparent 45%, transparent 55%, var(--cyan));
+  opacity: 0.5;
+}
+
+.brand { display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0; }
+.mark {
+  width: 28px; height: 28px; display: grid; place-items: center;
+  border: 2px solid var(--gold); border-radius: var(--r-sm);
+  color: var(--gold); font-weight: 800; font-size: 0.9rem;
+  font-family: var(--mono);
+  box-shadow: var(--glow-gold);
+}
+.brand .name {
+  font-family: var(--mono); font-weight: 700;
+  letter-spacing: 0.08em; font-size: 0.98rem;
+}
+.brand .tag {
+  color: var(--gold-dim); font-size: var(--t-micro);
+  letter-spacing: 0.18em; font-weight: 700; font-family: var(--mono);
+}
+
+nav { display: flex; gap: 0.2rem; }
+nav a {
+  color: var(--dim); font-weight: 600; font-size: var(--t-sm);
+  padding: 0.32rem 0.62rem; border-radius: var(--r-sm);
+  font-family: var(--mono); letter-spacing: 0.02em;
+  border: 1px solid transparent;
+}
+nav a:hover { color: var(--ink); border-color: var(--line); }
+nav a[aria-current="page"] {
+  color: var(--gold); border-color: var(--gold-dim);
+  background: rgba(255, 210, 63, 0.07);
+}
+
+.session { margin-left: auto; display: flex; align-items: center; gap: 0.5rem; }
+.session .who { font-weight: 700; color: var(--gold); font-size: var(--t-sm); font-family: var(--mono); }
+.session form { display: flex; gap: 0.35rem; }
+.session input { width: 9rem; }
+
+main {
+  flex: 1; padding: 1.35rem 1.15rem 3.5rem;
+  max-width: 1180px; margin: 0 auto; width: 100%;
+}
+
+footer {
+  border-top: 1px solid var(--line); padding: 0.75rem 1.15rem;
+  color: var(--dimmer); font-size: var(--t-tiny);
+  display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap;
+  font-family: var(--mono);
+}
+
+/* --- controls ---------------------------------------------------------- */
+
+input, select {
+  background: #05070a; color: var(--ink);
+  border: 1px solid var(--line); border-radius: var(--r-sm);
+  padding: 0.5rem 0.65rem; font: inherit; min-width: 0;
+  font-family: var(--mono);
+  transition: border-color 0.12s, box-shadow 0.12s;
+}
+input:hover { border-color: var(--line-hot); }
+input:focus, select:focus {
+  outline: none; border-color: var(--cyan);
+  box-shadow: 0 0 0 1px var(--cyan), 0 0 14px rgba(46, 230, 214, 0.18);
+}
+
+button {
+  background: var(--gold); color: #0a0d12; border: 1px solid var(--gold);
+  border-radius: var(--r-sm); padding: 0.52rem 0.95rem;
+  font: inherit; font-weight: 800; cursor: pointer;
+  font-family: var(--mono); letter-spacing: 0.03em;
+  transition: filter 0.12s, box-shadow 0.12s, opacity 0.12s;
+}
+button:hover:not(:disabled) { filter: brightness(1.08); box-shadow: var(--glow-gold); }
+button:active:not(:disabled) { filter: brightness(0.92); }
+button:disabled { opacity: 0.35; cursor: not-allowed; }
+button.ghost {
+  background: transparent; color: var(--dim); border-color: var(--line);
+  font-weight: 600;
+}
+button.ghost:hover:not(:disabled) {
+  color: var(--cyan); border-color: var(--cyan); box-shadow: none;
+  background: rgba(46, 230, 214, 0.06);
+}
+button.danger { background: var(--red); border-color: var(--red); color: #fff; }
+button.danger:hover:not(:disabled) { box-shadow: var(--glow-red); }
+button.small { padding: 0.3rem 0.6rem; font-size: var(--t-sm); }
+
+/* Range sliders: a thin gold track with the thumb flush at both end caps, so
+   "maximum" reads as all-the-way-right rather than the native inset look. */
+input[type="range"] {
+  width: 100%; height: 22px; margin: 0; background: transparent;
+  -webkit-appearance: none; appearance: none; cursor: pointer;
+}
+input[type="range"]:focus { outline: none; }
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 4px; border-radius: 2px;
+  background: linear-gradient(90deg, var(--gold), var(--gold-dim, var(--gold)));
+}
+input[type="range"]::-moz-range-track {
+  height: 4px; border-radius: 2px; background: var(--gold);
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 16px; height: 16px; margin-top: -6px; border-radius: 50%;
+  background: var(--gold); border: 2px solid var(--bg);
+  box-shadow: 0 0 0 1px var(--gold);
+}
+input[type="range"]::-moz-range-thumb {
+  width: 12px; height: 12px; border-radius: 50%;
+  background: var(--gold); border: 2px solid var(--bg);
+  box-shadow: 0 0 0 1px var(--gold);
+}
+input[type="range"]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 3px rgba(255, 210, 63, 0.35); }
+
+label.field { display: block; margin-bottom: 0.85rem; }
+label.field > span {
+  display: block; color: var(--dim); font-size: var(--t-micro);
+  letter-spacing: 0.13em; text-transform: uppercase;
+  font-weight: 700; margin-bottom: 0.3rem; font-family: var(--mono);
+}
+label.field input:not([type="range"]) { width: 100%; }
+label.field small { display: block; margin-top: 0.28rem; font-size: var(--t-tiny); }
+
+/* --- surfaces ---------------------------------------------------------- */
+
+.panel {
+  background: linear-gradient(180deg, var(--panel), var(--bg-2));
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 1.05rem 1.1rem;
+  position: relative;
+}
+/* Terminal-style section headers: a gold tick, then caps mono. */
+.panel h2 {
+  margin: 0 0 0.85rem; font-size: var(--t-micro);
+  letter-spacing: 0.18em; color: var(--dim);
+  text-transform: uppercase; font-weight: 700;
+  font-family: var(--mono);
+  display: flex; align-items: center; gap: 0.55rem;
+}
+.panel h2::before {
+  content: "▍"; color: var(--gold); font-size: 0.85rem; line-height: 1;
+}
+
+.grid { display: grid; gap: 1rem; }
+.row { display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-start; }
+/* Flex items default to min-width:auto, so a wide table refuses to shrink to
+   its flex-basis and wraps the sibling below it. This is the fix. */
+.row > * { min-width: 0; }
+
+.stat .label {
+  color: var(--dim); font-size: var(--t-micro);
+  letter-spacing: 0.13em; text-transform: uppercase; font-weight: 700;
+  font-family: var(--mono);
+}
+/* HERO NUMBERS GLOW. Nothing else does. */
+.stat .value {
+  font-family: var(--mono); font-size: var(--t-xl); font-weight: 700;
+  font-variant-numeric: tabular-nums; line-height: 1.25;
+  margin: 0.2rem 0 0.1rem;
+  text-shadow: var(--glow-gold);
+}
+.stat .value.green { text-shadow: var(--glow-green); }
+.stat .value.red { text-shadow: var(--glow-red); }
+.stat .value.dim { text-shadow: none; }
+.stat .sub { color: var(--dimmer); font-size: var(--t-tiny); }
+
+.gold { color: var(--gold); }
+.green { color: var(--green); }
+.red { color: var(--red); }
+.amber { color: var(--amber); }
+.cyan { color: var(--cyan); }
+.dim { color: var(--dim); }
+
+/* --- tables ------------------------------------------------------------ */
+
+table { width: 100%; border-collapse: collapse; font-size: var(--t-sm); }
+th {
+  text-align: left; color: var(--dim); font-size: var(--t-micro);
+  letter-spacing: 0.13em; text-transform: uppercase; font-weight: 700;
+  padding: 0 0.55rem 0.5rem; border-bottom: 1px solid var(--line);
+  white-space: nowrap; font-family: var(--mono);
+}
+td { padding: 0.65rem 0.55rem; border-bottom: 1px solid var(--line-soft); }
+td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; text-align: right; }
+tr:last-child td { border-bottom: 0; }
+.scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+/* --- pills ------------------------------------------------------------- */
+
+.pill {
+  display: inline-block; padding: 0.1rem 0.46rem; border-radius: var(--r-sm);
+  font-size: var(--t-micro); font-weight: 700; letter-spacing: 0.06em;
+  white-space: nowrap; font-family: var(--mono); text-transform: uppercase;
+  border: 1px solid currentColor;
+}
+.pill.ok { color: var(--green); background: rgba(53, 208, 127, 0.1); }
+.pill.warn { color: var(--amber); background: rgba(255, 165, 63, 0.1); }
+.pill.bad { color: var(--red); background: rgba(255, 77, 77, 0.12); }
+.pill.info { color: var(--cyan); background: rgba(46, 230, 214, 0.1); }
+
+/* --- empty states ------------------------------------------------------ */
+
+.empty {
+  color: var(--dim); text-align: center; padding: 2.2rem 1rem;
+  max-width: 46ch; margin: 0 auto; line-height: 1.65;
+}
+.empty strong { color: var(--ink); display: block; margin-bottom: 0.35rem; font-family: var(--mono); }
+
+/* --- banners ----------------------------------------------------------- */
+
+.banner {
+  padding: 0.6rem 1.15rem; background: var(--panel-2);
+  border-bottom: 1px solid var(--line); font-size: var(--t-sm);
+  font-family: var(--mono);
+}
+.banner.error {
+  background: rgba(255, 77, 77, 0.09); border-bottom-color: rgba(255, 77, 77, 0.4);
+  color: #ffc0c0;
+}
+.banner .hint { color: var(--dim); margin-left: 0.5rem; }
+code {
+  font-family: var(--mono); background: #05070a; color: var(--cyan);
+  padding: 0.1rem 0.35rem; border-radius: var(--r-sm); font-size: 0.9em;
+  border: 1px solid var(--line);
+}
+
+/* --- mobile ------------------------------------------------------------ */
+
+@media (max-width: 720px) {
+  :root { --t-xl: 1.34rem; --t-hero: 1.55rem; }
+  body { background-size: auto, 32px 32px, 32px 32px; }
+  header { gap: 0.65rem; padding: 0.55rem 0.85rem; }
+  .brand .tag { display: none; }
+  nav { order: 3; width: 100%; overflow-x: auto; padding-bottom: 0.15rem; }
+  .session input { width: 6.5rem; }
+  main { padding: 1rem 0.85rem 3rem; }
+  .panel { padding: 0.9rem; }
+  .row > * { flex: 1 1 100% !important; }
+  .banner { padding-left: 0.85rem; padding-right: 0.85rem; }
+}
+
+@media (max-width: 420px) {
+  .stat .value { font-size: 1.2rem; }
+  th, td { padding-left: 0.35rem; padding-right: 0.35rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
