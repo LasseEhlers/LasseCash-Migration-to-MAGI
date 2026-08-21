@@ -686,3 +686,225 @@ Split the work by shape, as before: **20 for staked, 50 for liquid-only and for
 `burn_batch`.** A single `MaxMigrateBatch` of 20 caps all three safely; the
 executor can simply send fewer than the cap for the cheap shapes if a single
 constant is preferred.
+
+---
+
+## Claim-based migration — MEASURED 2026-08-21 (evening)
+
+The migration became CLAIM-based (`contract/state/claim.go`, `engine/merkle.go`):
+the owner commits ONE Merkle root, every holder claims their own leaf and pays
+their own RC. That replaces the ~8.8M RC push bill measured above with a per-
+holder cost — so the number that now matters is **what one claim costs the
+claimant**, and what `rc_limit` the frontend should attach.
+
+Everything below was measured on this devnet against a **synthetic** tree whose
+leaves include the four accounts that can actually sign here
+(`hive:magi.test1…4`), so every "real broadcast" row is a genuine signed
+transaction whose state was read back.
+
+### Setup
+
+| | |
+|---|---|
+| tree A | 2,048 leaves (1,537 qualifying / 511 burned) → **11-hash proofs** |
+| tree B | 16,384 leaves (12,289 / 4,095) → **14-hash proofs** |
+| builder | `node/cmd/merkletree` against a synthetic `migration_set.json` — the real `migtree`/`engine.LeafHash` path, never a reimplementation |
+
+| contract | wasm | genesis | purpose |
+|---|---|---|---|
+| `vsc1BYo4tDHi2PVzznv48tw6QQzBPK1smNrNzx` | `main.wasm` 90,499 B | 6715 (live) | tree A — day 0, the ordinary claim |
+| `vsc1BcDgmMktByMs331y5nPgJKeWy8YtvmR47J` | `main.wasm` 90,499 B | 6858 (live) | tree B — same claims, 14-hash proofs |
+| `vsc1BYy9nqAr7u8EwZp7ZAivhVhR7NtkpdJsxS` | TESTWINDOWS 90,528 B | 3205 (**backdated**) | day 31 — the MATURED claim |
+| `vsc1Bk2q8ha3jMzkcCRBMC8g8DpKJrRu1myiPG` | TESTWINDOWS 90,528 B | 33 (**backdated**) | day 61 — the BLEEDING claim |
+| `vsc1Bnjd5ZU4Xa24GEAFzcLRcZZ4FqEnkgjEd7` | TESTWINDOWS (push) 95,508 B | 7018 (live) | `gov_board` contention |
+
+**The backdating trick.** A 30-day migration mint cannot be waited out inside a
+session, and even the 240x TESTWINDOWS clock needs 3 hours. But `init` takes
+the genesis height as an argument and never checks it against the present, so
+`init (currentHeight − 3700)` on the TESTWINDOWS build puts the contract at
+**day 31 the moment it is created**. Every post-maturity path becomes testable
+in minutes. (Only forwards: day 150, where `sweep_unclaimed` finally succeeds,
+needs 18,000 heights of chain behind it and is still unmeasured.)
+
+### 🟢 What a claim costs
+
+`claim_migration`, by shape. Gas is from `simulateContractCalls`; the RC column
+is `gas / 100,000`, and where a real broadcast followed it charged the same
+figure to the base unit.
+
+| claim | gas_used | rc_used | note |
+|---|---|---|---|
+| **staked + liquid, before day 30** | 401,677,054 | **4,017** | creates the 30-day migration mint |
+| same, but the 20-slot `gov_board` is full and the claimer loses the tie | 552,520,939 | **5,526** | +38% |
+| same, and the claimer **beats** the board and inserts | 589,137,077 | **5,892** | +47% — the measured worst case |
+| staked + liquid, warm state, small amounts | 295,286,662 | 2,953 | second claim onto an already-written day |
+| **liquid only** | 104,141,989 | **1,042** | no mint, no shares, no board offer |
+| **matured (day 31, in grace)** | 132,642,843 | **1,327** | pays straight to liquid; no mint is created |
+| **bleeding (day 61)** | 182,346,357 | **1,824** | pays the surviving fraction, recycles the rest |
+
+`record_burn`, `sweep_unclaimed` and every refusal:
+
+| call | gas_used | rc_used |
+|---|---|---|
+| `record_burn` (a burned leaf, 11-hash proof) | 58,919,758 | **590** |
+| `record_burn` (14-hash proof) | 59,047,657 | 591 |
+| `sweep_unclaimed` before the deadline — **refused** | 9,115,449 | **100** |
+| claim with a tampered proof hash | 12,429,071 | 125 |
+| claim with a tampered amount (valid proof) | 12,429,186 | 125 |
+| claim with a truncated proof (10 of 11) | 12,386,399 | 124 |
+| claim with malformed hex | 11,925,521 | 120 |
+| claim with no proof at all | 11,961,333 | 120 |
+| claim of someone else's leaf (wrong sender) | 12,429,058 | 125 |
+| claim with 32 hashes (`MaxProofLen`) | 13,324,438 | 134 |
+| claim with 33 hashes (over the cap) | 12,085,806 | 121 |
+| second claim by the same account — "already claimed" | 14,573,711 | 146 |
+| second `record_burn` — "already recorded" | 11,759,016 | 118 |
+
+**A failed claim costs its sender ~125 RC and writes nothing** — verified by a
+real broadcast, not only in simulation: `ok=false`, the `state_merkle` unchanged
+from the previous block, no `mig_` receipt, `sup_claimed` untouched. Brute
+force against the root is therefore self-limiting: ~80 attempts exhaust a fresh
+account's entire 10,000-RC free allowance, and the allowance takes five days to
+thaw. Nothing needs to be done about it.
+
+### 🟢 Proof length is a rounding error
+
+Measured three independent ways on the same contract, so state differences
+cannot explain it:
+
+| pair | Δ gas | per hash |
+|---|---|---|
+| 10-hash vs 11-hash refusal | 42,672 | 42,672 |
+| 11-hash (tree A) vs 14-hash (tree B) refusal | 128,079 / 3 | 42,693 |
+| 11-hash vs 32-hash refusal | 895,367 / 21 | 42,637 |
+
+**≈42,700 gas = 0.43 RC per proof element.** A full `MaxProofLen` 32-deep proof
+spends 13.7 RC walking to the root — 0.3% of a 4,017-RC claim. The real
+snapshot's 2,263 qualifying accounts need 12-deep proofs; even a tree of four
+billion leaves would not make hashing visible next to the state writes.
+
+Successful claims agree: staked+liquid was 401,677,054 gas with an 11-hash
+proof and 400,205,076 with a 14-hash one — the *tree* is not what a claim pays
+for. **Size the snapshot tree for whatever the snapshot needs; proof depth is
+not a cost input.**
+
+### 🟠 `gov_board` contention is the real variable — and 5,000 is too low
+
+A claim that creates a mint offers the account a `gov_board` seat, and `offer()`
+re-reads `shr_` for the incumbents. On a virgin board that is nothing; against a
+full 20-slot board it is **+150M gas if the claimer is rejected and +187M if it
+inserts** (measured by filling the board with 20 `migrate_batch` accounts inside
+one simulation, then claiming). That is a **+47% worst case**, and it is the
+normal case during a real migration: the board fills within the first twenty
+staked claims, and every claim after that pays the contention.
+
+**The current `RC_LIMITS.claim_migration = 5,000` in `api/src/aioha-signer.ts`
+does not cover it** — the measured worst case is 5,892, so a large holder
+claiming into a contended board would hit `gas_limit_hit` and have to be told to
+retry with a bigger limit.
+
+### ✅ Recommended `rc_limit`
+
+Mainnet **freezes the whole `rc_limit` for five days**, so the limit is not a
+free safety margin — it is what the claimant cannot spend on anything else that
+week. And a holder with no MAGI HBD has exactly **10,000 RC** in total. So size
+it per shape, which the claim page can do: it has already fetched the leaf, so
+it knows whether `staked > 0`, and it knows the height.
+
+| entrypoint | shape | measured worst case | **recommend** |
+|---|---|---|---|
+| `claim_migration` | staked > 0, before day 30 | 5,892 | **9,500** |
+| `claim_migration` | liquid only, or after maturity | 1,327 | **2,500** |
+| `record_burn` | any | 591 | **1,000** (1,500 is fine) |
+| `sweep_unclaimed` | refusal | 100 | 1,500 default is fine |
+
+9,500 is the 5,892 worst case + 61% headroom, and it still fits inside a fresh
+account's free allowance with room for the transaction itself. If a single
+constant is preferred over a per-shape one, use **9,500 for everything** —
+overpaying the liquid-only case by 7x is only a five-day freeze on RC the
+claimant has no other use for that day, and it is the once-in-a-lifetime call.
+
+⚠️ Two costs are NOT in these figures and both are real:
+
+- **A lagging accumulator.** A pre-maturity claim calls `Accrue` itself, and the
+  walk costs **~141M gas fixed + 4.96M per day** (measured: 5 days 165,750,085;
+  10 days 190,571,121; 31 days 296,963,165). During the claim window somebody
+  claims most days, so the lag stays near zero — but the first claim after a
+  quiet week pays ~50 RC per silent day on top. The 61% headroom covers a week.
+- **State growth.** Every figure here was taken against a nearly-empty
+  contract. Real state is bigger, so these are floors, exactly as the
+  `migrate_batch` numbers above were.
+
+### Real broadcasts — state read back
+
+Every row below is a signed devnet transaction, not a simulation.
+
+| call | result | state read back |
+|---|---|---|
+| `set_snapshot` (tree A) | `ok=true "snapshot committed"` | `cfg_migroot`=the root, `cfg_migtotal`=5829950000000, `bal_hive:null`=76650000000 — the burn total credited at genesis, in one write |
+| `claim_migration` by `hive:magi.test2` (5,000 liquid + 20,000 staked) | `ok=true "claimed 500000000000 liquid"`, **4,016 RC charged** (simulated 4,017) | `bal_`=500000000000, `shr_`=2000000000000 (staked POWER 1:1), `mint_hive:magi.test2_1`=`2000000000000\|2000000000000\|6715\|30\|0\|0\|0\|0` — principal, shares, **start height = genesis, not the broadcast height**, 30 days; `mig_`=`500000000000\|2000000000000`; `gov_board`=`hive:magi.test2`; `sup_claimed`=3000000000000 |
+| `claim_migration` by `hive:magi.test3` (liquid only) | `ok=true` | `bal_`=500000000000, **no `shr_`, no mint**, `mig_`=`500000000000\|0` |
+| `record_burn` for `hive:lcb00000` | `ok=true "burn recorded"`, 588 RC (simulated 590) | `mig_hive:lcb00000`=`burned\|100000000\|50000000` — the receipt, permanent |
+| `claim_migration` with a tampered amount | **`ok=false`**, 124 RC | `state_merkle` unchanged, no receipt, `sup_claimed` unchanged |
+| `claim_migration` by `hive:magi.test2` on the **day-31** contract | `ok=true "claimed 2500000000000 liquid"`, 1,326 RC (simulated 1,327) | `bal_`=2500000000000 — the whole 25,000 LC straight to liquid, **no mint, no `shr_`**, receipt written. Grace pays 100%, exactly as `claim.go` describes |
+
+| `claim_migration` by `hive:magi.test2` on the **day-61** contract | `ok=true "claimed 2473518520000 liquid"`, 1,823 RC (simulated 1,824) | `bal_`=2473518520000 and `pool_lshare`=26481480000 — 24,735.18520000 LC out, 264.81480000 LC recycled, summing to the 25,000 LC claimed **exactly**. The mint was 1.19 days into its 90-day bleed: 98.68% survives, and the bleed is linear per HEIGHT, not per day |
+
+### Regression: nothing else got more expensive
+
+Same contract, same build, the everyday calls:
+
+| call | gas_used | rc_used | vs the earlier build |
+|---|---|---|---|
+| `transfer` 1 LC to a NEW account | 28,422,663 | **285** | 28,421,732 / 285 — **identical**, and still matching mainnet's measured 28M |
+| `transfer` 1 LC to an account that already has a balance | 14,923,897 | 150 | new datapoint: creating the `bal_` key is ~13.5M of a transfer |
+| `mint` 1 LC / 30 days | 197,595,937 | **1,976** | 240,076,521 / 2,401 — **18% cheaper** |
+| `mint` 1,000 LC / 30 days | 214,696,952 | 2,147 | — |
+| `mint` 5,000 LC / 1,095 days | 227,395,042 | 2,274 | — |
+| `advance` (no-op) | 2,315,603 | 100 | 2,314,677 / 100 — unchanged |
+
+Real broadcasts confirmed both: `transfer` charged exactly 285 RC, `mint`
+charged 2,146 against a simulated 2,147.
+
+### Still unmeasured
+
+- **`sweep_unclaimed` succeeding.** It only runs after the day-150 deadline,
+  which needs 18,000 heights of chain behind a backdated genesis; this devnet
+  is younger than that. Only the refusal (100 RC) is measured. It calls
+  `Accrue`, so budget it like `advance` plus one write, and note it will
+  usually need `advance` first.
+- **`MaxRetirePerWalk` on the maturity day.** Every migration mint matures on
+  the same day, so the walk that crosses it retires thousands of per-account
+  entries 200 at a time. Worth measuring before the freeze, on a contract
+  seeded with a few thousand claims.
+
+### Operational note — the witnesses run out of TBD
+
+Every deploy costs **10 TBD from the deploying witness's L1 balance**, and
+`up.sh` funds each witness with 100 TBD exactly once. After ten deploys the
+node reports
+
+```
+failed to broadcast contract tx Assert Exception:a.get_hbd_balance() >= -delta:
+Account magi.test1 does not have sufficient funds for balance adjustment.
+```
+
+which looks like a chain problem and is just an empty wallet. Two fixes, in
+order of preference:
+
+1. **Deploy from another node** (`-node 2…4`) — the owner becomes that node's
+   witness, so `init` / `set_snapshot` must be called with the same `-node`.
+2. **Top the witnesses up from initminer.** The harness already knows how:
+   `devnet.Devnet.FundAccounts()` (exported in `tests/devnet/lc_export.go`)
+   broadcasts 100 TBD + 10,000 TESTS to each witness from initminer. A
+   six-line `cmd/…` program in the go-vsc-node checkout calling `attach()`
+   then `FundAccounts()` is enough; it transfers and nothing else — no reset,
+   no re-genesis, no key printed.
+
+Checking balances needs no key at all:
+
+```bash
+curl -s http://localhost:19000 -H 'content-type:application/json' \
+  -d '{"jsonrpc":"2.0","method":"condenser_api.get_accounts",
+       "params":[["magi.test1","magi.test2","magi.test3","magi.test4"]],"id":1}'
+```

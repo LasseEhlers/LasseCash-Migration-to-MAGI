@@ -154,7 +154,12 @@
     error = null;
     // Base units straight from the leaf: they are inside the Merkle hash, so
     // anything that reformats them breaks the proof.
-    error = await chain.submit(() => client.claimMigration(leaf!.liquid, leaf!.staked, leaf!.proof));
+    // Liquid-only or already-matured claims take the cheap path (no mint is
+    // created), so the wallet asks for a small rc_limit instead of the
+    // staked-claim worst case. Measured on the devnet, 2026-08-21.
+    const cheap = leaf!.staked === "0" || matured;
+    error = await chain.submit(() =>
+      client.claimMigration(leaf!.liquid, leaf!.staked, leaf!.proof, { cheap }));
     // The receipt now exists on-chain, so the panel is done: the position is
     // in the mint list below, where every other mint lives.
     if (!error) leaf = null;

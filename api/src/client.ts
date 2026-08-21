@@ -11,7 +11,7 @@
  */
 import { fromUnits, toBaseUnitArg } from "./amount.js";
 import type { Backend, Signer } from "./backend.js";
-import { BackendError } from "./backend.js";
+import { BackendError, type SubmitOptions } from "./backend.js";
 import type {
   AccountView, ChainInfo, Content, LiquidityQuote, MigrationRecord, MintQuote,
   MintView, PostView, PublishResult, ResourceCredits, SwapDirection, SwapQuote,
@@ -211,9 +211,16 @@ export class LasseCashClient {
    */
   async claimMigration(
     liquidUnits: string, stakedUnits: string, proof: string[],
+    opts?: { cheap?: boolean },
   ): Promise<TxResult> {
+    // Measured on the devnet 2026-08-21: a staked claim before maturity can
+    // cost up to 5,892 RC (it creates a mint and may take a board seat); a
+    // liquid-only or already-matured claim costs ~1,042–1,824. The page
+    // passes `cheap` when it knows the cheap path applies, so a fresh
+    // account is not frozen for five days over a small claim.
     return this.#send(Entrypoint.ClaimMigration,
-      args(liquidUnits, stakedUnits, proof.join(",")));
+      args(liquidUnits, stakedUnits, proof.join(",")),
+      opts?.cheap ? { rcLimit: 2_500 } : undefined);
   }
 
   /**
@@ -366,8 +373,8 @@ export class LasseCashClient {
   // promise rather than a synchronous throw. A method typed Promise<T> that
   // sometimes throws before returning cannot be handled with .catch(), which
   // is exactly the kind of trap that makes a UI swallow errors silently.
-  async #send(entrypoint: string, payload: string): Promise<TxResult> {
-    return this.#requireSigner().submit(entrypoint, payload);
+  async #send(entrypoint: string, payload: string, opts?: SubmitOptions): Promise<TxResult> {
+    return this.#requireSigner().submit(entrypoint, payload, opts);
   }
 
   // --- dev only -----------------------------------------------------------

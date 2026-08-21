@@ -338,7 +338,17 @@ opening RATIO is what matters, not the size.
 Lasse's MAGI RC capacity is ~120k (110 HBD). *"I dont even have this kind of
 money right now."* So the migration is PULL: the owner commits ONE Merkle
 root; every holder claims their own leaf with a proof, paying their own free
-RC (10,000 per account; a claim costs ~5,000 — judgement, measure on devnet).
+RC (10,000 per account). **MEASURED on the devnet 2026-08-21:** a staked
+claim before day 30 costs 4,017 RC, **5,892 worst case** (it creates the mint
+AND takes a `gov_board` seat — board contention is +47%); liquid-only 1,042;
+matured (grace) 1,327; bleeding 1,824; `record_burn` 590; any bad proof
+~125 and writes nothing. Proof length is noise (0.43 RC per hash). Real
+broadcasts matched simulation to the RC. `RC_LIMITS`: claim_migration
+9,500 (inside a fresh account's free 10,000), and the claim page passes the
+cheap 2,500 limit for liquid-only / matured claims; record_burn 1,000.
+`mint` is 1,976 on this build (−18%). Devnet trick for post-maturity tests:
+`init(currentHeight − 3700)` on the TESTWINDOWS build puts the contract at
+day 31 instantly.
 Owner cost: three transactions (`init`, `set_snapshot`, done).
 
 **The tree IS the record.** Every account — qualifying AND burned — is a leaf

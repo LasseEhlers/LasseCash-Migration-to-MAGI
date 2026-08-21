@@ -21,7 +21,18 @@ export interface Signer {
    * Submit a call. On the dev chain this is unsigned; against MAGI it is
    * signed through Aioha and broadcast.
    */
-  submit(entrypoint: string, args: string): Promise<TxResult>;
+  submit(entrypoint: string, args: string, opts?: SubmitOptions): Promise<TxResult>;
+}
+
+/** Per-call overrides a caller may pass when it knows more than the table. */
+export interface SubmitOptions {
+  /**
+   * rc_limit for this call. MAGI freezes the FULL limit for five days, so a
+   * caller that knows a cheaper path applies (a liquid-only or already
+   * matured migration claim) should pass the smaller measured figure rather
+   * than the worst case the table must assume.
+   */
+  rcLimit?: number;
 }
 
 /** Read access to chain state. */

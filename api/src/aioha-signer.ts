@@ -16,7 +16,7 @@
  * compromise cannot drain an account that only ever granted posting.
  */
 import { Aioha, KeyTypes, Providers } from "@aioha/aioha";
-import { BackendError, type Signer } from "./backend.js";
+import { BackendError, type Signer, type SubmitOptions } from "./backend.js";
 import type { TxResult } from "./types.js";
 
 export { KeyTypes, Providers };
@@ -284,7 +284,7 @@ export class AiohaSigner implements Signer {
     burn: 600,
     settle: 400,
     advance: 4_000,       // no-op 100; one ordinary day ~5,000 gas => tiny; slices are the caller's choice
-    mint: 4_000,          // measured 2,401
+    mint: 4_000,          // measured 2,401 (1,976 on the current build)
     claim_mint: 4_000,
     sweep_mint: 4_000,
     good_accounting: 800,
@@ -304,9 +304,9 @@ export class AiohaSigner implements Signer {
     swap_hbd_lc: 2_000,
     // A claim is a mint-sized write set (balance, mint record, share board,
     // accrual) plus ~14 Merkle hashes to walk the proof to the root.
-    claim_migration: 5_000,
+    claim_migration: 9_500,  // measured worst case 5,892 (staked claim that takes a board seat); liquid-only 1,042, matured 1,327 — the claim page passes 2,500 for those
     // A receipt is one state write and the same proof walk, nothing else.
-    record_burn: 1_500,
+    record_burn: 1_000,      // measured 590
   };
 
   static readonly HBD_DRAW_OPS: Record<string, number> = {
@@ -325,7 +325,7 @@ export class AiohaSigner implements Signer {
     return `${whole}.${frac}`;
   }
 
-  async submit(entrypoint: string, args: string): Promise<TxResult> {
+  async submit(entrypoint: string, args: string, opts?: SubmitOptions): Promise<TxResult> {
     const keyType = AiohaSigner.ACTIVE_OPS.has(entrypoint)
       ? KeyTypes.Active
       : KeyTypes.Posting;
@@ -349,7 +349,7 @@ export class AiohaSigner implements Signer {
 
     // Per-entrypoint limit from measurement; the constructor's value is only
     // the fallback for an entrypoint this table does not know.
-    const rcLimit = AiohaSigner.RC_LIMITS[entrypoint] ?? this.rcLimit;
+    const rcLimit = opts?.rcLimit ?? AiohaSigner.RC_LIMITS[entrypoint] ?? this.rcLimit;
 
     const res = await this.wallet.aioha.vscCallContract(
       this.contractId,

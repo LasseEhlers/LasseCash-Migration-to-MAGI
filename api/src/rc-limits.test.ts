@@ -8,7 +8,7 @@ import { AiohaSigner } from "./aioha-signer.js";
  * the table against the MEASURED costs (devnet, 2026-08-21) so a future edit
  * cannot quietly drop below them.
  */
-const MEASURED_RC = { transfer: 285, mint: 2_401, advance: 100 };
+const MEASURED_RC = { transfer: 285, mint: 2_401, advance: 100, claim_migration: 5_892, record_burn: 590 };
 
 test("every measured entrypoint has at least 40% headroom over its real cost", () => {
   for (const [op, rc] of Object.entries(MEASURED_RC)) {
