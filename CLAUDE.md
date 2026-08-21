@@ -712,6 +712,17 @@ Production contract: 27 entrypoints. Frontend (reply box, comment list,
 preflight, Hive-side display filter) follows; the comment WRITE path through
 Aioha is verified at the wallet evening like every other signed call.
 
+## No downvotes, no reputation — DECIDED 2026-08-22 (made explicit)
+
+The contract accepts vote weights 1..100% only; zero or negative is refused
+(`state.Vote`). You vote FOR what you value with your own stake, or you
+withhold — you cannot subtract from someone else's reward. Reputation was
+dropped years ago (themarkymark downvoted Lasse's Hive account). So: no
+greyed-out posts, no hiding, no flag wars. A post nobody values earns
+nothing and sorts by its (zero) pending reward. Every registered post and
+comment is visible to everyone always, including crawlers; the ONLY filter
+is the stake threshold at registration. Belongs on the About page.
+
 ## SEO & AI readability — DECIDED 2026-08-22 ("SUPER IMPORTANT")
 
 Hive frontends are unfindable: client-rendered shells (crawlers see nothing),
