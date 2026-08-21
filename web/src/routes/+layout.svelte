@@ -12,7 +12,7 @@
   // soft page gate) — this constant is not worth centralizing for one string.
   const FOUNDER = "hive:lasseehlers";
   const navLinks = $derived([
-    ["/feed", "Feed"], ["/compose", "Write"], ["/", "LasseMint"], ["/pool", "Pool"], ["/chain", "Chain"],
+    ["/feed", "Feed"], ["/compose", "Write"], ["/", "Mint"], ["/pool", "Pool"], ["/chain", "Chain"],
     ...(chain.account === FOUNDER ? [["/admin", "Admin"]] : []),
   ]);
 
@@ -62,7 +62,7 @@
   <main>{@render children()}</main>
 
   <footer>
-    <span>Previews run the same Go engine the chain runs.</span>
+    <span>What you see is what the chain pays — every figure comes from the contract itself.</span>
     {#if chain.info}
       <span class="mono">height {chain.info.height.toLocaleString()}</span>
     {/if}

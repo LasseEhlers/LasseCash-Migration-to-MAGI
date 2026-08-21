@@ -7,20 +7,48 @@
    * did not think to add one, and a video post falls back to its YouTube
    * thumbnail rather than appearing as a wall of text.
    *
-   * The vote control sits OUTSIDE the link, or dragging the slider would
-   * navigate away mid-vote.
+   * That link is an OVERLAY, not a wrapping anchor: the author's name is its
+   * own link to their profile, and nesting anchors is invalid HTML. The vote
+   * control and the voter list sit above the overlay for the same reason they
+   * used to sit outside the anchor — dragging the slider must not navigate.
    */
   import { onMount } from "svelte";
   import { chain, client } from "$lib/chain.svelte.js";
   import { displayName, lc, shortDate, durationWords } from "$lib/format.js";
   import { coverImage, excerpt } from "$lib/markdown.js";
   import VoteSlider from "$lib/VoteSlider.svelte";
-  import { PayoutMode, type PostView } from "$api/index.js";
+  import VoterList from "$lib/VoterList.svelte";
+  import { compare, PayoutMode, type PostView } from "$api/index.js";
 
   let posts = $state<PostView[]>([]);
   let filter = $state<"all" | "viral" | "deep">("all");
   let error = $state<string | null>(null);
   let loading = $state(true);
+
+  /**
+   * Trending or newest.
+   *
+   * SORT AND FILTER ARE SEPARATE CONTROLS on purpose: "the newest viral posts"
+   * is a reasonable thing to want, and folding the two into one row of buttons
+   * would make it unaskable.
+   */
+  type Sort = "trending" | "new";
+  const SORT_KEY = "lassecash:feedSort";
+  let sort = $state<Sort>("trending");
+
+  // Restored in onMount rather than at module scope: this is a static build and
+  // the same module is evaluated during SSR, where localStorage does not exist.
+  // Every access is guarded anyway — a private window can throw on read.
+  function restoreSort() {
+    try {
+      const saved = localStorage.getItem(SORT_KEY);
+      if (saved === "trending" || saved === "new") sort = saved;
+    } catch { /* no stored preference is a fine state to be in */ }
+  }
+  function setSort(next: Sort) {
+    sort = next;
+    try { localStorage.setItem(SORT_KEY, next); } catch { /* not worth an error */ }
+  }
 
   async function load() {
     try {
@@ -32,9 +60,29 @@
       loading = false;
     }
   }
-  onMount(load);
+  onMount(() => { restoreSort(); void load(); });
 
-  const shown = $derived(filter === "all" ? posts : posts.filter((p) => p.window === filter));
+  /**
+   * The rendered list: filtered, then ordered.
+   *
+   * NOTHING IS COMPUTED HERE. Trending orders by `pending_payout`, which the
+   * chain worked out against the live window pool, and New orders by the height
+   * the post was registered at. Both are chain facts; this only arranges them.
+   *
+   * `compare` does the ordering because a payout is a decimal STRING — sorting
+   * these as JavaScript numbers would start misplacing posts as soon as a
+   * payout passed the safe integer range.
+   */
+  const shown = $derived.by(() => {
+    const base = filter === "all" ? posts : posts.filter((p) => p.window === filter);
+    const out = [...base];
+    if (sort === "trending") {
+      out.sort((a, b) => compare(b.pending_payout, a.pending_payout));
+    } else {
+      out.sort((a, b) => b.created_height - a.created_height);
+    }
+    return out;
+  });
   const height = $derived(chain.info?.height ?? 0);
   const awaitingPayout = $derived(posts.filter((p) => p.payable));
 
@@ -65,6 +113,14 @@
         Deep <small>30d · 75%</small>
       </button>
     </div>
+    <div class="sorts">
+      <button class="ghost" class:active={sort === "trending"} onclick={() => setSort("trending")}>
+        Trending
+      </button>
+      <button class="ghost" class:active={sort === "new"} onclick={() => setSort("new")}>
+        New
+      </button>
+    </div>
     <a class="write" href="/compose">Write →</a>
   </div>
 
@@ -91,7 +147,13 @@
       {#each shown as post (post.author + "/" + post.permlink)}
         {@const img = cover(post)}
         <article class="post panel" class:settled={post.paid_out}>
-          <a class="link" href={href(post)}>
+          <!-- The whole card is still one click target, but as an OVERLAY
+               rather than a wrapping <a>. An anchor cannot legally contain
+               another anchor, and the author's name has to be a real link to
+               their profile — so the card link sits underneath everything and
+               the interactive parts are lifted above it. -->
+          <a class="cardlink" href={href(post)} aria-label={post.title}></a>
+          <div class="link">
             {#if img}
               <div class="thumb">
                 <img src={img} alt="" loading="lazy" />
@@ -100,7 +162,7 @@
             <div class="body">
               <div class="meta">
                 <span class="pill {post.window === 'deep' ? 'info' : 'warn'}">{post.window}</span>
-                <span class="author">{displayName(post.author)}</span>
+                <a class="author" href="/{displayName(post.author)}">{displayName(post.author)}</a>
                 <span class="dim">{shortDate(post.created_time)}</span>
                 {#if post.payout_mode === PayoutMode.Burn}
                   <span class="pill bad">burns rewards</span>
@@ -119,7 +181,6 @@
               {/if}
 
               <div class="stats">
-                <span class="mono">{post.votes} vote{post.votes === 1 ? "" : "s"}</span>
                 {#if post.paid_out}
                   <span class="pill ok">paid out</span>
 
@@ -131,10 +192,12 @@
                 {/if}
               </div>
             </div>
-          </a>
+          </div>
 
-          <!-- Outside the link: dragging the vote slider must not navigate. -->
+          <!-- Above the card link: dragging the vote slider must not navigate,
+               and the voter list opens in place rather than going anywhere. -->
           <div class="actions">
+            <VoterList {post} />
             {#if post.paid_out}
               <!-- Nothing to click. Curation settles itself on the 1st: the
                    chain queues what each curator is owed and the monthly
@@ -159,6 +222,8 @@
   .filters { display: flex; gap: 0.4rem; flex-wrap: wrap; }
   .filters button.active { border-color: var(--gold); color: var(--gold); background: rgba(255, 210, 63, 0.07); }
   .filters small { display: block; font-size: var(--t-micro); opacity: 0.65; font-weight: 500; }
+  .sorts { display: flex; gap: 0.4rem; }
+  .sorts button.active { border-color: var(--gold); color: var(--gold); background: rgba(255, 210, 63, 0.07); }
   .write { margin-left: auto; color: var(--cyan); font-weight: 700; font-family: var(--mono); font-size: var(--t-sm); }
 
   .settle { border-color: var(--gold-dim); font-size: var(--t-sm); }
@@ -168,6 +233,11 @@
   .post { display: flex; gap: 1rem; align-items: flex-start; flex-wrap: wrap; padding: 0; overflow: hidden; }
   .post.settled { opacity: 0.72; }
   .post:hover { border-color: var(--line-hot); }
+
+  /* The card-wide click target. Positioned, so it paints over the static
+     content beneath it; anything that must stay clickable is lifted with
+     `position: relative` below. */
+  .cardlink { position: absolute; inset: 0; z-index: 0; }
 
   .link {
     flex: 1 1 420px; min-width: 0; display: flex; gap: 1rem;
@@ -181,7 +251,12 @@
 
   .body { flex: 1 1 auto; min-width: 0; }
   .meta { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; font-size: var(--t-sm); }
-  .meta .author { font-weight: 700; color: var(--gold); font-family: var(--mono); }
+  /* Lifted above the card overlay so it reaches the profile rather than the post. */
+  .meta .author {
+    font-weight: 700; color: var(--gold); font-family: var(--mono);
+    position: relative; z-index: 1;
+  }
+  .meta .author:hover { text-decoration: underline; }
 
   h3 { margin: 0.4rem 0 0.3rem; font-size: var(--t-lg); line-height: 1.35; }
   .post:hover h3 { color: var(--gold); }
@@ -201,6 +276,7 @@
   .actions {
     flex: 0 1 300px; display: flex; flex-direction: column;
     gap: 0.4rem; align-items: flex-end; padding: 0.95rem 1rem 0.95rem 0;
+    position: relative; z-index: 1;   /* above the card overlay */
   }
 
   @media (max-width: 720px) {

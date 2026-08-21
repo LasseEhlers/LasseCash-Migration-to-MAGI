@@ -1,6 +1,7 @@
 package sim
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -180,5 +181,68 @@ func TestSimulatorRespectsTheHardcap(t *testing.T) {
 	mustTx(t, c, "system", "migrate", "hive:a|1900000000000000|0") // 19M
 	if r := c.Submit("system", "migrate", "hive:b|1300000000000000|0"); r.OK {
 		t.Fatal("migration breaching the 51M hardcap was accepted")
+	}
+}
+
+// The voter list is what the post page expands under its vote count. It must
+// name every account whose vote is still on the post, ordered heaviest first,
+// and it must agree with the post's own rshares total — otherwise the shares
+// the UI shows would not add up to 100%.
+func TestPostVotesListsEveryVoterHeaviestFirst(t *testing.T) {
+	c := newSim(t)
+	for _, who := range []string{"hive:alice", "hive:bob", "hive:carol"} {
+		mustTx(t, c, "system", "migrate", who+"|1000000000000|0")
+	}
+	// Different stakes, so the ordering has something to sort.
+	mustTx(t, c, "hive:alice", "mint", "900000000000|365")
+	mustTx(t, c, "hive:bob", "mint", "400000000000|365")
+	mustTx(t, c, "hive:carol", "mint", "100000000000|365")
+	mustTx(t, c, "hive:alice", "post", "hello-voters|0")
+
+	if got := c.PostVotes("hive:alice", "hello-voters"); len(got) != 0 {
+		t.Fatalf("an unvoted post has %d vote records, want 0", len(got))
+	}
+
+	for _, who := range []string{"hive:carol", "hive:alice", "hive:bob"} {
+		mustTx(t, c, who, "vote", "hive:alice|hello-voters|100")
+	}
+
+	votes := c.PostVotes("hive:alice", "hello-voters")
+	if len(votes) != 3 {
+		t.Fatalf("got %d voters, want 3: %+v", len(votes), votes)
+	}
+	want := []string{"hive:alice", "hive:bob", "hive:carol"} // by stake, descending
+	var sum int64
+	for i, v := range votes {
+		if v.Voter != want[i] {
+			t.Fatalf("voter %d is %s, want %s (heaviest first)", i, v.Voter, want[i])
+		}
+		n, err := strconv.ParseInt(v.Rshares, 10, 64)
+		if err != nil || n <= 0 {
+			t.Fatalf("%s has unusable rshares %q", v.Voter, v.Rshares)
+		}
+		sum += n
+	}
+
+	// The parts must equal the whole the post itself reports, or every
+	// percentage the UI renders from this list is a lie.
+	posts := c.Posts(50)
+	var total string
+	for _, p := range posts {
+		if p.Permlink == "hello-voters" {
+			total = p.Rshares
+		}
+	}
+	if total != strconv.FormatInt(sum, 10) {
+		t.Fatalf("voter rshares sum to %d, post reports %s", sum, total)
+	}
+
+	// A vote record is deleted when its curator is paid. The list must shrink
+	// accordingly — the page says so rather than pretending otherwise.
+	c.AdvanceDays(8)
+	mustTx(t, c, "hive:anyone", "payout", "hive:alice|hello-voters")
+	mustTx(t, c, "hive:bob", "claim_curation", "hive:alice|hello-voters")
+	if got := c.PostVotes("hive:alice", "hello-voters"); len(got) != 2 {
+		t.Fatalf("after one curation claim the list has %d rows, want 2", len(got))
 	}
 }

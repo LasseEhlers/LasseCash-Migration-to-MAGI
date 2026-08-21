@@ -91,6 +91,7 @@ export interface EngineConstants {
   paramVolumeEnd: string;
   paramPostThresholdViral: string;
   paramPostThresholdDeep: string;
+  paramPostThresholdComment: string;
 }
 
 /**

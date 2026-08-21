@@ -1,9 +1,10 @@
 <script lang="ts">
-  /** LasseMint — the dashboard. */
+  /** Mint — the dashboard. */
   import { chain } from "$lib/chain.svelte.js";
   import { displayName, lc, lcShort, durationWords } from "$lib/format.js";
   import ClaimMigration from "$lib/ClaimMigration.svelte";
   import MintForm from "$lib/MintForm.svelte";
+  import SendForm from "$lib/SendForm.svelte";
   import MintCard from "$lib/MintCard.svelte";
   import RateChart from "$lib/RateChart.svelte";
   import {
@@ -112,6 +113,10 @@
   });
 </script>
 
+<svelte:head>
+  <title>Mint · LasseCash</title>
+</svelte:head>
+
 <div class="grid">
   <!-- FIRST, above everything. An unclaimed migration position is on a clock
        that started at genesis: it matures on day 30 and bleeds to nothing by
@@ -201,6 +206,7 @@
 
     <aside class="side">
       <MintForm />
+      <SendForm />
 
       {#if chain.info}
         <div class="panel">

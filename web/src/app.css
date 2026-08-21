@@ -133,8 +133,12 @@ nav a[aria-current="page"] {
 
 main {
   flex: 1; padding: 1.35rem 1.15rem 3.5rem;
-  max-width: 1180px; margin: 0 auto; width: 100%;
+  max-width: 1320px; margin: 0 auto; width: 100%;
 }
+/* Pages where width IS the content (the editor) opt into the full screen:
+   hive.blog's editor uses the whole viewport, and a writer needs the room.
+   The column layouts inside still stack below 980px, so phones are unaffected. */
+main:has(.wide) { max-width: min(1800px, 96vw); }
 
 footer {
   border-top: 1px solid var(--line); padding: 0.75rem 1.15rem;

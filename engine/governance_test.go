@@ -341,6 +341,7 @@ func TestPostingThresholdBoundsArePinned(t *testing.T) {
 	}{
 		{ParamPostThresholdViral, ShareUnit, 1_000 * ShareUnit, 10_000 * ShareUnit},
 		{ParamPostThresholdDeep, ShareUnit, 10_000 * ShareUnit, 100_000 * ShareUnit},
+		{ParamPostThresholdComment, ShareUnit, 100 * ShareUnit, 10_000 * ShareUnit},
 	}
 	for _, c := range cases {
 		p, ok := reg.Param(c.key)

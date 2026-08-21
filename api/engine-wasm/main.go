@@ -81,10 +81,11 @@ func main() {
 
 			// The governable parameter keys, so a caller never hardcodes a
 			// string the registry owns.
-			"paramVolumeStart":        string(engine.ParamVolumeStart),
-			"paramVolumeEnd":          string(engine.ParamVolumeEnd),
-			"paramPostThresholdViral": string(engine.ParamPostThresholdViral),
-			"paramPostThresholdDeep":  string(engine.ParamPostThresholdDeep),
+			"paramVolumeStart":          string(engine.ParamVolumeStart),
+			"paramVolumeEnd":            string(engine.ParamVolumeEnd),
+			"paramPostThresholdViral":   string(engine.ParamPostThresholdViral),
+			"paramPostThresholdDeep":    string(engine.ParamPostThresholdDeep),
+			"paramPostThresholdComment": string(engine.ParamPostThresholdComment),
 		}),
 	}))
 	select {} // keep the instance alive for the host to call into

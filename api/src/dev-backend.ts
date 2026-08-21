@@ -8,7 +8,7 @@
  */
 import { BackendError, type Backend, type Signer } from "./backend.js";
 import type {
-  AccountView, ChainInfo, Content, LiquidityQuote, MintQuote, PostView,
+  AccountView, ChainInfo, Content, LiquidityQuote, MintQuote, PostVote, PostView,
   PublishResult, SwapDirection, SwapQuote, TxResult,
 } from "./types.js";
 
@@ -71,6 +71,12 @@ export class DevBackend implements Backend {
 
   posts(limit = 50): Promise<PostView[]> {
     return this.#req(`/posts?limit=${limit}`);
+  }
+
+  /** The simulator scans its own keyspace — a real node cannot. */
+  postVotes(author: string, permlink: string): Promise<PostVote[]> {
+    return this.#req(
+      `/post/${encodeURIComponent(author)}/${encodeURIComponent(permlink)}/votes`);
   }
 
   async content(author: string, permlink: string): Promise<Content | null> {

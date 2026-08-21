@@ -15,6 +15,7 @@
   import { displayName, durationWords, lc, shortDate } from "$lib/format.js";
   import { renderMarkdown } from "$lib/markdown.js";
   import VoteSlider from "$lib/VoteSlider.svelte";
+  import VoterList from "$lib/VoterList.svelte";
   import { PayoutMode, type Content, type PostView } from "$api/index.js";
 
   const author = $derived(decodeURIComponent(page.params.author ?? ""));
@@ -69,7 +70,7 @@
       <article class="panel article">
         <div class="meta">
           <span class="pill {post.window === 'deep' ? 'info' : 'warn'}">{post.window}</span>
-          <span class="author">{displayName(post.author)}</span>
+          <a class="author" href="/{displayName(post.author)}">{displayName(post.author)}</a>
           <span class="dim">{shortDate(post.created_time)}</span>
           {#if post.payout_mode === PayoutMode.Burn}
             <span class="pill bad">burns rewards</span>
@@ -100,8 +101,12 @@
       <aside class="side">
         <div class="panel">
           <h2>Rewards</h2>
+          <!-- The vote count opens the voter list in place. It sits above the
+               figures rather than inside the <dl>, because expanding it would
+               otherwise push a definition list open mid-row. -->
+          <div class="voters"><VoterList {post} /></div>
+
           <dl>
-            <dt>Votes</dt><dd class="mono">{post.votes}</dd>
             {#if post.paid_out}
               <dt>Status</dt><dd><span class="pill ok">paid out</span></dd>
               {#if Number(post.curator_pot) > 0}
@@ -156,6 +161,9 @@
 
   .meta { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; font-size: var(--t-sm); }
   .meta .author { font-weight: 700; color: var(--gold); font-family: var(--mono); }
+  .meta .author:hover { text-decoration: underline; }
+
+  .voters { margin-bottom: 0.7rem; }
 
   h1 { margin: 0.6rem 0 1rem; font-size: 1.65rem; line-height: 1.3; }
 

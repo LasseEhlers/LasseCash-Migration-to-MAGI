@@ -36,6 +36,9 @@ const (
 	// Minimum L-Shares required to unlock posting, per content window.
 	ParamPostThresholdViral ParamKey = "post.threshold_viral"
 	ParamPostThresholdDeep  ParamKey = "post.threshold_deep"
+	// ParamPostThresholdComment gates COMMENTS: a reply registered with the
+	// contract earns like a viral post but needs only this (lower) stake.
+	ParamPostThresholdComment ParamKey = "post.threshold_comment"
 
 	// NOTE: there is deliberately no swap-fee parameter. The LASSECASH:HBD
 	// swap fee is hardcoded to zero and is not governable at all — see the
@@ -113,6 +116,18 @@ func NewRegistry() *Registry {
 		Key: ParamPostThresholdDeep, Value: int64(10_000 * ShareUnit),
 		Min: ShareUnit, Max: int64(100_000 * ShareUnit),
 		Desc: "L-Shares required to post deep (30-day) content",
+	})
+	// Comments — DECIDED 2026-08-22. Lasse: a separate, lower threshold so
+	// the conversation is open to anyone with ~10 cents of stake while tip
+	// bots and "nice post!" never appear on LasseCash: a comment is shown
+	// here only if its author holds this much, and it can earn (viral
+	// economics, 7 days) only if registered — which the threshold gates.
+	// Comments written below the threshold still exist on Hive; they are
+	// simply not part of LasseCash. Bounds ≈ $0.001 … $10 at opening price.
+	r.register(Param{
+		Key: ParamPostThresholdComment, Value: int64(100 * ShareUnit),
+		Min: ShareUnit, Max: int64(10_000 * ShareUnit),
+		Desc: "L-Shares required to comment (7-day viral economics)",
 	})
 	return r
 }

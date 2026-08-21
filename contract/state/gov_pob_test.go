@@ -823,3 +823,53 @@ func TestSweeperIsPaidNothing(t *testing.T) {
 	}
 	auditSupply(t, s)
 }
+
+// Comments (2026-08-22): a reply registered on a registered post runs viral
+// economics but is gated by the separate, lower comment threshold. Below it,
+// the contract refuses with a message the site shows BEFORE writing to Hive.
+func TestCommentsAreGatedBySeparateThreshold(t *testing.T) {
+	s, ctx := newChain(t)
+	creditLiquid(s, "hive:author", lc(50_000))
+	creditLiquid(s, "hive:small", lc(500))
+	creditLiquid(s, "hive:tiny", lc(10))
+	// author: enough for a viral post; small: enough to comment but not to
+	// post viral (100 < 500 < 1,000); tiny: below the comment threshold.
+	CreateMint(s, at(ctx, "hive:author", genesis), lc(20_000), 365)
+	CreateMint(s, at(ctx, "hive:small", genesis), lc(500), 365)
+	CreateMint(s, at(ctx, "hive:tiny", genesis), lc(10), 365)
+
+	if r := CreatePost(s, at(ctx, "hive:author", genesis), "root", engine.Viral, PayoutDefault); !r.OK {
+		t.Fatal(r.Msg)
+	}
+	if r := CreatePost(s, at(ctx, "hive:small", genesis), "nope", engine.Viral, PayoutDefault); r.OK {
+		t.Fatal("small should not clear the viral threshold")
+	}
+	if r := CreateComment(s, at(ctx, "hive:small", genesis), "re-root", PayoutDefault, "hive:author", "root"); !r.OK {
+		t.Fatalf("small should clear the comment threshold: %s", r.Msg)
+	}
+	r := CreateComment(s, at(ctx, "hive:tiny", genesis), "re-root", PayoutDefault, "hive:author", "root")
+	if r.OK || r.Msg != "need "+encI64(100*engine.ShareUnit)+" L-Shares to comment" {
+		t.Fatalf("tiny must be refused with the comment message, got %+v", r)
+	}
+	// Only registered posts can be commented on.
+	if r := CreateComment(s, at(ctx, "hive:small", genesis), "re-ghost", PayoutDefault, "hive:author", "ghost"); r.OK {
+		t.Fatal("comment on an unregistered parent accepted")
+	}
+	// The comment is a viral-economics post with a parent.
+	p, _ := getPost(s, "hive:small", "re-root")
+	if !p.IsComment() || p.Window != uint8(engine.Viral) || p.ParentAuthor != "hive:author" || p.ParentPermlink != "root" {
+		t.Fatalf("comment record wrong: %+v", p)
+	}
+	// It earns like any viral post: vote, wait out the window, pay out.
+	Vote(s, at(ctx, "hive:author", genesis+1), "hive:small", "re-root", 100)
+	h := genesis + uint64(engine.ViralPayoutDays+1)*engine.HeightsPerDay
+	AccrueFully(s, h)
+	before := Balance(s, "hive:small")
+	if r := Payout(s, at(ctx, "hive:x", h), "hive:small", "re-root"); !r.OK {
+		t.Fatalf("payout: %s", r.Msg)
+	}
+	if Balance(s, "hive:small") <= before {
+		t.Fatal("a registered comment must earn on payout")
+	}
+	auditSupply(t, s)
+}

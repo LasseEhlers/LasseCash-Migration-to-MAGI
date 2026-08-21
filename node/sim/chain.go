@@ -283,6 +283,14 @@ func (c *Chain) Submit(sender, entrypoint, payload string) Result {
 			mode, _ := args.U64(2) // absent = 0 = the default 20/80 split
 			r = state.CreatePost(s, ctx, args.Str(0), window(w), state.PayoutMode(mode))
 		}
+	case "comment":
+		permlink, pa, pp := args.Str(0), args.Str(1), args.Str(2)
+		if permlink == "" || pa == "" || pp == "" {
+			r = bad("usage: <permlink>|<parentAuthor>|<parentPermlink>|[payoutMode]")
+		} else {
+			mode, _ := args.U64(3)
+			r = state.CreateComment(s, ctx, permlink, state.PayoutMode(mode), pa, pp)
+		}
 	case "vote":
 		weight, ok := args.I64(2)
 		if !ok {
@@ -962,4 +970,61 @@ func parseTriples(args state.Args) ([]state.MigrationEntry, bool) {
 		})
 	}
 	return entries, false
+}
+
+// VoteView is one voter's recorded weight on a post.
+//
+// Rshares cross the wire as a STRING for the same reason every amount does:
+// they are 1e8-scaled and a large post's total leaves JavaScript's safe
+// integer range.
+type VoteView struct {
+	Voter   string `json:"voter"`
+	Rshares string `json:"rshares"`
+}
+
+// PostVotes lists a post's surviving vote records, heaviest first.
+//
+// SCANNING KEYS IS FINE HERE AND NOWHERE ELSE. The contract can never
+// enumerate — unbounded iteration does not fit in the gas budget — which is
+// exactly why this lives in the simulator, alongside Posts(), and why the
+// MAGI backend has to rediscover the voters from transaction history instead.
+//
+// ⚠️ A vote record is DELETED when its curator is paid, so this list shrinks
+// after payout while the post's vote counter stays put. The UI must say so
+// rather than presenting it as everyone who ever voted.
+func (c *Chain) PostVotes(author, permlink string) []VoteView {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	// Key layout is contract/state/keys.go postVoteKey:
+	// pv_<author>_<permlink>_<voter>. Author and permlink are both known, so
+	// the prefix is exact and the remainder is the voter — nothing is parsed.
+	prefix := "pv_" + author + "_" + permlink + "_"
+	out := []VoteView{}
+	for _, k := range c.store.Keys() {
+		if !strings.HasPrefix(k, prefix) {
+			continue
+		}
+		v := c.store.Get(k)
+		// A missing key reads as a pointer to "" on MAGI, and MemStore is
+		// deliberately just as awkward. Never test for nil alone.
+		if v == nil || *v == "" {
+			continue
+		}
+		n, err := strconv.ParseInt(*v, 10, 64)
+		if err != nil {
+			continue
+		}
+		out = append(out, VoteView{Voter: strings.TrimPrefix(k, prefix), Rshares: encI64(n)})
+	}
+	// Heaviest first, then by name, so the order is stable across calls.
+	sort.Slice(out, func(i, j int) bool {
+		a, _ := strconv.ParseInt(out[i].Rshares, 10, 64)
+		b, _ := strconv.ParseInt(out[j].Rshares, 10, 64)
+		if a != b {
+			return a > b
+		}
+		return out[i].Voter < out[j].Voter
+	})
+	return out
 }

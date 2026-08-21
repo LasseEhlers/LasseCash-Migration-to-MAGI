@@ -16,7 +16,7 @@ import { BackendError, type Backend } from "./backend.js";
 import * as engine from "./engine.js";
 import { toUnits } from "./amount.js";
 import type {
-  AccountView, ChainInfo, Content, LiquidityQuote, MintQuote, PostView,
+  AccountView, ChainInfo, Content, LiquidityQuote, MintQuote, PostVote, PostView,
   PublishResult, ResourceCredits, SwapDirection, SwapQuote,
 } from "./types.js";
 
@@ -402,6 +402,74 @@ export class MagiBackend implements Backend {
       });
     }
     return views;
+  }
+
+  /**
+   * Who voted on a post, and with what weight.
+   *
+   * Same two-step shape as `posts()`, and for the same reason: the contract
+   * cannot enumerate its own keys, so HISTORY says where to look and STATE says
+   * what is true. `findTransaction byContract` yields every `vote` call ever
+   * made; the ones whose payload names this post give us a candidate voter
+   * list, and each candidate's `pv_` record supplies the authoritative rshares.
+   *
+   * A candidate with no record is DROPPED, not defaulted to zero. That covers a
+   * vote whose transaction failed, one that was later re-cast (the contract
+   * rewrites the same key, so the last value stands), and — the common case
+   * after settlement — one whose curator has already been paid, which deletes
+   * the record. Inventing a row for any of those would put a voter on screen
+   * whose weight the chain no longer recognises.
+   */
+  async postVotes(author: string, permlink: string): Promise<PostVote[]> {
+    const data = await this.query<{
+      findTransaction: {
+        required_auths: string[];
+        ops: { type: string; data: { action?: string; payload?: string } }[];
+      }[];
+    }>(
+      // MAGI rejects limit outside 1..100 — the node enforces the cap.
+      `query($c: String!) { findTransaction(filterOptions: {byContract: $c, limit: 100}) {
+        required_auths ops { type data } } }`,
+      { c: this.#contractId },
+    );
+
+    // `vote` takes <author>|<permlink>|<weight>, so the prefix identifies the
+    // post exactly. Matching on the prefix rather than splitting keeps a
+    // permlink containing a pipe (which the contract would reject anyway) from
+    // ever being read as a different post.
+    const prefix = `${author}|${permlink}|`;
+    const voters: string[] = [];
+    const seen = new Set<string>();
+    for (const tx of data.findTransaction ?? []) {
+      for (const op of tx.ops ?? []) {
+        if (op.type !== "call" || op.data?.action !== "vote") continue;
+        if (!(op.data.payload ?? "").startsWith(prefix)) continue;
+        const voter = tx.required_auths?.[0];
+        if (!voter || seen.has(voter)) continue;
+        seen.add(voter);
+        voters.push(voter);
+      }
+    }
+    if (voters.length === 0) return [];
+
+    const records = await this.state(
+      voters.map((v) => `pv_${author}_${permlink}_${v}`));
+
+    const out: PostVote[] = [];
+    for (const voter of voters) {
+      const raw = records[`pv_${author}_${permlink}_${voter}`];
+      // A MISSING KEY ON MAGI READS AS AN EMPTY STRING, not as absent.
+      if (!raw) continue;
+      out.push({ voter, rshares: raw });
+    }
+    // Heaviest first, then by name — the same order the dev chain returns, so
+    // the two backends are interchangeable behind the UI.
+    out.sort((a, b) => {
+      const x = BigInt(a.rshares), y = BigInt(b.rshares);
+      if (x !== y) return x > y ? -1 : 1;
+      return a.voter < b.voter ? -1 : a.voter > b.voter ? 1 : 0;
+    });
+    return out;
   }
 
   /**

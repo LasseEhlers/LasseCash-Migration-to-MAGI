@@ -9,7 +9,7 @@
  * is typed and testable.
  */
 import type {
-  AccountView, ChainInfo, Content, LiquidityQuote, MintQuote, PostView,
+  AccountView, ChainInfo, Content, LiquidityQuote, MintQuote, PostVote, PostView,
   PublishResult, ResourceCredits, SwapDirection, SwapQuote, TxResult,
 } from "./types.js";
 
@@ -42,6 +42,16 @@ export interface Backend {
   account(name: string): Promise<AccountView>;
   state(keys: string[]): Promise<Record<string, string>>;
   posts(limit?: number): Promise<PostView[]>;
+  /**
+   * Who voted on a post, and with what weight.
+   *
+   * The contract cannot enumerate its own vote records — unbounded iteration
+   * does not fit in the gas budget — so the two backends reach the same rows by
+   * different routes: the simulator scans its keyspace, and MAGI rediscovers
+   * the voters from transaction history before reading each record. Votes whose
+   * curator has already been paid have no record left and are simply absent.
+   */
+  postVotes(author: string, permlink: string): Promise<PostVote[]>;
   content(author: string, permlink: string): Promise<Content | null>;
   /**
    * Publish an article and register it on-chain.

@@ -117,6 +117,22 @@ export interface PostView {
   curation_expires_at: number;
 }
 
+/**
+ * One voter's recorded weight on a post.
+ *
+ * `rshares` is the raw 1e8-scaled vote weight the contract stored — a STRING,
+ * because a popular post's total leaves JavaScript's safe integer range. It is
+ * NOT a LASSECASH amount and must never be rendered as one.
+ *
+ * ⚠️ The record is DELETED when its curator is paid, so a settled post lists
+ * fewer voters than its `votes` counter. That is the chain's own bookkeeping,
+ * not a gap in this list — say so in the UI rather than papering over it.
+ */
+export interface PostVote {
+  voter: string;
+  rshares: string;
+}
+
 /** Result of submitting a transaction. */
 export interface TxResult {
   ok: boolean;

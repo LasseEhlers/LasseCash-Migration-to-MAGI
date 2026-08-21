@@ -126,7 +126,7 @@
   }
 </script>
 
-<div class="grid">
+<div class="grid wide">
   {#if published}
     <div class="panel done">
       <strong class="gold">Published.</strong>

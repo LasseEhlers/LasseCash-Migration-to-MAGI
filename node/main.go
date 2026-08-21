@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"sort"
 	"strconv"
@@ -72,6 +73,7 @@ func main() {
 	mux.HandleFunc("/posts", handlePosts)
 	mux.HandleFunc("/publish", handlePublish)
 	mux.HandleFunc("/content/", handleContent)
+	mux.HandleFunc("/post/", handlePostVotes)
 	mux.HandleFunc("/quote/swap", handleQuoteSwap)
 	mux.HandleFunc("/quote/mint", handleQuoteMint)
 	mux.HandleFunc("/quote/liquidity", handleQuoteLiquidity)
@@ -115,15 +117,16 @@ func handleIndex(w http.ResponseWriter, r *http.Request) {
 		"name": "LasseCash dev chain",
 		"note": "Every number here is computed by the same Go engine the MAGI contract runs.",
 		"endpoints": map[string]string{
-			"GET  /chain":           "global position: height, supply, pools, consensus group",
-			"GET  /account/{name}":  "balances, mints, tranches, vote power — all precomputed",
-			"POST /tx":              `{"sender","entrypoint","args"} — same names as the contract`,
-			"GET  /state?keys=a,b":  "raw contract state, mirrors MAGI getStateByKeys",
-			"GET  /quote/swap":      "?direction=lc_hbd|hbd_lc&amount= — engine-computed preview",
-			"GET  /quote/mint":      "?amount=&days= — L-Shares a mint would grant",
-			"GET  /quote/liquidity": "?amount= — HBD required and shares earned",
-			"POST /dev/advance":     `{"days"} or {"heights"} — move the clock`,
-			"GET  /dev/dump":        "every state key (debug only)",
+			"GET  /chain":                          "global position: height, supply, pools, consensus group",
+			"GET  /account/{name}":                 "balances, mints, tranches, vote power — all precomputed",
+			"POST /tx":                             `{"sender","entrypoint","args"} — same names as the contract`,
+			"GET  /state?keys=a,b":                 "raw contract state, mirrors MAGI getStateByKeys",
+			"GET  /post/{author}/{permlink}/votes": "who voted and with what weight (simulator scan)",
+			"GET  /quote/swap":                     "?direction=lc_hbd|hbd_lc&amount= — engine-computed preview",
+			"GET  /quote/mint":                     "?amount=&days= — L-Shares a mint would grant",
+			"GET  /quote/liquidity":                "?amount= — HBD required and shares earned",
+			"POST /dev/advance":                    `{"days"} or {"heights"} — move the clock`,
+			"GET  /dev/dump":                       "every state key (debug only)",
 		},
 	})
 }
@@ -267,6 +270,37 @@ func handleContent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, body)
+}
+
+// handlePostVotes serves GET /post/{author}/{permlink}/votes.
+//
+// The simulator can scan its own keyspace; a real node cannot, so MagiBackend
+// rediscovers the voters from transaction history and then reads the same
+// records. Both return the same shape.
+func handlePostVotes(w http.ResponseWriter, r *http.Request) {
+	// /post/{author}/{permlink}/votes
+	rest := strings.TrimPrefix(r.URL.Path, "/post/")
+	if !strings.HasSuffix(rest, "/votes") {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "not found"})
+		return
+	}
+	rest = strings.TrimSuffix(rest, "/votes")
+	slash := strings.Index(rest, "/")
+	if slash < 0 {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "need author/permlink"})
+		return
+	}
+	author, err := url.PathUnescape(rest[:slash])
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "bad author"})
+		return
+	}
+	permlink, err := url.PathUnescape(rest[slash+1:])
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "bad permlink"})
+		return
+	}
+	writeJSON(w, http.StatusOK, chain.PostVotes(author, permlink))
 }
 
 func handleQuoteSwap(w http.ResponseWriter, r *http.Request) {

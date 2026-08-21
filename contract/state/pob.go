@@ -82,7 +82,16 @@ type postRec struct {
 	// derived from them would fall to zero as curators are paid — which is
 	// exactly wrong for a feed.
 	Votes int64
+	// ParentAuthor/ParentPermlink make this a COMMENT on a registered post
+	// (2026-08-22). Comments run viral economics (7 days, viral pool, viral
+	// vote meter) but are gated by the lower comment threshold. Empty for a
+	// root post. Fields 10 and 11, append-only.
+	ParentAuthor   string
+	ParentPermlink string
 }
+
+// IsComment reports whether the record is a reply to a registered post.
+func (p postRec) IsComment() bool { return p.ParentPermlink != "" }
 
 func encodePost(p postRec) string {
 	return encU64(uint64(p.Window)) + sep +
@@ -93,7 +102,9 @@ func encodePost(p postRec) string {
 		encI64(p.CuratorRshares) + sep +
 		encI64(p.Votes) + sep +
 		encU64(uint64(p.Mode)) + sep +
-		encU64(p.PaidHeight)
+		encU64(p.PaidHeight) + sep +
+		p.ParentAuthor + sep +
+		p.ParentPermlink
 }
 
 func decodePost(raw string) (postRec, bool) {
@@ -117,6 +128,10 @@ func decodePost(raw string) (postRec, bool) {
 	}
 	if len(f) >= 9 {
 		rec.PaidHeight = decU64(f[8])
+	}
+	if len(f) >= 11 {
+		rec.ParentAuthor = f[9]
+		rec.ParentPermlink = f[10]
 	}
 	return rec, true
 }
@@ -154,26 +169,60 @@ func poolKeys(w engine.Window) (poolKey, rsharesKey string) {
 // Requires enough L-Shares to clear the window's posting threshold, which is a
 // governed parameter (median of the top 10, within hardcoded bounds).
 func CreatePost(s Store, ctx Ctx, permlink string, window engine.Window, mode PayoutMode) Result {
+	return createContent(s, ctx, permlink, window, mode, "", "")
+}
+
+// CreateComment registers a reply to an already-registered post. It earns
+// exactly like a viral post (7-day window, viral pool) but is gated by the
+// separate, lower comment threshold. Decided by Lasse 2026-08-22: on
+// LasseCash a comment below the threshold is refused before anything is
+// written, and a comment from any other Hive frontend is shown here only
+// if its author holds the threshold.
+func CreateComment(s Store, ctx Ctx, permlink string, mode PayoutMode, parentAuthor, parentPermlink string) Result {
+	if parentAuthor == "" || parentPermlink == "" {
+		return fail("comment needs a parent post")
+	}
+	if _, exists := getPost(s, parentAuthor, parentPermlink); !exists {
+		return fail("parent post is not registered on LasseCash")
+	}
+	return createContent(s, ctx, permlink, engine.Viral, mode, parentAuthor, parentPermlink)
+}
+
+func createContent(s Store, ctx Ctx, permlink string, window engine.Window, mode PayoutMode,
+	parentAuthor, parentPermlink string) Result {
 	if !IsInit(s) {
 		return fail("not initialised")
 	}
-	if permlink == "" || strings.Contains(permlink, sep) {
+	if permlink == "" || strings.Contains(permlink, sep) ||
+		strings.Contains(parentAuthor, sep) || strings.Contains(parentPermlink, sep) {
 		return fail("invalid permlink")
 	}
 	if _, exists := getPost(s, ctx.Sender, permlink); exists {
 		return fail("permlink already used")
 	}
 
-	threshold := EffectiveParam(s, engine.ThresholdKeyFor(window))
+	key := engine.ThresholdKeyFor(window)
+	if parentPermlink != "" {
+		key = engine.ParamPostThresholdComment
+	}
+	threshold := EffectiveParam(s, key)
 	if !engine.CanPost(SharesOf(s, ctx.Sender), threshold) {
+		if parentPermlink != "" {
+			return fail("need " + encI64(threshold) + " L-Shares to comment")
+		}
 		return fail("need " + encI64(threshold) + " L-Shares to post here")
 	}
 
 	putPost(s, ctx.Sender, permlink, postRec{
-		Window:        uint8(window),
-		CreatedHeight: ctx.Height,
-		Mode:          mode,
+		Window:         uint8(window),
+		CreatedHeight:  ctx.Height,
+		Mode:           mode,
+		ParentAuthor:   parentAuthor,
+		ParentPermlink: parentPermlink,
 	})
+	if parentPermlink != "" {
+		return ok("commented")
+	}
 	return ok("posted")
 }
 

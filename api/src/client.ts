@@ -14,8 +14,8 @@ import type { Backend, Signer } from "./backend.js";
 import { BackendError, type SubmitOptions } from "./backend.js";
 import type {
   AccountView, ChainInfo, Content, LiquidityQuote, MigrationRecord, MintQuote,
-  MintView, PostView, PublishResult, ResourceCredits, SwapDirection, SwapQuote,
-  TrancheView, TxResult, Window,
+  MintView, PostVote, PostView, PublishResult, ResourceCredits, SwapDirection,
+  SwapQuote, TrancheView, TxResult, Window,
 } from "./types.js";
 import { Entrypoint } from "./types.js";
 
@@ -62,6 +62,21 @@ export class LasseCashClient {
 
   /** Content, newest first. */
   posts(limit = 50): Promise<PostView[]> { return this.backend.posts(limit); }
+
+  /**
+   * Who voted on a post, heaviest first.
+   *
+   * Fetched on demand, never with the feed: a post's voter list is a detail
+   * one reader in twenty opens, and on MAGI it costs a history query per post.
+   *
+   * The rows carry raw rshares — vote weight, not LASSECASH. A voter's share of
+   * the curator pot is that weight over the post's total, which is what the
+   * contract itself divides by, so present it as a share of vote weight and
+   * nothing more.
+   */
+  postVotes(author: string, permlink: string): Promise<PostVote[]> {
+    return this.backend.postVotes(author, permlink);
+  }
 
   // --- migration ----------------------------------------------------------
   //
@@ -143,7 +158,7 @@ export class LasseCashClient {
     return this.backend.account(this.#requireSigner().account);
   }
 
-  /** Open mints, newest first. The list the LasseMint dashboard renders. */
+  /** Open mints, newest first. The list the Mint dashboard renders. */
   async openMints(name: string): Promise<MintView[]> {
     const a = await this.backend.account(name);
     return a.mints.filter((m) => !m.ended);

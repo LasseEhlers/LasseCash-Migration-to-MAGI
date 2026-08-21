@@ -683,6 +683,35 @@ vector otherwise. Never move an escape after a tag insertion.
 Feed cards derive a cover image from the body when the author supplied none,
 falling back to a YouTube thumbnail, so a video post is not a wall of text.
 
+## Comments — DECIDED 2026-08-22
+
+Lasse did not want to lose comment rewards ("a monster good valuable comment
+[can] earn 100 or 1000 dollars"), and did not want the tip-bot spam. Both:
+
+- **A comment is a registered reply** (`comment <permlink>|<parentAuthor>|
+  <parentPermlink>|[mode]`), the same `post` machinery with a parent
+  reference (post record fields 10–11, append-only). It runs VIRAL economics
+  — 7-day window, viral pool, viral vote meter — but is gated by its own
+  governable threshold `post.threshold_comment`: **floor 1, default 100,
+  ceiling 10,000 L-Shares** (≈ $0.001 … $10 at the opening price; pinned by
+  `TestPostingThresholdBoundsArePinned`). Only registered posts can be
+  commented on.
+- **On LasseCash a below-threshold commenter is refused BEFORE anything is
+  written to Hive** ("need N L-Shares to comment"); the site preflights the
+  threshold client-side.
+- **A comment written from any other Hive frontend is shown on LasseCash
+  only if its author holds the comment threshold** (read `shr_`); it earns
+  only if registered. Below-threshold comments still exist on Hive — nobody
+  is censored; they are simply not part of LasseCash. Tip bots and "nice
+  post!" never appear. In Lasse's words: *"we make it better than anybody
+  else."*
+- Display: comments under their post, earning ones ranked first with their
+  pending reward. No comment/reply tabs on profiles.
+
+Production contract: 27 entrypoints. Frontend (reply box, comment list,
+preflight, Hive-side display filter) follows; the comment WRITE path through
+Aioha is verified at the wallet evening like every other signed call.
+
 ## Visual design — DECIDED 2026-08-20
 
 **Anarcho-capitalist cyberpunk.** Direction chosen by Lasse from three options;

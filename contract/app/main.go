@@ -22,7 +22,6 @@
 package main
 
 import (
-
 	_ "contract-template/runtime" // supplies alloc/free for -gc=custom
 	"contract-template/sdk"
 	"contract-template/state"
@@ -426,6 +425,23 @@ func Post(a *string) *string {
 		sdk.Abort("payoutMode must be 0 (split), 1 (power up) or 2 (burn)")
 	}
 	return finish(state.CreatePost(store{}, c, permlink, window(w), state.PayoutMode(mode)))
+}
+
+// comment registers a reply to a registered post. Viral economics (7 days,
+// viral pool), gated by the separate comment threshold.
+//
+//	args: <permlink>|<parentAuthor>|<parentPermlink>|[payoutMode]
+//
+//go:wasmexport comment
+func Comment(a *string) *string {
+	c, _ := ctx()
+	args := state.ParseArgs(*a)
+	permlink, pa, pp := args.Str(0), args.Str(1), args.Str(2)
+	if permlink == "" || pa == "" || pp == "" {
+		sdk.Abort("usage: <permlink>|<parentAuthor>|<parentPermlink>|[payoutMode]")
+	}
+	mode, _ := args.U64(3)
+	return finish(state.CreateComment(store{}, c, permlink, state.PayoutMode(mode), pa, pp))
 }
 
 // vote casts a weighted vote. weight is 1..100 percent.

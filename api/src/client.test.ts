@@ -173,3 +173,39 @@ test("a migration receipt is parsed, and an empty key is NOT a receipt", async (
   assert.equal(await noRoot.migrationRoot(), null,
     "an uncommitted snapshot must read as null, not as an empty root");
 });
+
+test("the voter list names real voters and its parts sum to the whole",
+  { skip: !up }, async () => {
+    const c = client();
+    const posts = await c.posts(50);
+    const voted = posts.find((p) => p.votes > 0 && !p.paid_out);
+    if (!voted) {
+      console.log("  (no unsettled voted post on this chain — voter list not exercised)");
+      return;
+    }
+
+    const votes = await c.postVotes(voted.author, voted.permlink);
+    assert.equal(votes.length, voted.votes,
+      "an unsettled post keeps one vote record per vote it counted");
+
+    let sum = 0n;
+    for (const v of votes) {
+      assert.match(v.voter, /^[a-z]+:/, "a voter must be a fully qualified address");
+      // rshares are RAW vote weight, not a LASSECASH amount — a plain integer
+      // string with no decimal point. Rendering one as LC would be a lie.
+      assert.match(v.rshares, /^\d+$/, "rshares must be a base-unit integer string");
+      sum += BigInt(v.rshares);
+    }
+    assert.equal(sum.toString(), voted.rshares,
+      "the voters' weights must sum to the post's own total, or every share " +
+      "percentage the UI renders from them is wrong");
+
+    // Heaviest first, so the UI never has to sort — and the two backends agree.
+    for (let i = 1; i < votes.length; i++) {
+      assert.ok(BigInt(votes[i - 1]!.rshares) >= BigInt(votes[i]!.rshares),
+        "voters must arrive ordered by weight, descending");
+    }
+
+    const none = await c.postVotes(voted.author, "no-such-permlink-exists");
+    assert.deepEqual(none, [], "an unknown post has no voters, not an error");
+  });
