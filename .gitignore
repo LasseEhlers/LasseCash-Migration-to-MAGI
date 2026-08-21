@@ -10,6 +10,8 @@ node_modules/
 api/dist/
 web/.svelte-kit/
 web/build/
+# Wrangler's local Miniflare cache, from `wrangler pages dev`.
+web/.wrangler/
 contract/artifacts/*.wasm
 api/engine-wasm/engine.wasm
 

@@ -723,6 +723,28 @@ nothing and sorts by its (zero) pending reward. Every registered post and
 comment is visible to everyone always, including crawlers; the ONLY filter
 is the stake threshold at registration. Belongs on the About page.
 
+## SEO & AI readability — BUILT 2026-08-22
+
+Cloudflare Pages SSR (adapter-cloudflare, `nodejs_compat`, explicit
+`_routes.json` — the default blew Cloudflare's 100-rule cap on the proof
+shards). Server-rendered: `/@author/permlink` (canonical; `/post/…` 301s),
+`/@name`, `/feed`, `/about` (prerendered from `docs/ABOUT.md`, which goes
+through the escape-first post renderer — keep notes out of it). Client-only
+(`ssr = false`): `/`, `/pool`, `/chain`, `/compose`, `/admin`. **No
+economics server-side**: `Backend.postsMeta()` is the content-only half of
+`posts()`, and reward figures are kept OUT of cached HTML (60 s cache; a
+payout moves every 3 s). `$lib/Seo.svelte` + `$lib/site.ts`
+(`PUBLIC_SITE_URL`); JSON-LD escapes `<>&` (titles are attacker-controlled).
+Publish attaches `json_metadata {app: lassecash/2.0, canonical_url, format,
+tags, description, image}` via `AiohaWallet.publishToHive()` —
+`MagiBackend.publish()` must route through it or the canonical is given
+away (TODO noted). `/robots.txt`, `/sitemap.xml`, `/feed.xml`, `/llms.txt`,
+`/llms-full.txt`, `/@author/permlink.md`, `/about.md` all verified by curl on
+the real Workers runtime; a post page's raw HTML carries title, body,
+canonical, og:image, Article JSON-LD. Discovery files are capped at recent
+history until a post index exists. Node 18 locally forced adapter v4 +
+wrangler 3; bump Node. IPFS static build kept as a commented TODO.
+
 ## SEO & AI readability — DECIDED 2026-08-22 ("SUPER IMPORTANT")
 
 Hive frontends are unfindable: client-rendered shells (crawlers see nothing),
@@ -760,6 +782,23 @@ can crack that nut we are 10 steps ahead."* The crack, all frontend/hosting:
   labelled "lost on the old chains — never mintable" (issued on Steem/Hive-
   Engine, held by nobody, no issuer exists). Burned tile: "held by @null —
   unspendable, visible forever". `engine` bridge `supplyLimits` does the sum.
+
+## Promote-by-burn — DECIDED 2026-08-22
+
+Steem's promoted posts died in a dead tab where 0.00001 bought a position.
+Ours: `promote_post <author>|<permlink>|<amount>` burns to null (visible
+forever) and records the running total on the post (record field 12,
+append-only). A promoted post gets a clearly labelled slot every Nth row
+(frontend rule, starts at every 5th) of the SAME trending list, ordered by
+burn, NEVER above the voted posts — money and votes are not mixed. Contract
+rules: refused on comments, after payout, **once 75% of the window has
+elapsed** (`engine.PromoteCutoffPct`; no burning for a slot that ends in ten
+minutes), and below the governed minimum **`promote.min_burn`: floor 1,
+default 100, ceiling 1,000,000 LASSECASH** — the ceiling on the MINIMUM
+stops a captured top-10 from abolishing promotion for everyone but
+themselves. Pinned by `TestPostingThresholdBoundsArePinned`; behaviour by
+`TestPromoteBurnsToNullWithinTheWindow`. Production contract: 28
+entrypoints, 93,005 bytes. Frontend slot rule + promote button: to build.
 
 ## Visual design — DECIDED 2026-08-20
 
