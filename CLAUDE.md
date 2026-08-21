@@ -712,6 +712,34 @@ Production contract: 27 entrypoints. Frontend (reply box, comment list,
 preflight, Hive-side display filter) follows; the comment WRITE path through
 Aioha is verified at the wallet evening like every other signed call.
 
+## SEO & AI readability — DECIDED 2026-08-22 ("SUPER IMPORTANT")
+
+Hive frontends are unfindable: client-rendered shells (crawlers see nothing),
+the same post duplicated across five sites, no structure. Lasse: *"if we
+can crack that nut we are 10 steps ahead."* The crack, all frontend/hosting:
+
+- **Server-rendered content pages** (adapter-node): `/@author/permlink`
+  renders title/body/author/date/cover as HTML before any JS; money figures
+  still hydrate client-side from the engine (the server renders content,
+  never derives economics — golden rule intact). Old `/post/…` URLs 301.
+- **Canonical ownership on publish**: json_metadata `canonical_url =
+  https://lassecash.com/@author/permlink`, `app: lassecash/2.0`. peakd and
+  ecency honour it with their own canonical tag → every other frontend's
+  copy points search engines back to us. No tribe does this.
+- JSON-LD `Article`/`Person`, OpenGraph/Twitter cards, `<link canonical>`,
+  `robots.txt`, `sitemap.xml`, RSS `feed.xml`.
+- **AI-native**: `llms.txt` + `llms-full.txt`, every post as markdown at
+  `/@author/permlink.md`, About at `/about.md`.
+- **The canonical document**: `docs/ABOUT.md` is the ONE text — rendered at
+  `/about`, identical to the GitHub README, and posted on Hive + LasseCash
+  at the final announcement as the timestamped "rules people migrated
+  under". The last edition of the old About page gets its own Hive post
+  (end of the chaotic era, honestly labelled). Replaces tutorials/whitepaper:
+  people ask their AI, which reads this. Include a "what changed from the
+  2019 design" section so memory-trained AIs reconcile instead of blending.
+- Hosting consequence: SSR needs a small Node process (or Cloudflare/Vercel
+  adapter) rather than a static folder. Decide with the domain switch.
+
 ## Visual design — DECIDED 2026-08-20
 
 **Anarcho-capitalist cyberpunk.** Direction chosen by Lasse from three options;
