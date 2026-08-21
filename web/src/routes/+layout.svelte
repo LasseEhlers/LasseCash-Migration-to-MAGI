@@ -17,7 +17,26 @@
     ...(chain.account === FOUNDER ? [["/admin", "Admin"]] : []),
   ]);
 
+  /**
+   * Decimal comma → dot, site-wide. Danish (and most European) keyboards
+   * type "," for decimals; every amount on this site is parsed with a ".".
+   * Rather than a validation error, the comma becomes a dot as it is typed,
+   * caret preserved. Applies to every <input inputmode="decimal">. Runs in
+   * the capture phase so the field's own oninput sees the corrected value.
+   */
+  function decimalComma(e: Event) {
+    const el = e.target as HTMLInputElement | null;
+    if (!el || el.tagName !== "INPUT" || el.inputMode !== "decimal") return;
+    if (!el.value.includes(",")) return;
+    const pos = el.selectionStart;
+    el.value = el.value.replace(/,/g, ".");
+    if (pos !== null) el.setSelectionRange(pos, pos);
+    // Let Svelte's bind:value pick up the corrected string.
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+
   onMount(async () => {
+    document.addEventListener("input", decimalComma, true);
     await chain.init();
     // Dev convenience: ?as=alice signs in without a wallet. Harmless against a
     // real node, where the signer will require an actual Hive signature.
