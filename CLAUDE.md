@@ -1061,15 +1061,30 @@ reads. Treat that column as closed.
 | 51M hardcap | Bigger-Pays-Better start/end amounts |
 | 20M emission cap + halving curve | Posting thresholds (viral / deep) |
 
-**Posting thresholds — DECIDED 2026-08-21: defaults 1,000 L-Shares (viral) and
-10,000 L-Shares (deep).** Lasse's call; the top-10 tune from there inside
-hardcoded bounds. ⚠️ **Open thinking task (Lasse's, deliberately deferred):**
-static bounds may age badly as the LASSECASH price moves, so he wants to
-explore bounds that are *dynamic against the HBD price* rather than handing
-the top-10 unlimited range. Nothing designed yet — do not invent a mechanism
-without him; an HBD-price oracle inside a frozen contract is a hard problem
-(who feeds it, what stops the top-10 gaming the feed). Revisit before the
-bounds are frozen for the real deploy.
+**Posting thresholds — BOUNDS DECIDED 2026-08-21 (frozen forever).**
+Denominated in L-SHARES (the unit of commitment; the ratchet makes a share
+slowly cost more LASSECASH, the right direction against inflation), NOT in
+dollars via the pool — that would be an on-chain oracle on a thin,
+manipulable pool. The top-10 IS the oracle. Lasse's ranges ($0.01–$10 viral,
+$0.10–$100 deep at the 0.001 opening price) with a one-share floor:
+
+| | Floor | Default | Ceiling |
+|---|---|---|---|
+| Viral | 1 L-Share | 1,000 | 10,000 |
+| Deep | 1 L-Share | 10,000 | 100,000 |
+
+**The ceiling is the anti-capture rule**: the top-10 hold the most shares by
+definition; with no ceiling six colluding seats could set deep above
+everyone's holdings but their own and farm 37.5% of emission — capture pays
+a cartel more than the price damage costs it, so "they want the price up"
+does NOT protect against it (Lasse's "no limits, perfect AnCap" idea,
+rejected for this reason). At the ceiling a captured committee can squeeze
+deep posting to ~20 accounts — painful, visible, reversible, never
+exclusive. **The floor is one share** so protection can't be switched off
+but nobody is ever locked out; newcomers earn shares by posting viral and
+grow into deep. Robust to a 100x price move either way. Pinned by
+`TestPostingThresholdBoundsArePinned`. (The earlier "dynamic vs HBD price"
+idea is closed.)
 | 1.5x LPB ceiling, 1.5x BPB ceiling | *(closed — see correction above)* |
 | **0% swap fee on LASSECASH:HBD** | |
 | +1%/day LP loyalty bonus, 90-day cap | |

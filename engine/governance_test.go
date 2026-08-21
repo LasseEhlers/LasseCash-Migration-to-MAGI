@@ -328,3 +328,28 @@ func TestMedianIsDeterministic(t *testing.T) {
 		}
 	}
 }
+
+// The posting-threshold bounds are frozen with the contract. Decided by Lasse
+// 2026-08-21 — viral $0.01–$10 and deep $0.10–$100 at the opening price of
+// 0.001 HBD, with a one-share floor so protection can never be switched
+// off and a ceiling so a captured top-10 can squeeze but never exclude.
+func TestPostingThresholdBoundsArePinned(t *testing.T) {
+	reg := NewRegistry()
+	cases := []struct {
+		key                   ParamKey
+		min, def, max         int64
+	}{
+		{ParamPostThresholdViral, ShareUnit, 1_000 * ShareUnit, 10_000 * ShareUnit},
+		{ParamPostThresholdDeep, ShareUnit, 10_000 * ShareUnit, 100_000 * ShareUnit},
+	}
+	for _, c := range cases {
+		p, ok := reg.Param(c.key)
+		if !ok {
+			t.Fatalf("%s not registered", c.key)
+		}
+		if p.Min != c.min || p.Value != c.def || p.Max != c.max {
+			t.Fatalf("%s: bounds moved to [%d, %d, %d], want [%d, %d, %d] — frozen forever",
+				c.key, p.Min, p.Value, p.Max, c.min, c.def, c.max)
+		}
+	}
+}

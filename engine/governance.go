@@ -83,18 +83,35 @@ func NewRegistry() *Registry {
 	// Defaults are Lasse's (2026-08-21): 1,000 to go viral, 10,000 for deep.
 	// The top-10 tune from there, inside these bounds.
 	//
-	// ⚠️ The BOUNDS are a known open question (CLAUDE.md, "Posting
-	// thresholds"): static share counts may age badly against the token
-	// price, and Lasse wants to explore bounds dynamic against HBD before
-	// they are frozen. Until that is designed WITH him, these stay static.
+	// BOUNDS DECIDED 2026-08-21 (Lasse; frozen forever with the contract).
+	//
+	// Denominated in L-SHARES — the unit of commitment — because a price-
+	// denominated threshold would need an on-chain oracle, and the only one
+	// available (our own pool) is thin and manipulable. The top-10 IS the
+	// oracle: ten humans with the most stake, each keeping a standing number,
+	// median in force, tracking the real-world price at human speed.
+	//
+	// The CEILING is the anti-capture rule. The top-10 hold the most shares by
+	// definition; without a ceiling six colluding seats could set the deep
+	// threshold above everyone's holdings but their own and farm the 37.5% of
+	// emission that deep posting pays — capture, which would pay a cartel more
+	// than the price damage costs it. At the ceiling (~$100 of stake at the
+	// opening price) a captured committee can at worst squeeze deep posting
+	// to ~20 accounts: painful, visible, and reversible. Never exclusive.
+	//
+	// The FLOOR is one L-Share: near-zero at any plausible price, so nobody is
+	// ever locked out, but never exactly zero, so protection cannot be
+	// switched off. Newcomers earn L-Shares by posting viral and grow into
+	// deep — the ladder is built in. The ranges span three orders of
+	// magnitude each, enough to track a 100x price move in either direction.
 	r.register(Param{
 		Key: ParamPostThresholdViral, Value: int64(1_000 * ShareUnit),
-		Min: 0, Max: int64(100_000 * ShareUnit),
+		Min: ShareUnit, Max: int64(10_000 * ShareUnit),
 		Desc: "L-Shares required to post viral (7-day) content",
 	})
 	r.register(Param{
 		Key: ParamPostThresholdDeep, Value: int64(10_000 * ShareUnit),
-		Min: 0, Max: int64(100_000 * ShareUnit),
+		Min: ShareUnit, Max: int64(100_000 * ShareUnit),
 		Desc: "L-Shares required to post deep (30-day) content",
 	})
 	return r
