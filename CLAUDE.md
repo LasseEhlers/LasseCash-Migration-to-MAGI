@@ -748,8 +748,18 @@ can crack that nut we are 10 steps ahead."* The crack, all frontend/hosting:
   (end of the chaotic era, honestly labelled). Replaces tutorials/whitepaper:
   people ask their AI, which reads this. Include a "what changed from the
   2019 design" section so memory-trained AIs reconcile instead of blending.
-- Hosting consequence: SSR needs a small Node process (or Cloudflare/Vercel
-  adapter) rather than a static folder. Decide with the domain switch.
+- **Hosting DECIDED 2026-08-22: Cloudflare Pages + server functions**
+  (adapter-cloudflare; Lasse already uses Cloudflare for his domains; free
+  tier covers it). Workers runtime: no fs at request time (About text is
+  imported at build time), Web APIs only, engine WASM stays client-side. A
+  static build for an IPFS mirror stays possible from the same code.
+- **"Headroom" is gone from the Chain page** (Lasse: "isn't these tokens
+  essentially dead?" — yes). The hardcap picture uses the committed SNAPSHOT
+  total (burned + claimable, `state.SnapshotTotal`, `snapshot_total` in
+  ChainInfo), not merely what has been claimed; the remainder under 51M is
+  labelled "lost on the old chains — never mintable" (issued on Steem/Hive-
+  Engine, held by nobody, no issuer exists). Burned tile: "held by @null —
+  unspendable, visible forever". `engine` bridge `supplyLimits` does the sum.
 
 ## Visual design — DECIDED 2026-08-20
 
