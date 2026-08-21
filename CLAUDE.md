@@ -1169,7 +1169,14 @@ contract update against the owner's active authority; with no key in existence,
 | Move a governable value inside its bounds | Fine — median governance still runs. |
 
 There is no staged rollout and no "12 months of admin keys just in case".
-That was explicitly rejected as dishonest. **Therefore the pre-launch test
+That was explicitly rejected as dishonest. **REFINED 2026-08-21: the burn
+happens at an ANNOUNCED height ≈ day 35 after genesis** — once the first
+claims, the first accruals, the first monthly PoB mint and the day-30
+migration-mint maturity have all passed on the real chain. The key cannot
+touch anyone's tokens; its only power is a public, timelocked code update,
+which is the recovery path if the live chain surprises us in those first
+weeks. Announced in the genesis post with the block height and the reason;
+the burn tx is published. See docs/LAUNCH-RUNBOOK.md §7. **Therefore the pre-launch test
 deploys are the entire safety margin.** Iterate as many times as needed on a
 throwaway contract before the real one; each deploy is 10 HBD and that is
 cheap next to shipping a frozen bug.

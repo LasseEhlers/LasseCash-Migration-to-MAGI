@@ -121,12 +121,18 @@ Look up the Hive-Engine price of the day. On the Pool page: opening price,
 your HBD, LASSECASH derives. One click. Verify `amm_lc` / `amm_hbd` read
 back exactly what you entered.
 
-## 7. 💸 Burn the owner keys — IRREVERSIBLE
+## 7. 💸 Burn the owner keys — IRREVERSIBLE — at DAY 35
 
-Lasse's decision: no admin keys, ever. Recommended: **run §5–6 and a few
-ordinary transactions first, wait for the first daily accrual to land, and
-only then burn** — an hour of verification costs nothing; a bricked deploy
-costs everything. Procedure: change the owner account's owner, active,
+DECIDED 2026-08-21: the key is destroyed at a block height announced in the
+genesis post, ≈ day 35 after genesis — after the heaviest first-time events
+have passed on the real chain: the first claims, the first daily accruals,
+the first monthly Proof-of-Brain mint on the 1st, and the migration mints
+maturing on day 30 (~2,000 retirements drained across several `advance`
+calls). Until then any code update is public and timelocked; the announced
+text: *"the owner key is destroyed at block Y (≈ day 35), after the migration
+mints have matured; until then any code update would be public and
+timelocked."* Block Y = genesis + 35 × 28,800 = genesis + 1,008,000.
+Publish the burn transaction id when it happens. Procedure: change the owner account's owner, active,
 posting and memo authorities to the Hive null public key
 (`STM1111111111111111111111111111111114T1Anm`) via `account_update`, with
 the owner key, after a final `./deploy.sh preflight` confirms the contract's
