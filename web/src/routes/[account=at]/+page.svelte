@@ -68,6 +68,7 @@
    */
   const onCouncil = $derived(chain.info?.consensus_group.includes(account) ?? false);
   const isMe = $derived(chain.account === account);
+  const openMints = $derived((view?.mints ?? []).filter((m) => !m.ended).length);
 
   function href(p: PostView) {
     return `/post/${encodeURIComponent(p.author)}/${encodeURIComponent(p.permlink)}`;
@@ -110,8 +111,8 @@
       </div>
       <div class="panel stat">
         <div class="label">Open mints</div>
-        <div class="value">{view.mints.filter((m) => !m.ended).length}</div>
-        <div class="sub">time-locked positions</div>
+        <div class="value">{openMints}</div>
+        <div class="sub">time-locked position{openMints === 1 ? "" : "s"}</div>
       </div>
       <div class="panel stat">
         <div class="label">Governance</div>

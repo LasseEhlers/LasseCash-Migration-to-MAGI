@@ -4,7 +4,7 @@
  * PRESENTATION ONLY. Nothing here derives an economic value — it renders what
  * the chain or the engine already decided. See CLAUDE.md, golden rule.
  */
-import { format, type Amount } from "$api/index.js";
+import { format, fromUnits, type Amount } from "$api/index.js";
 
 /** LASSECASH for display: grouped, 3 decimals by default. */
 export function lc(amount: Amount, decimals = 3): string {
@@ -17,6 +17,21 @@ export function lcShort(amount: Amount): string {
   if (Math.abs(whole) >= 1_000_000) return `${(whole / 1_000_000).toFixed(2)}M`;
   if (Math.abs(whole) >= 1_000) return `${(whole / 1_000).toFixed(1)}k`;
   return format(amount, { decimals: 2 });
+}
+
+/**
+ * Vote weight (rshares) for display.
+ *
+ * rshares are stored in the SAME 1e8 base units as L-Shares — a vote is the
+ * voter's shares multiplied by the power it spent — so showing them at that
+ * scale makes a vote directly comparable to the stake that cast it, instead of
+ * a fourteen-digit integer nobody can read.
+ *
+ * Rescaling is presentation, exactly like rendering any other base-unit value.
+ * It is NOT a LASSECASH amount and must never be labelled as one.
+ */
+export function rshares(raw: string): string {
+  return format(fromUnits(BigInt(raw)), { decimals: 3 });
 }
 
 /** A multiplier the engine computed: "2.25000000" -> "2.25x". */

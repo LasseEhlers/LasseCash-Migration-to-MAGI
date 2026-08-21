@@ -17,7 +17,7 @@
    * rule: the formula lives in Go, in one place.
    */
   import { chain, client } from "$lib/chain.svelte.js";
-  import { displayName, pct } from "$lib/format.js";
+  import { displayName, pct, rshares } from "$lib/format.js";
   import { estimateRewardShare, type PostVote, type PostView } from "$api/index.js";
 
   let { post }: { post: PostView } = $props();
@@ -93,14 +93,14 @@
           {@const s = share(v)}
           <li>
             <a class="who mono" href={profile(v.voter)}>{displayName(v.voter)}</a>
-            <span class="weight mono dim">{v.rshares}</span>
+            <span class="weight mono dim">{rshares(v.rshares)}</span>
             <span class="share mono gold">{s ? pct(s) : "—"}</span>
           </li>
         {/each}
       </ul>
       <p class="note dim">
-        Share of this post's vote weight — the same proportion the curator pot
-        is split by. The middle column is raw rshares, not LASSECASH.
+        Vote weight, then its share of the post's total — the same proportion
+        the curator pot is split by. Weight is rshares, not LASSECASH.
       </p>
       {#if settledAway > 0}
         <p class="note dim">
