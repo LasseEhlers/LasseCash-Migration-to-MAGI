@@ -873,3 +873,46 @@ func TestCommentsAreGatedBySeparateThreshold(t *testing.T) {
 	}
 	auditSupply(t, s)
 }
+
+// Promote-by-burn (2026-08-22): a burn to null buys a labelled slot; refused
+// below the governed minimum, on comments, after payout, and once 75% of the
+// window has elapsed — no burning for a slot that ends in ten minutes.
+func TestPromoteBurnsToNullWithinTheWindow(t *testing.T) {
+	s, ctx := newChain(t)
+	creditLiquid(s, "hive:author", lc(50_000))
+	creditLiquid(s, "hive:fan", lc(1_000))
+	CreateMint(s, at(ctx, "hive:author", genesis), lc(20_000), 365)
+	if r := CreatePost(s, at(ctx, "hive:author", genesis), "root", engine.Viral, PayoutDefault); !r.OK {
+		t.Fatal(r.Msg)
+	}
+	day := uint64(engine.HeightsPerDay)
+	nullBefore := TotalBurned(s)
+
+	if r := PromotePost(s, at(ctx, "hive:fan", genesis+day), "hive:author", "root", lc(99)); r.OK {
+		t.Fatal("below the 100 LC minimum accepted")
+	}
+	if r := PromotePost(s, at(ctx, "hive:fan", genesis+day), "hive:author", "root", lc(100)); !r.OK {
+		t.Fatalf("promote: %s", r.Msg)
+	}
+	if TotalBurned(s)-nullBefore != lc(100) || Balance(s, "hive:fan") != lc(900) {
+		t.Fatal("the burn must go to null and leave the promoter")
+	}
+	p, _ := getPost(s, "hive:author", "root")
+	if p.Promoted != lc(100) {
+		t.Fatalf("promoted total %s, want 100", fmtA(p.Promoted))
+	}
+	// Day 5 of a 7-day window is 71% — still open; day 5.25 is the cutoff.
+	if r := PromotePost(s, at(ctx, "hive:fan", genesis+5*day), "hive:author", "root", lc(100)); !r.OK {
+		t.Fatalf("day 5 should still be open: %s", r.Msg)
+	}
+	if r := PromotePost(s, at(ctx, "hive:fan", genesis+6*day), "hive:author", "root", lc(100)); r.OK {
+		t.Fatal("promotion accepted after 75% of the window")
+	}
+	// Comments cannot be promoted.
+	CreateMint(s, at(ctx, "hive:fan", genesis), lc(500), 365)
+	CreateComment(s, at(ctx, "hive:fan", genesis), "re", PayoutDefault, "hive:author", "root")
+	if r := PromotePost(s, at(ctx, "hive:author", genesis+day), "hive:fan", "re", lc(100)); r.OK {
+		t.Fatal("a comment was promoted")
+	}
+	auditSupply(t, s)
+}

@@ -2,48 +2,45 @@
   /**
    * An account's public profile — `/@lasseehlers`.
    *
-   * Everything here is READ FROM THE CHAIN and already computed there: the
-   * balance, the L-Shares, and the consensus group itself. Nothing on this page
-   * is derived in TypeScript.
+   * TWO HALVES, on purpose.
+   *
+   *  - The PUBLISHED WORK is server-rendered (`+page.server.ts`), so a profile
+   *    is a real, indexable page rather than an empty shell. Titles, dates and
+   *    summaries are in the HTML before JavaScript runs.
+   *  - The FIGURES — L-Shares, balance, open mints, the consensus seat — load
+   *    in the browser from the chain, because they are money and they move
+   *    every block. Nothing on this page is derived in TypeScript; the chain
+   *    computed all of it.
    *
    * L-Shares are the hero figure because they are the thing that matters about
-   * an account: they are its voting weight, its claim on the yield pool, and
-   * what puts it in the governing top 10. The balance is just cash.
+   * an account: voting weight, a claim on the yield pool, and what puts it in
+   * the governing top 10. The balance is just cash.
    */
-  import { page } from "$app/state";
   import { chain, client } from "$lib/chain.svelte.js";
   import { displayName, lc, lcShort, shortDate, durationWords } from "$lib/format.js";
-  import { excerpt } from "$lib/markdown.js";
+  import Seo from "$lib/Seo.svelte";
+  import { SITE_NAME, SITE_URL, metaDescription, profileUrl } from "$lib/site.js";
   import type { AccountView, PostView } from "$api/index.js";
+  import type { PageData } from "./$types";
 
-  /**
-   * The URL carries the DISPLAY name; the chain uses the qualified address.
-   *
-   * Same rule as everywhere else: `hive:alice`, never bare `alice`, and an
-   * address that already names its namespace is left alone so a `did:pkh:…`
-   * account is never mangled into a Hive one.
-   */
-  const account = $derived.by(() => {
-    const raw = decodeURIComponent(page.params.account ?? "").replace(/^@/, "");
-    return raw.includes(":") ? raw : `hive:${raw}`;
-  });
+  let { data }: { data: PageData } = $props();
+
+  /** The chain's qualified address, resolved on the server. */
+  const account = $derived(data.account);
 
   let view = $state<AccountView | null>(null);
-  let posts = $state<PostView[]>([]);
+  let money = $state<PostView[]>([]);
   let loading = $state(true);
   let error = $state<string | null>(null);
 
   async function load(name: string) {
     loading = true;
     try {
-      // TODO: there is no author index. The contract cannot enumerate posts
-      // (unbounded iteration does not fit in the gas budget), so the feed's own
-      // discovery list is filtered client-side — which means a prolific author
-      // whose posts fall outside the newest 200 will look quieter than they
-      // are. A real indexer-side author index is the fix, not a bigger limit.
+      // The post LIST came from the server; this fetch is only for the reward
+      // figures beside each one, plus the account's own totals.
       const [a, all] = await Promise.all([client.accountOf(name), client.posts(200)]);
       view = a;
-      posts = all.filter((p) => p.author === name);
+      money = all.filter((p) => p.author === name);
       error = null;
     } catch (e) {
       error = e instanceof Error ? e.message : String(e);
@@ -58,6 +55,7 @@
   $effect(() => { void load(account); });
 
   const height = $derived(chain.info?.height ?? 0);
+  const rewards = $derived(new Map(money.map((p) => [p.permlink, p])));
 
   /**
    * Whether this account currently holds one of the ten governing seats.
@@ -70,14 +68,48 @@
   const isMe = $derived(chain.account === account);
   const openMints = $derived((view?.mints ?? []).filter((m) => !m.ended).length);
 
-  function href(p: PostView) {
-    return `/post/${encodeURIComponent(p.author)}/${encodeURIComponent(p.permlink)}`;
-  }
+  const description = $derived(
+    metaDescription(
+      data.postCount > 0
+        ? `@${data.handle} publishes on ${SITE_NAME} — ${data.postCount} post` +
+          `${data.postCount === 1 ? "" : "s"}. Earning LASSECASH from Proof-of-Brain rewards.`
+        : `@${data.handle} on ${SITE_NAME} — LASSECASH balance, L-Shares and published work.`,
+    ),
+  );
+
+  /** `ProfilePage` wrapping a `Person`. Content only; no figures. */
+  const schema = $derived({
+    "@context": "https://schema.org",
+    "@type": "ProfilePage",
+    url: profileUrl(account),
+    mainEntity: {
+      "@type": "Person",
+      name: `@${data.handle}`,
+      alternateName: displayName(account),
+      identifier: account,
+      url: profileUrl(account),
+    },
+    ...(data.posts.length
+      ? {
+          hasPart: data.posts.map((p) => ({
+            "@type": "Article",
+            headline: p.title,
+            url: SITE_URL + p.path,
+            datePublished: p.created,
+          })),
+        }
+      : {}),
+    isPartOf: { "@type": "WebSite", name: SITE_NAME, url: SITE_URL },
+  });
 </script>
 
-<svelte:head>
-  <title>{displayName(account)} · LasseCash</title>
-</svelte:head>
+<Seo
+  title={`@${data.handle}`}
+  {description}
+  canonical={profileUrl(account)}
+  type="profile"
+  {schema}
+/>
 
 <div class="grid">
   <section class="panel head">
@@ -125,39 +157,43 @@
       </div>
     </section>
 
-    <section class="panel">
-      <h2>Posts</h2>
-      {#if posts.length === 0}
-        <p class="empty"><strong>Nothing published.</strong>Or nothing in the most recent 200 posts.</p>
-      {:else}
-        <ul class="posts">
-          {#each posts as p (p.permlink)}
-            <li>
-              <a href={href(p)}>
-                <span class="pill {p.window === 'deep' ? 'info' : 'warn'}">{p.window}</span>
-                <span class="title">{p.title}</span>
-              </a>
-              <div class="line dim">
-                <span>{shortDate(p.created_time)}</span>
-                <span class="mono">{p.votes} vote{p.votes === 1 ? "" : "s"}</span>
-                {#if p.paid_out}
+  {/if}
+
+  <section class="panel">
+    <h2>Posts</h2>
+    {#if data.posts.length === 0}
+      <p class="empty"><strong>Nothing published.</strong>Or nothing in the most recent 200 posts.</p>
+    {:else}
+      <ul class="posts">
+        {#each data.posts as p (p.permlink)}
+          {@const m = rewards.get(p.permlink)}
+          <li>
+            <a href={p.path}>
+              <span class="pill {p.window === 'deep' ? 'info' : 'warn'}">{p.window}</span>
+              <span class="title">{p.title}</span>
+            </a>
+            <div class="line dim">
+              <span>{shortDate(p.created)}</span>
+              {#if m}
+                <span class="mono">{m.votes} vote{m.votes === 1 ? "" : "s"}</span>
+                {#if m.paid_out}
                   <span class="pill ok">paid out</span>
                 {:else}
-                  <span class="mono gold">{lc(p.pending_payout)} LC</span>
+                  <span class="mono gold">{lc(m.pending_payout)} LC</span>
                   <span>
-                    {p.payable ? "window closed" : `pays in ${durationWords(p.payout_height - height)}`}
+                    {m.payable ? "window closed" : `pays in ${durationWords(m.payout_height - height)}`}
                   </span>
                 {/if}
-              </div>
-              {#if p.summary || p.body_excerpt}
-                <p class="blurb">{p.summary || excerpt(p.body_excerpt ?? "", 160)}</p>
               {/if}
-            </li>
-          {/each}
-        </ul>
-      {/if}
-    </section>
-  {/if}
+            </div>
+            {#if p.summary}
+              <p class="blurb">{p.summary}</p>
+            {/if}
+          </li>
+        {/each}
+      </ul>
+    {/if}
+  </section>
 </div>
 
 <style>

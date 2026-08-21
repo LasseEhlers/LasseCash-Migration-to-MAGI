@@ -16,6 +16,8 @@
   import { lc } from "$lib/format.js";
   import { renderMarkdown } from "$lib/markdown.js";
   import { PayoutMode, Window } from "$api/index.js";
+  import Seo from "$lib/Seo.svelte";
+  import { SITE_URL } from "$lib/site.js";
 
   let title = $state("");
   let body = $state("");
@@ -124,7 +126,14 @@
       chain.busy = false;
     }
   }
+
 </script>
+
+<Seo
+  title="Write"
+  description="Publish to LasseMedia. Your post's canonical home is LasseCash, on every Hive frontend."
+  canonical={`${SITE_URL}/compose`}
+/>
 
 <div class="grid wide">
   {#if published}

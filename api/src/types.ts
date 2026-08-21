@@ -103,6 +103,11 @@ export interface PostView {
   rshares: string;
   /** 0 = 20/80 split, 1 = 100% to the monthly mint, 2 = burned. Author only. */
   payout_mode: number;
+  /** Set when this is a COMMENT (a registered reply); empty for a root post. */
+  parent_author: string;
+  parent_permlink: string;
+  /** Total LASSECASH burned to promote this post — buys a labelled slot. */
+  promoted: Amount;
   title: string;
   summary: string;
   /** The opening of the article — enough for a cover image and a preview. */
@@ -117,6 +122,29 @@ export interface PostView {
   curator_pot: Amount;
   /** Height at which an unclaimed curator pot may be recycled. 0 until paid out. */
   curation_expires_at: number;
+}
+
+/**
+ * A post's CONTENT metadata — everything except the money.
+ *
+ * Exists so that server rendering (canonical pages, the sitemap, RSS,
+ * /llms.txt) can list posts without loading the economic engine. `PostView` is
+ * the full picture and needs the engine for its payout figures; this is the
+ * half that is safe to compute anywhere and safe to cache, because none of it
+ * changes after the post is written.
+ */
+export interface PostMeta {
+  author: string;
+  permlink: string;
+  window: "viral" | "deep";
+  created_height: number;
+  created_time: string;
+  /** From the content layer; empty when only the registration is known. */
+  title: string;
+  summary: string;
+  /** The opening of the article — enough to derive a cover image. */
+  body_excerpt: string;
+  tags: string[] | null;
 }
 
 /**

@@ -87,6 +87,8 @@ func main() {
 			"paramPostThresholdViral":   string(engine.ParamPostThresholdViral),
 			"paramPostThresholdDeep":    string(engine.ParamPostThresholdDeep),
 			"paramPostThresholdComment": string(engine.ParamPostThresholdComment),
+			"paramPromoteMinBurn":       string(engine.ParamPromoteMinBurn),
+			"promoteCutoffPct":          engine.PromoteCutoffPct,
 		}),
 	}))
 	select {} // keep the instance alive for the host to call into

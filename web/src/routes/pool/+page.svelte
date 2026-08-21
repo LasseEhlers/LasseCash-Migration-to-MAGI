@@ -13,6 +13,8 @@
     estimateSwap, estimateLiquidity, toBaseUnitArg, toUnits, fromUnits, isZero,
     type SwapDirection,
   } from "$api/index.js";
+  import Seo from "$lib/Seo.svelte";
+  import { SITE_URL } from "$lib/site.js";
 
   let direction = $state<SwapDirection>("lc_hbd");
   let amountIn = $state("1000");
@@ -287,7 +289,14 @@
   async function exit(id: number) {
     lpError = await chain.submit(() => client.removeLiquidity(id));
   }
+
 </script>
+
+<Seo
+  title="LASSECASH:HBD Pool"
+  description="Swap LASSECASH and HBD at zero fee, provide liquidity, and earn the loyalty bonus — up to +90% at 90 days."
+  canonical={`${SITE_URL}/pool`}
+/>
 
 <div class="grid">
   <section class="stats">

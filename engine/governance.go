@@ -39,6 +39,8 @@ const (
 	// ParamPostThresholdComment gates COMMENTS: a reply registered with the
 	// contract earns like a viral post but needs only this (lower) stake.
 	ParamPostThresholdComment ParamKey = "post.threshold_comment"
+	// ParamPromoteMinBurn is the smallest burn that buys a promoted slot.
+	ParamPromoteMinBurn ParamKey = "promote.min_burn"
 
 	// NOTE: there is deliberately no swap-fee parameter. The LASSECASH:HBD
 	// swap fee is hardcoded to zero and is not governable at all — see the
@@ -128,6 +130,19 @@ func NewRegistry() *Registry {
 		Key: ParamPostThresholdComment, Value: int64(100 * ShareUnit),
 		Min: ShareUnit, Max: int64(10_000 * ShareUnit),
 		Desc: "L-Shares required to comment (7-day viral economics)",
+	})
+	// Promote-by-burn — DECIDED 2026-08-22. Steem's version died in a dead
+	// "Promoted" tab where 0.00001 bought a position. Here a burn (to null,
+	// visible forever) buys a clearly labelled slot every Nth row of the
+	// SAME trending list, ordered by burn, never above the voted posts; the
+	// slot rule lives in the frontend. The floor kills dust promotions; the
+	// ceiling on the MINIMUM stops a captured top-10 from abolishing
+	// promotion for everyone but themselves. Promotion closes at 75% of the
+	// post's window (engine.PromoteCutoff) — no burning for nothing.
+	r.register(Param{
+		Key: ParamPromoteMinBurn, Value: int64(100 * Unit),
+		Min: Unit, Max: int64(1_000_000 * Unit),
+		Desc: "minimum LASSECASH burn to promote a post",
 	})
 	return r
 }

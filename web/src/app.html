@@ -3,10 +3,13 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>LasseCash</title>
+    <!-- NO <title> HERE. Every route sets its own through <svelte:head>, and a
+         static one would be emitted FIRST — which is the one a crawler reads.
+         See src/lib/Seo.svelte. -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="alternate" type="application/rss+xml" title="LasseCash" href="/feed.xml" />
     <!-- TinyGo's shim must be a classic script, before the engine loads. -->
     <script src="/wasm_exec.js"></script>
     %sveltekit.head%

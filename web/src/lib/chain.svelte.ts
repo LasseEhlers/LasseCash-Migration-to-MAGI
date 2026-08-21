@@ -13,6 +13,7 @@ import {
   engineReady, loadEngine,
   type AccountView, type ChainInfo, type Providers,
 } from "$api/index.js";
+import { SITE_URL } from "$lib/site.js";
 
 const DEV_URL = import.meta.env.VITE_CHAIN_URL ?? "http://localhost:8080";
 
@@ -45,6 +46,9 @@ export const wallet = WALLET_MODE && typeof window !== "undefined"
   ? new AiohaWallet({
       contractId: CONTRACT_ID,
       netId: import.meta.env.VITE_MAGI_NET_ID,
+      // The origin every published post declares as its canonical home. The
+      // indexer must not know the site's address; the site tells it.
+      siteUrl: SITE_URL,
     })
   : null;
 

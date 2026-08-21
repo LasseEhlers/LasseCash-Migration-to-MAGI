@@ -12,7 +12,8 @@
   // soft page gate) — this constant is not worth centralizing for one string.
   const FOUNDER = "hive:lasseehlers";
   const navLinks = $derived([
-    ["/feed", "Feed"], ["/compose", "Write"], ["/", "Mint"], ["/pool", "Pool"], ["/chain", "Chain"],
+    ["/feed", "Feed"], ["/compose", "Write"], ["/", "Mint"], ["/pool", "Pool"],
+    ["/chain", "Chain"], ["/about", "About"],
     ...(chain.account === FOUNDER ? [["/admin", "Admin"]] : []),
   ]);
 

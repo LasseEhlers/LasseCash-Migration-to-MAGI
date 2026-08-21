@@ -19,6 +19,8 @@
   import { chain, WALLET_MODE } from "$lib/chain.svelte.js";
   import { displayName, lc, shortDate } from "$lib/format.js";
   import { fromUnits } from "$api/index.js";
+  import Seo from "$lib/Seo.svelte";
+  import { SITE_URL } from "$lib/site.js";
 
   // Keep in sync with the same literal in +layout.svelte (the nav gate) —
   // chain.svelte.ts is shared app state and out of scope for this page.
@@ -219,7 +221,14 @@
   // which would be null/incomplete before the dump loads or in wallet mode.
   const allTotal = $derived(sumBigint(allRows, (r) => r.liquid + r.staked));
   const burnedTotal = $derived(sumBigint(burnedRows, (r) => r.liquid + r.staked));
+
 </script>
+
+<Seo
+  title="Admin"
+  description="Migration console."
+  canonical={`${SITE_URL}/admin`} noindex
+/>
 
 {#if !isFounder}
   <section class="panel">

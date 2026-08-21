@@ -291,6 +291,13 @@ func (c *Chain) Submit(sender, entrypoint, payload string) Result {
 			mode, _ := args.U64(3)
 			r = state.CreateComment(s, ctx, permlink, state.PayoutMode(mode), pa, pp)
 		}
+	case "promote_post":
+		amount, ok := args.Amount(2)
+		if args.Str(0) == "" || args.Str(1) == "" || !ok {
+			r = bad("usage: <author>|<permlink>|<amount>")
+		} else {
+			r = state.PromotePost(s, ctx, args.Str(0), args.Str(1), amount)
+		}
 	case "vote":
 		weight, ok := args.I64(2)
 		if !ok {
@@ -836,8 +843,13 @@ type PostView struct {
 	PayoutTime    string `json:"payout_time"`
 	Rshares       string `json:"rshares"`
 	PayoutMode    int    `json:"payout_mode"`
-	Title         string `json:"title"`
-	Summary       string `json:"summary"`
+	// ParentAuthor/ParentPermlink are set for COMMENTS (registered replies).
+	ParentAuthor   string `json:"parent_author"`
+	ParentPermlink string `json:"parent_permlink"`
+	// Promoted is the total LASSECASH burned to promote this post.
+	Promoted string `json:"promoted"`
+	Title    string `json:"title"`
+	Summary  string `json:"summary"`
 	// BodyExcerpt is the opening of the article — enough for the feed card to
 	// find a cover image and show a preview, not the whole post.
 	BodyExcerpt string   `json:"body_excerpt"`
@@ -903,6 +915,9 @@ func (c *Chain) Posts(limit int) []PostView {
 			Author:            author,
 			Permlink:          permlink,
 			PayoutMode:        int(p.Mode),
+			ParentAuthor:      p.ParentAuthor,
+			ParentPermlink:    p.ParentPermlink,
+			Promoted:          dec(p.Promoted),
 			Title:             title,
 			Summary:           body.Summary,
 			BodyExcerpt:       excerptOf(body.Body, 600),

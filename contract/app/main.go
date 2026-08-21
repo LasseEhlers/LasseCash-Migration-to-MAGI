@@ -444,6 +444,23 @@ func Comment(a *string) *string {
 	return finish(state.CreateComment(store{}, c, permlink, state.PayoutMode(mode), pa, pp))
 }
 
+// promote burns LASSECASH to buy a post a labelled promoted slot. Active key
+// (it moves value). Refused after 75% of the window or below the governed
+// minimum burn.
+//
+//	args: <author>|<permlink>|<amount>
+//
+//go:wasmexport promote_post
+func PromotePost(a *string) *string {
+	c, _ := ctx()
+	args := state.ParseArgs(*a)
+	amount, ok := args.Amount(2)
+	if args.Str(0) == "" || args.Str(1) == "" || !ok {
+		sdk.Abort("usage: <author>|<permlink>|<amount>")
+	}
+	return finish(state.PromotePost(store{}, c, args.Str(0), args.Str(1), amount))
+}
+
 // vote casts a weighted vote. weight is 1..100 percent.
 //
 //	args: <author>|<permlink>|<weightPct>

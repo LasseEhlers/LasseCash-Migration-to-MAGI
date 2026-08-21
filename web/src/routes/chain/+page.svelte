@@ -8,6 +8,8 @@
   import { chain } from "$lib/chain.svelte.js";
   import { displayName, lc, lcShort } from "$lib/format.js";
   import { blockSplit, constants, supplyLimits, toBaseUnitArg } from "$api/index.js";
+  import Seo from "$lib/Seo.svelte";
+  import { SITE_URL } from "$lib/site.js";
 
   const info = $derived(chain.info);
   const C = $derived(chain.ready ? constants() : null);
@@ -36,7 +38,14 @@
   const yearsIn = $derived(
     info ? (info.height - info.genesis_height) / (365 * 28_800) : 0,
   );
+
 </script>
+
+<Seo
+  title="Chain"
+  description="Live LASSECASH supply against the 51,000,000 hardcap, the per-block reward split, the consensus group and the protocol constants."
+  canonical={`${SITE_URL}/chain`}
+/>
 
 <div class="grid">
   <section class="stats">

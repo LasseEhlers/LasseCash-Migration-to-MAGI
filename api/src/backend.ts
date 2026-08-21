@@ -9,8 +9,8 @@
  * is typed and testable.
  */
 import type {
-  AccountView, ChainInfo, Content, LiquidityQuote, MintQuote, PostVote, PostView,
-  PublishResult, ResourceCredits, SwapDirection, SwapQuote, TxResult,
+  AccountView, ChainInfo, Content, LiquidityQuote, MintQuote, PostMeta, PostVote,
+  PostView, PublishResult, ResourceCredits, SwapDirection, SwapQuote, TxResult,
 } from "./types.js";
 
 /** A signer produces authorised transactions. */
@@ -42,6 +42,15 @@ export interface Backend {
   account(name: string): Promise<AccountView>;
   state(keys: string[]): Promise<Record<string, string>>;
   posts(limit?: number): Promise<PostView[]>;
+  /**
+   * The same list, CONTENT ONLY — no payout figures, and therefore no engine.
+   *
+   * Server rendering runs in an edge worker where the engine WASM is not
+   * loaded, and it has no business showing money anyway: HTML is cached, and a
+   * pending payout moves every block. This is the half of `posts()` that is
+   * both cacheable and computable anywhere.
+   */
+  postsMeta(limit?: number): Promise<PostMeta[]>;
   /**
    * Who voted on a post, and with what weight.
    *

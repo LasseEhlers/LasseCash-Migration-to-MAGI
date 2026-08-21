@@ -7,6 +7,8 @@
   import SendForm from "$lib/SendForm.svelte";
   import MintCard from "$lib/MintCard.svelte";
   import RateChart from "$lib/RateChart.svelte";
+  import Seo from "$lib/Seo.svelte";
+  import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "$lib/site.js";
   import {
     constants, dailyRewards, estimateRewardShare, shareRate, shareRateHbd, toBaseUnitArg,
   } from "$api/index.js";
@@ -113,9 +115,18 @@
   });
 </script>
 
-<svelte:head>
-  <title>Mint · LasseCash</title>
-</svelte:head>
+<Seo
+  title="LasseMint"
+  description={SITE_DESCRIPTION}
+  canonical={`${SITE_URL}/`}
+  schema={{
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: SITE_NAME,
+    description: SITE_DESCRIPTION,
+    url: SITE_URL,
+  }}
+/>
 
 <div class="grid">
   <!-- FIRST, above everything. An unclaimed migration position is on a clock

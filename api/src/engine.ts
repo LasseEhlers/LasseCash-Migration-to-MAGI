@@ -95,6 +95,9 @@ export interface EngineConstants {
   paramPostThresholdViral: string;
   paramPostThresholdDeep: string;
   paramPostThresholdComment: string;
+  paramPromoteMinBurn: string;
+  /** Promotion closes once this % of a post's window has elapsed. */
+  promoteCutoffPct: number;
 }
 
 /**

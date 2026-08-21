@@ -17,6 +17,7 @@
  */
 import { Aioha, KeyTypes, Providers } from "@aioha/aioha";
 import { BackendError, type Signer, type SubmitOptions } from "./backend.js";
+import { postMetadata } from "./hive-metadata.js";
 import type { TxResult } from "./types.js";
 
 export { KeyTypes, Providers };
@@ -38,6 +39,14 @@ export interface AiohaOptions {
   keychain?: boolean;
   /** HiveAuth needs app metadata to show the user who is asking. */
   hiveAuth?: { name: string; description?: string; icon?: string } | false;
+  /**
+   * The canonical origin, e.g. `https://lassecash.com`.
+   *
+   * Written into every published post's `canonical_url` so that peakd, ecency
+   * and every other Hive frontend point their canonical tag back here. The
+   * indexer must not hardcode the site's address, so the frontend passes it in.
+   */
+  siteUrl?: string;
   peakVault?: boolean;
   hiveSigner?: { app: string; callbackURL: string; scope: string[] };
 }
@@ -60,10 +69,13 @@ export class AiohaWallet {
   readonly aioha: Aioha;
   readonly #contractId: string;
   readonly #rcLimit: number;
+  /** Canonical origin written into every published post. */
+  readonly siteUrl: string;
 
   constructor(opts: AiohaOptions) {
     this.aioha = new Aioha();
     this.#contractId = opts.contractId;
+    this.siteUrl = (opts.siteUrl ?? "https://lassecash.com").replace(/\/+$/, "");
     // ⚠️ The limit itself is FROZEN for MAGI's 5-day RC thaw, not just what
     // the call uses. A generous default here would quietly lock users out of
     // the chain for days after a handful of transactions.
@@ -151,22 +163,52 @@ export class AiohaWallet {
     body: string;
     tags: string[];
     summary?: string;
+    /** Cover image, if the body has one. */
+    image?: string | null;
   }): Promise<void> {
+    const author = this.aioha.getCurrentUser();
+    if (!author) throw new BackendError("not signed in");
+
     // The first tag is the Hive community/category, and `lassecash` is what
     // makes a post visible to the tribe at all.
     const tags = ["lassecash", ...input.tags.filter((t) => t !== "lassecash")].slice(0, 10);
+
+    // CANONICAL OWNERSHIP. `canonical_url` is what makes lassecash.com the
+    // original copy of this article on every other Hive frontend — see
+    // hive-metadata.ts for why that matters and who honours it.
+    const meta = postMetadata({
+      author,
+      permlink: input.permlink,
+      tags,
+      summary: input.summary ?? "",
+      image: input.image ?? null,
+      siteUrl: this.siteUrl,
+    });
+
     const res = await this.aioha.comment(
       null,
       tags[0] ?? "lassecash",
       input.permlink,
       input.title,
       input.body,
-      { tags, app: "lassecash", description: input.summary ?? "" },
+      meta,
     );
     if (!res.success) {
       throw new BackendError(res.error || "publish to Hive failed", res.errorCode);
     }
   }
+
+  /**
+   * ⚠️ TODO — COMMENTS ARE NOT PUBLISHED FROM HERE YET.
+   *
+   * There is no comment path in the app: LasseMedia publishes articles, and the
+   * contract opens payout windows for articles. When replies arrive they must
+   * go out with `commentMetadata()` from hive-metadata.ts, carrying the same
+   * `app` and `canonical_url` claim — a reply rendered on four frontends with
+   * no canonical is the same duplicate-content problem as an article, and
+   * comment threads are exactly the long-tail text that gets indexed against
+   * somebody else's domain by default.
+   */
 
   /**
    * Upload an image to Hive's own image server.

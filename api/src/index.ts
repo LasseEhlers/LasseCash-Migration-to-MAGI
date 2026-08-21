@@ -20,5 +20,6 @@ export * from "./backend.js";
 export * from "./dev-backend.js";
 export * from "./magi-backend.js";
 export * from "./engine.js";
+export * from "./hive-metadata.js";
 export * from "./aioha-signer.js";
 export * from "./client.js";

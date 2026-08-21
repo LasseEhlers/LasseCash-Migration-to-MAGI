@@ -88,6 +88,9 @@ type postRec struct {
 	// root post. Fields 10 and 11, append-only.
 	ParentAuthor   string
 	ParentPermlink string
+	// Promoted is the total LASSECASH burned to promote this post (field
+	// 12, append-only). Display-only for ranking the promoted slot.
+	Promoted engine.Amount
 }
 
 // IsComment reports whether the record is a reply to a registered post.
@@ -104,7 +107,8 @@ func encodePost(p postRec) string {
 		encU64(uint64(p.Mode)) + sep +
 		encU64(p.PaidHeight) + sep +
 		p.ParentAuthor + sep +
-		p.ParentPermlink
+		p.ParentPermlink + sep +
+		encI64(int64(p.Promoted))
 }
 
 func decodePost(raw string) (postRec, bool) {
@@ -132,6 +136,9 @@ func decodePost(raw string) (postRec, bool) {
 	if len(f) >= 11 {
 		rec.ParentAuthor = f[9]
 		rec.ParentPermlink = f[10]
+	}
+	if len(f) >= 12 {
+		rec.Promoted = engine.Amount(decI64(f[11]))
 	}
 	return rec, true
 }
@@ -224,6 +231,43 @@ func createContent(s Store, ctx Ctx, permlink string, window engine.Window, mode
 		return ok("commented")
 	}
 	return ok("posted")
+}
+
+// PromotePost burns LASSECASH to buy a post a promoted slot. The burn goes to
+// null like every burn; the post records the running total. Refused on
+// comments, on paid-out posts, below the governed minimum, and once 75% of
+// the window has elapsed.
+func PromotePost(s Store, ctx Ctx, author, permlink string, amt engine.Amount) Result {
+	if !IsInit(s) {
+		return fail("not initialised")
+	}
+	p, found := getPost(s, author, permlink)
+	if !found {
+		return fail("no such post")
+	}
+	if p.IsComment() {
+		return fail("comments cannot be promoted")
+	}
+	if p.PaidOut {
+		return fail("post already paid out")
+	}
+	if !engine.Window(p.Window).PromoteOpen(p.CreatedHeight, ctx.Height) {
+		return fail("promotion closed: 75% of the window has elapsed")
+	}
+	minBurn := engine.Amount(EffectiveParam(s, engine.ParamPromoteMinBurn))
+	if amt < minBurn {
+		return fail("minimum promotion burn is " + encI64(int64(minBurn)))
+	}
+	if ctx.Sender == BurnAccount {
+		return fail("null cannot act")
+	}
+	if !debit(s, ctx.Sender, amt) {
+		return fail("insufficient balance")
+	}
+	burn(s, amt)
+	p.Promoted += amt
+	putPost(s, author, permlink, p)
+	return ok("promoted with " + encI64(int64(amt)))
 }
 
 // --- voting ---------------------------------------------------------------
@@ -737,6 +781,9 @@ type PostRecord struct {
 	Votes          int64
 	Mode           PayoutMode
 	PaidHeight     uint64
+	ParentAuthor   string
+	ParentPermlink string
+	Promoted       engine.Amount
 }
 
 // GetPostView reads a post record.
@@ -749,7 +796,8 @@ func GetPostView(s Store, author, permlink string) (PostRecord, bool) {
 		Window: p.Window, CreatedHeight: p.CreatedHeight, Rshares: p.Rshares,
 		PaidOut: p.PaidOut, CuratorPot: p.CuratorPot,
 		CuratorRshares: p.CuratorRshares, Votes: p.Votes, Mode: p.Mode,
-		PaidHeight: p.PaidHeight,
+		PaidHeight: p.PaidHeight, ParentAuthor: p.ParentAuthor,
+		ParentPermlink: p.ParentPermlink, Promoted: p.Promoted,
 	}, true
 }
 

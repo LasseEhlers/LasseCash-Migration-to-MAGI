@@ -8,8 +8,8 @@
  */
 import { BackendError, type Backend, type Signer } from "./backend.js";
 import type {
-  AccountView, ChainInfo, Content, LiquidityQuote, MintQuote, PostVote, PostView,
-  PublishResult, SwapDirection, SwapQuote, TxResult,
+  AccountView, ChainInfo, Content, LiquidityQuote, MintQuote, PostMeta, PostVote,
+  PostView, PublishResult, SwapDirection, SwapQuote, TxResult,
 } from "./types.js";
 
 export interface DevBackendOptions {
@@ -71,6 +71,29 @@ export class DevBackend implements Backend {
 
   posts(limit = 50): Promise<PostView[]> {
     return this.#req(`/posts?limit=${limit}`);
+  }
+
+  /**
+   * Content-only post metadata.
+   *
+   * The dev chain precomputes every field, so this is a PROJECTION of what
+   * `/posts` already returned — the money columns are dropped rather than
+   * recalculated. Same shape the MAGI backend produces without an engine, so
+   * the two remain interchangeable behind server rendering.
+   */
+  async postsMeta(limit = 50): Promise<PostMeta[]> {
+    const posts = await this.posts(limit);
+    return posts.map((p) => ({
+      author: p.author,
+      permlink: p.permlink,
+      window: p.window,
+      created_height: p.created_height,
+      created_time: p.created_time,
+      title: p.title,
+      summary: p.summary,
+      body_excerpt: p.body_excerpt,
+      tags: p.tags,
+    }));
   }
 
   /** The simulator scans its own keyspace — a real node cannot. */

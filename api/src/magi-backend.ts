@@ -16,8 +16,8 @@ import { BackendError, type Backend } from "./backend.js";
 import * as engine from "./engine.js";
 import { toUnits } from "./amount.js";
 import type {
-  AccountView, ChainInfo, Content, LiquidityQuote, MintQuote, PostVote, PostView,
-  PublishResult, ResourceCredits, SwapDirection, SwapQuote,
+  AccountView, ChainInfo, Content, LiquidityQuote, MintQuote, PostMeta, PostVote,
+  PostView, PublishResult, ResourceCredits, SwapDirection, SwapQuote,
 } from "./types.js";
 
 export interface MagiBackendOptions {
@@ -165,6 +165,7 @@ export class MagiBackend implements Backend {
         // (provably unspendable), so the burn total is visible forever.
         // The old sup_burned counter is retired.
         "cfg_genesis", "cfg_settled", "sup_migrated", "sup_emitted",
+        "cfg_migtotal", "cfg_migburn",
         "bal_hive:null", "shares_total", "pool_lshare", "pool_viral",
         "pool_deep", "pool_liq", "amm_lc", "amm_hbd", "amm_shares",
         "gov_board",
@@ -185,6 +186,8 @@ export class MagiBackend implements Backend {
       genesis_height: num(st["cfg_genesis"]),
       settled_height: num(st["cfg_settled"]),
       migrated_supply: units(st["sup_migrated"]),
+      snapshot_total: units(String(
+        BigInt(st["cfg_migtotal"] || "0") + BigInt(st["cfg_migburn"] || "0"))),
       total_emitted: units(st["sup_emitted"]),
       total_burned: units(st["bal_hive:null"]),
       total_shares: units(st["shares_total"]),
@@ -316,7 +319,15 @@ export class MagiBackend implements Backend {
    * to look. A post register whose transaction failed simply has no record and
    * is dropped.
    */
-  async posts(limit = 50): Promise<PostView[]> {
+  /**
+   * Which posts exist, from transaction history.
+   *
+   * The contract cannot enumerate its own posts — unbounded iteration does not
+   * fit in the gas budget — so DISCOVERY is history: every `post` call ever
+   * made names its author and permlink. What is TRUE about each one still comes
+   * from its state record; history only says where to look.
+   */
+  async #discover(limit: number): Promise<{ author: string; permlink: string }[]> {
     const data = await this.query<{
       findTransaction: {
         anchr_ts: string;
@@ -348,6 +359,58 @@ export class MagiBackend implements Backend {
       }
       if (found.length >= limit) break;
     }
+    return found;
+  }
+
+  /**
+   * Post metadata with NO money in it, and — the point — no ENGINE either.
+   *
+   * `posts()` asks the engine for each post's pending payout, which means it
+   * needs the WASM loaded. That is fine in a browser and impossible in an edge
+   * worker, where the site is server-rendered. Everything a crawler, a sitemap
+   * or an RSS feed needs is content: who wrote it, when, and which window it
+   * is in. All three are in the record or derivable from block height.
+   *
+   * So this exists to keep server rendering free of the engine WITHOUT growing
+   * a second implementation of anything — there is no arithmetic here beyond
+   * turning a height difference into a timestamp, which is what the chain's own
+   * 3-second block time means.
+   */
+  async postsMeta(limit = 50): Promise<PostMeta[]> {
+    const found = await this.#discover(limit);
+    if (found.length === 0) return [];
+
+    const [records, height] = await Promise.all([
+      this.state(found.map((p) => `post_${p.author}_${p.permlink}`)),
+      this.height(),
+    ]);
+
+    const out: PostMeta[] = [];
+    for (const { author, permlink } of found) {
+      const raw = records[`post_${author}_${permlink}`];
+      if (!raw) continue; // registered call failed, or record swept
+      const f = raw.split("|");
+      if (f.length < 6) continue;
+      const created = Number(f[1] ?? 0) || 0;
+      out.push({
+        author,
+        permlink,
+        window: f[0] === "1" ? "deep" : "viral",
+        created_height: created,
+        created_time: new Date(Date.now() - (height - created) * 3_000).toISOString(),
+        // Presentation fields live on the CONTENT layer (Hive). Never invented
+        // here — the caller fetches them with content().
+        title: "",
+        summary: "",
+        body_excerpt: "",
+        tags: null,
+      });
+    }
+    return out;
+  }
+
+  async posts(limit = 50): Promise<PostView[]> {
+    const found = await this.#discover(limit);
     if (found.length === 0) return [];
 
     const [records, height] = await Promise.all([
@@ -382,6 +445,10 @@ export class MagiBackend implements Backend {
         payout_time: new Date(Date.now() + (payoutHeight - height) * 3_000).toISOString(),
         rshares: f[2] ?? "0",
         payout_mode: num(f[7]),
+        // Fields 10–12 (append-only): comment parent and promoted burn.
+        parent_author: f[9] ?? "",
+        parent_permlink: f[10] ?? "",
+        promoted: units(f[11] ?? "0"),
         // Presentation fields live on the CONTENT layer (Hive); the feed
         // fetches them per post via content(). Empty here, never invented.
         title: permlink,
@@ -504,6 +571,18 @@ export class MagiBackend implements Backend {
     }
     return { title: post.title ?? "", body: post.body ?? "", tags, summary };
   }
+  /**
+   * ⚠️ NOT WIRED. Publishing against a real chain is two signed operations and
+   * both need a wallet, which lives in the frontend, not here.
+   *
+   * When it is wired it MUST go through `AiohaWallet.publishToHive()` rather
+   * than calling `aioha.comment()` directly, because that is the one place that
+   * attaches `canonical_url` and `app` to the post's `json_metadata` — the
+   * claim that makes lassecash.com the original copy of the article on peakd,
+   * ecency and every other Hive frontend. A publish path that skips it silently
+   * hands that authority away. Order is fixed: Hive first, contract second (an
+   * unregistered article is recoverable; a payout window over nothing is not).
+   */
   publish(_i: unknown): Promise<PublishResult> {
     return Promise.reject(new BackendError(notWired("publish")));
   }

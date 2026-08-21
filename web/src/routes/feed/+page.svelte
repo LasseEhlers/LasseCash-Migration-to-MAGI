@@ -18,12 +18,33 @@
   import { coverImage, excerpt } from "$lib/markdown.js";
   import VoteSlider from "$lib/VoteSlider.svelte";
   import VoterList from "$lib/VoterList.svelte";
-  import { compare, PayoutMode, type PostView } from "$api/index.js";
+  import Seo from "$lib/Seo.svelte";
+  import { SITE_DESCRIPTION, SITE_NAME, SITE_URL, postPath } from "$lib/site.js";
+  import { compare, PayoutMode, type PostMeta, type PostView } from "$api/index.js";
+  import type { PageData } from "./$types";
 
-  let posts = $state<PostView[]>([]);
+  let { data }: { data: PageData } = $props();
+
+  /**
+   * TWO SOURCES, and the split is the whole design.
+   *
+   * `data.posts` is CONTENT, rendered on the server: titles, authors, dates,
+   * summaries, covers. It is in the raw HTML, which is what makes the feed —
+   * and through it every article URL — discoverable by a crawler.
+   *
+   * `live` is MONEY, read from the chain in this browser. It is never
+   * server-rendered: the HTML is cached for a minute and a pending payout moves
+   * every block, so a cached figure would make the page quietly wrong. An empty
+   * slot for a few hundred milliseconds is the honest trade.
+   */
+  let live = $state<PostView[]>([]);
+  let hydrated = $state(false);
+  const rewards = $derived(
+    new Map(live.map((p) => [p.author + "/" + p.permlink, p])),
+  );
+  const key = (p: PostMeta) => p.author + "/" + p.permlink;
   let filter = $state<"all" | "viral" | "deep">("all");
   let error = $state<string | null>(null);
-  let loading = $state(true);
 
   /**
    * Trending or newest.
@@ -52,12 +73,11 @@
 
   async function load() {
     try {
-      posts = await client.posts(50);
+      live = await client.posts(50);
+      hydrated = true;
       error = null;
     } catch (e) {
       error = e instanceof Error ? e.message : String(e);
-    } finally {
-      loading = false;
     }
   }
   onMount(() => { restoreSort(); void load(); });
@@ -74,33 +94,64 @@
    * payout passed the safe integer range.
    */
   const shown = $derived.by(() => {
-    const base = filter === "all" ? posts : posts.filter((p) => p.window === filter);
+    const base =
+      filter === "all" ? data.posts : data.posts.filter((p) => p.window === filter);
     const out = [...base];
-    if (sort === "trending") {
-      out.sort((a, b) => compare(b.pending_payout, a.pending_payout));
+    if (sort === "trending" && hydrated) {
+      out.sort((a, b) =>
+        compare(
+          rewards.get(key(b))?.pending_payout ?? "0",
+          rewards.get(key(a))?.pending_payout ?? "0",
+        ),
+      );
     } else {
+      // Newest-first is also the pre-hydration order: "trending" is a fact
+      // about money the browser has not read yet, and inventing an order for it
+      // would reshuffle the page under the reader.
       out.sort((a, b) => b.created_height - a.created_height);
     }
     return out;
   });
   const height = $derived(chain.info?.height ?? 0);
-  const awaitingPayout = $derived(posts.filter((p) => p.payable));
+  const awaitingPayout = $derived(live.filter((p) => p.payable));
 
-  function href(p: PostView) {
-    return `/post/${encodeURIComponent(p.author)}/${encodeURIComponent(p.permlink)}`;
+  /** The CANONICAL post URL. Every internal link uses this form. */
+  function href(p: PostMeta) {
+    return postPath(p.author, p.permlink);
   }
-  function cover(p: PostView) {
+  function cover(p: PostMeta) {
     return coverImage(p.body_excerpt ?? "");
   }
-  function blurb(p: PostView) {
+  function blurb(p: PostMeta) {
     return p.summary || excerpt(p.body_excerpt ?? "", 160);
   }
 
-  async function payout(p: PostView) {
+  async function payout(p: PostMeta) {
     error = await chain.submit(() => client.payout(p.author, p.permlink));
     await load();
   }
 </script>
+
+<Seo
+  title={`${SITE_NAME} — LasseMedia`}
+  description={SITE_DESCRIPTION}
+  canonical={`${SITE_URL}/feed`}
+  schema={{
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    name: `${SITE_NAME} — LasseMedia`,
+    description: SITE_DESCRIPTION,
+    url: `${SITE_URL}/feed`,
+    isPartOf: { "@type": "WebSite", name: SITE_NAME, url: SITE_URL },
+    hasPart: data.posts.map((p) => ({
+      "@type": "Article",
+      headline: p.title,
+      url: SITE_URL + postPath(p.author, p.permlink),
+      datePublished: p.created_time,
+      author: { "@type": "Person", name: displayName(p.author) },
+    })),
+  }}
+/>
 
 <div class="grid">
   <div class="bar">
@@ -135,9 +186,7 @@
 
   {#if error}<div class="panel err">{error}</div>{/if}
 
-  {#if loading}
-    <p class="empty">Loading content…</p>
-  {:else if shown.length === 0}
+  {#if shown.length === 0}
     <p class="empty">
       <strong>Nothing here yet.</strong>
       {filter === "all" ? "Be the first to publish." : `No ${filter} posts.`}
@@ -146,7 +195,8 @@
     <div class="feed">
       {#each shown as post (post.author + "/" + post.permlink)}
         {@const img = cover(post)}
-        <article class="post panel" class:settled={post.paid_out}>
+        {@const money = rewards.get(key(post))}
+        <article class="post panel" class:settled={money?.paid_out}>
           <!-- The whole card is still one click target, but as an OVERLAY
                rather than a wrapping <a>. An anchor cannot legally contain
                another anchor, and the author's name has to be a real link to
@@ -164,9 +214,9 @@
                 <span class="pill {post.window === 'deep' ? 'info' : 'warn'}">{post.window}</span>
                 <a class="author" href="/{displayName(post.author)}">{displayName(post.author)}</a>
                 <span class="dim">{shortDate(post.created_time)}</span>
-                {#if post.payout_mode === PayoutMode.Burn}
+                {#if money?.payout_mode === PayoutMode.Burn}
                   <span class="pill bad">burns rewards</span>
-                {:else if post.payout_mode === PayoutMode.PowerUp}
+                {:else if money?.payout_mode === PayoutMode.PowerUp}
                   <span class="pill ok">100% minted</span>
                 {/if}
               </div>
@@ -180,14 +230,17 @@
                 </div>
               {/if}
 
+              <!-- Money only once the browser has read the chain: this HTML
+                   is cached, and a payout moves every block. -->
               <div class="stats">
-                {#if post.paid_out}
+                {#if !money}
+                  <span class="dim">&nbsp;</span>
+                {:else if money.paid_out}
                   <span class="pill ok">paid out</span>
-
                 {:else}
-                  <span class="pending mono gold">{lc(post.pending_payout)} LC</span>
+                  <span class="pending mono gold">{lc(money.pending_payout)} LC</span>
                   <span class="dim">
-                    {#if post.payable}window closed{:else}pays in {durationWords(post.payout_height - height)}{/if}
+                    {#if money.payable}window closed{:else}pays in {durationWords(money.payout_height - height)}{/if}
                   </span>
                 {/if}
               </div>
@@ -197,18 +250,22 @@
           <!-- Above the card link: dragging the vote slider must not navigate,
                and the voter list opens in place rather than going anywhere. -->
           <div class="actions">
-            <VoterList {post} />
-            {#if post.paid_out}
+            {#if !money}
+              <span class="auto dim">{hydrated ? "not registered on-chain" : "reading the chain…"}</span>
+            {:else}
+            <VoterList post={money} />
+            {#if money.paid_out}
               <!-- Nothing to click. Curation settles itself on the 1st: the
                    chain queues what each curator is owed and the monthly
                    settle drains it. See CLAUDE.md, curation queue. -->
               <span class="auto dim">settles on the 1st</span>
-            {:else if post.payable}
+            {:else if money.payable}
               <button class="small" onclick={() => payout(post)} disabled={chain.busy}>
                 Settle payout
               </button>
             {:else}
-              <VoteSlider {post} onvoted={load} />
+              <VoteSlider post={money} onvoted={load} />
+            {/if}
             {/if}
           </div>
         </article>

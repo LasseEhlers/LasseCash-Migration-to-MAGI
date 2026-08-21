@@ -336,12 +336,13 @@ func TestMedianIsDeterministic(t *testing.T) {
 func TestPostingThresholdBoundsArePinned(t *testing.T) {
 	reg := NewRegistry()
 	cases := []struct {
-		key                   ParamKey
-		min, def, max         int64
+		key           ParamKey
+		min, def, max int64
 	}{
 		{ParamPostThresholdViral, ShareUnit, 1_000 * ShareUnit, 10_000 * ShareUnit},
 		{ParamPostThresholdDeep, ShareUnit, 10_000 * ShareUnit, 100_000 * ShareUnit},
 		{ParamPostThresholdComment, ShareUnit, 100 * ShareUnit, 10_000 * ShareUnit},
+		{ParamPromoteMinBurn, Unit, 100 * Unit, 1_000_000 * Unit},
 	}
 	for _, c := range cases {
 		p, ok := reg.Param(c.key)

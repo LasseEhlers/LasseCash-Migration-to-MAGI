@@ -79,6 +79,17 @@ func (w Window) PoolPct() int64 {
 	return ViralPoolPct
 }
 
+// PromoteCutoffPct is how far into a post's window promotion is still
+// allowed: burning for a slot that ends ten minutes later buys nothing.
+const PromoteCutoffPct = 75
+
+// PromoteOpen reports whether a post created at createdHeight may still be
+// promoted at height: before 75% of its window has elapsed.
+func (w Window) PromoteOpen(createdHeight, height uint64) bool {
+	cutoff := createdHeight + w.PayoutHeights()*PromoteCutoffPct/100
+	return height < cutoff
+}
+
 // PayoutHeights returns the payout period in heights.
 func (w Window) PayoutHeights() uint64 {
 	return uint64(w.PayoutDays()) * HeightsPerDay
