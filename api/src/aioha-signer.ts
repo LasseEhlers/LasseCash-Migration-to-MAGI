@@ -371,29 +371,29 @@ export class AiohaSigner implements Signer {
     burn: 600,
     settle: 400,
     advance: 4_000,       // no-op 100; one ordinary day ~5,000 gas => tiny; slices are the caller's choice
-    mint: 4_000,          // measured 2,401 (1,976 on the current build)
-    claim_mint: 4_000,
-    sweep_mint: 4_000,
+    mint: 7_000,          // measured 2,401 on the devnet, 3,142 simulated on mainnet — and a REAL mint hit gas_limit_hit at 4,000 when a day-step landed inside it (2026-08-22). Mainnet weighs writes 19x; keep ~2x headroom.
+    claim_mint: 7_000,
+    sweep_mint: 7_000,
     good_accounting: 800,
     set_duration: 400,
-    settle_pending: 4_000, // drains up to MaxCurationDrain queue entries
+    settle_pending: 6_000, // drains up to MaxCurationDrain queue entries
     promote: 1_200,
     set_param: 800,
-    post: 1_200,
+    post: 2_500,
     // A reply is the same write set as a post: one record, one threshold read.
-    comment: 1_500,
+    comment: 2_500,
     // Debit, burn to null, rewrite the post record. Unmeasured on a real
     // deploy — measure with simulateContractCalls before launch.
-    promote_post: 1_500,
-    vote: 2_500,          // includes PiggybackDrain curation settles
-    payout: 2_500,
+    promote_post: 2_500,
+    vote: 4_000,          // includes PiggybackDrain curation settles
+    payout: 4_000,
     claim_curation: 1_200,
     sweep_curation: 1_200,
-    add_liquidity: 2_500,
-    remove_liquidity: 2_500,
-    claim_pool: 2_500,
-    swap_lc_hbd: 2_000,
-    swap_hbd_lc: 2_000,
+    add_liquidity: 4_000,
+    remove_liquidity: 4_000,
+    claim_pool: 4_000,
+    swap_lc_hbd: 3_000,
+    swap_hbd_lc: 3_000,
     // A claim is a mint-sized write set (balance, mint record, share board,
     // accrual) plus ~14 Merkle hashes to walk the proof to the root.
     claim_migration: 9_500,  // measured worst case 5,892 (staked claim that takes a board seat); liquid-only 1,042, matured 1,327 — the claim page passes 2,500 for those
