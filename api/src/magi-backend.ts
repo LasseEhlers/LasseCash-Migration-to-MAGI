@@ -683,13 +683,15 @@ export class MagiBackend implements Backend {
    */
   async publish(input: {
     title: string; body: string; summary: string; tags: string[];
-    window: number; payoutMode: number; signer?: Signer;
+    window: number; payoutMode: number; signer?: Signer; permlink?: string;
   }): Promise<PublishResult> {
     const signer = input.signer;
     if (!signer?.publishToHive) {
       throw new BackendError("publishing needs a wallet that can write to Hive");
     }
-    const permlink = permlinkFor(input.title);
+    // The author's short link wins; the title is the fallback. Both go through
+    // the same normaliser the simulator uses.
+    const permlink = permlinkFor(input.permlink ?? "") || permlinkFor(input.title);
     if (!permlink) {
       return { ok: false, msg: "title must contain letters or numbers", height: 0, permlink: "" };
     }

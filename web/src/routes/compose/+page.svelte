@@ -36,8 +36,15 @@
   const shares = $derived(me?.shares ?? "0.00000000");
   const rendered = $derived(renderMarkdown(body));
 
-  /** The permlink is the CONTRACT'S KEY for the post, so it is shown, not hidden. */
-  const permlink = $derived(permlinkFor(title));
+  /**
+   * The LINK is the contract's key for the post and its URL forever, so it is
+   * a field of its own: a long, descriptive headline and a short address are
+   * both right, and authors used to get the second by editing the first after
+   * publishing. Until the author touches it, it follows the title.
+   */
+  let link = $state("");
+  let linkTouched = $state(false);
+  const permlink = $derived(linkTouched ? permlinkFor(link) : permlinkFor(title));
 
   const canPublish = $derived(
     !!chain.account &&
@@ -146,6 +153,7 @@
     chain.busy = true;
     try {
       const res = await client.publish({
+        permlink,
         title: title.trim(),
         body,
         summary: summary.trim(),
@@ -164,6 +172,8 @@
       }
       published = res.permlink;
       title = "";
+      link = "";
+      linkTouched = false;
       body = "";
       summary = "";
       tags = [];
@@ -219,9 +229,22 @@
       <label class="field">
         <span>Title</span>
         <input bind:value={title} placeholder="Say something worth 30 days" />
-        {#if permlink}
-          <small class="dim">Registered on-chain as <code>{permlink}</code></small>
-        {/if}
+      </label>
+
+      <label class="field">
+        <span>Link — short address of the post</span>
+        <div class="linkrow">
+          <span class="dim mono">/@{chain.account?.replace(/^hive:/, "") ?? "you"}/</span>
+          <input
+            class="mono"
+            value={linkTouched ? link : permlink}
+            oninput={(e) => { linkTouched = true; link = e.currentTarget.value; }}
+            placeholder="from the title"
+          />
+        </div>
+        <small class="dim">
+          {#if permlink}Registered on-chain as <code>{permlink}</code> — this is the post's address forever.{:else}Letters and numbers; dashes between words.{/if}
+        </small>
       </label>
 
       <div class="toolbar">
@@ -362,6 +385,9 @@
 </div>
 
 <style>
+  .linkrow { display: flex; align-items: center; gap: 0.3rem; }
+  .linkrow input { flex: 1; }
+
   /* Editor left, preview right — side by side on anything wide enough. */
   .split { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; align-items: start; }
   @media (max-width: 980px) {

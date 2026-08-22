@@ -141,7 +141,7 @@ export class DevBackend implements Backend {
   /** Requires a signer; the dev chain takes the account name unsigned. */
   publish(input: {
     title: string; body: string; summary: string; tags: string[];
-    window: number; payoutMode: number; sender?: string; signer?: Signer;
+    window: number; payoutMode: number; sender?: string; signer?: Signer; permlink?: string;
   }): Promise<PublishResult> {
     const { signer: _signer, ...rest } = input;
     return this.#req<PublishResult>("/publish", {

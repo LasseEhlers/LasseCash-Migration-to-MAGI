@@ -110,9 +110,13 @@
 </div>
 
 <style>
+  /* Pinned to the viewport: a status the user cannot see is no status, and
+     the Publish button sits at the bottom of a long page. */
   .confirming {
-    max-width: 1320px; margin: 0.6rem auto 0; padding: 0.45rem 0.8rem;
-    border: 1px solid var(--cyan); border-radius: var(--r-sm);
+    position: fixed; left: 50%; bottom: 3.2rem; transform: translateX(-50%);
+    z-index: 50; max-width: min(92vw, 720px); padding: 0.5rem 0.9rem;
+    background: var(--panel); border: 1px solid var(--cyan); border-radius: var(--r-sm);
+    box-shadow: 0 0 18px rgba(0, 229, 255, 0.25);
     color: var(--cyan); font-family: var(--mono); font-size: var(--t-sm);
     display: flex; align-items: center; gap: 0.5rem;
   }

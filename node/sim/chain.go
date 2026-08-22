@@ -652,11 +652,18 @@ func pct(v int64) string { return dec(engine.Amount(v)) }
 // permlink) the article is still readable, but no reward window opened — which
 // is recoverable. Registering first and failing to publish would open a payout
 // window over content that does not exist.
+//
+// `link` is the author's chosen slug — the short URL — or empty to derive one
+// from the title. Either way it is normalised through Permlink so the key the
+// contract stores is always a valid, lowercase `[a-z0-9-]` string.
 func (c *Chain) Publish(
 	sender, title, body, summary string, tags []string,
-	window engine.Window, mode uint64,
+	window engine.Window, mode uint64, link string,
 ) (string, Result) {
-	permlink := Permlink(title)
+	permlink := Permlink(link)
+	if permlink == "" {
+		permlink = Permlink(title)
+	}
 	if permlink == "" {
 		return "", Result{Msg: "title must contain letters or numbers", Height: c.Height()}
 	}

@@ -166,10 +166,11 @@ export class LasseCashClient {
    */
   async publish(input: {
     title: string; body: string; summary?: string; tags?: string[];
-    window: Window; payoutMode?: number;
+    window: Window; payoutMode?: number; permlink?: string;
   }): Promise<PublishResult> {
     const signer = this.#requireSigner();
     return this.backend.publish({
+      permlink: input.permlink ?? "",
       title: input.title,
       body: input.body,
       summary: input.summary ?? "",

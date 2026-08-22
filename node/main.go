@@ -232,9 +232,9 @@ type publishRequest struct {
 	Tags       []string `json:"tags"`
 	Window     int      `json:"window"`      // 0 viral, 1 deep
 	PayoutMode int      `json:"payout_mode"` // 0 split, 1 power up, 2 burn
-	// Permlink is supplied for a REPLY (which has no title to derive one
-	// from) and must be the same string the caller wrote to the content
-	// layer — it is the contract's key for the reply.
+	// Permlink is the author's chosen short link for a post (empty = derive
+	// from the title), and for a REPLY the string the caller already wrote to
+	// the content layer — it is the contract's key either way.
 	Permlink       string `json:"permlink"`
 	ParentAuthor   string `json:"parent_author"`
 	ParentPermlink string `json:"parent_permlink"`
@@ -280,7 +280,7 @@ func handlePublish(w http.ResponseWriter, r *http.Request) {
 		win = engine.Deep
 	}
 	permlink, res := chain.Publish(req.Sender, req.Title, req.Body, req.Summary,
-		req.Tags, win, uint64(req.PayoutMode))
+		req.Tags, win, uint64(req.PayoutMode), req.Permlink)
 
 	code := http.StatusOK
 	if !res.OK {
@@ -509,14 +509,14 @@ func seedDemo(c *sim.Chain) {
 	c.Publish("hive:silvertop", "My Actifit Report",
 		"Don't jump... man! Another day on the tower.",
 		"Another day on the tower, and the flag is still flying.",
-		[]string{"actifit", "photography"}, engine.Viral, 0)
+		[]string{"actifit", "photography"}, engine.Viral, 0, "")
 	c.Publish("hive:lasseehlers", "The Migration Is Happening",
 		"![](https://images.hive.blog/DQmRyDszBJHuR5a3xNQ9yJpVRhbp1Xbm5sc8btBjkKUKqJr/image.png)\n\n"+
 			"LasseCash is being migrated to MAGI as we speak, powered by what might be "+
 			"the world's best blockchain tech as of today. Only a few know about it "+
 			"right now, but the absolute best are building toward it.",
 		"LasseCash meets MAGI, and world-changing AnCap blockchain tech.",
-		[]string{"lassecash", "magi", "ancap"}, engine.Deep, 0)
+		[]string{"lassecash", "magi", "ancap"}, engine.Deep, 0, "")
 	for _, voter := range []string{"hive:tibfox", "hive:zaxan", "hive:demo", "hive:elizabethbit"} {
 		c.Submit(voter, "vote", "hive:silvertop|my-actifit-report|100")
 		c.Submit(voter, "vote", "hive:lasseehlers|the-migration-is-happening|50")
@@ -536,11 +536,11 @@ func seedDemo(c *sim.Chain) {
 			"nobody queues for turn out to be the good ones.\n\n"+
 			"## What we found\n\n- A carousel older than the town\n- Free coffee\n- No cameras",
 		"Day two at the county fair, and the rides were worth the queue.",
-		[]string{"actifit", "life", "photography"}, engine.Viral, 0)
+		[]string{"actifit", "life", "photography"}, engine.Viral, 0, "")
 	c.Publish("hive:elizabethbit", "Why AnCap Works In Practice",
 		"Voluntary exchange is not a theory, it is what happens whenever the state stops looking...",
 		"Voluntary exchange is not a theory — it is the default when nobody interferes.",
-		[]string{"ancap", "freedom", "economics"}, engine.Deep, 0)
+		[]string{"ancap", "freedom", "economics"}, engine.Deep, 0, "")
 	c.Publish("hive:lasseehlers", "LasseMint Explained",
 		"L-Shares are the immutable time-lock units of LasseCash.\n\n"+
 			"**Longer pays better** and **bigger pays better** — and they MULTIPLY, "+
@@ -548,22 +548,22 @@ func seedDemo(c *sim.Chain) {
 			"> The share rate only ever rises. 7% a year, forever.\n\n"+
 			"https://www.youtube.com/watch?v=wgfC4ltcOEk",
 		"How L-Shares work, and why the multipliers are 1.5x each rather than one big one.",
-		[]string{"lassecash", "lassemint", "tokenomics"}, engine.Deep, 1)
+		[]string{"lassecash", "lassemint", "tokenomics"}, engine.Deep, 1, "")
 
 	// A quiet tail nobody has voted on, so the feed has a bottom half — which
 	// is what makes the promoted slot mean anything to look at.
 	c.Publish("hive:zaxan", "Notes From A Slow Week",
 		"Nothing shipped, everything read. A list of what was worth the time.",
 		"Nothing shipped, everything read.",
-		[]string{"life", "reading"}, engine.Viral, 0)
+		[]string{"life", "reading"}, engine.Viral, 0, "")
 	c.Publish("hive:tibfox", "Running A Witness On Nothing",
 		"The whole node fits on hardware that cost less than a month of coffee.",
 		"The whole node fits on hardware that cost less than a month of coffee.",
-		[]string{"magi", "witness"}, engine.Viral, 0)
+		[]string{"magi", "witness"}, engine.Viral, 0, "")
 	c.Publish("hive:demo", "Why I Stopped Reading The News",
 		"Six months without a headline, and the only thing I missed was the anxiety.",
 		"Six months without a headline, and the only thing I missed was the anxiety.",
-		[]string{"life", "freedom"}, engine.Viral, 0)
+		[]string{"life", "freedom"}, engine.Viral, 0, "")
 
 	c.Submit("hive:tibfox", "vote", "hive:silvertop|fair-adventure-part-2|60")
 	c.Submit("hive:zaxan", "vote", "hive:silvertop|fair-adventure-part-2|30")

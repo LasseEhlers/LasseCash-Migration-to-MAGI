@@ -89,6 +89,8 @@ export interface Backend {
   publish(input: {
     title: string; body: string; summary: string; tags: string[];
     window: number; payoutMode: number; signer?: Signer;
+    /** The author's chosen short link; empty derives one from the title. */
+    permlink?: string;
   }): Promise<PublishResult>;
   /**
    * The registered REPLIES to one post.
