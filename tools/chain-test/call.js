@@ -17,7 +17,7 @@
 const { Client, PrivateKey } = require("/tmp/keycheck/node_modules/@hiveio/dhive");
 const fs = require("fs");
 
-const CONTRACT = "vsc1BoLgTEZhcQKSGi9vCZN12yVjmM4mnvWrLB"; // throwaway #4: production code 2026-08-22, TESTWINDOWS 240x clock
+const CONTRACT = "vsc1BjLaDa5zFWPC8g61uL6mN84m2FSeeLKBpY"; // throwaway #5: custody-unit fix + first-vote registration, TESTWINDOWS 240x
 const cfgPath = `${__dirname}/../../deploy-data/config/identityConfig.json`;
 
 async function main() {
