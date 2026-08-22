@@ -11,10 +11,11 @@
   import { lc, lcShort, mult, pct } from "$lib/format.js";
   import {
     estimateSwap, estimateLiquidity, toBaseUnitArg, toUnits, fromUnits, isZero,
-    type SwapDirection,
+    trancheHealth, type SwapDirection, type TrancheView,
   } from "$api/index.js";
   import Seo from "$lib/Seo.svelte";
   import Hbd from "$lib/Hbd.svelte";
+  import TrancheHealth from "$lib/TrancheHealth.svelte";
   import { SITE_URL } from "$lib/site.js";
 
   let direction = $state<SwapDirection>("lc_hbd");
@@ -26,6 +27,16 @@
   const info = $derived(chain.info);
   const me = $derived(chain.me);
   const tranches = $derived((me?.tranches ?? []).filter((t) => !t.closed));
+
+  /**
+   * The dormancy clock for each open tranche. EXACT: a pure function of the
+   * tranche's own last-touch height and the current chain height, run through
+   * the browser engine — never re-derived here. Falls back to the tranche's
+   * own last-touch height (phase 0, "just now") while the chain height has not
+   * loaded yet, rather than guessing at a phase.
+   */
+  const healthOf = (t: TrancheView) =>
+    trancheHealth(t.last_touch, info?.height ?? t.last_touch);
   const sellingLC = $derived(direction === "lc_hbd");
   const inSymbol = $derived(sellingLC ? "LASSECASH" : "HBD");
   const outSymbol = $derived(sellingLC ? "HBD" : "LASSECASH");
@@ -494,10 +505,12 @@
         <table>
           <thead>
             <tr><th></th><th class="num">Pool shares</th><th class="num">Age</th>
-            <th class="num">Loyalty</th><th class="num">Worth</th><th class="num">Rewards</th><th></th></tr>
+            <th class="num">Loyalty</th><th class="num">Worth</th><th class="num">Rewards</th>
+            <th>Status</th><th></th></tr>
           </thead>
           <tbody>
             {#each tranches as t (t.id)}
+              {@const health = healthOf(t)}
               <tr>
                 <td class="mono dim">#{t.id}</td>
                 <td class="num">{lc(t.shares)}</td>
@@ -510,12 +523,24 @@
                   {lc(t.pending_reward, 6)}
                   <Hbd amount={t.pending_reward} decimals={6} block />
                 </td>
+                <td class="health"><TrancheHealth {health} /></td>
                 <td class="actions">
                   <button
-                    class="ghost small" onclick={() => claim(t.id)}
-                    disabled={chain.busy || isZero(t.pending_reward)}
+                    class="ghost small"
+                    class:pulse-cta={health.phase >= 1}
+                    onclick={() => claim(t.id)}
+                    disabled={chain.busy || (isZero(t.pending_reward) && health.phase === 0)}
                   >
-                    {isZero(t.pending_reward) ? "Nothing yet" : "Claim rewards"}
+                    {#if !isZero(t.pending_reward)}
+                      Claim rewards
+                    {:else if health.phase >= 1}
+                      <!-- Nothing is owed, but claiming is also the ONLY way to
+                           prove life and reset the dormancy clock without
+                           withdrawing the whole position — must stay pressable. -->
+                      Claim (resets clock)
+                    {:else}
+                      Nothing yet
+                    {/if}
                   </button>
                   <button class="small" onclick={() => exit(t.id)} disabled={chain.busy}>Withdraw</button>
                 </td>
@@ -557,6 +582,19 @@
   td.actions { text-align: right; white-space: nowrap; }
   td.actions button + button { margin-left: 0.35rem; }
   .pill { margin-left: 0.35rem; }
+  td.health { min-width: 150px; }
+  /* Claiming resets the anti-zombie clock, so once a position needs
+     attention the claim button IS the call to action — gold and pulsing,
+     the same treatment MintRow gives claiming a bleeding mint. Never red:
+     red is reserved for value actively being lost, not for a button. */
+  button.pulse-cta {
+    border-color: var(--gold); color: var(--gold);
+    animation: cta-pulse 1.6s ease-in-out infinite;
+  }
+  @keyframes cta-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(255, 210, 63, 0.5); }
+    50% { box-shadow: 0 0 0 4px rgba(255, 210, 63, 0); }
+  }
 
   /* Two (or three, first-deposit) linked asset rows, Tribaldex-style: name +
      balance + Max above each input, so the group reads as one "deposit"

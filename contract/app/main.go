@@ -632,6 +632,32 @@ func ClaimPool(a *string) *string {
 	return finish(state.ClaimPoolRewards(store{}, c, id))
 }
 
+// sweep_tranche EVICTS a dormant liquidity position: after six months with no
+// claim, anyone may close it, and the owner's LASSECASH and HBD go back to the
+// owner WHOLE. Nothing is confiscated — an LP was never paid for a term the
+// way a minter is paid up to 1.5x for pledging one, so taking their capital
+// would be theft rather than design. They simply stop being a liquidity
+// provider, which is the honest consequence of not showing up.
+//
+// Permissionless and it pays the caller NOTHING, same reasoning as sweep_mint:
+// a bounty would create an incentive to lobby for a shorter dormancy period.
+// The honest incentive is already there — removing dead weight means the
+// emission slice is divided among providers who are actually present.
+//
+//	args: <owner>|<trancheId>
+//
+//go:wasmexport sweep_tranche
+func SweepTranche(a *string) *string {
+	c, _ := ctx()
+	args := state.ParseArgs(*a)
+	owner := args.Str(0)
+	id, ok := args.U64(1)
+	if owner == "" || !ok {
+		sdk.Abort("usage: <owner>|<trancheId>")
+	}
+	return finish(state.SweepTranche(store{}, assets{}, c, owner, id))
+}
+
 // swap_lc_hbd sells LASSECASH for HBD.
 //
 // minOut is slippage protection: the caller states the worst price they accept,

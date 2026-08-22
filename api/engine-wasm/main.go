@@ -40,6 +40,7 @@ func main() {
 		"voteWeight":         js.FuncOf(voteWeight),
 		"votePower":          js.FuncOf(votePower),
 		"trancheView":        js.FuncOf(trancheView),
+		"trancheHealth":      js.FuncOf(trancheHealth),
 		"routePayout":        js.FuncOf(routePayout),
 		"blockSplit":         js.FuncOf(blockSplit),
 		"dailyRewards":       js.FuncOf(dailyRewards),
@@ -308,6 +309,27 @@ func trancheView(_ js.Value, a []js.Value) any {
 		"value_lc":       amt(lc),
 		"value_hbd":      amt(hbd),
 		"pending_reward": amt(owed),
+	}
+}
+
+// trancheHealth(lastTouch, height) — the dormancy clock for a liquidity
+// tranche: phase (0 healthy, 1 warning, 2 evictable), days remaining before
+// anyone may evict it, and how long it has gone without a claim.
+//
+// Eviction returns the owner's LASSECASH and HBD to them WHOLE — nothing is
+// confiscated — so this clock is a prompt, not a countdown to a loss. What a
+// dormant provider forfeits is future rewards they were not there to claim and
+// their accrued loyalty age, which is why the warning runs a full 90 days.
+//
+// A pure function of its inputs — EXACT, never stale — because the tranche's
+// own last-claim height and the current chain height are the only things that
+// ever move it.
+func trancheHealth(_ js.Value, a []js.Value) any {
+	h := engine.TrancheHealthAt(argU(a, 0), argU(a, 1))
+	return map[string]any{
+		"phase":          h.Phase,
+		"daysUntilEvict": h.DaysUntilEvict,
+		"dormantDays":    h.DormantDays,
 	}
 }
 

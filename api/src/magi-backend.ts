@@ -376,9 +376,12 @@ export class MagiBackend implements Backend {
       const raw = recs[`lp_${acct}_${id}`];
       if (!raw) continue;
       // Frozen field order (contract/state/pool.go encodeTranche):
-      // shares|startHeight|weight|closed|accStart
+      // shares|startHeight|weight|closed|accStart|lastTouch
       const f = raw.split("|");
       if (f.length < 4) continue;
+      // A tranche encoded before LastTouch was appended has no field 5;
+      // decodeTranche's own fallback is the deposit height (field 1).
+      const lastTouch = f[5] ?? f[1];
       const tv = engine.trancheView({
         shares: f[0] ?? "0", startHeight: num(f[1]), weight: f[2] ?? "0", accStart: f[4] ?? "0",
         height,
@@ -398,6 +401,7 @@ export class MagiBackend implements Backend {
         value_lc: tv.value_lc,
         value_hbd: tv.value_hbd,
         pending_reward: tv.pending_reward,
+        last_touch: num(lastTouch),
       });
     }
 

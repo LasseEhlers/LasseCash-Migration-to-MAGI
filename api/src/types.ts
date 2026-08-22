@@ -73,6 +73,14 @@ export interface TrancheView {
   value_hbd: Amount;
   /** What "Claim rewards" would pay right now. Engine-computed. */
   pending_reward: Amount;
+  /**
+   * Height of the last proof of life (deposit, or the last claim/withdraw
+   * that touched this tranche) — the anti-zombie clock's zero point. Feed
+   * this straight into `engine.trancheHealth(shares, last_touch, height)`;
+   * it is a pure function of these two heights, so the frontend computes it
+   * itself rather than waiting on a re-fetch.
+   */
+  last_touch: number;
 }
 
 /** Everything shown for one account. */

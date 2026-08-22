@@ -421,3 +421,107 @@ func TestLateLiquidityCannotClaimEarlierRewards(t *testing.T) {
 	auditPool(t, s, a)
 	auditSupply(t, s)
 }
+
+// --- anti-zombie check ------------------------------------------------------
+
+// TestDormantLiquidityIsEvictedNotConfiscated is the test the whole design
+// rests on. A stranger may evict a provider who has been gone six months — and
+// that provider gets back every token and every satoshi of HBD they put in.
+// Nothing is taken. They simply stop being a liquidity provider.
+func TestDormantLiquidityIsEvictedNotConfiscated(t *testing.T) {
+	s, a, ctx := newPool(t)
+	day := func(d int64) uint64 { return ctx.Height + uint64(d)*engine.HeightsPerDay }
+
+	c1 := ctx
+	c1.Sender = "hive:lp1"
+	lcBefore := Balance(s, "hive:lp1")
+	id1, r1 := AddLiquidity(s, a, c1, lc(100_000), lc(100_000))
+	if !r1.OK {
+		t.Fatalf("lp1 add: %s", r1.Msg)
+	}
+	c2 := ctx
+	c2.Sender = "hive:lp2"
+	if _, r2 := AddLiquidity(s, a, c2, lc(100_000), lc(100_000)); !r2.OK {
+		t.Fatalf("lp2 add: %s", r2.Msg)
+	}
+	auditPool(t, s, a)
+
+	// lp1 goes dark. A STRANGER evicts it after six months.
+	stranger := ctx
+	stranger.Sender = "hive:trader"
+	stranger.Height = day(181)
+
+	beforeShares := PoolShares(s)
+	if res := SweepTranche(s, a, stranger, "hive:lp1", id1); !res.OK {
+		t.Fatalf("evict at day 181: %s", res.Msg)
+	}
+	auditPool(t, s, a)
+
+	// The position is closed and its shares have left the pool.
+	if PoolShares(s) >= beforeShares {
+		t.Fatalf("eviction did not reduce total shares: %d -> %d", beforeShares, PoolShares(s))
+	}
+	if tr, _ := GetTranche(s, "hive:lp1", id1); !tr.Closed {
+		t.Fatal("evicted tranche is not closed")
+	}
+
+	// THE OWNER WAS PAID, NOT THE SWEEPER. This is the line that separates a
+	// sweep from a robbery.
+	if bal := Balance(s, "hive:trader"); bal != lc(100_000) {
+		t.Fatalf("the sweeper was paid: balance %s, want %s", fmtA(bal), fmtA(lc(100_000)))
+	}
+	got := Balance(s, "hive:lp1")
+	if got < lcBefore-lc(1) {
+		t.Fatalf("evicted provider lost LASSECASH: %s, started with %s",
+			fmtA(got), fmtA(lcBefore))
+	}
+	// And their HBD went back to them, not to the stranger.
+	if a.Wallets["hive:trader"] != 0 {
+		t.Fatalf("the sweeper received %d HBD", a.Wallets["hive:trader"])
+	}
+	if a.Wallets["hive:lp1"] <= 0 {
+		t.Fatal("the evicted provider got no HBD back")
+	}
+}
+
+// TestEvictionRefusedBeforeSixMonthsAndAfterAClaim pins the two ways this could
+// hurt somebody who did nothing wrong: evicting a provider who is still inside
+// their window, and ignoring a claim that proved they were there.
+func TestEvictionRefusedBeforeSixMonthsAndAfterAClaim(t *testing.T) {
+	s, a, ctx := newPool(t)
+	day := func(d int64) uint64 { return ctx.Height + uint64(d)*engine.HeightsPerDay }
+
+	c1 := ctx
+	c1.Sender = "hive:lp1"
+	id1, r := AddLiquidity(s, a, c1, lc(100_000), lc(100_000))
+	if !r.OK {
+		t.Fatalf("add: %s", r.Msg)
+	}
+	before, _ := GetTranche(s, "hive:lp1", id1)
+
+	stranger := ctx
+	stranger.Sender = "hive:trader"
+
+	// Day 179: one day short. Refused, and nothing moves.
+	stranger.Height = day(179)
+	if res := SweepTranche(s, a, stranger, "hive:lp1", id1); res.OK {
+		t.Fatal("evicted a tranche one day before it was dormant")
+	}
+	if now, _ := GetTranche(s, "hive:lp1", id1); now.Closed || now.Shares != before.Shares {
+		t.Fatal("a refused eviction still changed the tranche")
+	}
+
+	// The owner claims at day 179 — proof of life, clock resets.
+	c1.Height = day(179)
+	ClaimPoolRewards(s, c1, id1)
+
+	// Day 300 is 121 days after that claim, so still inside the window.
+	stranger.Height = day(300)
+	if res := SweepTranche(s, a, stranger, "hive:lp1", id1); res.OK {
+		t.Fatal("claiming did not reset the dormancy clock")
+	}
+	if now, _ := GetTranche(s, "hive:lp1", id1); now.Closed {
+		t.Fatal("an active provider was evicted")
+	}
+	auditPool(t, s, a)
+}

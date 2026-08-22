@@ -509,6 +509,15 @@ export class AiohaSigner implements Signer {
     // migration mint — it moves value TO them, which is still value, and
     // posting authority must never be able to touch it.
     "claim_migration",
+    // The four permissionless housekeeping calls — sweep_mint, sweep_curation,
+    // claim_curation and sweep_tranche — are deliberately NOT here. None can
+    // move the CALLER's money: each pays its subject, never the person who
+    // triggered it, and each refuses unless the position is already dead.
+    // Demanding an active key would add friction to exactly the altruistic
+    // action the protocol wants people taking. Decided 2026-08-22, after
+    // sweep_tranche was briefly added here and left the four inconsistent —
+    // and this list is frozen at the key burn.
+    //
     // record_burn is deliberately NOT here: it moves nothing (null was
     // credited when the root was committed) and writing someone's receipt is
     // a public good anyone should be able to do cheaply.
@@ -565,6 +574,9 @@ export class AiohaSigner implements Signer {
     add_liquidity: 4_000,
     remove_liquidity: 4_000,
     claim_pool: 4_000,
+    // Same shape as claim_pool (settles the owner's rewards first) plus the
+    // bleed's share/weight rewrite — unmeasured, modeled on remove_liquidity.
+    sweep_tranche: 4_000,
     swap_lc_hbd: 3_000,
     swap_hbd_lc: 3_000,
     // A claim is a mint-sized write set (balance, mint record, share board,

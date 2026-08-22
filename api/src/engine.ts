@@ -48,6 +48,9 @@ interface Bridge {
     totalShares: string, lcReserve: string, hbdReserve: string,
     poolLiq: string, accSeen: string, accHeld: string, acc: string, totalWeight: string,
   ): { age_days: number; loyalty: string; value_lc: string; value_hbd: string; pending_reward: string };
+  trancheHealth(lastTouch: string, height: string): {
+    phase: number; daysUntilEvict: number; dormantDays: number;
+  };
   routePayout(amount: string): { liquid: string; pending: string };
   blockSplit(amount: string): {
     proofOfBrain: string; lshare: string; liquidity: string;
@@ -443,6 +446,29 @@ export function trancheView(t: {
   return {
     age_days: r.age_days, loyalty: u(r.loyalty), value_lc: u(r.value_lc),
     value_hbd: u(r.value_hbd), pending_reward: u(r.pending_reward),
+  };
+}
+
+/**
+ * The dormancy clock for a liquidity tranche. EXACT — a pure function of the
+ * tranche's last-claim height and the current chain height, so it can never be
+ * stale the way a pool-state figure can.
+ *
+ * phase: 0 healthy, 1 warning (final 90 days), 2 evictable.
+ *
+ * Eviction is NOT a loss: it closes the position and returns the owner's
+ * LASSECASH and HBD to them whole. What a dormant provider forfeits is future
+ * rewards they were not present to claim, and the loyalty age they had built —
+ * which is why the warning period is as long as the climb back.
+ */
+export function trancheHealth(
+  lastTouch: number, height: number,
+): { phase: 0 | 1 | 2; daysUntilEvict: number; dormantDays: number } {
+  const r = must().trancheHealth(String(lastTouch), String(height));
+  return {
+    phase: r.phase as 0 | 1 | 2,
+    daysUntilEvict: r.daysUntilEvict,
+    dormantDays: r.dormantDays,
   };
 }
 

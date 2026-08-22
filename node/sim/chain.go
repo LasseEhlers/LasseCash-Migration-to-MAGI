@@ -471,6 +471,9 @@ type TrancheView struct {
 	ValueHBD    string `json:"value_hbd"`
 	// PendingReward is what "Claim rewards" would pay right now. Engine-computed.
 	PendingReward string `json:"pending_reward"`
+	// LastTouch is the height of the last proof of life (deposit, claim or
+	// withdraw) — the anti-zombie clock's zero point.
+	LastTouch uint64 `json:"last_touch"`
 }
 
 // AccountView is everything the frontend shows for one account.
@@ -560,6 +563,7 @@ func (c *Chain) Account(account string) AccountView {
 			ValueLC:       dec(valLC),
 			ValueHBD:      dec(valHBD),
 			PendingReward: dec(state.PoolRewardsOwed(s, t)),
+			LastTouch:     t.LastTouch,
 		})
 		if id == 1 {
 			break

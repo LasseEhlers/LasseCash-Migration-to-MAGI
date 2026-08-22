@@ -91,15 +91,23 @@ type Tranche struct {
 	// last registered (on deposit and on every claim). Its rewards are the
 	// accumulator's RISE since then, times its weight.
 	AccStart int64
+	// LastTouch is the height of the last proof of life — the deposit, or the
+	// most recent claim. The anti-zombie check measures dormancy from here:
+	// 180 days untouched, then a 90-day bleed of the tranche's SHARES (never
+	// its assets). Claiming resets it. See engine.TrancheSurviving.
+	LastTouch uint64
 }
 
-// Field order is frozen, append-only: shares | start | weight | closed | accStart
+// Field order is frozen, append-only:
+//
+//	shares | start | weight | closed | accStart | lastTouch
 func encodeTranche(t Tranche) string {
 	return encI64(int64(t.Shares)) + sep +
 		encU64(t.StartHeight) + sep +
 		encI64(int64(t.Weight)) + sep +
 		encBool(t.Closed) + sep +
-		encI64(t.AccStart)
+		encI64(t.AccStart) + sep +
+		encU64(t.LastTouch)
 }
 
 func decodeTranche(owner, raw string) (Tranche, bool) {
@@ -116,6 +124,14 @@ func decodeTranche(owner, raw string) (Tranche, bool) {
 	}
 	if len(f) > 4 {
 		tr.AccStart = decI64(f[4])
+	}
+	if len(f) > 5 {
+		tr.LastTouch = decU64(f[5])
+	} else {
+		// A record written before the anti-zombie check existed has no proof
+		// of life on it. Fall back to its deposit height rather than zero —
+		// zero would read as "dormant since genesis" and bleed it instantly.
+		tr.LastTouch = tr.StartHeight
 	}
 	return tr, true
 }
@@ -230,7 +246,7 @@ func AddLiquidity(s Store, a Assets, ctx Ctx, lcIn engine.Amount, maxHbd engine.
 	setU64(s, lpSeqKey(ctx.Sender), id)
 	putTranche(s, id, Tranche{
 		Owner: ctx.Sender, Shares: shares, StartHeight: ctx.Height, Weight: weight,
-		AccStart: acc,
+		AccStart: acc, LastTouch: ctx.Height,
 	})
 
 	return id, ok("added " + encI64(int64(lcIn)) + " LC and " + encI64(int64(hbdIn)) + " HBD")
@@ -243,7 +259,15 @@ func AddLiquidity(s Store, a Assets, ctx Ctx, lcIn engine.Amount, maxHbd engine.
 // consumed oldest-first behind the user's back, so a partial exit can never
 // silently destroy their most-matured loyalty position.
 func RemoveLiquidity(s Store, a Assets, ctx Ctx, id uint64) Result {
-	t, found := GetTranche(s, ctx.Sender, id)
+	return closeTranche(s, a, ctx, ctx.Sender, id)
+}
+
+// closeTranche dissolves a tranche and pays EVERYTHING to `owner` — never to
+// ctx.Sender, which may be a stranger evicting a dormant position. Getting
+// that distinction wrong would turn a permissionless sweep into permissionless
+// robbery; it is the single most dangerous line in the anti-zombie design.
+func closeTranche(s Store, a Assets, ctx Ctx, owner string, id uint64) Result {
+	t, found := GetTranche(s, owner, id)
 	if !found {
 		return fail("no such tranche")
 	}
@@ -251,9 +275,11 @@ func RemoveLiquidity(s Store, a Assets, ctx Ctx, id uint64) Result {
 		return fail("tranche already closed")
 	}
 
-	// Pay out whatever rewards it earned before dissolving it.
-	ClaimPoolRewards(s, ctx, id)
-	t, _ = GetTranche(s, ctx.Sender, id)
+	// Pay out whatever rewards it earned before dissolving it. settleTranche,
+	// not ClaimPoolRewards: closing is not proof of life, and stamping
+	// LastTouch here would let a dormant LP dodge eviction by withdrawing.
+	settleTranche(s, ctx, owner, id)
+	t, _ = GetTranche(s, owner, id)
 
 	lcRes, hbdRes := PoolReserves(s)
 	total := PoolShares(s)
@@ -262,7 +288,7 @@ func RemoveLiquidity(s Store, a Assets, ctx Ctx, id uint64) Result {
 		return fail("cannot compute withdrawal")
 	}
 
-	if hbdOut > 0 && !a.Transfer(ctx.Sender, int64(hbdOut)) {
+	if hbdOut > 0 && !a.Transfer(owner, int64(hbdOut)) {
 		return fail("HBD transfer failed")
 	}
 
@@ -271,7 +297,7 @@ func RemoveLiquidity(s Store, a Assets, ctx Ctx, id uint64) Result {
 	setShares(s, keyPoolShares, total-t.Shares)
 	setShares(s, keyPoolWeight, getShares(s, keyPoolWeight)-t.Weight)
 
-	if !credit(s, ctx.Sender, lcOut) {
+	if !credit(s, owner, lcOut) {
 		return fail("credit failed")
 	}
 
@@ -304,10 +330,16 @@ func PoolRewardsOwed(s Store, t Tranche) engine.Amount {
 // Re-registering is what applies the loyalty bonus: an untouched tranche keeps
 // its old (lower) weight and under-earns rather than over-earns; a claim
 // brings the weight up to date for the future. Conserves exactly.
-func ClaimPoolRewards(s Store, ctx Ctx, id uint64) Result {
-	t, found := GetTranche(s, ctx.Sender, id)
+// settleTranche pays a tranche whatever the accumulator owes it and
+// re-registers its weight at the current loyalty age. It does NOT touch
+// LastTouch: the anti-zombie clock is reset only by the OWNER claiming, never
+// by a stranger sweeping. Splitting the two is what lets SweepTranche settle a
+// dormant position honestly — paying the owner every reward it genuinely
+// earned while alive — without that settlement counting as proof of life.
+func settleTranche(s Store, ctx Ctx, owner string, id uint64) (Tranche, engine.Amount, Result) {
+	t, found := GetTranche(s, owner, id)
 	if !found || t.Closed {
-		return fail("no open tranche")
+		return Tranche{}, 0, fail("no open tranche")
 	}
 
 	Settle(s, ctx)
@@ -328,17 +360,29 @@ func ClaimPoolRewards(s Store, ctx Ctx, id uint64) Result {
 	putTranche(s, id, t)
 
 	if owed <= 0 {
-		return ok("nothing to claim")
+		return t, 0, ok("nothing to claim")
 	}
 	setAmount(s, keyPoolLiquidity, pool-owed)
 	// The pool shrank by a payout, not grew by an inflow: keep the sync
 	// watermark in step so the next sync does not read the drop as nothing
 	// and the following inflow correctly.
 	setAmount(s, keyPoolAccSeen, pool-owed)
-	if !credit(s, ctx.Sender, owed) {
-		return fail("credit failed")
+	if !credit(s, owner, owed) {
+		return t, 0, fail("credit failed")
 	}
-	return ok("claimed " + encI64(int64(owed)))
+	return t, owed, ok("claimed " + encI64(int64(owed)))
+}
+
+// ClaimPoolRewards pays the caller's tranche and resets its anti-zombie clock.
+// Claiming IS the proof of life — see engine.TrancheSurviving.
+func ClaimPoolRewards(s Store, ctx Ctx, id uint64) Result {
+	t, _, res := settleTranche(s, ctx, ctx.Sender, id)
+	if !res.OK {
+		return res
+	}
+	t.LastTouch = ctx.Height
+	putTranche(s, id, t)
+	return res
 }
 
 func SwapLCForHBD(s Store, a Assets, ctx Ctx, lcIn engine.Amount, minOut engine.Amount) Result {
@@ -392,4 +436,32 @@ func SwapHBDForLC(s Store, a Assets, ctx Ctx, hbdIn engine.Amount, minOut engine
 		return fail("credit failed")
 	}
 	return ok("swapped for " + encI64(int64(out)) + " LASSECASH")
+}
+
+// --- anti-zombie check ------------------------------------------------------
+
+// SweepTranche EVICTS a dormant liquidity position: it closes the tranche and
+// returns the owner's LASSECASH and HBD to the owner, whole.
+//
+// Permissionless, and it pays the caller NOTHING — the same reasoning as
+// SweepMint and SweepCuration. A bounty would create an incentive to lobby for
+// a shorter dormancy period, and this must only ever touch positions whose
+// owner has genuinely stopped showing up. The caller's honest incentive is
+// already there: removing dead weight from the pool means the emission slice
+// is divided among fewer providers, all of whom are actually present.
+//
+// NOTHING IS CONFISCATED. The owner keeps every token and every satoshi of
+// HBD; they simply stop being a liquidity provider, which is the honest
+// consequence of not showing up for six months. What they forfeit is future
+// rewards they were not there to claim, and the loyalty age they had built —
+// which is why the interface warns for a full 90 days first.
+func SweepTranche(s Store, a Assets, ctx Ctx, owner string, id uint64) Result {
+	t, found := GetTranche(s, owner, id)
+	if !found || t.Closed {
+		return fail("no open tranche")
+	}
+	if !engine.TrancheIsDormant(t.LastTouch, ctx.Height) {
+		return fail("tranche is not dormant")
+	}
+	return closeTranche(s, a, ctx, owner, id)
 }

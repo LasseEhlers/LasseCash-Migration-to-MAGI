@@ -261,3 +261,147 @@ func HbdPayMilli(units Amount) int64 {
 	}
 	return int64(units) / HbdUnitsPerMilli
 }
+
+// ---------------------------------------------------------------------------
+// Anti-zombie check — DECIDED 2026-08-22, REVISED the same day
+//
+// Liquidity whose owner has vanished is not neutral: it draws its slice of the
+// 25% emission slice forever while doing nothing its owner will ever ask for
+// again. On Hive-Engine that built up over seven years — 52 of 125 LASSECASH
+// liquidity providers had not touched either chain in over a year.
+//
+// The first design BLED a dormant tranche's shares away to the remaining LPs.
+// It was dropped, and the reasoning matters: an LP was never PAID for a
+// commitment the way a minter is paid up to 1.5x for pledging a term. Taking a
+// slice of capital that was never pledged is the one thing in LasseCash a
+// critic could accurately call theft.
+//
+// So a dormant position is EVICTED, not taxed. Its LASSECASH and its HBD go
+// back to the owner's own balance, whole. They stop being a liquidity
+// provider — which is the honest consequence of not showing up — and they lose
+// nothing. What they forfeit is future rewards they were not there to claim,
+// and their accrued loyalty age, which is why the warning period is long.
+// ---------------------------------------------------------------------------
+
+const (
+	// TrancheDormantDays is how long a tranche may sit WITHOUT A CLAIM before
+	// anyone may evict it. Claiming is the proof of life, and it is already
+	// the natural touch point: ClaimPoolRewards re-registers the tranche's
+	// weight anyway.
+	//
+	// 180 days — the same six months the migration snapshot uses, so the
+	// product has ONE meaning for "dormant" rather than a different threshold
+	// in every corner.
+	TrancheDormantDays = 180
+
+	// TrancheWarningDays is how long before eviction the interface must start
+	// warning. Ninety days: a full quarter of amber before anything happens.
+	//
+	// A tranche's clock is invisible unless the interface says so — a mint has
+	// an obvious maturity date, this has nothing but a last-claim timestamp.
+	// If a provider is evicted because the indicator was subtle, that is a
+	// design failure, not their mistake. The eviction itself costs them no
+	// capital, but it does reset the loyalty age they spent 90 days building,
+	// so the warning is deliberately as long as that climb.
+	TrancheWarningDays = 90
+)
+
+// TrancheEvictHeight is the height from which a dormant tranche may be evicted.
+func TrancheEvictHeight(lastTouch uint64) uint64 {
+	return lastTouch + uint64(TrancheDormantDays)*HeightsPerDay
+}
+
+// TrancheIsDormant reports whether a tranche may be evicted at `height`.
+func TrancheIsDormant(lastTouch, height uint64) bool {
+	return height >= TrancheEvictHeight(lastTouch)
+}
+
+// TrancheHealth is everything the UI needs to draw the dormancy clock as a
+// sliding scale, computed here so no frontend ever re-derives it.
+type TrancheHealth struct {
+	// Phase: 0 healthy, 1 warning (final 90 days), 2 evictable.
+	Phase int
+	// DaysUntilEvict is days remaining before the position may be evicted;
+	// 0 once it may.
+	DaysUntilEvict int64
+	// DormantDays is how long it has gone without a claim.
+	DormantDays int64
+}
+
+// TrancheHealthAt computes the dormancy clock for a tranche.
+//
+// Nothing here is an estimate and nothing depends on pool state: it is a pure
+// function of when the owner last proved they were there.
+func TrancheHealthAt(lastTouch, height uint64) TrancheHealth {
+	var h TrancheHealth
+	if height > lastTouch {
+		h.DormantDays = int64(height-lastTouch) / int64(HeightsPerDay)
+	}
+	evictAt := TrancheEvictHeight(lastTouch)
+	switch {
+	case height >= evictAt:
+		h.Phase = 2
+	default:
+		h.DaysUntilEvict = int64(evictAt-height) / int64(HeightsPerDay)
+		if h.DaysUntilEvict <= TrancheWarningDays {
+			h.Phase = 1
+		}
+	}
+	return h
+}
+
+// ---------------------------------------------------------------------------
+// Provably-alive supply — DECIDED 2026-08-22
+//
+// No chain can tell you how much of its supply is lost. Bitcoin cannot: a coin
+// that has not moved in fifteen years is indistinguishable from one held by a
+// patient owner with the keys in a safe. Every "circulating supply" figure in
+// crypto is a guess.
+//
+// LasseCash can answer it, because every action on the contract is a signed
+// transaction with a known sender and height. Sum the balances of accounts
+// that have signed something within a window and you have a figure nobody has
+// had before: supply that is provably in live hands, versus supply that may
+// be lost.
+//
+// This is a MEASUREMENT, not a mechanism. It moves nothing and takes nothing.
+// An earlier design bled dormant balances into the reward pools; it was
+// dropped because a hard-money asset you must touch twice a year cannot be
+// inherited or cold-stored — see the LP anti-zombie check for where a bleed
+// IS justified, on positions that were opted into and paid for.
+// ---------------------------------------------------------------------------
+
+// AliveWindowDays are the windows the figure is reported over. Several, not
+// one, because "alive" is a judgement and the honest thing is to show how the
+// answer moves with the threshold rather than picking a flattering one.
+var AliveWindowDays = [3]int64{90, 365, 730}
+
+// IsAlive reports whether an account that last signed something at lastSeen
+// counts as alive at `height` for a window of `windowDays`.
+//
+// lastSeen == 0 means "never seen acting" — not alive at any window.
+func IsAlive(lastSeen, height uint64, windowDays int64) bool {
+	if lastSeen == 0 || windowDays <= 0 {
+		return false
+	}
+	if height <= lastSeen {
+		return true
+	}
+	return height-lastSeen <= uint64(windowDays)*HeightsPerDay
+}
+
+// AlivePct is the share of `total` held in provably live hands, scaled by
+// MultScale (so 100_000_000 == 100%). Floors, like every other ratio here.
+func AlivePct(alive, total Amount) int64 {
+	if total <= 0 {
+		return 0
+	}
+	if alive >= total {
+		return MultScale
+	}
+	v, ok := MulDiv(alive, MultScale, int64(total))
+	if !ok {
+		return 0
+	}
+	return int64(v)
+}

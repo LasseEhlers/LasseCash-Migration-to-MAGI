@@ -329,9 +329,12 @@ func TestLcToHbdUsesSpotPriceAndFloors(t *testing.T) {
 }
 
 func TestHbdMilliConversionNeverUnderCustodies(t *testing.T) {
-	cases := []struct{ units Amount; draw, pay int64 }{
+	cases := []struct {
+		units     Amount
+		draw, pay int64
+	}{
 		{0, 0, 0},
-		{1, 1, 0},                 // a dust draw still custodies a whole milli
+		{1, 1, 0}, // a dust draw still custodies a whole milli
 		{99_999, 1, 0},
 		{100_000, 1, 1},           // exactly 0.001 HBD
 		{200_000_000, 2000, 2000}, // 2 HBD — the mainnet case
@@ -347,5 +350,117 @@ func TestHbdMilliConversionNeverUnderCustodies(t *testing.T) {
 		if HbdDrawMilli(c.units)*HbdUnitsPerMilli < int64(c.units) || HbdPayMilli(c.units)*HbdUnitsPerMilli > int64(c.units) {
 			t.Errorf("%d: custody could fall below the ledger", c.units)
 		}
+	}
+}
+
+// TestTrancheDormancyAtEveryBoundary names the days where an off-by-one would
+// evict a liquidity provider who was still inside their window, rather than
+// sampling the middle and hoping.
+func TestTrancheDormancyAtEveryBoundary(t *testing.T) {
+	const touch = uint64(109_000_000)
+	day := func(d int64) uint64 { return touch + uint64(d)*HeightsPerDay }
+
+	cases := []struct {
+		days int64
+		want bool
+		why  string
+	}{
+		{0, false, "the moment of the claim"},
+		{89, false, "just before the warning starts"},
+		{90, false, "warning period — still safe"},
+		{179, false, "one day before eviction becomes possible"},
+		{180, true, "exactly six months — evictable"},
+		{181, true, "past six months"},
+		{10_000, true, "long gone"},
+	}
+	for _, c := range cases {
+		if got := TrancheIsDormant(touch, day(c.days)); got != c.want {
+			t.Errorf("day %d (%s): dormant = %v, want %v", c.days, c.why, got, c.want)
+		}
+	}
+
+	// A height at or before the last touch must never read as dormant — a
+	// clock that runs backwards must not evict anyone.
+	if TrancheIsDormant(touch, touch-1) {
+		t.Error("a height before the last touch read as dormant")
+	}
+}
+
+// TestTrancheHealthWarnsLongBeforeEviction pins what the interface is told. An
+// LP who cannot see the clock cannot answer it, and the eviction costs them
+// their loyalty age — so the warning must arrive a full 90 days early.
+func TestTrancheHealthWarnsLongBeforeEviction(t *testing.T) {
+	const touch = uint64(109_000_000)
+	at := func(d int64) TrancheHealth {
+		return TrancheHealthAt(touch, touch+uint64(d)*HeightsPerDay)
+	}
+	if h := at(0); h.Phase != 0 || h.DaysUntilEvict != 180 || h.DormantDays != 0 {
+		t.Errorf("fresh: phase %d, %d days left, %d dormant; want 0, 180, 0",
+			h.Phase, h.DaysUntilEvict, h.DormantDays)
+	}
+	if h := at(89); h.Phase != 0 {
+		t.Errorf("day 89: phase %d, want 0 (still healthy)", h.Phase)
+	}
+	if h := at(90); h.Phase != 1 {
+		t.Errorf("day 90: phase %d, want 1 (90-day warning begins)", h.Phase)
+	}
+	if h := at(179); h.Phase != 1 || h.DaysUntilEvict != 1 {
+		t.Errorf("day 179: phase %d, %d days left; want 1, 1", h.Phase, h.DaysUntilEvict)
+	}
+	if h := at(180); h.Phase != 2 || h.DaysUntilEvict != 0 {
+		t.Errorf("day 180: phase %d, %d days left; want 2, 0", h.Phase, h.DaysUntilEvict)
+	}
+	if h := at(365); h.DormantDays != 365 {
+		t.Errorf("day 365: dormant %d days, want 365", h.DormantDays)
+	}
+}
+
+// TestAliveSupplyIsAMeasurementNotAMechanism pins the figure nobody else in
+// crypto can produce — and pins that it only ever reports, never moves value.
+func TestAliveSupplyIsAMeasurementNotAMechanism(t *testing.T) {
+	// A realistic Hive height. A toy value underflows the helper below:
+	// 400 days is 11.5M heights, so subtracting it from 10M wraps around
+	// uint64 and reads as the far future.
+	const now = uint64(109_000_000)
+	dayAgo := func(d int64) uint64 { return now - uint64(d)*HeightsPerDay }
+
+	cases := []struct {
+		lastSeen uint64
+		window   int64
+		want     bool
+		why      string
+	}{
+		{dayAgo(0), 90, true, "acted this block"},
+		{dayAgo(89), 90, true, "one day inside the window"},
+		{dayAgo(90), 90, true, "exactly on the boundary counts as alive"},
+		{dayAgo(91), 90, false, "one day outside"},
+		{dayAgo(91), 365, true, "outside 90 days, inside a year"},
+		{dayAgo(400), 365, false, "outside a year"},
+		{dayAgo(400), 730, true, "outside a year, inside two"},
+		{0, 730, false, "never seen acting is never alive"},
+		{now + 1, 90, true, "a clock that ran backwards must not read as dead"},
+	}
+	for _, c := range cases {
+		if got := IsAlive(c.lastSeen, now, c.window); got != c.want {
+			t.Errorf("%s: IsAlive = %v, want %v", c.why, got, c.want)
+		}
+	}
+
+	// The percentage floors and can never exceed 100%, so the headline figure
+	// cannot overstate how much of the supply is provably held.
+	if got := AlivePct(0, 1000); got != 0 {
+		t.Errorf("nothing alive: %d, want 0", got)
+	}
+	if got := AlivePct(1000, 1000); got != MultScale {
+		t.Errorf("all alive: %d, want %d", got, MultScale)
+	}
+	if got := AlivePct(2000, 1000); got != MultScale {
+		t.Errorf("more alive than exists must clamp: %d, want %d", got, MultScale)
+	}
+	if got := AlivePct(1, 3); got != MultScale/3 {
+		t.Errorf("one third: %d, want %d", got, MultScale/3)
+	}
+	if got := AlivePct(5, 0); got != 0 {
+		t.Errorf("empty supply: %d, want 0", got)
 	}
 }
