@@ -160,6 +160,36 @@ export function renderMarkdown(md: string): string {
       : m;
   });
 
+  // Tables (GitHub style): a header row, a separator row of dashes with
+  // optional alignment colons, then body rows. Every cell already went
+  // through esc() above, so a "|" inside a cell is written as "\|". Anything
+  // that merely starts with a pipe but has no separator row is left alone.
+  src = src.replace(/(?:^[ \t]*\|.*\|[ \t]*(?:\n|$)){2,}/gm, (block: string) => {
+    const lines = block.trim().split("\n").map((l) => l.trim());
+    const cells = (line: string) =>
+      line
+        .replace(/^\|/, "")
+        .replace(/\|$/, "")
+        .split(/(?<!\\)\|/)
+        .map((c) => c.replace(/\\\|/g, "|").trim());
+    const sep = cells(lines[1] ?? "");
+    const isSep = sep.length > 0 && sep.every((c) => /^:?-{1,}:?$/.test(c));
+    if (!isSep) return block;
+    const align = sep.map((c) =>
+      c.startsWith(":") && c.endsWith(":") ? "center" : c.endsWith(":") ? "right" : c.startsWith(":") ? "left" : "",
+    );
+    const td = (tag: string, row: string[]) =>
+      row
+        .map((c, i) => `<${tag}${align[i] ? ` style="text-align:${align[i]}"` : ""}>${c}</${tag}>`)
+        .join("");
+    const head = `<thead><tr>${td("th", cells(lines[0]))}</tr></thead>`;
+    const body = lines
+      .slice(2)
+      .map((l) => `<tr>${td("td", cells(l))}</tr>`)
+      .join("");
+    return `\n\n<table>${head}<tbody>${body}</tbody></table>\n\n`;
+  });
+
   // Lists.
   src = src.replace(/(?:^[ \t]*[-+*] .*(?:\n|$))+/gm, (block: string) => {
     const items = block
@@ -185,7 +215,7 @@ export function renderMarkdown(md: string): string {
       const t = chunk.trim();
       if (!t) return "";
       if (/^@@(?:BLOCK|CODE)\d+@@$/.test(t)) return t;
-      if (/^<(?:h[1-6]|ul|ol|blockquote|pre|hr|div)/.test(t)) return t;
+      if (/^<(?:h[1-6]|ul|ol|blockquote|pre|hr|div|table)/.test(t)) return t;
       return `<p>${t.replace(/\n/g, "<br />")}</p>`;
     })
     .join("\n");
