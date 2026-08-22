@@ -464,11 +464,27 @@ export class MagiBackend implements Backend {
     const found: { author: string; permlink: string }[] = [];
     for (const tx of data.findTransaction ?? []) {
       for (const op of tx.ops ?? []) {
-        if (op.type !== "call" || op.data?.action !== action) continue;
-        const payload = op.data.payload ?? "";
-        if (accept && !accept(payload)) continue;
-        const author = tx.required_auths?.[0] ?? tx.required_posting_auths?.[0];
-        const permlink = payload.split("|")[0];
+        if (op.type !== "call") continue;
+        const payload = op.data?.payload ?? "";
+        let author: string | undefined;
+        let permlink: string | undefined;
+        if (op.data?.action === action) {
+          if (accept && !accept(payload)) continue;
+          author = tx.required_auths?.[0] ?? tx.required_posting_auths?.[0];
+          permlink = payload.split("|")[0];
+        } else if (action === "post" && op.data?.action === "vote") {
+          // A post registered BY ITS FIRST VOTE never had a `post` call; the
+          // vote's target is a registered post by construction (the contract
+          // refuses a vote on anything else). Found 2026-08-22 on mainnet:
+          // the registration landed and the feed still showed "earns from
+          // the first vote". The state read below is still what decides —
+          // a refused vote leaves no record and is dropped there.
+          const f = payload.split("|");
+          author = f[0];
+          permlink = f[1];
+        } else {
+          continue;
+        }
         if (!author || !permlink) continue;
         const key = author + "/" + permlink;
         if (!seen.has(key)) {
@@ -585,8 +601,12 @@ export class MagiBackend implements Backend {
       const byAuthor: Record<string, string> = {};
       for (const a of authors) byAuthor[a] = shares[`shr_${a}`] || "0";
 
+      const windowMs = Number(c.viralPayoutDays) * Number(c.heightsPerDay) * 3_000;
+      const [genesisRow, height] = await Promise.all([this.state(["cfg_genesis"]), this.height()]);
+      const genesisMs = Date.now() - (height - num(genesisRow["cfg_genesis"])) * 3_000;
+      const notBefore = Math.max(Date.now() - windowMs, genesisMs);
       return mergeTagged(registered, rows, byAuthor,
-        governed[c.paramPostThresholdViral] ?? "0");
+        governed[c.paramPostThresholdViral] ?? "0", notBefore);
     } catch {
       return [];
     }
@@ -1188,6 +1208,8 @@ export function mergeTagged(
   hiveRows: HiveTaggedPost[],
   sharesByAuthor: Record<string, string>,
   threshold: string,
+  /** Posts created before this instant are too old to open a window (ms since epoch). */
+  notBefore = 0,
 ): PostView[] {
   const known = new Set(registered.map((p) => `${p.author}/${p.permlink}`));
   const out: PostView[] = [];
@@ -1201,6 +1223,11 @@ export function mergeTagged(
     const author = qualified(row.author);
     const key = `${author}/${row.permlink}`;
     if (known.has(key)) continue;                  // already on the chain, or a dupe
+    // A first vote opens a FRESH 7-day window from the vote's height, so a
+    // post older than the viral window (or from before genesis) must not be
+    // offered: it would pay week-old content as if it were new. Found on the
+    // fast-clock throwaway 2026-08-22 — pre-genesis posts were listed.
+    if (notBefore > 0 && Date.parse(isoUtc(row.created)) < notBefore) continue;
     known.add(key);
     if (!engine.canPost(sharesByAuthor[author] || "0", threshold)) continue;
 

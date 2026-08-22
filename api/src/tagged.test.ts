@@ -153,3 +153,10 @@ test("a junk row cannot become a post", () => {
 test("the threshold key the backend reads is the engine's, not a literal", () => {
   assert.equal(constants().paramPostThresholdViral, "post.threshold_viral");
 });
+
+test("mergeTagged drops posts older than the cutoff", () => {
+  const old = { author: "alice", permlink: "old", created: "2020-01-01T00:00:00", depth: 0, json_metadata: { tags: ["lassecash"] } } as never;
+  const fresh = { author: "alice", permlink: "new", created: new Date().toISOString().replace(/\.\d+Z$/, ""), depth: 0, json_metadata: { tags: ["lassecash"] } } as never;
+  const views = mergeTagged([], [old, fresh], { "hive:alice": "100000000000000" }, "100000000000", Date.now() - 60_000);
+  assert.deepEqual(views.map((v) => v.permlink), ["new"]);
+});
