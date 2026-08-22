@@ -471,11 +471,11 @@ export class MagiBackend implements Backend {
         tags: null,
       });
     }
-    return out;
+    return this.#hydrate(out);
   }
 
   async posts(limit = 50): Promise<PostView[]> {
-    return this.#viewsFor(await this.#discover(limit));
+    return this.#hydrate(await this.#viewsFor(await this.#discover(limit)));
   }
 
   /**
@@ -498,7 +498,7 @@ export class MagiBackend implements Backend {
       const f = payload.split("|");
       return f[1] === author && f[2] === permlink;
     });
-    return this.#viewsFor(found);
+    return this.#hydrate(await this.#viewsFor(found));
   }
 
   /**
@@ -645,6 +645,40 @@ export class MagiBackend implements Backend {
    * Article content, from Hive — where it actually lives. The contract stores
    * only the money; `author + permlink` is the same key the old tribe used.
    */
+  /**
+   * Content is immutable once paid out and rarely edited before, so one fetch
+   * per post per page lifetime is plenty. Keyed by the qualified author.
+   */
+  readonly #contentCache = new Map<string, Promise<Content | null>>();
+
+  #contentCached(author: string, permlink: string): Promise<Content | null> {
+    const key = `${author}/${permlink}`;
+    let p = this.#contentCache.get(key);
+    if (!p) {
+      p = this.content(author, permlink).catch(() => null);
+      this.#contentCache.set(key, p);
+    }
+    return p;
+  }
+
+  /**
+   * Fill the presentation fields of freshly assembled views from Hive, in
+   * parallel. The chain says WHICH posts exist and what they earn; Hive says
+   * what they SAY. Found 2026-08-22: the first real post registered fine and
+   * rendered as a bare permlink, because nothing ever called content().
+   */
+  async #hydrate<T extends { author: string; permlink: string; title: string; summary: string; body_excerpt: string; tags: string[] | null }>(views: T[]): Promise<T[]> {
+    await Promise.all(views.map(async (v) => {
+      const c = await this.#contentCached(v.author, v.permlink);
+      if (!c) return;
+      v.title = c.title || v.permlink;
+      v.summary = c.summary;
+      v.body_excerpt = c.body.slice(0, 2_000);
+      v.tags = c.tags;
+    }));
+    return views;
+  }
+
   async content(author: string, permlink: string): Promise<Content | null> {
     const hiveUser = author.replace(/^hive:/, "");
     const res = await this.#fetch("https://api.hive.blog", {
@@ -666,7 +700,7 @@ export class MagiBackend implements Backend {
     let summary = "";
     try {
       const meta = JSON.parse(post.json_metadata || "{}");
-      if (Array.isArray(meta.tags)) tags = meta.tags.slice(0, 10);
+      if (Array.isArray(meta.tags)) tags = meta.tags.slice(0, 21);
       if (typeof meta.description === "string") summary = meta.description;
     } catch {
       // malformed author metadata is the author's problem, not a crash
