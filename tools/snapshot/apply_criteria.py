@@ -7,8 +7,8 @@ pure local computation: change a threshold, re-run, see the answer instantly.
 No network. Never put fetching in here.
 
 Usage:
-    python3 apply_criteria.py                 # default: 12-month window
-    python3 apply_criteria.py --months 6
+    python3 apply_criteria.py                 # default: 6-month window (C6)
+    python3 apply_criteria.py --months 12
     python3 apply_criteria.py --compare       # show several windows side by side
     python3 apply_criteria.py --write         # emit migration_set.json
 """
@@ -77,17 +77,42 @@ def parse_ts(v):
 
 def evaluate(balances, activity, cutoff):
     """
-    Qualifying rule (see CLAUDE.md):
+    Qualifying rule — "C6" (DECIDED by Lasse 2026-08-22, see CLAUDE.md):
 
-      An account migrates if it shows EITHER
-        (a) a Hive active-authority operation, OR
-        (b) a LASSECASH movement on Hive-Engine
-      since `cutoff`.
+      An account migrates IF AND ONLY IF it signed at least one LASSECASH
+      operation on Hive-Engine (a transfer, stake, unstake, delegation or
+      market order) since `cutoff`.
 
-    Rationale: (a) proves a human holds the active key — posting-key bots
-    cannot forge it. (b) proves engagement with LasseCash specifically. Either
-    is sufficient; requiring both would drop real users who are active on only
-    one layer.
+    Rationale, in Lasse's terms: LASSECASH is a product, not just a holding.
+    Being alive somewhere on Hive proves a human exists; it does not prove
+    they ever used LasseCash. Thousands of accounts hold LASSECASH only
+    because Lasse gave it away for years. Signing a LASSECASH operation is
+    the only bot-proof, on-chain proof that the holder engaged with
+    LasseCash itself. Everything else people do on LasseCash (posting,
+    commenting, voting, earning, holding a Diesel pool position) uses the
+    POSTING key or no key at all, so it cannot be distinguished from a bot
+    or from a gift.
+
+    The Hive L1 active-authority signal (`last_active_op_ts`) is DROPPED
+    from the decision entirely — this SUPERSEDES the old `by_hive OR by_lc`
+    rule. It no longer makes anyone eligible, but it is still read and still
+    written into every record, for the audit trail.
+
+    Fail OPEN on an unresolved search. fetch.py records `search_truncated`
+    (and, per-account, the fresher `he_search_truncated` merged in from a
+    later rescan) when a LASSECASH history walk hit MAX_HISTORY_PAGES
+    without resolving. A truncated search means "not found within the
+    walked window", not "proven absent". An account whose LASSECASH search
+    was truncated, and which is not otherwise shown alive by a LASSECASH
+    timestamp inside the window, is treated as ALIVE — flagged
+    "truncated_unresolved" for audit — rather than burned on missing data.
+    The asymmetry is deliberate: including a possibly-dead account costs
+    almost nothing (claim-based migration means they must still claim, and
+    an unclaimed position sweeps to the reward pool on its own schedule),
+    while excluding a possibly-alive one destroys their property because
+    the scanner ran out of pages. Deep-history accounts — thousands of
+    payout entries burying the one signed op, e.g. @master-lamps — are
+    exactly the prolific-poster users this protects.
 
     There is deliberately NO minimum balance. Only ~11k accounts ever touched
     LasseCash, so pruning by size removes real humans to save trivial state.
@@ -119,21 +144,36 @@ def evaluate(balances, activity, cutoff):
             continue
 
         act = activity.get(account) or {}
-        hive_ts = parse_ts(act.get("last_active_op_ts"))
+        # last_active_op_ts is read and carried into the record below for the
+        # audit trail ONLY — it is no longer a qualifying signal (C6 dropped
+        # the Hive L1 limb of the old rule entirely).
         lc_ts = parse_ts(act.get("last_lassecash_ts"))
 
-        by_hive = hive_ts is not None and hive_ts >= cutoff
+        # `he_search_truncated` is the fresher, LASSECASH-only flag merged in
+        # from the 2026-08-22 rescan; fall back to the older combined
+        # `search_truncated` (Hive-leg-inclusive) when a per-account record
+        # predates that merge.
+        he_trunc = act.get("he_search_truncated")
+        if he_trunc is None:
+            he_trunc = act.get("search_truncated", False)
+        he_trunc = bool(he_trunc)
+
         by_lc = lc_ts is not None and lc_ts >= cutoff
 
-        if by_hive or by_lc:
-            rec["reason"] = ("active_key" if by_hive else "") + \
-                            ("+lassecash" if by_lc else "")
-            rec["last_active_op"] = act.get("last_active_op_ts")
-            rec["last_lassecash"] = act.get("last_lassecash_ts")
+        rec["last_active_op"] = act.get("last_active_op_ts")  # audit only
+        rec["last_lassecash"] = act.get("last_lassecash_ts")
+        rec["he_search_truncated"] = he_trunc
+
+        if by_lc:
+            rec["reason"] = "lassecash_activity"
+            alive[account] = rec
+        elif he_trunc:
+            # Fail open: the search never resolved, so we cannot prove this
+            # account is dead. Never burn on missing data.
+            rec["reason"] = "truncated_unresolved"
             alive[account] = rec
         else:
-            rec["last_active_op"] = act.get("last_active_op_ts")
-            rec["last_lassecash"] = act.get("last_lassecash_ts")
+            rec["reason"] = "dead"
             dead[account] = rec
 
     return alive, dead, burned
@@ -165,27 +205,38 @@ def report(balances, activity, months, verbose=True):
         print("  " + "-" * 66)
         print(f"  {'TOTAL':22}{len(balances):>10,}{fmt(grand):>26}")
 
-        by_key = sum(1 for r in alive.values() if r["reason"].startswith("active_key"))
-        only_lc = len(alive) - by_key
-        print(f"\n  qualified via active key : {by_key:,}")
-        print(f"  qualified via LASSECASH only : {only_lc:,}")
+        by_lc = sum(1 for r in alive.values() if r["reason"] == "lassecash_activity")
+        by_trunc = len(alive) - by_lc
+        print(f"\n  qualified via signed LASSECASH op   : {by_lc:,}")
+        print(f"  qualified via truncated_unresolved  : {by_trunc:,}")
 
+        # The cap is measured against the WHOLE snapshot, not just the part
+        # that migrates. Burned tokens are not destroyed: `set_snapshot`
+        # credits the burn total to hive:null, and the supply identity is
+        # "sum of all holdings = migrated + emitted". Verified on the chain
+        # 2026-08-22 — right after set_snapshot, sup_migrated equalled the
+        # burn total exactly. Measuring headroom against the migrating
+        # portion alone reports ~20M of room when the real slack is ~5.8k.
         print(f"\n  HARDCAP CHECK")
-        print(f"    migrated supply        : {fmt(a_t)} LC")
+        print(f"    claimable (migrates)   : {fmt(a_t)} LC")
+        print(f"    + burned to hive:null  : {fmt(d_t + b_t)} LC")
+        print(f"    = snapshot supply      : {fmt(grand)} LC")
         print(f"    + max future emission  : {fmt(20_000_000 * UNIT)} LC")
-        print(f"    = maximum ever         : {fmt(a_t + 20_000_000 * UNIT)} LC")
+        print(f"    = maximum ever         : {fmt(grand + 20_000_000 * UNIT)} LC")
         print(f"    historic hardcap       : {fmt(51_000_000 * UNIT)} LC")
-        headroom = 51_000_000 * UNIT - (a_t + 20_000_000 * UNIT)
+        headroom = 51_000_000 * UNIT - (grand + 20_000_000 * UNIT)
         ok = "OK" if headroom >= 0 else "*** BREACH ***"
         print(f"    headroom               : {fmt(headroom)} LC   {ok}")
+        print(f"    (headroom is LASSECASH issued on the old chains and held")
+        print(f"     by nobody — dust lost in the Steem-Engine years.)")
 
     return alive, dead, burned
 
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--months", type=int, default=3,
-                    help="liveness window in months (default 3 — DECIDED by Lasse 2026-08-21, with an announced one-week roll call before the snapshot)")
+    ap.add_argument("--months", type=int, default=6,
+                    help="liveness window in months (default 6 — DECIDED by Lasse 2026-08-22 under the C6 rule: a signed LASSECASH op on Hive-Engine within the window, with an announced roll call before the snapshot)")
     ap.add_argument("--compare", action="store_true")
     ap.add_argument("--write", action="store_true")
     args = ap.parse_args()

@@ -294,29 +294,74 @@ def last_active_op(account, node_idx=0):
     return None, None, True  # search truncated: MAX_HISTORY_PAGES exhausted
 
 
+# Operations that are always initiated by the owner of the tokens even
+# though the entry carries no `from`/`to` (verified live against
+# accounts.hive-engine.com 2026-08-22: a `tokens_unstakeStart` row for
+# @cedricguillas has from=None, to=None, account=cedricguillas).
+HE_SELF_INITIATED_OPS = {"tokens_unstakeStart", "tokens_undelegateStart"}
+
+# Operations that are the automatic, unsigned completion of the above —
+# nobody authorizes these; they fire on a timer regardless of whether the
+# account is alive. Confirmed live: @cedricguillas has two
+# `tokens_unstakeDone` rows (weekly instalments) between the `Start` and
+# nothing else. If these ever counted as activity, ONE powerdown would look
+# like months of the account being alive.
+HE_AUTOMATIC_OPS = {"tokens_unstakeDone", "tokens_undelegateDone"}
+
+
 def he_authorized_by(account, entry):
     """
     Whether ACCOUNT initiated this Hive-Engine history entry.
 
     Same bug class as the Hive layer: accountHistory lists entries where the
     account is EITHER side, so received transfers and third-party stakes
-    ("lasseehlers staked to X") counted as X's engagement. Only the sender /
-    actor side counts: `from` for transfers and stakes; the `account` field
-    for self-ops that carry no `from`.
+    ("lasseehlers staked to X") counted as X's engagement.
+
+    `account` on every row is simply WHOSE HISTORY WAS QUERIED — it equals
+    the queried account on every single entry regardless of who acted, so it
+    can NEVER be used as an authorship signal (that was bug 2: the old
+    fallback `entry.get("account") == account` was true unconditionally,
+    which let a third party's stake into a queried account count as that
+    account's own engagement). Authorship must instead be read explicitly,
+    by operation:
+
+    - entries WITH a `from` (transfers, stakes, delegations): the actor is
+      `from`.
+    - `tokens_unstakeStart` / `tokens_undelegateStart`: carry no from/to, but
+      only the token owner can start their own unstake/undelegate — so the
+      queried account is the actor.
+    - `tokens_unstakeDone` / `tokens_undelegateDone`: the automatic,
+      unsigned completion of the above (fires on a timer) — never counts.
+    - anything else lacking a `from`: fail closed, do not count.
     """
+    op_type = entry.get("operation")
     frm = entry.get("from")
     if frm is not None:
         return frm == account
-    return entry.get("account") == account
+    if op_type in HE_SELF_INITIATED_OPS:
+        return True
+    if op_type in HE_AUTOMATIC_OPS:
+        return False
+    return False
 
 
 # Hive-Engine operations a user can INITIATE for LASSECASH. Server-side
 # filtering keeps the walk short: without it, accounts receiving automatic
 # distribution payouts bury their last real action under thousands of
 # `distribution_checkPendingDistributions` entries (signumpizza: ~3/day).
+#
+# Verified live 2026-08-22 against accounts.hive-engine.com: the real
+# operation names are `tokens_unstakeStart` / `tokens_undelegateStart`
+# (NOT `tokens_unstake` / `tokens_undelegate`, which do not exist — the old
+# names meant the server-side filter silently matched nothing, so every
+# powerdown and undelegation in seven years was invisible to this scan).
+# `tokens_unstakeDone` / `tokens_undelegateDone` are deliberately NOT
+# requested: they are the automatic, unsigned completion of the above (see
+# HE_AUTOMATIC_OPS) and fetching them would only bury the real signal under
+# weekly instalments, the same problem this filter exists to avoid.
 HE_USER_OPS = ",".join([
-    "tokens_transfer", "tokens_stake", "tokens_unstake",
-    "tokens_cancelUnstake", "tokens_delegate", "tokens_undelegate",
+    "tokens_transfer", "tokens_stake", "tokens_unstakeStart",
+    "tokens_cancelUnstake", "tokens_delegate", "tokens_undelegateStart",
     "market_buy", "market_sell", "market_placeOrder", "market_cancel",
 ])
 
