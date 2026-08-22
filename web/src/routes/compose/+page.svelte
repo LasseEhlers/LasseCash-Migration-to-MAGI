@@ -12,6 +12,7 @@
    *  2. The PAYOUT MODE is frozen with the post. "Burn" destroys the author's
    *     whole reward, so it is confirmed rather than clicked.
    */
+  import { goto } from "$app/navigation";
   import { chain, client } from "$lib/chain.svelte.js";
   import { lc } from "$lib/format.js";
   import { renderMarkdown } from "$lib/markdown.js";
@@ -171,6 +172,7 @@
         if (refused) { error = refused; return; }
       }
       published = res.permlink;
+      const author = chain.account?.replace(/^hive:/, "") ?? "";
       title = "";
       link = "";
       linkTouched = false;
@@ -179,6 +181,8 @@
       tags = [];
       burnConfirmed = false;
       await chain.refresh();
+      // Hive-style: you see your post, not the empty editor.
+      if (author) await goto(`/@${author}/${res.permlink}`);
     } catch (e) {
       error = e instanceof Error ? e.message : String(e);
     } finally {

@@ -37,6 +37,17 @@ export interface Signer {
   publishCommentToHive?(input: {
     permlink: string; body: string; parentAuthor: string; parentPermlink: string;
   }): Promise<void>;
+  /**
+   * Preferred when available: content write AND contract registration in one
+   * signed Hive transaction — one wallet confirm, and atomic.
+   */
+  publishAndRegister?(input: {
+    permlink: string; title: string; body: string; tags: string[];
+    summary?: string; image?: string | null; window: number; payoutMode: number;
+  }): Promise<TxResult>;
+  commentAndRegister?(input: {
+    permlink: string; body: string; parentAuthor: string; parentPermlink: string; payoutMode: number;
+  }): Promise<TxResult>;
 }
 
 /** Per-call overrides a caller may pass when it knows more than the table. */

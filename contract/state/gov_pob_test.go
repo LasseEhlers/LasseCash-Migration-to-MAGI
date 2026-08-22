@@ -916,3 +916,57 @@ func TestPromoteBurnsToNullWithinTheWindow(t *testing.T) {
 	}
 	auditSupply(t, s)
 }
+
+// THE FIRST VOTE OPENS THE WINDOW — decided by Lasse 2026-08-22. A post
+// written on any Hive frontend and tagged `lassecash` is registered by the
+// first LasseCash vote on it, checked against the AUTHOR's stake, always
+// viral, default split. An author below the threshold cannot be registered
+// by anyone; a vote on a registered post behaves exactly as before.
+func TestFirstVoteRegistersAnOutsidePost(t *testing.T) {
+	s, ctx := newChain(t)
+	creditLiquid(s, "hive:author", lc(50_000))
+	creditLiquid(s, "hive:small", lc(500))
+	creditLiquid(s, "hive:voter", lc(50_000))
+	CreateMint(s, at(ctx, "hive:author", genesis), lc(20_000), 365)
+	CreateMint(s, at(ctx, "hive:small", genesis), lc(500), 365)
+	CreateMint(s, at(ctx, "hive:voter", genesis), lc(20_000), 365)
+
+	// Author never called `post`; the voter's first vote registers it.
+	if _, found := getPost(s, "hive:author", "from-peakd"); found {
+		t.Fatal("precondition: not registered")
+	}
+	if r := Vote(s, at(ctx, "hive:voter", genesis+10), "hive:author", "from-peakd", 100); !r.OK {
+		t.Fatalf("first vote must register and vote: %s", r.Msg)
+	}
+	p, found := getPost(s, "hive:author", "from-peakd")
+	if !found || p.Window != uint8(engine.Viral) || p.Mode != PayoutDefault ||
+		p.CreatedHeight != genesis+10 || p.Votes != 1 || p.Rshares <= 0 {
+		t.Fatalf("registered record wrong: found=%v %+v", found, p)
+	}
+
+	// The author's stake is what is checked, not the voter's.
+	r := Vote(s, at(ctx, "hive:voter", genesis+10), "hive:small", "from-ecency", 100)
+	if r.OK || r.Msg != "author needs "+encI64(1_000*engine.ShareUnit)+" L-Shares for this post to earn" {
+		t.Fatalf("below-threshold author must be refused with the author message, got %+v", r)
+	}
+	if _, found := getPost(s, "hive:small", "from-ecency"); found {
+		t.Fatal("a refused registration must write nothing")
+	}
+
+	// A second vote on the now-registered post is an ordinary vote.
+	if r := Vote(s, at(ctx, "hive:author", genesis+20), "hive:author", "from-peakd", 50); !r.OK {
+		t.Fatalf("second vote: %s", r.Msg)
+	}
+
+	// It pays out like any viral post, to the author who never touched us.
+	h := genesis + uint64(engine.ViralPayoutDays+1)*engine.HeightsPerDay
+	AccrueFully(s, h)
+	before := Balance(s, "hive:author")
+	if r := Payout(s, at(ctx, "hive:x", h), "hive:author", "from-peakd"); !r.OK {
+		t.Fatalf("payout: %s", r.Msg)
+	}
+	if Balance(s, "hive:author") <= before {
+		t.Fatal("the outside author must be paid")
+	}
+	auditSupply(t, s)
+}

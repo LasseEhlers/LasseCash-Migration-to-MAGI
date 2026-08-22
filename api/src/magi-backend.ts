@@ -695,6 +695,15 @@ export class MagiBackend implements Backend {
     if (!permlink) {
       return { ok: false, msg: "title must contain letters or numbers", height: 0, permlink: "" };
     }
+    if (signer.publishAndRegister) {
+      // One confirm, one transaction, atomic (see AiohaWallet.broadcastWithCall).
+      const res = await signer.publishAndRegister({
+        permlink, title: input.title, body: input.body, tags: input.tags,
+        summary: input.summary, image: firstImage(input.body),
+        window: input.window, payoutMode: input.payoutMode,
+      });
+      return { ...res, permlink };
+    }
     await signer.publishToHive({
       permlink,
       title: input.title,
@@ -722,6 +731,13 @@ export class MagiBackend implements Backend {
       throw new BackendError("commenting needs a wallet that can write to Hive");
     }
     const parentAuthor = input.parentAuthor.replace(/^@/, "");
+    if (signer.commentAndRegister) {
+      const res = await signer.commentAndRegister({
+        permlink: input.permlink, body: input.body, parentAuthor,
+        parentPermlink: input.parentPermlink, payoutMode: input.payoutMode,
+      });
+      return { ...res, permlink: input.permlink };
+    }
     await signer.publishCommentToHive({
       permlink: input.permlink,
       body: input.body,

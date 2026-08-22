@@ -72,6 +72,8 @@ export class AiohaWallet {
   /** Canonical origin written into every published post. */
   readonly siteUrl: string;
 
+  readonly #netId: string;
+
   constructor(opts: AiohaOptions) {
     this.aioha = new Aioha();
     this.#contractId = opts.contractId;
@@ -90,6 +92,7 @@ export class AiohaWallet {
     }
     if (opts.peakVault !== false) this.aioha.registerPeakVault();
     if (opts.hiveSigner) this.aioha.registerHiveSigner(opts.hiveSigner);
+    this.#netId = opts.netId ?? "vsc-mainnet";
     if (opts.netId) this.aioha.vscSetNetId(opts.netId);
   }
 
@@ -251,6 +254,85 @@ export class AiohaWallet {
     }
   }
 
+
+  /**
+   * ONE confirm for publishing: the Hive `comment` and the contract's
+   * `vsc.call` registration travel in the SAME Hive transaction, signed once
+   * with the posting key. Lasse 2026-08-22: Hive-Engine never asked twice.
+   * Beyond the UX, this makes the two-step atomic — there is no longer a way
+   * to end up with an article on Hive and no payout window, or the reverse.
+   * The custom_json is byte-for-byte what Aioha's own `vscCallContract`
+   * broadcasts, so MAGI sees an ordinary contract call.
+   */
+  async broadcastWithCall(
+    hiveOps: unknown[],
+    call: { action: string; payload: string; rcLimit: number; intents: unknown[] },
+    contractId: string,
+  ): Promise<TxResult> {
+    const user = this.aioha.getCurrentUser();
+    if (!user) throw new BackendError("not signed in");
+    const vsc = ["custom_json", {
+      required_auths: [],
+      required_posting_auths: [user],
+      id: "vsc.call",
+      json: JSON.stringify({
+        net_id: this.#netId,
+        contract_id: contractId,
+        action: call.action,
+        payload: call.payload,
+        rc_limit: call.rcLimit,
+        intents: call.intents,
+      }),
+    }];
+    // Aioha types operations loosely; the shapes above are Hive's own.
+    const res = await this.aioha.signAndBroadcastTx(
+      [...hiveOps, vsc] as Parameters<Aioha["signAndBroadcastTx"]>[0],
+      KeyTypes.Posting,
+    );
+    return {
+      ok: !!res.success,
+      msg: res.success ? "submitted" : (res.error ?? "rejected"),
+      height: 0,
+      txId: res.success && typeof res.result === "string" ? res.result : undefined,
+    };
+  }
+
+  /** The Hive `comment` operation for an article, with our metadata. */
+  articleOp(input: {
+    permlink: string; title: string; body: string; tags: string[];
+    summary?: string; image?: string | null;
+  }): unknown {
+    const author = this.aioha.getCurrentUser();
+    if (!author) throw new BackendError("not signed in");
+    const tags = ["lassecash", ...input.tags.filter((t) => t !== "lassecash")].slice(0, 21);
+    const meta = postMetadata({
+      author, permlink: input.permlink, tags,
+      summary: input.summary ?? "", image: input.image ?? null, siteUrl: this.siteUrl,
+    });
+    return ["comment", {
+      parent_author: "", parent_permlink: tags[0] ?? "lassecash",
+      author, permlink: input.permlink, title: input.title, body: input.body,
+      json_metadata: typeof meta === "string" ? meta : JSON.stringify(meta),
+    }];
+  }
+
+  /** The Hive `comment` operation for a reply, with our metadata. */
+  replyOp(input: {
+    permlink: string; body: string; parentAuthor: string; parentPermlink: string;
+  }): unknown {
+    const author = this.aioha.getCurrentUser();
+    if (!author) throw new BackendError("not signed in");
+    const parentAuthor = input.parentAuthor.replace(/^hive:/, "").replace(/^@/, "");
+    const meta = commentMetadata({
+      author, permlink: input.permlink, tags: ["lassecash"], siteUrl: this.siteUrl,
+      parentAuthor, parentPermlink: input.parentPermlink,
+    });
+    return ["comment", {
+      parent_author: parentAuthor, parent_permlink: input.parentPermlink,
+      author, permlink: input.permlink, title: "", body: input.body,
+      json_metadata: typeof meta === "string" ? meta : JSON.stringify(meta),
+    }];
+  }
 
   /**
    * Upload an image to Hive's own image server.
@@ -419,6 +501,40 @@ export class AiohaSigner implements Signer {
     const whole = milli / 1000n;
     const frac = (milli % 1000n).toString().padStart(3, "0");
     return `${whole}.${frac}`;
+  }
+
+  /** Article + registration in ONE signed transaction (see broadcastWithCall). */
+  publishAndRegister(input: {
+    permlink: string; title: string; body: string; tags: string[];
+    summary?: string; image?: string | null; window: number; payoutMode: number;
+  }): Promise<TxResult> {
+    return this.wallet.broadcastWithCall(
+      [this.wallet.articleOp(input)],
+      {
+        action: "post",
+        payload: `${input.permlink}|${input.window}|${input.payoutMode}`,
+        rcLimit: AiohaSigner.RC_LIMITS["post"] ?? this.rcLimit,
+        intents: [],
+      },
+      this.contractId,
+    );
+  }
+  /** Reply + registration in ONE signed transaction. */
+  commentAndRegister(input: {
+    permlink: string; body: string; parentAuthor: string; parentPermlink: string; payoutMode: number;
+  }): Promise<TxResult> {
+    const parent = input.parentAuthor.replace(/^@/, "");
+    const qualified = parent.startsWith("hive:") ? parent : `hive:${parent}`;
+    return this.wallet.broadcastWithCall(
+      [this.wallet.replyOp(input)],
+      {
+        action: "comment",
+        payload: `${input.permlink}|${qualified}|${input.parentPermlink}|${input.payoutMode}`,
+        rcLimit: AiohaSigner.RC_LIMITS["comment"] ?? this.rcLimit,
+        intents: [],
+      },
+      this.contractId,
+    );
   }
 
   /** Content-layer writes, forwarded to the wallet (posting authority). */

@@ -233,6 +233,26 @@ func createContent(s Store, ctx Ctx, permlink string, window engine.Window, mode
 	return ok("posted")
 }
 
+// registerForAuthor opens a VIRAL, default-split payout window for a post the
+// author published elsewhere, checked against the AUTHOR's stake rather than
+// the caller's. Called only from Vote (see there); refuses exactly as `post`
+// would, with the author's name in the message so the voter understands.
+func registerForAuthor(s Store, ctx Ctx, author, permlink string) Result {
+	if author == "" || permlink == "" || strings.Contains(author, sep) || strings.Contains(permlink, sep) {
+		return fail("invalid post")
+	}
+	threshold := EffectiveParam(s, engine.ThresholdKeyFor(engine.Viral))
+	if !engine.CanPost(SharesOf(s, author), threshold) {
+		return fail("author needs " + encI64(threshold) + " L-Shares for this post to earn")
+	}
+	putPost(s, author, permlink, postRec{
+		Window:        uint8(engine.Viral),
+		CreatedHeight: ctx.Height,
+		Mode:          PayoutDefault,
+	})
+	return ok("registered by first vote")
+}
+
 // PromotePost burns LASSECASH to buy a post a promoted slot. The burn goes to
 // null like every burn; the post records the running total. Refused on
 // comments, on paid-out posts, below the governed minimum, and once 75% of
@@ -304,16 +324,34 @@ func Vote(s Store, ctx Ctx, author, permlink string, weightPct int64) Result {
 	if !IsInit(s) {
 		return fail("not initialised")
 	}
+	if weightPct <= 0 || weightPct > 100 {
+		return fail("weight must be 1..100")
+	}
 	p, found := getPost(s, author, permlink)
 	if !found {
-		return fail("no such post")
+		// THE FIRST VOTE OPENS THE WINDOW — decided by Lasse 2026-08-22.
+		//
+		// A post written on any other Hive frontend and tagged `lassecash`
+		// shows on LasseCash if its AUTHOR holds the posting threshold; it
+		// starts earning when the first LasseCash user votes on it. The voter
+		// is already paying RC to vote, so the registration rides along and
+		// the author never lifts a finger — the old tribe's "tag it and it
+		// counts" mechanic, with the stake threshold as the only gate. The
+		// window is always VIRAL and the payout mode the default split: an
+		// outside author never saw our Write page, and deep is chosen there.
+		//
+		// No new attack surface: `post` never verified Hive content either,
+		// and registering a phantom permlink under an eligible author draws
+		// from the pool exactly as that author's own phantom post would.
+		reg := registerForAuthor(s, ctx, author, permlink)
+		if !reg.OK {
+			return reg
+		}
+		p, _ = getPost(s, author, permlink)
 	}
 	w := p.win()
 	if p.PaidOut || ctx.Height >= p.CreatedHeight+w.PayoutHeights() {
 		return fail("voting has closed")
-	}
-	if weightPct <= 0 || weightPct > 100 {
-		return fail("weight must be 1..100")
 	}
 
 	shares := SharesOf(s, ctx.Sender)
