@@ -76,6 +76,11 @@
     </div>
   </header>
 
+  {#if chain.confirming}
+    <div class="confirming" role="status">
+      <span class="dot"></span> Signed — waiting for MAGI to confirm. The figures update by themselves.
+    </div>
+  {/if}
   {#if chain.error}
     <div class="banner error">
       <strong>Chain unreachable.</strong> {chain.error}
@@ -105,6 +110,18 @@
 </div>
 
 <style>
+  .confirming {
+    max-width: 1320px; margin: 0.6rem auto 0; padding: 0.45rem 0.8rem;
+    border: 1px solid var(--cyan); border-radius: var(--r-sm);
+    color: var(--cyan); font-family: var(--mono); font-size: var(--t-sm);
+    display: flex; align-items: center; gap: 0.5rem;
+  }
+  .confirming .dot {
+    width: 8px; height: 8px; border-radius: 50%; background: var(--cyan);
+    animation: blink 1.2s ease-in-out infinite;
+  }
+  @keyframes blink { 50% { opacity: 0.2; } }
+
   /* The footer is a space-between row; the toggle sits between the note and
      the height rather than pushing either off the line. */
   .hbdtoggle {

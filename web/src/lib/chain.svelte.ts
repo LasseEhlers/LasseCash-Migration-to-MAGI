@@ -65,6 +65,14 @@ class ChainStore {
   ready = $state(false);
   error = $state<string | null>(null);
   busy = $state(false);
+  /**
+   * True while a signed call has left the wallet but the chain has not yet
+   * shown its effect. Keychain returns as soon as Hive L1 accepts the
+   * custom_json; MAGI executes it 30–90 s later, so the first re-read after a
+   * wallet submit is usually still the OLD state. Found on the real chain
+   * 2026-08-22: two claims landed exactly, and the page showed zeros until F5.
+   */
+  confirming = $state(false);
 
   async init() {
     try {
@@ -155,10 +163,14 @@ class ChainStore {
   async submit(fn: () => Promise<{ ok: boolean; msg: string }>): Promise<string | null> {
     this.busy = true;
     try {
+      const before = JSON.stringify(this.me);
       const res = await fn();
       await this.refresh();
       // Contract messages carry RAW BASE UNITS and are diagnostic. Surface the
       // failure reason, never the formatting.
+      if (res.ok && WALLET_MODE && JSON.stringify(this.me) === before) {
+        void this.#awaitEffect(before);
+      }
       return res.ok ? null : res.msg;
     } catch (e) {
       await this.refresh();
@@ -221,6 +233,25 @@ class ChainStore {
       // Stop as soon as a round stops making progress, so a permanently stuck
       // entry cannot spin the loop.
       if ((this.me?.pending_curation ?? 0) >= before) return;
+    }
+  }
+
+  /**
+   * Poll until the account view differs from `before`, or give up after
+   * three minutes (a refused call changes nothing and must not spin forever).
+   * Runs in the background so the page stays usable; `confirming` drives the
+   * banner. Nobody should have to press F5 on this site.
+   */
+  async #awaitEffect(before: string) {
+    this.confirming = true;
+    try {
+      for (let i = 0; i < 18; i++) {
+        await new Promise((r) => setTimeout(r, 10_000));
+        await this.refresh();
+        if (JSON.stringify(this.me) !== before) return;
+      }
+    } finally {
+      this.confirming = false;
     }
   }
 
