@@ -58,7 +58,7 @@ original copy of our posts *on their sites too*.
 
 | Setting | Value |
 |---|---|
-| Build command | `npm run build` |
+| Build command | `npm --prefix ../api ci && npm run build` — the indexer under `api/` has its own `node_modules` (Cloudflare installs only the root directory's) |
 | Build output directory | `.svelte-kit/cloudflare` |
 | Root directory | `web` |
 | Compatibility flags | **`nodejs_compat`** — required; SvelteKit's server uses `node:async_hooks` and `node:crypto` |
