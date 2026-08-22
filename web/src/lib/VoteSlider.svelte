@@ -12,7 +12,7 @@
    * LASSECASH figure is an ESTIMATE, because it divides a pool that is still
    * growing among rshares that are still arriving.
    */
-  import { chain, client } from "$lib/chain.svelte.js";
+  import { chain, client, wallet } from "$lib/chain.svelte.js";
   import { lc, fractionPct } from "$lib/format.js";
   import { voteCost, voteWeight, votePower, toBaseUnitArg, type PostView } from "$api/index.js";
 
@@ -117,6 +117,9 @@
       {/if}
     </div>
 
+    {#if wallet}
+      <p class="estimate">Also casts your Hive vote at {weight}% — one confirm, like the old tribe.</p>
+    {/if}
     {#if error}<p class="err">{error}</p>{/if}
     <button class="small" onclick={cast} disabled={!canAfford || chain.busy}>
       {canAfford ? "Cast vote" : "Not enough vote power"}

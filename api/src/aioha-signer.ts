@@ -343,8 +343,9 @@ export class AiohaWallet {
     calls: { action: string; payload: string; rcLimit: number; intents: unknown[] }[],
     contractId: string,
     keyType: KeyTypes,
+    hiveOps: unknown[] = [],
   ): Promise<TxResult> {
-    return this.#broadcast(calls.map((c) => this.#vscOp(c, contractId, keyType)), keyType);
+    return this.#broadcast([...hiveOps, ...calls.map((c) => this.#vscOp(c, contractId, keyType))], keyType);
   }
 
   #vscOp(
@@ -719,11 +720,29 @@ export class AiohaSigner implements Signer {
       const lim = await this.sizeRc(sc.entrypoint, sc.args, [], AiohaSigner.RC_LIMITS[sc.entrypoint] ?? this.rcLimit);
       if (typeof lim === "number") side.push({ action: sc.entrypoint, payload: sc.args, rcLimit: lim, intents: [] });
     }
-    if (side.length > 0) {
+    // A LasseCash vote is ALSO a Hive vote at the same weight, in the same
+    // transaction — Lasse 2026-08-22: "for consistency", this is how the
+    // Hive-Engine tribe behaved (the Hive vote WAS the vote; Scot read it).
+    // One confirm. Both land or neither does: Hive refuses an identical
+    // re-vote ("already voted in a similar way"), in which case the contract
+    // call is not broadcast either — the page reports Hive's reason.
+    const hiveOps: unknown[] = [];
+    if (entrypoint === "vote") {
+      const [author = "", permlink = "", weightPct = "0"] = args.split("|");
+      hiveOps.push(["vote", {
+        voter: this.account.replace(/^hive:/, ""),
+        author: author.replace(/^hive:/, ""),
+        permlink,
+        weight: Math.max(1, Math.min(100, Number(weightPct))) * 100, // Hive: basis points
+      }]);
+    }
+
+    if (side.length > 0 || hiveOps.length > 0) {
       return this.wallet.broadcastCalls(
         [{ action: entrypoint, payload: args, rcLimit, intents }, ...side],
         this.contractId,
         keyType,
+        hiveOps,
       );
     }
 
