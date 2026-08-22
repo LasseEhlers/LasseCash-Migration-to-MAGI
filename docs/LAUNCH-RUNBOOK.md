@@ -141,6 +141,14 @@ can be signed. Announce the burn with the transaction id.
 
 ## 8. After launch
 
+**RC — keep HBD on MAGI on @lasseehlers, always.** RC capacity is
+`MAGI HBD × 1,000 + 10,000 free`, thawing over 5 days; the HBD is never spent,
+it is the meter. 85 HBD ≈ 95,000 RC ≈ 40 votes or 10 mints per 5-day window.
+**Day 30 after genesis** (the migration mints mature): the walk retires
+~1,600 accounts in `advance` slices of 50 (~6,500 RC each, ~32 calls). The
+site bundles slices ahead of every mint/claim, so the crowd normally clears
+it; to be able to clear it alone, hold ~200 HBD on MAGI that week.
+
 - Hive-Engine: update the token info tab; ask Hive-Engine to delist.
 - Run an `advance` bot so accrual never lags (permissionless; ~100 RC/day).
 - Day 150 + 1: anyone calls `sweep_unclaimed`. Announce the amount recycled.
