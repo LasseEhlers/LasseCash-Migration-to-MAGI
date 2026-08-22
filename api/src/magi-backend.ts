@@ -339,8 +339,10 @@ export class MagiBackend implements Backend {
           Date.now() + (maturity - height) * 3_000).toISOString(),
         mature,
         good_accounting: ga === "1",
-        can_arm_good_accounting:
-          !mature && ga !== "1" && height >= maturity - 7 * hpd,
+        // From the ENGINE, never a formula here: this line used to carry the
+        // superseded "7 days before maturity" rule while the engine had moved
+        // to "during the grace after maturity" — caught live 2026-08-22.
+        can_arm_good_accounting: view.canArmGoodAccounting && ended !== "1",
         ended: ended === "1",
         pending_yield: ended === "1" ? "0.00000000" : accrued,
         if_claimed_now: view.toOwner,
