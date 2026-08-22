@@ -7,7 +7,7 @@
    */
   import { chain } from "$lib/chain.svelte.js";
   import { displayName, lc, lcShort } from "$lib/format.js";
-  import { blockSplit, constants, supplyLimits, toBaseUnitArg } from "$api/index.js";
+  import { blockSplit, constants, fromUnits, supplyLimits, toBaseUnitArg, toUnits } from "$api/index.js";
   import Seo from "$lib/Seo.svelte";
   import { SITE_URL } from "$lib/site.js";
 
@@ -23,6 +23,14 @@
    */
   const limits = $derived(
     chain.ready && info ? supplyLimits(toBaseUnitArg(info.snapshot_total)) : null,
+  );
+  /** Snapshot supply minus what sits at null: everything claimable, whether
+   *  claimed yet or not. A difference of two chain figures, display only. */
+  const claimable = $derived(
+    info ? fromUnits(toUnits(info.snapshot_total) - toUnits(info.total_burned)) : "0.00000000",
+  );
+  const stillToEmit = $derived(
+    info && limits ? fromUnits(toUnits(limits.emissionCap) - toUnits(info.total_emitted)) : "0.00000000",
   );
   const HARDCAP = $derived(limits ? Number(limits.hardcap) : 51_000_000);
   const EMISSION_CAP = $derived(limits ? Number(limits.emissionCap) : 20_000_000);
@@ -88,9 +96,13 @@
         </div>
         {#if limits}
         <dl>
-          <dt>Snapshot supply (burned + claimable)</dt><dd class="mono">{lc(info.snapshot_total)}</dd>
-          <dt>+ maximum future emission</dt><dd class="mono">{lc(limits.emissionCap)}</dd>
-          <dt>= maximum that will ever exist</dt><dd class="mono gold">{lc(limits.maxEver)}</dd>
+          <dt>Held by @null — burned at the snapshot and since</dt><dd class="mono">{lc(info.total_burned)}</dd>
+          <dt>+ Claimable by holders (claimed or not)</dt><dd class="mono">{lc(claimable)}</dd>
+          <dt>= Snapshot supply</dt><dd class="mono">{lc(info.snapshot_total)}</dd>
+          <dt>+ Emission cap — never exceeded, approached asymptotically</dt><dd class="mono">{lc(limits.emissionCap)}</dd>
+          <dt class="sub">emitted so far</dt><dd class="mono sub">{lc(info.total_emitted)}</dd>
+          <dt class="sub">still to come, at most</dt><dd class="mono sub">{lc(stillToEmit)}</dd>
+          <dt>= Maximum that will ever exist</dt><dd class="mono gold">{lc(limits.maxEver)}</dd>
           <dt>Historic hardcap</dt><dd class="mono">{lc(limits.hardcap)}</dd>
           <dt><strong>Lost on the old chains — never mintable</strong></dt>
           <dd class="mono dim"><strong>{lc(limits.lost)}</strong></dd>
@@ -213,6 +225,7 @@
   dl { display: grid; grid-template-columns: 1fr auto; gap: 0.4rem 1rem; margin: 0 0 0.8rem; }
   dt { color: var(--dim); font-size: 0.86rem; }
   dd { margin: 0; text-align: right; }
+  dt.sub, dd.sub { font-size: 0.78rem; padding-left: 0.8rem; opacity: 0.85; }
   ul.split { list-style: none; margin: 0; padding: 0; }
   ul.split ul { list-style: none; margin: 0.3rem 0 0.3rem 1rem; padding: 0; }
   ul.split li { display: grid; grid-template-columns: 1fr auto; gap: 0.5rem; padding: 0.25rem 0; }
