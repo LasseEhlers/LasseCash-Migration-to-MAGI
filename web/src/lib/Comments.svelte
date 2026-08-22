@@ -24,7 +24,7 @@
    * flat list handles fine. KISS.
    */
   import { onMount } from "svelte";
-  import { chain, client } from "$lib/chain.svelte.js";
+  import { chain, client, wallet } from "$lib/chain.svelte.js";
   import { displayName, lc, shortDate } from "$lib/format.js";
   import { renderMarkdown } from "$lib/markdown.js";
   import { readGovernedValue } from "$lib/governance.js";
@@ -42,6 +42,36 @@
 
   /** The reply box. */
   let draft = $state("");
+  let uploading = $state(false);
+  let fileInput = $state<HTMLInputElement | null>(null);
+
+  /** Same path as the Write page: wallet-signed upload to images.hive.blog. */
+  async function uploadFiles(files: Iterable<File>) {
+    const user = chain.account?.replace(/^hive:/, "");
+    const images = Array.from(files).filter((f) => f.type.startsWith("image/"));
+    if (!wallet || !user || images.length === 0) return false;
+    uploading = true;
+    error = null;
+    try {
+      for (const f of images) {
+        const url = await wallet.uploadImage(f, user);
+        draft += `${draft && !draft.endsWith("\n") ? "\n" : ""}![${f.name.replace(/[\]\[]/g, "")}](${url})\n`;
+      }
+    } catch (e) {
+      error = `Image upload failed: ${e instanceof Error ? e.message : String(e)}`;
+    } finally {
+      uploading = false;
+    }
+    return true;
+  }
+  function onPaste(e: ClipboardEvent) {
+    const files = Array.from(e.clipboardData?.files ?? []);
+    if (files.some((f) => f.type.startsWith("image/"))) { e.preventDefault(); void uploadFiles(files); }
+  }
+  function onDrop(e: DragEvent) {
+    const files = Array.from(e.dataTransfer?.files ?? []);
+    if (files.some((f) => f.type.startsWith("image/"))) { e.preventDefault(); void uploadFiles(files); }
+  }
   let previewing = $state(false);
   let posting = $state(false);
   let threshold = $state<string | null>(null);
@@ -168,8 +198,18 @@
       <textarea
         bind:value={draft}
         rows="4"
-        placeholder="Reply in markdown. A comment worth reading is worth paying for."
+        onpaste={onPaste}
+        ondrop={onDrop}
+        ondragover={(e) => e.preventDefault()}
+        placeholder="Reply in markdown. A comment worth reading is worth paying for. Paste or drop an image to upload it."
       ></textarea>
+      {#if wallet}
+        <input type="file" accept="image/*" multiple hidden bind:this={fileInput}
+          onchange={(e) => { const el = e.currentTarget; void uploadFiles(el.files ?? []); el.value = ""; }} />
+        <p class="dim tiny">
+          {#if uploading}Uploading to Hive's image server — your wallet signs…{:else}<button class="linkish" onclick={() => fileInput?.click()}>Add image</button> · or paste / drop one{/if}
+        </p>
+      {/if}
       {#if previewing && draft.trim()}
         <!-- The SAME renderer the post page and the feed use: what you write is
              byte for byte what everybody reads. -->
@@ -228,6 +268,9 @@
 </section>
 
 <style>
+  .tiny { font-size: var(--t-tiny); margin: 0.3rem 0 0; }
+  .linkish { background: none; border: 0; padding: 0; color: var(--cyan); cursor: pointer; font: inherit; box-shadow: none; }
+
   h2 { display: flex; align-items: center; gap: 0.5rem; }
   .count {
     font-size: var(--t-micro); color: var(--dim); border: 1px solid var(--line);
