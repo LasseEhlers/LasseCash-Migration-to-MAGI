@@ -48,12 +48,14 @@
   );
 
   /**
-   * Hive's tag rules: lowercase `[a-z0-9-]`, at most 24 characters, and at
-   * most 10 per post (the first slot is `lassecash`, the tribe tag, added at
-   * publish time — so 9 are the author's). A pasted "a b c" list is SPLIT,
-   * never glued into one tag.
+   * Hive's tag rules: lowercase `[a-z0-9-]`, at most 24 characters. Count:
+   * LasseCash allows 20 of the author's own (the old site's limit) plus
+   * `lassecash` first, added at publish time — enough to reach every outpost
+   * an author posts to; the post page shows the first 10 with an expander.
+   * Tags decide NOTHING about visibility here: registration with the contract
+   * does. A pasted "a b c" list is SPLIT, never glued into one tag.
    */
-  const MAX_TAGS = 9;
+  const MAX_TAGS = 20;
   const MAX_TAG_LEN = 24;
   function addTag() {
     const parts = tagInput.split(/[\s,]+/);

@@ -171,7 +171,7 @@ export class AiohaWallet {
 
     // The first tag is the Hive community/category, and `lassecash` is what
     // makes a post visible to the tribe at all.
-    const tags = ["lassecash", ...input.tags.filter((t) => t !== "lassecash")].slice(0, 10);
+    const tags = ["lassecash", ...input.tags.filter((t) => t !== "lassecash")].slice(0, 21);
 
     // CANONICAL OWNERSHIP. `canonical_url` is what makes lassecash.com the
     // original copy of this article on every other Hive frontend — see

@@ -1,4 +1,6 @@
 <script lang="ts">
+  /** Tags beyond the first 10 collapse — they reach other outposts without wallpapering the page. */
+  let allTags = $state(false);
   /**
    * A single post — the CANONICAL URL, `/@author/permlink`.
    *
@@ -145,7 +147,10 @@
 
         {#if a.tags.length}
           <div class="tags">
-            {#each a.tags as t (t)}<span class="tag">{t}</span>{/each}
+            {#each (allTags ? a.tags : a.tags.slice(0, 10)) as t (t)}<span class="tag">{t}</span>{/each}
+            {#if a.tags.length > 10 && !allTags}
+              <button class="tag more" onclick={() => (allTags = true)}>+{a.tags.length - 10} more</button>
+            {/if}
           </div>
         {/if}
 
