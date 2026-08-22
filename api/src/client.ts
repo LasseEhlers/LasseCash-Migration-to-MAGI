@@ -11,7 +11,7 @@
  */
 import { fromUnits, toBaseUnitArg } from "./amount.js";
 import type { Backend, Signer } from "./backend.js";
-import { BackendError, type SubmitOptions } from "./backend.js";
+import { BackendError, MaxSideCalls, type SubmitOptions } from "./backend.js";
 import type {
   AccountView, ChainInfo, Content, GovernanceMember, LiquidityQuote,
   MigrationRecord, MintQuote, MintView, PostVote, PostView, PublishResult,
@@ -63,7 +63,11 @@ export class LasseCashClient {
   txStatus(txId: string) { return this.backend.txStatus(txId); }
 
   /** Content, newest first. */
-  posts(limit = 50): Promise<PostView[]> { return this.backend.posts(limit); }
+  async posts(limit = 50): Promise<PostView[]> {
+    const v = await this.backend.posts(limit);
+    this.notePayable(v);
+    return v;
+  }
 
   /**
    * Who voted on a post, heaviest first.
@@ -370,7 +374,32 @@ export class LasseCashClient {
   }
 
   async vote(author: string, permlink: string, weightPct: number): Promise<TxResult> {
-    return this.#send(Entrypoint.Vote, args(author, permlink, weightPct));
+    return this.#send(Entrypoint.Vote, args(author, permlink, weightPct), { sideCalls: this.#settlements() });
+  }
+
+  /**
+   * Posts whose window has closed and nobody has settled, as side calls.
+   *
+   * The client keeps the list from the last feed/post read (`notePayable`);
+   * every signed action carries up to MaxSideCalls of them in the same wallet
+   * confirm. This is what makes payout need no cron and no bot: as long as
+   * anyone uses the site, settlement rides on what they were doing anyway.
+   */
+  #payable = new Map<string, { author: string; permlink: string }>();
+  notePayable(posts: { author: string; permlink: string; payable: boolean; paid_out: boolean }[]): void {
+    for (const p of posts) {
+      const k = `${p.author}/${p.permlink}`;
+      if (p.payable && !p.paid_out) this.#payable.set(k, { author: p.author, permlink: p.permlink });
+      else this.#payable.delete(k);
+    }
+  }
+  #settlements(): { entrypoint: string; args: string }[] {
+    const out: { entrypoint: string; args: string }[] = [];
+    for (const p of this.#payable.values()) {
+      if (out.length >= MaxSideCalls) break;
+      out.push({ entrypoint: Entrypoint.Payout, args: args(p.author, p.permlink) });
+    }
+    return out;
   }
 
   /** Trigger a post's payout. Permissionless — anyone may call it. */

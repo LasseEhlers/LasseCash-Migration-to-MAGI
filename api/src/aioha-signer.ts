@@ -16,7 +16,7 @@
  * compromise cannot drain an account that only ever granted posting.
  */
 import { Aioha, KeyTypes, Providers } from "@aioha/aioha";
-import { BackendError, type Signer, type SubmitOptions } from "./backend.js";
+import { BackendError, MaxSideCalls, type Signer, type SubmitOptions } from "./backend.js";
 import { commentMetadata, postMetadata } from "./hive-metadata.js";
 import type { TxResult } from "./types.js";
 
@@ -335,11 +335,28 @@ export class AiohaWallet {
     call: { action: string; payload: string; rcLimit: number; intents: unknown[] },
     contractId: string,
   ): Promise<TxResult> {
+    return this.#broadcast([...hiveOps, this.#vscOp(call, contractId, KeyTypes.Posting)], KeyTypes.Posting);
+  }
+
+  /** Several contract calls in one signed transaction (a user's call + side calls). */
+  async broadcastCalls(
+    calls: { action: string; payload: string; rcLimit: number; intents: unknown[] }[],
+    contractId: string,
+    keyType: KeyTypes,
+  ): Promise<TxResult> {
+    return this.#broadcast(calls.map((c) => this.#vscOp(c, contractId, keyType)), keyType);
+  }
+
+  #vscOp(
+    call: { action: string; payload: string; rcLimit: number; intents: unknown[] },
+    contractId: string,
+    keyType: KeyTypes,
+  ): unknown {
     const user = this.aioha.getCurrentUser();
     if (!user) throw new BackendError("not signed in");
-    const vsc = ["custom_json", {
-      required_auths: [],
-      required_posting_auths: [user],
+    return ["custom_json", {
+      required_auths: keyType === KeyTypes.Active ? [user] : [],
+      required_posting_auths: keyType === KeyTypes.Posting ? [user] : [],
       id: "vsc.call",
       json: JSON.stringify({
         net_id: this.#netId,
@@ -350,10 +367,13 @@ export class AiohaWallet {
         intents: call.intents,
       }),
     }];
+  }
+
+  async #broadcast(ops: unknown[], keyType: KeyTypes): Promise<TxResult> {
     // Aioha types operations loosely; the shapes above are Hive's own.
     const res = await this.aioha.signAndBroadcastTx(
-      [...hiveOps, vsc] as Parameters<Aioha["signAndBroadcastTx"]>[0],
-      KeyTypes.Posting,
+      ops as Parameters<Aioha["signAndBroadcastTx"]>[0],
+      keyType,
     );
     return {
       ok: !!res.success,
@@ -690,6 +710,22 @@ export class AiohaSigner implements Signer {
     const tableLimit = opts?.rcLimit ?? AiohaSigner.RC_LIMITS[entrypoint] ?? this.rcLimit;
     const rcLimit = await this.sizeRc(entrypoint, args, intents, tableLimit);
     if (typeof rcLimit !== "number") return rcLimit; // the chain would refuse: say so, no popup
+
+    // Side calls (settlements riding along) go in the same transaction. Each
+    // is sized from its own dry run; one that would be refused is dropped —
+    // it was never the user's call, so it must never block theirs.
+    const side: { action: string; payload: string; rcLimit: number; intents: unknown[] }[] = [];
+    for (const sc of (opts?.sideCalls ?? []).slice(0, MaxSideCalls)) {
+      const lim = await this.sizeRc(sc.entrypoint, sc.args, [], AiohaSigner.RC_LIMITS[sc.entrypoint] ?? this.rcLimit);
+      if (typeof lim === "number") side.push({ action: sc.entrypoint, payload: sc.args, rcLimit: lim, intents: [] });
+    }
+    if (side.length > 0) {
+      return this.wallet.broadcastCalls(
+        [{ action: entrypoint, payload: args, rcLimit, intents }, ...side],
+        this.contractId,
+        keyType,
+      );
+    }
 
     const res = await this.wallet.aioha.vscCallContract(
       this.contractId,

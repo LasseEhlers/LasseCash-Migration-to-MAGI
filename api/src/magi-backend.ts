@@ -350,6 +350,14 @@ export class MagiBackend implements Backend {
     }
 
     const board = (base["gov_board"] ?? "").split("|").filter(Boolean);
+    // MAGI HBD balance: the node keeps it in milli-units.
+    let hbdBalance = 0;
+    try {
+      const bal = await this.query<{ getAccountBalance: { hbd: number } | null }>(
+        `query($a: String!) { getAccountBalance(account: $a) { hbd } }`, { a: acct });
+      hbdBalance = (bal.getAccountBalance?.hbd ?? 0) / 1000;
+    } catch { /* an account with no ledger record simply has none */ }
+
     // Vote meters: the engine regenerates the stored reading to `height`.
     const votePowerOf = (w: 0 | 1): string => {
       const raw = base[`vp_${acct}_${w}`];
@@ -397,14 +405,9 @@ export class MagiBackend implements Backend {
       pending: units((base["pend_" + acct] ?? "0").split("|")[0]),
       pending_curation: 0, // informational only; needs the queue cursors
       mint_duration_days: num(base["set_" + acct + "_days"]) || 1095,
-      // TODO: real HBD balance on MAGI is not wired up. The contract custodies
-      // HBD as a real SDK asset, not contract state, so reading a user's
-      // deposited-but-not-yet-in-the-pool HBD needs a node call we have not
-      // identified yet (the pool's own HBD reserve is `amm_hbd`, which is NOT
-      // this — it is the contract's, not the caller's). Leave at 0 rather than
-      // guessing; the /pool page's liquidity panel treats 0 as "insufficient"
-      // and disables "Add liquidity" accordingly, which is honest here.
-      hbd: 0,
+      // The caller's liquid HBD on MAGI (milli-HBD on the node → 3 decimals),
+      // from `getAccountBalance` — the L1-style ledger, not contract state.
+      hbd: hbdBalance,
       vote_power: { viral: votePowerOf(0), deep: votePowerOf(1) },
       mints,
       tranches,

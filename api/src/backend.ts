@@ -59,7 +59,19 @@ export interface SubmitOptions {
    * than the worst case the table must assume.
    */
   rcLimit?: number;
+  /**
+   * Extra contract calls to ride along in the SAME signed transaction — one
+   * wallet confirm. This is how payouts settle without a cron job or a bot:
+   * every signed action the site sends carries up to `MaxSideCalls` pending
+   * `payout`s for posts whose window has closed, chosen by the client from the
+   * feed it already holds. Bounded, like `PiggybackDrain` for curation, so a
+   * vote never becomes a gas bomb. Each rides with its own rc_limit.
+   */
+  sideCalls?: { entrypoint: string; args: string }[];
 }
+
+/** Upper bound on side calls per transaction. A product constant, not a tunable. */
+export const MaxSideCalls = 2;
 
 /** Read access to chain state. */
 export interface Backend {
