@@ -800,6 +800,28 @@ themselves. Pinned by `TestPostingThresholdBoundsArePinned`; behaviour by
 `TestPromoteBurnsToNullWithinTheWindow`. Production contract: 28
 entrypoints, 93,005 bytes. Frontend slot rule + promote button: to build.
 
+## LasseCash Markets — DECIDED 2026-08-22 (post-launch track)
+
+Lasse wants top-professional market data ("attract top traders", CMC /
+CoinGecko / TradingView readiness, pays nobody ever). Design:
+- **Index every trade, never sample.** Every swap is an on-chain tx; the
+  recorder indexes each one (time, side, in, out, price, reserves after) —
+  exact tick data from genesis, forever. Candles at any resolution derive
+  from it. Cloudflare worker + D1 (free tier) fits the chosen hosting.
+- **Chart**: TradingView *Lightweight Charts* (open source) on the Pool
+  page — candles, volume, zoom; the licence-gated full Charting Library for
+  indicators later.
+- **Listing readiness**: a public API in the CMC/CoinGecko shape from the
+  same index — `/pairs`, `/tickers`, `/orderbook` (synthetic AMM depth),
+  `/historical_trades`. Acceptance is about volume/liquidity, not payment.
+- **History**: MAGI-era perfect; Hive-Engine fills need a sidechain replay
+  (public history ~1.5 y); Steem-Engine is archaeology. Check the existing
+  `lassecash-price-stats` repo first — its README claims 2019→ data.
+- **Main site vs stats site**: lassecash.com gets the price chart + a
+  top-10 LP list (LPs discovered from tx history; the contract cannot
+  enumerate); richlists and full LP tables stay on price-stats.lassecash.com,
+  re-pointed at MAGI after migration. Additive, never touches the contract.
+
 ## Visual design — DECIDED 2026-08-20
 
 **Anarcho-capitalist cyberpunk.** Direction chosen by Lasse from three options;
