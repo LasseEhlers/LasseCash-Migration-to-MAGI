@@ -268,6 +268,12 @@
 </section>
 
 <style>
+  /* A comment is a small box; an image in one is an illustration, not a
+     poster. Cap it, keep the aspect, and let the reader click through. */
+  .preview :global(img), .cbody :global(img) {
+    max-height: 320px; width: auto; max-width: 100%; border-radius: var(--r-sm);
+  }
+
   .tiny { font-size: var(--t-tiny); margin: 0.3rem 0 0; }
   .linkish { background: none; border: 0; padding: 0; color: var(--cyan); cursor: pointer; font: inherit; box-shadow: none; }
 
