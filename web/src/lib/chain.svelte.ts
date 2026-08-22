@@ -215,6 +215,10 @@ class ChainStore {
         await new Promise((r) => setTimeout(r, 10_000));
         await this.refresh();
       }
+      // One more read: the ledger (HBD) can land a block after contract
+      // state, and the first change seen is not always the whole effect.
+      await new Promise((r) => setTimeout(r, 10_000));
+      await this.refresh();
       return null;
     } finally {
       this.confirming = false;
