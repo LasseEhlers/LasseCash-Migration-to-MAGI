@@ -390,12 +390,17 @@ export class MagiBackend implements Backend {
       findTransaction: {
         anchr_ts: string;
         required_auths: string[];
+        required_posting_auths: string[];
         ops: { type: string; data: { action?: string; payload?: string } }[];
       }[];
     }>(
       // MAGI rejects limit outside 1..100 — the node enforces the cap.
+      // BOTH auth lists: a posting-key call (post, comment, vote — i.e. every
+      // content call a real user makes) names its signer ONLY in
+      // required_posting_auths. Found 2026-08-22 when the first real post
+      // registered fine and the feed stayed empty.
       `query($c: String!) { findTransaction(filterOptions: {byContract: $c, limit: 100}) {
-        anchr_ts required_auths ops { type data } } }`,
+        anchr_ts required_auths required_posting_auths ops { type data } } }`,
       { c: this.#contractId },
     );
 
@@ -408,7 +413,7 @@ export class MagiBackend implements Backend {
         if (op.type !== "call" || op.data?.action !== action) continue;
         const payload = op.data.payload ?? "";
         if (accept && !accept(payload)) continue;
-        const author = tx.required_auths?.[0];
+        const author = tx.required_auths?.[0] ?? tx.required_posting_auths?.[0];
         const permlink = payload.split("|")[0];
         if (!author || !permlink) continue;
         const key = author + "/" + permlink;
@@ -587,12 +592,13 @@ export class MagiBackend implements Backend {
     const data = await this.query<{
       findTransaction: {
         required_auths: string[];
+        required_posting_auths: string[];
         ops: { type: string; data: { action?: string; payload?: string } }[];
       }[];
     }>(
       // MAGI rejects limit outside 1..100 — the node enforces the cap.
       `query($c: String!) { findTransaction(filterOptions: {byContract: $c, limit: 100}) {
-        required_auths ops { type data } } }`,
+        required_auths required_posting_auths ops { type data } } }`,
       { c: this.#contractId },
     );
 
@@ -607,7 +613,7 @@ export class MagiBackend implements Backend {
       for (const op of tx.ops ?? []) {
         if (op.type !== "call" || op.data?.action !== "vote") continue;
         if (!(op.data.payload ?? "").startsWith(prefix)) continue;
-        const voter = tx.required_auths?.[0];
+        const voter = tx.required_auths?.[0] ?? tx.required_posting_auths?.[0];
         if (!voter || seen.has(voter)) continue;
         seen.add(voter);
         voters.push(voter);
