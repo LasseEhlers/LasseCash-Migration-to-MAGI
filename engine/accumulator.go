@@ -123,14 +123,17 @@ func Entitlement(shares Shares, accStart, accEnd int64) Amount {
 // mint/claim from these numbers, and a value typed twice would drift.
 //
 // ExpiryChunkSize: per-account expiry entries per stored chunk.
-// MaxRetirePerWalk: retirements one `advance` performs (measured on the
-// devnet 2026-08-22: ~102 RC per retirement, a full slice ~20,900 RC,
-// 20.9% of the per-call gas ceiling).
+// MaxRetirePerWalk: retirements one `advance` performs. DECIDED 50 on
+// 2026-08-22 (measured on the devnet: ~102 RC per retirement, so a slice is
+// ~6,500 RC — inside any fresh account's free 10,000, so the crowd crosses
+// the migration day by itself, ~32 calls for the real set, with no single
+// account needing parked HBD. At 200 a slice was ~20,900 RC: only a whale
+// could send one, a single point of failure on day 30).
 // UserRetireBudget: what an ORDINARY transaction retires as a side effect —
 // enough for a normal day's maturities, never the migration day's.
 // Both budgets must be multiples of ExpiryChunkSize or the walk wedges.
 const (
 	ExpiryChunkSize  = 25
-	MaxRetirePerWalk = 200
+	MaxRetirePerWalk = 50
 	UserRetireBudget = 2 * ExpiryChunkSize
 )
