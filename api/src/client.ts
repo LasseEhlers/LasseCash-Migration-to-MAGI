@@ -18,6 +18,7 @@ import type {
   ResourceCredits, SwapDirection, SwapQuote, TrancheView, TxResult, Window,
 } from "./types.js";
 import { commentPermlink } from "./hive-metadata.js";
+import { constants } from "./engine.js";
 import { Entrypoint } from "./types.js";
 
 export interface ClientOptions {
@@ -286,9 +287,47 @@ export class LasseCashClient {
       args(account, liquidUnits, stakedUnits, proof.join(",")));
   }
 
+  /**
+   * Plan the `advance` slices a mint/claim needs in front of it.
+   *
+   * The contract lets an ordinary call retire only UserRetireBudget (50)
+   * matured accounts as a side effect; a heavier day — the migration
+   * maturity day above all — must be crossed by `advance`, one
+   * MaxRetirePerWalk slice per call. This reads how far accrual lags
+   * (`acc_day` vs today) and how many accounts are queued on the days in
+   * between (`explc_<day>` chunk counts × ExpiryChunkSize), and returns that
+   * many slices, capped. The signer sends as many as the account can afford
+   * ahead of the user's call, each its own transaction, so the progress
+   * persists. No economics here — it only counts rows.
+   */
+  async catchUp(max = 8): Promise<{ entrypoint: string; args: string }[]> {
+    try {
+      const c = constants();
+      const hpd = Number(c.heightsPerDay);
+      const st = await this.backend.state(["acc_day", "cfg_genesis", "cfg_settled"]);
+      const info = await this.backend.chain();
+      const genesis = Number(st["cfg_genesis"] || 0);
+      if (!genesis || !hpd) return [];
+      const today = Math.floor((info.height - genesis) / hpd);
+      const accDay = Number(st["acc_day"] || 0);
+      if (accDay >= today) return [];
+      const days: string[] = [];
+      for (let d = accDay; d <= today && days.length < 64; d++) days.push(`explc_${d}`);
+      const counts = await this.backend.state(days);
+      let chunks = 0;
+      for (const k of days) chunks += Number(counts[k] || 0);
+      const entries = chunks * c.expiryChunkSize;
+      const slices = Math.ceil(entries / c.maxRetirePerWalk) + 1;
+      const n = Math.min(max, Math.max(1, slices));
+      return Array.from({ length: n }, () => ({ entrypoint: "advance", args: "" }));
+    } catch {
+      return [];
+    }
+  }
+
   /** Lock LASSECASH for `days` (1..1095, sliding scale). */
   async mint(amount: string, days: number): Promise<TxResult> {
-    return this.#send(Entrypoint.Mint, args(toBaseUnitArg(amount), days));
+    return this.#send(Entrypoint.Mint, args(toBaseUnitArg(amount), days), { preCalls: await this.catchUp() });
   }
 
   /**
@@ -300,7 +339,7 @@ export class LasseCashClient {
    * user `if_claimed_now` and `slashed_if_claimed_now` first.
    */
   async claimMint(mintId: number): Promise<TxResult> {
-    return this.#send(Entrypoint.ClaimMint, args(mintId));
+    return this.#send(Entrypoint.ClaimMint, args(mintId), { preCalls: await this.catchUp() });
   }
 
   /** Arm tax deferral. Only in the 30 days before maturity, never after. */
@@ -315,7 +354,7 @@ export class LasseCashClient {
 
   /** Convert accrued Proof-of-Brain rewards into this month's mint. */
   async settlePending(account?: string): Promise<TxResult> {
-    return this.#send(Entrypoint.SettlePending, args(account ?? ""));
+    return this.#send(Entrypoint.SettlePending, args(account ?? ""), { preCalls: await this.catchUp() });
   }
 
   async post(permlink: string, window: Window): Promise<TxResult> {

@@ -543,7 +543,7 @@ export class AiohaSigner implements Signer {
     transfer: 600,        // measured 285
     burn: 600,
     settle: 400,
-    advance: 4_000,       // no-op 100; one ordinary day ~5,000 gas => tiny; slices are the caller's choice
+    advance: 25_000,      // a full MaxRetirePerWalk slice measured 20,903 RC on the devnet (2026-08-22); sizing caps at what the account holds
     mint: 7_000,          // measured 2,401 on the devnet, 3,142 simulated on mainnet — and a REAL mint hit gas_limit_hit at 4,000 when a day-step landed inside it (2026-08-22). Mainnet weighs writes 19x; keep ~2x headroom.
     claim_mint: 7_000,
     sweep_mint: 7_000,
@@ -706,11 +706,31 @@ export class AiohaSigner implements Signer {
             },
           ];
 
+    // Accrual catch-up slices go FIRST, each its own MAGI transaction.
+    const pre: { action: string; payload: string; rcLimit: number; intents: unknown[] }[] = [];
+    for (const pc of opts?.preCalls ?? []) {
+      const lim = await this.sizeRc(pc.entrypoint, pc.args, [], AiohaSigner.RC_LIMITS[pc.entrypoint] ?? this.rcLimit);
+      if (typeof lim !== "number") break; // cannot afford more slices: send what we can
+      pre.push({ action: pc.entrypoint, payload: pc.args, rcLimit: lim, intents: [] });
+    }
+
     // Per-entrypoint limit from measurement; the constructor's value is only
     // the fallback for an entrypoint this table does not know.
     const tableLimit = opts?.rcLimit ?? AiohaSigner.RC_LIMITS[entrypoint] ?? this.rcLimit;
     const rcLimit = await this.sizeRc(entrypoint, args, intents, tableLimit);
-    if (typeof rcLimit !== "number") return rcLimit; // the chain would refuse: say so, no popup
+    if (typeof rcLimit !== "number") {
+      // The chain would refuse the user's call. If that is because accrual is
+      // behind and we have slices to send, send ONLY the slices: the user's
+      // click still pushes the chain forward, and the next click will go
+      // through. Otherwise say so, no popup.
+      if (pre.length > 0 && /accrual is behind/i.test(rcLimit.msg)) {
+        const r = await this.wallet.broadcastCalls(pre, this.contractId, keyType);
+        return r.ok
+          ? { ...r, ok: false, msg: `the chain is catching up on matured mints — this transaction advanced it ${pre.length} step${pre.length > 1 ? "s" : ""}; press again` }
+          : r;
+      }
+      return rcLimit;
+    }
 
     // Side calls (settlements riding along) go in the same transaction. Each
     // is sized from its own dry run; one that would be refused is dropped —
@@ -737,9 +757,9 @@ export class AiohaSigner implements Signer {
       }]);
     }
 
-    if (side.length > 0 || hiveOps.length > 0) {
+    if (pre.length > 0 || side.length > 0 || hiveOps.length > 0) {
       return this.wallet.broadcastCalls(
-        [{ action: entrypoint, payload: args, rcLimit, intents }, ...side],
+        [...pre, { action: entrypoint, payload: args, rcLimit, intents }, ...side],
         this.contractId,
         keyType,
         hiveOps,

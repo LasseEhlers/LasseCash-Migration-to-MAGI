@@ -117,3 +117,20 @@ func Entitlement(shares Shares, accStart, accEnd int64) Amount {
 	}
 	return out
 }
+
+// Walk bounds. They live in the engine (not the contract) so the browser can
+// read them through the bridge: the site plans `advance` slices ahead of a
+// mint/claim from these numbers, and a value typed twice would drift.
+//
+// ExpiryChunkSize: per-account expiry entries per stored chunk.
+// MaxRetirePerWalk: retirements one `advance` performs (measured on the
+// devnet 2026-08-22: ~102 RC per retirement, a full slice ~20,900 RC,
+// 20.9% of the per-call gas ceiling).
+// UserRetireBudget: what an ORDINARY transaction retires as a side effect —
+// enough for a normal day's maturities, never the migration day's.
+// Both budgets must be multiples of ExpiryChunkSize or the walk wedges.
+const (
+	ExpiryChunkSize  = 25
+	MaxRetirePerWalk = 200
+	UserRetireBudget = 2 * ExpiryChunkSize
+)

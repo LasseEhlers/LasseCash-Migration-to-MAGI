@@ -454,3 +454,50 @@ func TestExpiryDrainResumesAcrossWalkCalls(t *testing.T) {
 	}
 	auditSupply(t, w.s)
 }
+
+// A user's transaction carries only UserRetireBudget across a heavy day: it
+// must stop cheaply (after at most two chunks) and leave the rest to
+// `advance`, whose MaxRetirePerWalk slices finish the day. Pins the devnet
+// finding of 2026-08-22 — a mint that absorbed a 200-slice and then refused
+// wasted more RC than a fresh account owns.
+func TestUserCallsCarryOnlyASmallRetireBudget(t *testing.T) {
+	const accounts = 4 * UserRetireBudget // several chunks on one day
+	w := newWorld(t)
+	for i := 0; i < accounts; i++ {
+		a := "hive:u" + encU64(uint64(i))
+		creditLiquid(w.s, a, lc(100))
+		if _, r := CreateMint(w.s, at(w.ctx, a, genesis), lc(100), 30); !r.OK {
+			t.Fatal(r.Msg)
+		}
+	}
+	target := genesis + 31*day
+	// One user-path walk: must NOT complete, and must have retired at most
+	// UserRetireBudget accounts.
+	if Accrue(w.s, target) {
+		t.Fatal("a user walk must not drain a heavy day by itself")
+	}
+	retired := 0
+	for i := 0; i < accounts; i++ {
+		if SharesOf(w.s, "hive:u"+encU64(uint64(i))) == 0 {
+			retired++
+		}
+	}
+	if retired == 0 || retired > UserRetireBudget {
+		t.Fatalf("user walk retired %d, want 1..%d", retired, UserRetireBudget)
+	}
+	// `advance` finishes it in bounded slices.
+	calls := 0
+	for !AccrueSteps(w.s, target, 0) {
+		calls++
+		if calls > 100 {
+			t.Fatal("advance never completed")
+		}
+	}
+	if TotalShares(w.s) != 0 {
+		t.Fatalf("active total %d after advance, want 0", TotalShares(w.s))
+	}
+	if UserRetireBudget%ExpiryChunkSize != 0 || MaxRetirePerWalk%ExpiryChunkSize != 0 {
+		t.Fatal("retire budgets must be multiples of ExpiryChunkSize or the walk wedges")
+	}
+	auditSupply(t, w.s)
+}

@@ -79,14 +79,26 @@ func scheduleExpiry(s Store, day uint64, shares engine.Shares) {
 // ExpiryChunkSize bounds one row of a day's per-account expiry list. Small
 // enough that a chunk is one modest read; the migration day (thousands of
 // accounts maturing together) simply spans many chunks.
-const ExpiryChunkSize = 25
+const ExpiryChunkSize = engine.ExpiryChunkSize
 
 // MaxRetirePerWalk bounds how many per-account share retirements one walk
 // call performs. A heavy day (the migration mints all mature together) is
 // crossed over several `advance` calls, exactly like a long accrual gap.
 // ⚠️ Like MaxAccrualDays, a judgement value — measure with
 // simulateContractCalls before the production freeze.
-const MaxRetirePerWalk = 200
+const MaxRetirePerWalk = engine.MaxRetirePerWalk
+
+// UserRetireBudget is the retire budget an ORDINARY transaction carries when
+// it advances accrual as a side effect (mint, claim, settle…). Two chunks:
+// enough for the handful of mints that mature on a normal day, so no user
+// is ever blocked by routine maturities — and small enough that a user
+// never pays for the migration day's thousands. A heavier day is crossed
+// by `advance` (MaxRetirePerWalk), which the site bundles ahead of the
+// user's call when it sees the lag. MEASURED on the devnet 2026-08-22: a
+// full 200-slice costs ~20,900 RC — a mint that absorbed it, then refused,
+// wasted 22,500 RC of a fresh account's 10,000. Must be a multiple of
+// ExpiryChunkSize: drainExpiryList skips a chunk longer than the budget.
+const UserRetireBudget = engine.UserRetireBudget
 
 // scheduleExpiryEntries appends MANY entries for one day, writing each chunk
 // ONCE. The per-mint append re-reads and rewrites a growing chunk up to 25
@@ -230,7 +242,7 @@ func AccAtDay(s Store, day uint64) (int64, bool) {
 // legitimately still be behind, and paying out against a stale accumulator
 // would short the claimant.
 func Accrue(s Store, toHeight uint64) bool {
-	return AccrueSteps(s, toHeight, MaxAccrualDays)
+	return accrueWalk(s, toHeight, MaxAccrualDays, UserRetireBudget)
 }
 
 // AccrueSteps is Accrue with a caller-chosen per-call cap.
@@ -241,6 +253,12 @@ func Accrue(s Store, toHeight uint64) bool {
 // so a caller can close a long gap in affordable slices: fifty days costs
 // ~2,500 RC, repeat until current.
 func AccrueSteps(s Store, toHeight uint64, maxDays int) bool {
+	return accrueWalk(s, toHeight, maxDays, MaxRetirePerWalk)
+}
+
+// accrueWalk is the walk itself; `retireBudget` bounds how many matured
+// accounts' voting shares it retires before stopping mid-day.
+func accrueWalk(s Store, toHeight uint64, maxDays int, retireBudget int) bool {
 	if maxDays <= 0 || maxDays > MaxAccrualDays {
 		maxDays = MaxAccrualDays
 	}
@@ -265,7 +283,6 @@ func AccrueSteps(s Store, toHeight uint64, maxDays int) bool {
 	// order of magnitude for no difference in the result.
 	var totalEmitted, lshareTotal engine.Amount
 	steps := 0
-	retireBudget := MaxRetirePerWalk
 	for day < target && steps < maxDays {
 		// Retire the day's matured VOTING shares first. If the per-call budget
 		// runs out mid-list (thousands maturing together, e.g. the migration

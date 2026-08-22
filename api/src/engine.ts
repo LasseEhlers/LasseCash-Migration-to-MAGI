@@ -91,6 +91,9 @@ export interface EngineConstants {
   /** Days the migration mint (legacy LASSECASH POWER) is locked for. */
   migrationMintDays: number;
   heightsPerDay: string;
+  expiryChunkSize: number;
+  maxRetirePerWalk: number;
+  userRetireBudget: number;
   heightsPerYear: string;
   secondsPerHeight: number;
   viralPayoutDays: number;

@@ -68,6 +68,15 @@ export interface SubmitOptions {
    * vote never becomes a gas bomb. Each rides with its own rc_limit.
    */
   sideCalls?: { entrypoint: string; args: string }[];
+  /**
+   * Calls to run BEFORE the user's call in the same signed transaction —
+   * `advance` slices that close an accrual gap so the user's mint/claim is
+   * not refused for lag. Each is its own MAGI transaction, so the progress
+   * they make persists even if the user's own call is then refused. Planned
+   * by `LasseCashClient.catchUp()` from `acc_day` and the pending expiry
+   * counts; measured on the devnet 2026-08-22.
+   */
+  preCalls?: { entrypoint: string; args: string }[];
 }
 
 /** Upper bound on side calls per transaction. A product constant, not a tunable. */

@@ -77,6 +77,9 @@ func main() {
 			// implementation the golden rule exists to prevent.
 			"migrationMintDays": engine.MigrationMintDays,
 			"heightsPerDay":     str(int64(engine.HeightsPerDay)),
+			"expiryChunkSize":   engine.ExpiryChunkSize,
+			"maxRetirePerWalk":  engine.MaxRetirePerWalk,
+			"userRetireBudget":  engine.UserRetireBudget,
 			"heightsPerYear":    str(int64(engine.HeightsPerYear)),
 			"secondsPerHeight":  engine.SecondsPerHeight,
 			"viralPayoutDays":   engine.ViralPayoutDays,
