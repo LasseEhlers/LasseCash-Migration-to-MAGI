@@ -614,22 +614,61 @@ export class MagiBackend implements Backend {
 
   /** The newest posts carrying the `lassecash` tag, straight from Hive. */
   async #fetchTagged(limit = 50): Promise<HiveTaggedPost[]> {
-    const res = await this.#fetch("https://api.hive.blog", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        jsonrpc: "2.0",
-        method: "bridge.get_ranked_posts",
+    // Hive's tag listings SILENTLY DROP "grayed" authors (reputation below
+    // zero). Found 2026-08-22 with Lasse's own account (−12.6 from the old
+    // downvote war): his tagged post existed, `get_post` returned it, and no
+    // tag query would ever list it. That is exactly the censorship LasseCash
+    // does not do, so the tag listing is only the first source. The second is
+    // a per-author sweep of the governance board — `get_account_posts` does
+    // include grayed posts — which covers precisely the whales a downvote mob
+    // targets. Any other grayed author's post still works by direct URL, and
+    // joins the feed the moment anyone votes on it (first vote registers).
+    const [ranked, board] = await Promise.all([
+      this.#hiveRpc<HiveTaggedPost[]>("bridge.get_ranked_posts",
         // "created" is newest-first. Trending on Hive is Hive's own ranking of
         // Hive's own rewards, which has nothing to do with what a post earns
         // here — LasseCash ranks by ITS pending payout, so all this needs is a
         // recent window to look in.
-        params: { sort: "created", tag: LASSECASH_TAG, limit },
-        id: 1,
-      }),
+        { sort: "created", tag: LASSECASH_TAG, limit }),
+      this.#boardPosts(),
+    ]);
+    const seen = new Set<string>();
+    const out: HiveTaggedPost[] = [];
+    for (const p of [...(ranked ?? []), ...board]) {
+      const k = `${p.author}/${p.permlink}`;
+      if (seen.has(k)) continue;
+      seen.add(k);
+      out.push(p);
+    }
+    return out;
+  }
+
+  /** Recent `lassecash`-tagged blog posts of every `gov_board` account. */
+  async #boardPosts(): Promise<HiveTaggedPost[]> {
+    const st = await this.state(["gov_board"]);
+    const members = (st["gov_board"] || "").split("|").filter(Boolean).slice(0, 20);
+    const lists = await Promise.all(members.map(async (acct) => {
+      const rows = await this.#hiveRpc<HiveTaggedPost[]>("bridge.get_account_posts",
+        { sort: "posts", account: acct.replace(/^hive:/, ""), limit: 10 }).catch(() => null);
+      return (rows ?? []).filter((p) => {
+        const meta = p.json_metadata;
+        const tags = typeof meta === "string"
+          ? (() => { try { return (JSON.parse(meta) as { tags?: string[] }).tags ?? []; } catch { return []; } })()
+          : ((meta as { tags?: string[] } | null | undefined)?.tags ?? []);
+        return Array.isArray(tags) && tags.includes(LASSECASH_TAG);
+      });
+    }));
+    return lists.flat();
+  }
+
+  async #hiveRpc<T>(method: string, params: unknown): Promise<T | null> {
+    const res = await this.#fetch("https://api.hive.blog", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ jsonrpc: "2.0", method, params, id: 1 }),
     });
-    const body = (await res.json()) as { result?: HiveTaggedPost[] };
-    return Array.isArray(body.result) ? body.result : [];
+    const body = (await res.json()) as { result?: T };
+    return body.result ?? null;
   }
 
   /**
