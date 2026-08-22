@@ -543,7 +543,7 @@ export class AiohaSigner implements Signer {
     transfer: 600,        // measured 285
     burn: 600,
     settle: 400,
-    advance: 25_000,      // a full MaxRetirePerWalk slice measured 20,903 RC on the devnet (2026-08-22); sizing caps at what the account holds
+    advance: 10_000,      // FLOOR only: a full MaxRetirePerWalk slice measured 20,903 RC on the devnet (2026-08-22); sizeRc raises it from a dry run for accounts that can afford it, never above what they hold
     mint: 7_000,          // measured 2,401 on the devnet, 3,142 simulated on mainnet — and a REAL mint hit gas_limit_hit at 4,000 when a day-step landed inside it (2026-08-22). Mainnet weighs writes 19x; keep ~2x headroom.
     claim_mint: 7_000,
     sweep_mint: 7_000,
