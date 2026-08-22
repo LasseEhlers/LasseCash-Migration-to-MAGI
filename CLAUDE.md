@@ -199,14 +199,32 @@ End on day 1 of a mint: recover 50% of principal, forfeit all rewards.
 End at maturity: 100% of principal plus all rewards. Linear between.
 Slashed principal sweeps to the L-Share reward pool.
 
-**Post-maturity timeline — applies to principal AND rewards.**
+**Post-maturity timeline — applies to principal AND rewards.
+GRACE WIDENED 30 → 90 DAYS, 2026-08-22.**
 ```
-maturity ──30d grace (nothing happens)──► ──90d bleed 100%→0%──► day 120: zero
+maturity ──90d grace (nothing happens)──► ──90d bleed 100%→0%──► day 180: zero
 ```
 Grace exists so illness or forgetfulness costs nothing. Bleed is linear per
 height. Everything bled sweeps to the L-Share reward pool.
 
-**Good Accounting Mode — armed DURING THE 30-DAY GRACE AFTER MATURITY.
+**Why 90.** Thirty days was the harshest parameter in the design. Someone who
+locked faithfully for three years and then spent six weeks in hospital could
+not even ARM Good Accounting — the window is `[maturity, maturity+GraceDays)`
+— and was already bleeding, at zero by day 120. Three years of good behaviour
+undone by one bad month. Ninety days is the same quarter of warning the pool's
+dormancy check gives an LP, and the principle is the same: **be tight with
+people who were GIVEN tokens, generous with people who COMMITTED capital.** A
+matured mint is committed capital. Recycling still happens, just later.
+
+Two figures move with it, both DERIVED, neither a new constant:
+- **Good Accounting arming window → 90 days** (`GoodAccountingArmDays = GraceDays`)
+- **Migration claim window → 210 days ≈ 7 months**
+  (`MigrationMintDays 30 + GraceDays 90 + BleedDays 90`, see
+  `state.ClaimDeadlineHeight`). The announcement must say seven months, not
+  five.
+
+**Good Accounting Mode — armed DURING THE GRACE PERIOD AFTER MATURITY (90
+days since 2026-08-22).
 REVISED 2026-08-21 (supersedes "final 7 days before maturity").** Lasse,
 after comparing with HEX (which arms only after maturity, by anyone): *"lets
 do that that you can only run good accounting after maturity and that gives
@@ -217,8 +235,10 @@ bleed has started — so nobody can watch themselves lose value and opt out
 retroactively; the anti-abuse rule holds by construction. Unlike HEX it stays
 **owner-only**: a stranger must not reshape someone's tax timing.
 `GoodAccountingArmDays = GraceDays`; `CanArmGoodAccounting` is
-`[maturity, maturity+30d)`. Trade-off accepted: an owner who misses the grace
-month cannot be rescued by anyone — consistent with "pay attention".
+`[maturity, maturity+GraceDays)` — 90 days since 2026-08-22. Trade-off
+accepted: an owner who misses the grace period cannot be rescued by anyone —
+consistent with "pay attention", but a quarter is long enough that only
+genuine absence loses it.
 (History: decided as "final 7 days" on 08-20; the code shipped with 30 days
 BEFORE maturity by mistake, which Lasse caught on the dashboard 08-21; the
 discussion that followed produced the after-maturity rule.)
@@ -1477,6 +1497,176 @@ Caveat: infrastructure is heavy (HAF node + Mongo + 5 nodes) — an evening of
 downloads; treat "devnet says X" as strong evidence but confirm consensus-
 critical behaviour (like the slash-key bug) against mainnet, since witnesses
 there may run different versions.
+
+## SESSION 2026-08-22 (afternoon/evening) — decisions and new mechanics
+
+### ✅ SNAPSHOT CRITERIA: "C6" — DECIDED (supersedes the Hive-OR-LasseCash rule)
+
+**An account migrates if and only if it SIGNED a LASSECASH operation on
+Hive-Engine within 6 months of the snapshot block.** The Hive L1 limb is gone
+from the decision — it is still read and recorded for the audit trail, but
+being alive somewhere on Hive no longer qualifies anyone.
+
+Lasse: *"its better to have real users that are a small group than to have
+fake users that are a huge group, which is the opposite of what 99% of crypto
+does."* Thousands hold LASSECASH only because he gave it away for seven years
+— at HiveFest, in comment threads. Doing nothing with it for six months is an
+answer.
+
+**Result: 262 accounts, 10,557,431.61534174 LC migrating, 20,436,766.06 to
+hive:null, founder 68.85%.** Accepted knowingly: *"I dont mind that, thats a
+consequence of stupid people not holding and supporting, not my greed."*
+
+**Fail OPEN on unresolved data.** `apply_criteria.py` ignored
+`search_truncated` and burned accounts whose history walk hit
+MAX_HISTORY_PAGES — 198 accounts, 669k LC, including deep-history *posters*
+(@master-lamps: 6,000+ payout entries burying any signed op). Now an
+unresolved search counts as ALIVE, reason `truncated_unresolved`. Never burn
+on missing data; the claim deadline removes the genuinely gone anyway.
+
+### 🐛 TWO SCANNER BUGS — seven years of activity was invisible
+
+1. **Wrong operation names.** `HE_USER_OPS` asked for `tokens_unstake` and
+   `tokens_undelegate`. Those do not exist — the real names are
+   `tokens_unstakeStart`, `tokens_unstakeDone`, `tokens_undelegateStart`. The
+   server-side filter silently matched nothing, so **every powerdown and
+   undelegation since 2019 was invisible to the scan.** @cedricguillas signed a
+   100,000 LC powerdown on 2026-08-05 and read as "never touched it".
+2. **The authorship fallback was always true.** `he_authorized_by` fell back to
+   `entry.account == account`, but `account` is simply WHOSE HISTORY YOU
+   QUERIED — it matches on every row regardless of who acted. Now authorship is
+   read per operation; `tokens_unstakeDone` (the automatic weekly instalment)
+   never counts.
+
+Rescan: **1,859 records changed**, accounts with LASSECASH activity 2,635 →
+2,911. Old data in `activity.pre-heops-fix.json`.
+
+**Also verified, do not re-litigate:** `stake` and `pendingUnstake` are
+DISJOINT on Hive-Engine (the whole unstake quantity leaves `stake` at
+initiation), so summing them is correct — proven against @cedricguillas to the
+base unit. And `pendingUndelegations` is NEVER read: 3 accounts carry a
+NEGATIVE ghost there (@lasseehlers −1.4M, @bait200 −270k, @pjansen.ctp −98.96)
+from an old Hive-Engine bug; zero accounts carry a positive value, so ignoring
+the field loses nothing.
+
+**⚠️ hive.blog's "Active X ago" measures POSTING ONLY.** @lovejuice reads
+"Active 7 years ago" while moving tens of thousands of HIVE monthly. The
+announcement must say so — people will check it and get the wrong answer.
+
+### ✅ ANTI-ZOMBIE CHECK on liquidity — BUILT (eviction, NOT a bleed)
+
+Dormant liquidity draws its slice of the 25% emission forever. On Hive-Engine
+52 of 125 LASSECASH LPs had not touched either chain in over a year.
+
+**180 days without a claim → anyone may EVICT the position, and the owner gets
+their LASSECASH and HBD back WHOLE.** Claiming is the proof of life and resets
+the clock. `TrancheDormantDays=180`, `TrancheWarningDays=90`, `Tranche.LastTouch`
+(codec field 6, append-only), `SweepTranche` permissionless and paying the
+caller nothing, `sweep_tranche` entrypoint.
+
+**The first design BLED the shares away to the remaining LPs. Lasse killed it
+and he was right:** an LP is never PAID for a term the way a minter is paid up
+to 1.5x for pledging one, so taking their capital is the one thing a critic
+could accurately call theft. Eviction achieves the same goal — dead capital
+stops drawing rewards — and confiscates nothing. It also reuses the audited
+`RemoveLiquidity` path and introduces no new rounding surface.
+
+**The single most dangerous line:** `closeTranche` pays the OWNER, never
+`ctx.Sender`. Get it wrong and a permissionless sweep becomes permissionless
+robbery. Pinned by `TestDormantLiquidityIsEvictedNotConfiscated`.
+
+UI is GOLD, not red: CLAUDE.md reserves red for value actively being lost, and
+nothing is lost here. Using alarm colours for a non-loss trains people to
+ignore red where it IS real.
+
+### ✅ PROVABLY-ALIVE SUPPLY — engine primitives built
+
+`engine.IsAlive` / `AlivePct`, reported over **three windows (90d / 1y / 2y)**
+because "alive" is a judgement and showing how the answer moves with the
+threshold is more honest than picking the flattering number.
+
+**No chain can say how much of its supply is lost.** Bitcoin cannot — a coin
+unmoved for fifteen years is indistinguishable from one held patiently. Every
+"circulating supply" figure in crypto is a guess. LasseCash can answer it,
+because every action is a signed transaction with a known sender and height,
+and `required_auths` is exposed on `TransactionRecord`. **Computed entirely
+off-chain from public history: zero gas, no contract change, verifiable by
+anyone.** Remaining work is the indexer walk + a `/chain` panel.
+
+### ❌ BALANCE DEMURRAGE — PROPOSED AND REJECTED, do not re-propose blind
+
+Bleeding dormant *wallet balances* into the reward pools. Lasse's reframe was
+fair — it is escheat, not Gesell demurrage, and the vault analogy holds. It was
+still dropped:
+
+- **Escheat is reclaimable; this would not be.** Value distributed to others
+  has no one to claim it back from.
+- **It removes human tokens, not bot tokens.** A script sending 1 LC to itself
+  yearly is immortal; the people who bleed are ordinary holders who do not
+  automate. Inverse of the intent.
+- **A hard-money asset you must touch twice a year cannot be inherited or
+  cold-stored.** @angeloextreme and @daneamanda are Lasse's children's
+  accounts, held for a future where LasseCash is big. This mechanism would
+  destroy exactly what he built them for.
+- **Exchanges and custodians break**, killing CMC/CoinGecko readiness.
+- **Mints and LP tranches are contracts; a balance is property.** Both of the
+  former were opted into and PAID for the commitment. A holder was promised
+  nothing.
+- The problem it aimed at is already solved: unclaimed migration positions
+  sweep at day 150, and C6 burns the dead before they arrive.
+
+The good idea that came out of it is the alive-supply metric above — the
+transparency without the confiscation.
+
+### ✅ BIGGER-PAYS-BETTER defaults 10,000/100,000 → 1,000/50,000
+
+Measured on the real C6 set: at the old defaults only **40 of 241 accounts**
+would ever see any volume bonus and only **13** could reach the 1.50x ceiling.
+**201 accounts — 83% — could never touch the mechanic**, and 164 hold under
+1,000 LC. A bonus most of the community can never reach is not an incentive,
+it is concentration with extra steps. **Defaults only — the bounds are frozen
+and unchanged**, so the top-10 median can still tune inside them.
+
+### ✅ ACTIVE_OPS: all four permissionless sweeps are POSTING-key
+
+`sweep_mint`, `sweep_curation`, `claim_curation` and `sweep_tranche`. None can
+move the CALLER's money — each pays its subject, never the trigger, and each
+refuses unless the position is already dead. Demanding an active key would add
+friction to exactly the altruistic action the protocol wants. `sweep_tranche`
+was briefly added to `ACTIVE_OPS`, which left the four inconsistent; removed.
+**This list is frozen at the key burn — the four must stay consistent.**
+
+### 📊 ECONOMIC ANALYSIS — the shape of the launch
+
+- **92.3% of migrating supply arrives STAKED** (9,739,588 LC as 30-day
+  migration mints); only 7.7% liquid, and non-founder liquid is **541,683 LC
+  across 240 accounts** — average 2,257 each. There is almost no free-floating
+  LASSECASH at launch, and that constrains every game.
+- Era-1 yields: **L-Share 8.6% APY** (833,333 / 9.74M shares); **Pool ~1,225%**
+  (833,333 / ~68k seeded LC). The pool number is the bootstrap magnet working —
+  a quarter of emission subsidising a pool worth ~$140 is what pulls outside
+  HBD in. **The bottleneck is HBD, not LASSECASH**: his users hold the token,
+  not the pair.
+- **⚠️ If Lasse is the sole LP at launch he captures the entire 25% pool
+  slice** — with 68.85% of L-Shares that is roughly **42% of all emission**
+  before any PoB. Self-corrects as others join, but it is the first thing a
+  critic computes. He plans to address it in a post/video pre-emptively.
+- **The day-30 cliff is the real launch.** Every migration mint matures the
+  same day; active shares fall to ~zero and whoever re-mints first divides
+  833,333 LC/yr among almost nobody. All voting power expires simultaneously,
+  so the top-10 is briefly whoever signs first.
+- Scale check: era-1 emission is 3,333,333 LC ≈ **$3,433/year** at the opening
+  price. Every percentage is real; every dollar figure is small.
+
+### Launch plan (Lasse's call)
+
+**Announce AFTER Sept 1**, so the monthly PoB mint — the one behaviour that
+cannot be compressed, because TESTWINDOWS shrinks days but not calendars — is
+observed on a THROWAWAY before the production contract is frozen. Roll call one
+week, snapshot + genesis ~Sept 9-10, key burn day 35 ≈ Oct 14.
+Draft: `docs/ANNOUNCEMENT-DRAFT.md` (technical parts written; Lasse's voice and
+closing line to add; criteria section still says 12 months and five months —
+update to 6 and seven).
 
 ## STATE OF PLAY — end of 2026-08-22 session (read this first)
 
