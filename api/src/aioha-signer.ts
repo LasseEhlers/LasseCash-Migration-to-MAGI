@@ -17,7 +17,7 @@
  */
 import { Aioha, KeyTypes, Providers } from "@aioha/aioha";
 import { BackendError, type Signer, type SubmitOptions } from "./backend.js";
-import { postMetadata } from "./hive-metadata.js";
+import { commentMetadata, postMetadata } from "./hive-metadata.js";
 import type { TxResult } from "./types.js";
 
 export { KeyTypes, Providers };
@@ -199,16 +199,58 @@ export class AiohaWallet {
   }
 
   /**
-   * ⚠️ TODO — COMMENTS ARE NOT PUBLISHED FROM HERE YET.
+   * Publish a REPLY to Hive.
    *
-   * There is no comment path in the app: LasseMedia publishes articles, and the
-   * contract opens payout windows for articles. When replies arrive they must
-   * go out with `commentMetadata()` from hive-metadata.ts, carrying the same
-   * `app` and `canonical_url` claim — a reply rendered on four frontends with
-   * no canonical is the same duplicate-content problem as an article, and
-   * comment threads are exactly the long-tail text that gets indexed against
-   * somebody else's domain by default.
+   * The same `comment` operation an article uses, with `parent_author` and
+   * `parent_permlink` set and no title — that is all a Hive reply is. It goes
+   * out with `commentMetadata()` so it carries the same `app` and
+   * `canonical_url` claim an article does: a reply rendered on four frontends
+   * with no canonical is the same duplicate-content problem, and comment
+   * threads are exactly the long-tail text that gets indexed against somebody
+   * else's domain by default.
+   *
+   * The permlink is supplied by the caller (the client derives it once) because
+   * the contract's `comment` registration must use the identical string, or the
+   * reward attaches to nothing.
    */
+  async publishCommentToHive(input: {
+    permlink: string;
+    body: string;
+    /** May be qualified (`hive:alice`) or bare — normalised here. */
+    parentAuthor: string;
+    parentPermlink: string;
+    tags?: string[];
+  }): Promise<void> {
+    const author = this.aioha.getCurrentUser();
+    if (!author) throw new BackendError("not signed in");
+
+    const parentAuthor = input.parentAuthor.replace(/^hive:/, "").replace(/^@/, "");
+    const tags = input.tags?.length ? input.tags.slice(0, 10) : ["lassecash"];
+
+    const meta = commentMetadata({
+      author,
+      permlink: input.permlink,
+      tags,
+      siteUrl: this.siteUrl,
+      parentAuthor,
+      parentPermlink: input.parentPermlink,
+    });
+
+    // A Hive reply is a comment whose parent is a post rather than a category,
+    // and whose title is empty. Everything else is identical to publishing.
+    const res = await this.aioha.comment(
+      parentAuthor,
+      input.parentPermlink,
+      input.permlink,
+      "",
+      input.body,
+      meta,
+    );
+    if (!res.success) {
+      throw new BackendError(res.error || "publish comment to Hive failed", res.errorCode);
+    }
+  }
+
 
   /**
    * Upload an image to Hive's own image server.
@@ -285,6 +327,9 @@ export class AiohaSigner implements Signer {
    */
   static readonly ACTIVE_OPS = new Set([
     "transfer", "burn", "mint", "claim_mint", "good_accounting",
+    // promote_post BURNS the caller's LASSECASH. Posting authority must never
+    // be able to destroy money — see CLAUDE.md, the key-type split.
+    "promote_post",
     "add_liquidity", "remove_liquidity", "claim_pool",
     "swap_lc_hbd", "swap_hbd_lc", "migrate", "migrate_batch",
     // claim_migration credits the caller's snapshot balance and creates their
@@ -335,6 +380,11 @@ export class AiohaSigner implements Signer {
     promote: 1_200,
     set_param: 800,
     post: 1_200,
+    // A reply is the same write set as a post: one record, one threshold read.
+    comment: 1_500,
+    // Debit, burn to null, rewrite the post record. Unmeasured on a real
+    // deploy — measure with simulateContractCalls before launch.
+    promote_post: 1_500,
     vote: 2_500,          // includes PiggybackDrain curation settles
     payout: 2_500,
     claim_curation: 1_200,

@@ -284,3 +284,46 @@ func TestTrancheWeightAppliesLoyalty(t *testing.T) {
 		t.Fatalf("zero shares should weigh nothing, got %d", got)
 	}
 }
+
+// --- spot-price conversion ------------------------------------------------
+
+// TestLcToHbdUsesSpotPriceAndFloors pins the "≈ X HBD" figure shown beside
+// LASSECASH amounts across the UI. The conversion lives here rather than in
+// the frontend for the same reason ShareRateInHbd does: it is money math, and
+// a second copy in TypeScript would drift.
+func TestLcToHbdUsesSpotPriceAndFloors(t *testing.T) {
+	// The measured opening ratio: 1,000,000 LC alongside 1,030 HBD.
+	lcReserve, hbdReserve := LC(1_000_000), LC(1_030)
+
+	got, ok := LcToHbd(LC(1_000), lcReserve, hbdReserve)
+	if !ok {
+		t.Fatal("a seeded pool must produce a price")
+	}
+	if want := Amount(103_000_000); got != want { // 1.03 HBD
+		t.Fatalf("1,000 LC -> %s HBD, want %s", fmtLC(got), fmtLC(want))
+	}
+
+	// Zero converts to zero rather than failing: an account with nothing has a
+	// knowable HBD value, and it is nothing.
+	if v, ok := LcToHbd(0, lcReserve, hbdReserve); !ok || v != 0 {
+		t.Fatalf("zero converted to %s (ok=%v), want 0/true", fmtLC(v), ok)
+	}
+
+	// FLOORS. One base unit at this price is worth a fraction of a base unit of
+	// HBD; showing 0.00000001 would be money that is not there.
+	if v, ok := LcToHbd(1, lcReserve, hbdReserve); !ok || v != 0 {
+		t.Fatalf("one base unit converted to %s (ok=%v), want 0/true", fmtLC(v), ok)
+	}
+
+	// UNSEEDED POOL: no price exists, so there is nothing to show. Callers must
+	// get a refusal, never a zero that reads as "worthless".
+	if _, ok := LcToHbd(LC(1_000), 0, hbdReserve); ok {
+		t.Fatal("an empty LC reserve produced a price")
+	}
+	if _, ok := LcToHbd(LC(1_000), lcReserve, 0); ok {
+		t.Fatal("an empty HBD reserve produced a price")
+	}
+	if _, ok := LcToHbd(-1, lcReserve, hbdReserve); ok {
+		t.Fatal("a negative amount produced a price")
+	}
+}

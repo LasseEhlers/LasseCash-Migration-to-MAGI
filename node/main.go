@@ -73,7 +73,8 @@ func main() {
 	mux.HandleFunc("/posts", handlePosts)
 	mux.HandleFunc("/publish", handlePublish)
 	mux.HandleFunc("/content/", handleContent)
-	mux.HandleFunc("/post/", handlePostVotes)
+	mux.HandleFunc("/post/", handlePostSub)
+	mux.HandleFunc("/governance", handleGovernance)
 	mux.HandleFunc("/quote/swap", handleQuoteSwap)
 	mux.HandleFunc("/quote/mint", handleQuoteMint)
 	mux.HandleFunc("/quote/liquidity", handleQuoteLiquidity)
@@ -117,16 +118,18 @@ func handleIndex(w http.ResponseWriter, r *http.Request) {
 		"name": "LasseCash dev chain",
 		"note": "Every number here is computed by the same Go engine the MAGI contract runs.",
 		"endpoints": map[string]string{
-			"GET  /chain":                          "global position: height, supply, pools, consensus group",
-			"GET  /account/{name}":                 "balances, mints, tranches, vote power — all precomputed",
-			"POST /tx":                             `{"sender","entrypoint","args"} — same names as the contract`,
-			"GET  /state?keys=a,b":                 "raw contract state, mirrors MAGI getStateByKeys",
-			"GET  /post/{author}/{permlink}/votes": "who voted and with what weight (simulator scan)",
-			"GET  /quote/swap":                     "?direction=lc_hbd|hbd_lc&amount= — engine-computed preview",
-			"GET  /quote/mint":                     "?amount=&days= — L-Shares a mint would grant",
-			"GET  /quote/liquidity":                "?amount= — HBD required and shares earned",
-			"POST /dev/advance":                    `{"days"} or {"heights"} — move the clock`,
-			"GET  /dev/dump":                       "every state key (debug only)",
+			"GET  /chain":                             "global position: height, supply, pools, consensus group",
+			"GET  /account/{name}":                    "balances, mints, tranches, vote power — all precomputed",
+			"POST /tx":                                `{"sender","entrypoint","args"} — same names as the contract`,
+			"GET  /state?keys=a,b":                    "raw contract state, mirrors MAGI getStateByKeys",
+			"GET  /post/{author}/{permlink}/votes":    "who voted and with what weight (simulator scan)",
+			"GET  /post/{author}/{permlink}/comments": "registered replies, with their pending rewards",
+			"GET  /governance":                        "?params=a,b — the gov_board, raw shares and standing preferences",
+			"GET  /quote/swap":                        "?direction=lc_hbd|hbd_lc&amount= — engine-computed preview",
+			"GET  /quote/mint":                        "?amount=&days= — L-Shares a mint would grant",
+			"GET  /quote/liquidity":                   "?amount= — HBD required and shares earned",
+			"POST /dev/advance":                       `{"days"} or {"heights"} — move the clock`,
+			"GET  /dev/dump":                          "every state key (debug only)",
 		},
 	})
 }
@@ -214,7 +217,13 @@ func handlePosts(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, chain.Posts(limit))
 }
 
-// publishRequest is one article plus its on-chain registration.
+// publishRequest is one article — or one REPLY — plus its on-chain
+// registration.
+//
+// A comment is a post with a parent, on the chain and here, so it goes through
+// the same endpoint rather than a parallel one that could drift. The two
+// parent fields are what switch it: present, and this registers through the
+// contract's `comment` entrypoint instead of `post`.
 type publishRequest struct {
 	Sender     string   `json:"sender"`
 	Title      string   `json:"title"`
@@ -223,6 +232,12 @@ type publishRequest struct {
 	Tags       []string `json:"tags"`
 	Window     int      `json:"window"`      // 0 viral, 1 deep
 	PayoutMode int      `json:"payout_mode"` // 0 split, 1 power up, 2 burn
+	// Permlink is supplied for a REPLY (which has no title to derive one
+	// from) and must be the same string the caller wrote to the content
+	// layer — it is the contract's key for the reply.
+	Permlink       string `json:"permlink"`
+	ParentAuthor   string `json:"parent_author"`
+	ParentPermlink string `json:"parent_permlink"`
 }
 
 func handlePublish(w http.ResponseWriter, r *http.Request) {
@@ -235,9 +250,29 @@ func handlePublish(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 		return
 	}
-	if req.Sender == "" || req.Title == "" {
+	if req.Sender == "" {
 		writeJSON(w, http.StatusBadRequest,
-			map[string]string{"error": "sender and title are required"})
+			map[string]string{"error": "sender is required"})
+		return
+	}
+
+	// A REPLY: no title, a parent, and a permlink the caller already used.
+	if req.ParentAuthor != "" || req.ParentPermlink != "" {
+		permlink, res := chain.PublishComment(req.Sender, req.Permlink, req.Body,
+			req.ParentAuthor, req.ParentPermlink, uint64(req.PayoutMode))
+		code := http.StatusOK
+		if !res.OK {
+			code = http.StatusUnprocessableEntity
+		}
+		writeJSON(w, code, map[string]any{
+			"ok": res.OK, "msg": res.Msg, "height": res.Height, "permlink": permlink,
+		})
+		return
+	}
+
+	if req.Title == "" {
+		writeJSON(w, http.StatusBadRequest,
+			map[string]string{"error": "title is required"})
 		return
 	}
 	win := engine.Viral
@@ -272,19 +307,28 @@ func handleContent(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, body)
 }
 
-// handlePostVotes serves GET /post/{author}/{permlink}/votes.
+// handlePostSub serves the per-post sub-resources:
+//
+//	GET /post/{author}/{permlink}/votes      who voted and with what weight
+//	GET /post/{author}/{permlink}/comments   the registered replies
 //
 // The simulator can scan its own keyspace; a real node cannot, so MagiBackend
-// rediscovers the voters from transaction history and then reads the same
-// records. Both return the same shape.
-func handlePostVotes(w http.ResponseWriter, r *http.Request) {
-	// /post/{author}/{permlink}/votes
+// rediscovers both from transaction history and then reads the same records.
+// Both return the same shapes.
+func handlePostSub(w http.ResponseWriter, r *http.Request) {
 	rest := strings.TrimPrefix(r.URL.Path, "/post/")
-	if !strings.HasSuffix(rest, "/votes") {
+
+	var kind string
+	switch {
+	case strings.HasSuffix(rest, "/votes"):
+		kind, rest = "votes", strings.TrimSuffix(rest, "/votes")
+	case strings.HasSuffix(rest, "/comments"):
+		kind, rest = "comments", strings.TrimSuffix(rest, "/comments")
+	default:
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "not found"})
 		return
 	}
-	rest = strings.TrimSuffix(rest, "/votes")
+
 	slash := strings.Index(rest, "/")
 	if slash < 0 {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "need author/permlink"})
@@ -300,7 +344,32 @@ func handlePostVotes(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "bad permlink"})
 		return
 	}
+	if kind == "comments" {
+		writeJSON(w, http.StatusOK, chain.Comments(author, permlink))
+		return
+	}
 	writeJSON(w, http.StatusOK, chain.PostVotes(author, permlink))
+}
+
+// handleGovernance serves GET /governance?params=a,b.
+//
+// RAW ROWS, never a decision: the board, each member's L-Shares and each
+// member's standing preference. What is IN FORCE is the lower median of the
+// top ten's clamped preferences, and that is engine.EffectiveValue's job on
+// whichever side is asking. A dev chain that answered "the value" would be a
+// second implementation of the median.
+func handleGovernance(w http.ResponseWriter, r *http.Request) {
+	var keys []string
+	if raw := r.URL.Query().Get("params"); raw != "" {
+		keys = strings.Split(raw, ",")
+	} else {
+		// No filter: every registered key, in the registry's own deterministic
+		// order. The registry is the authority on what is governable.
+		for _, k := range engine.NewRegistry().Keys() {
+			keys = append(keys, string(k))
+		}
+	}
+	writeJSON(w, http.StatusOK, chain.Governance(keys))
 }
 
 func handleQuoteSwap(w http.ResponseWriter, r *http.Request) {
@@ -392,6 +461,17 @@ func seedDemo(c *sim.Chain) {
 		{"hive:silvertop", "12000000000000"},
 		{"hive:elizabethbit", "8000000000000"},
 		{"hive:demo", "5000000000000"},
+		// A long tail of smaller holders. The board holds 20 candidate seats
+		// and governance ranks the top 10 out of them, so the demo needs more
+		// than ten accounts with shares before "you are not in the top 10" is
+		// a state anyone can actually be in.
+		{"hive:aggroed", "4200000000000"},
+		{"hive:blocktrades", "3600000000000"},
+		{"hive:crimsonclad", "2800000000000"},
+		{"hive:drakos", "2200000000000"},
+		{"hive:ecoinstant", "1700000000000"},
+		{"hive:fionasfavourites", "1200000000000"},
+		{"hive:galenkp", "900000000000"},
 	} {
 		c.Submit("system", "migrate", m.account+"|"+m.amount+"|0")
 	}
@@ -404,6 +484,17 @@ func seedDemo(c *sim.Chain) {
 	// threshold and vote weight both read from them.
 	c.Submit("hive:silvertop", "mint", "2000000000000|365")
 	c.Submit("hive:elizabethbit", "mint", "1500000000000|730")
+	// The tail mints too, so the consensus board has more than ten candidates
+	// and the tenth seat is a real number to fall short of.
+	for i, tail := range []string{
+		"hive:aggroed", "hive:blocktrades", "hive:crimsonclad", "hive:drakos",
+		"hive:ecoinstant", "hive:fionasfavourites", "hive:galenkp",
+	} {
+		// Long enough to still be live at the end of the seed: voting power
+		// ends at maturity, so a short mint would leave its holder on the
+		// board with nothing.
+		c.Submit(tail, "mint", strconv.Itoa((8-i)*1_000*int(engine.Unit))+"|"+strconv.Itoa(365+i*30))
+	}
 	c.AdvanceDays(40)
 	c.Submit("hive:signumpizza", "mint", "50000000000000|1095")
 	c.Submit("hive:zaxan", "mint", "10000000000000|90")
@@ -459,19 +550,84 @@ func seedDemo(c *sim.Chain) {
 		"How L-Shares work, and why the multipliers are 1.5x each rather than one big one.",
 		[]string{"lassecash", "lassemint", "tokenomics"}, engine.Deep, 1)
 
+	// A quiet tail nobody has voted on, so the feed has a bottom half — which
+	// is what makes the promoted slot mean anything to look at.
+	c.Publish("hive:zaxan", "Notes From A Slow Week",
+		"Nothing shipped, everything read. A list of what was worth the time.",
+		"Nothing shipped, everything read.",
+		[]string{"life", "reading"}, engine.Viral, 0)
+	c.Publish("hive:tibfox", "Running A Witness On Nothing",
+		"The whole node fits on hardware that cost less than a month of coffee.",
+		"The whole node fits on hardware that cost less than a month of coffee.",
+		[]string{"magi", "witness"}, engine.Viral, 0)
+	c.Publish("hive:demo", "Why I Stopped Reading The News",
+		"Six months without a headline, and the only thing I missed was the anxiety.",
+		"Six months without a headline, and the only thing I missed was the anxiety.",
+		[]string{"life", "freedom"}, engine.Viral, 0)
+
 	c.Submit("hive:tibfox", "vote", "hive:silvertop|fair-adventure-part-2|60")
 	c.Submit("hive:zaxan", "vote", "hive:silvertop|fair-adventure-part-2|30")
 	c.Submit("hive:demo", "vote", "hive:elizabethbit|why-ancap-works-in-practice|80")
 	c.Submit("hive:tibfox", "vote", "hive:lasseehlers|lassemint-explained|100")
+
+	// PROMOTE-BY-BURN. @demo burns LASSECASH to buy their unvoted post a
+	// labelled slot in Trending. The burn goes to hive:null — visible forever
+	// — and the post records the running total. The slot rule itself lives in
+	// the frontend: every 5th row of the SAME list, never above the voted
+	// posts.
+	c.Submit("hive:demo", "promote_post",
+		"hive:demo|why-i-stopped-reading-the-news|250000000000") // 2,500 LC
+	// A smaller bid on another post: two promoted posts, one slot, so the
+	// higher burn wins it and the lower one stays in its vote-ranked place.
+	c.Submit("hive:zaxan", "promote_post",
+		"hive:zaxan|notes-from-a-slow-week|40000000000") // 400 LC
+
+	// COMMENTS. A registered reply earns viral economics and is gated by the
+	// lower post.threshold_comment stake, so the demo needs one commenter who
+	// clears it and the vote that gives the reply a real pending reward.
+	c.PublishComment("hive:tibfox",
+		"re-hive-lasseehlers-lassemint-explained-20260820t120000000z",
+		"The multiplicative ceiling is the part people miss. 1.5 x 1.5 is 2.25, "+
+			"not 2.0 — and it is hardcoded, so no committee can widen it.",
+		"hive:lasseehlers", "lassemint-explained", 0)
+	c.PublishComment("hive:elizabethbit",
+		"re-hive-lasseehlers-lassemint-explained-20260820t120100000z",
+		"Worth adding: the share rate only ratchets up. Waiting costs you shares.",
+		"hive:lasseehlers", "lassemint-explained", 0)
+	c.Submit("hive:zaxan", "vote",
+		"hive:tibfox|re-hive-lasseehlers-lassemint-explained-20260820t120000000z|100")
+
 	// Let emission accrue so the open posts show a real pending payout.
 	c.AdvanceDays(3)
 
 	// Governance preferences from the seated members. The swap fee is NOT
 	// governable — it is hardcoded to zero — so the demo exercises the median
-	// on a parameter that actually has a lever.
-	for i, m := range []string{"hive:lasseehlers", "hive:signumpizza", "hive:tibfox"} {
-		c.Submit(m, "set_param", "post.threshold_viral|"+strconv.Itoa((i+1)*100*int(engine.ShareUnit)))
+	// on parameters that actually have a lever.
+	//
+	// Deliberately UNEVEN: some members vote on some parameters and not
+	// others, because that is the state a real board is in, and it is what
+	// exercises the "absent is not zero" rule in the median. Nothing here
+	// decides the value in force — engine.EffectiveValue does, from these rows.
+	seated := []string{
+		"hive:lasseehlers", "hive:signumpizza", "hive:tibfox",
+		"hive:zaxan", "hive:silvertop", "hive:elizabethbit",
 	}
+	for i, m := range seated {
+		c.Submit(m, "set_param",
+			"post.threshold_viral|"+strconv.Itoa((i+1)*100*int(engine.ShareUnit)))
+	}
+	for i, m := range seated[:4] {
+		c.Submit(m, "set_param",
+			"post.threshold_comment|"+strconv.Itoa((i+1)*50*int(engine.ShareUnit)))
+	}
+	for i, m := range seated[:5] {
+		c.Submit(m, "set_param",
+			"promote.min_burn|"+strconv.Itoa((i+1)*40*int(engine.Unit)))
+	}
+	// The two Bigger-Pays-Better amounts are deliberately left UNVOTED, so the
+	// demo also shows the other half of the rule: with no preferences at all
+	// the registered DEFAULT stands, and a member who has never voted is
+	// skipped by the median rather than counted at the floor.
 }
 
 // seedSnapshot commits the migration as a MERKLE ROOT and credits nobody.

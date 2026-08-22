@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
   import { page } from "$app/state";
   import { chain, restoreSession } from "$lib/chain.svelte.js";
+  import { hbdPref } from "$lib/hbd.svelte.js";
   import SignIn from "$lib/SignIn.svelte";
   import { displayName } from "$lib/format.js";
   import "../app.css";
@@ -11,10 +12,14 @@
   // Keep in sync with the same literal in routes/admin/+page.svelte (the
   // soft page gate) — this constant is not worth centralizing for one string.
   const FOUNDER = "hive:lasseehlers";
+  // Governance is for EVERYONE: the top 10 is a public fact, and the value in
+  // force for every governable parameter is readable by anyone. The founder's
+  // private console is the MIGRATION console — named for what it does, so
+  // "Admin" never reads as a set of powers over the protocol that nobody has.
   const navLinks = $derived([
     ["/feed", "Feed"], ["/compose", "Write"], ["/", "Mint"], ["/pool", "Pool"],
-    ["/chain", "Chain"], ["/about", "About"],
-    ...(chain.account === FOUNDER ? [["/admin", "Admin"]] : []),
+    ["/chain", "Chain"], ["/governance", "Governance"], ["/about", "About"],
+    ...(chain.account === FOUNDER ? [["/admin", "Migration"]] : []),
   ]);
 
   /**
@@ -37,6 +42,7 @@
 
   onMount(async () => {
     document.addEventListener("input", decimalComma, true);
+    hbdPref.restore();
     await chain.init();
     // Dev convenience: ?as=alice signs in without a wallet. Harmless against a
     // real node, where the signer will require an actual Hive signature.
@@ -83,8 +89,26 @@
 
   <footer>
     <span>What you see is what the chain pays — every figure comes from the contract itself.</span>
+    <!-- LASSECASH is the unit of account here; the HBD line is a sanity check
+         beside it. Some people want it and some find it noise, so it is a
+         preference — on by default, remembered per browser. -->
+    <button
+      class="ghost small hbdtoggle"
+      onclick={() => hbdPref.toggle()}
+      aria-pressed={hbdPref.show}
+      title="Show an approximate HBD value beside LASSECASH figures, at the pool's current price"
+    >{hbdPref.show ? "≈ HBD on" : "≈ HBD off"}</button>
     {#if chain.info}
       <span class="mono">height {chain.info.height.toLocaleString()}</span>
     {/if}
   </footer>
 </div>
+
+<style>
+  /* The footer is a space-between row; the toggle sits between the note and
+     the height rather than pushing either off the line. */
+  .hbdtoggle {
+    font-size: var(--t-micro); padding: 0.12rem 0.45rem; letter-spacing: 0.06em;
+  }
+  .hbdtoggle[aria-pressed="true"] { color: var(--cyan); border-color: var(--line-hot); }
+</style>

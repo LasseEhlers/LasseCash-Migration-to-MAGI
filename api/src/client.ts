@@ -13,10 +13,11 @@ import { fromUnits, toBaseUnitArg } from "./amount.js";
 import type { Backend, Signer } from "./backend.js";
 import { BackendError, type SubmitOptions } from "./backend.js";
 import type {
-  AccountView, ChainInfo, Content, LiquidityQuote, MigrationRecord, MintQuote,
-  MintView, PostVote, PostView, PublishResult, ResourceCredits, SwapDirection,
-  SwapQuote, TrancheView, TxResult, Window,
+  AccountView, ChainInfo, Content, GovernanceMember, LiquidityQuote,
+  MigrationRecord, MintQuote, MintView, PostVote, PostView, PublishResult,
+  ResourceCredits, SwapDirection, SwapQuote, TrancheView, TxResult, Window,
 } from "./types.js";
+import { commentPermlink } from "./hive-metadata.js";
 import { Entrypoint } from "./types.js";
 
 export interface ClientOptions {
@@ -76,6 +77,31 @@ export class LasseCashClient {
    */
   postVotes(author: string, permlink: string): Promise<PostVote[]> {
     return this.backend.postVotes(author, permlink);
+  }
+
+  /**
+   * The registered replies to a post, newest-first from the backend.
+   *
+   * Comments are NOT in `posts()`: a reply is registered through the `comment`
+   * entrypoint, and both backends keep the two lists disjoint so a reply can
+   * never appear in the feed or the sitemap as an article.
+   */
+  comments(author: string, permlink: string): Promise<PostView[]> {
+    return this.backend.comments(author, permlink);
+  }
+
+  /**
+   * The governing board as RAW rows: every `gov_board` account, its L-Shares
+   * and its standing preferences.
+   *
+   * Hand these straight to `engine.consensusGroup` (who holds the ten seats)
+   * and `engine.effectiveValue` (what is in force). This method deliberately
+   * does not tell you either — the median, the clamping and the tie-break are
+   * the engine's, and this is the same read a foreign dApp contract makes
+   * against the frozen public ABI.
+   */
+  governance(paramKeys: string[]): Promise<GovernanceMember[]> {
+    return this.backend.governance(paramKeys);
   }
 
   // --- migration ----------------------------------------------------------
@@ -287,6 +313,56 @@ export class LasseCashClient {
 
   async post(permlink: string, window: Window): Promise<TxResult> {
     return this.#send(Entrypoint.Post, args(permlink, window));
+  }
+
+  /**
+   * Publish a reply and open its payout window.
+   *
+   * TWO STEPS, in this order: the body goes to the content layer (Hive in
+   * production), then the contract is told a reply exists. An unregistered
+   * comment is recoverable; a payout window over content that does not exist
+   * is not.
+   *
+   * A comment runs VIRAL economics — 7-day window, viral pool, viral vote
+   * meter — but is gated by its own lower threshold (`post.threshold_comment`).
+   * PREFLIGHT THAT THRESHOLD BEFORE CALLING: the contract refuses a
+   * below-threshold reply, and by then the body has already been written to
+   * Hive. `engine.effectiveValue(constants().paramPostThresholdComment, …)` is
+   * the figure to check against the account's `shares`.
+   *
+   * The permlink is derived HERE, once, and used for both steps — it is the
+   * contract's key for the reply, so the two must agree exactly.
+   */
+  async comment(input: {
+    body: string; parentAuthor: string; parentPermlink: string;
+    payoutMode?: number;
+  }): Promise<PublishResult> {
+    const signer = this.#requireSigner();
+    return this.backend.publishComment({
+      permlink: commentPermlink(input.parentAuthor, input.parentPermlink),
+      body: input.body,
+      parentAuthor: input.parentAuthor,
+      parentPermlink: input.parentPermlink,
+      payoutMode: input.payoutMode ?? 0,
+      ...({ sender: signer.account } as object),
+    });
+  }
+
+  /**
+   * Burn LASSECASH to buy a post a promoted slot in Trending.
+   *
+   * THE MONEY IS DESTROYED. The burn credits `hive:null` — provably
+   * unspendable, visible forever — and the post records the running total.
+   * There is no refund and no way to undo it, so the UI must confirm loudly
+   * before calling this.
+   *
+   * The chain refuses a promotion on a comment, on a paid-out post, below the
+   * governed minimum (`promote.min_burn`), and once `engine.PromoteCutoffPct`
+   * of the window has elapsed — nobody buys a slot that ends in ten minutes.
+   */
+  async promotePost(author: string, permlink: string, amount: string): Promise<TxResult> {
+    return this.#send(Entrypoint.PromotePost,
+      args(author, permlink, toBaseUnitArg(amount)));
   }
 
   async vote(author: string, permlink: string, weightPct: number): Promise<TxResult> {

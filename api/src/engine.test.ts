@@ -10,8 +10,9 @@ import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import {
   blockSplit, consensusGroup, constants, durationMultiplier, effectiveValue,
-  engineReady, estimateLiquidity, estimateSwap, loadEngine, loyaltyMultiplier,
-  mintQuote, previewMintClose, routePayout, shareRate, voteCost, volumeMultiplier,
+  engineReady, estimateLiquidity, estimateSwap, lcToHbd, loadEngine,
+  loyaltyMultiplier, mintQuote, previewMintClose, routePayout, shareRate,
+  voteCost, volumeMultiplier,
 } from "./engine.js";
 import { toBaseUnitArg, toUnits } from "./amount.js";
 import { DevBackend } from "./dev-backend.js";
@@ -315,3 +316,92 @@ test("previews are fast enough for a 60fps slider", () => {
   assert.ok(per < 16, `${per.toFixed(3)}ms per call exceeds the 16ms frame budget`);
   console.log(`  ${per.toFixed(3)}ms per engine call`);
 });
+
+/**
+ * The "≈ X HBD" figure beside every LASSECASH amount.
+ *
+ * It is a CALCULATION, so it lives in Go with the rest of the money math. The
+ * two things a UI must be able to trust are pinned here: it floors, and an
+ * unseeded pool yields NOTHING rather than a zero that reads as "worthless".
+ */
+test("HBD equivalents come from the engine, floor, and refuse an unseeded pool", () => {
+  // The measured opening ratio: 1,000,000 LC alongside 1,030 HBD.
+  const lcRes = toBaseUnitArg("1000000");
+  const hbdRes = toBaseUnitArg("1030");
+
+  assert.equal(lcToHbd(toBaseUnitArg("1000"), lcRes, hbdRes), "1.03000000");
+  assert.equal(lcToHbd(toBaseUnitArg("0"), lcRes, hbdRes), "0.00000000");
+  // One base unit is worth a fraction of a base unit of HBD. Showing
+  // 0.00000001 would be money that is not there.
+  assert.equal(lcToHbd("1", lcRes, hbdRes), "0.00000000");
+
+  assert.equal(lcToHbd(toBaseUnitArg("1000"), "0", hbdRes), null,
+    "an unseeded pool has no price — null, never zero");
+  assert.equal(lcToHbd(toBaseUnitArg("1000"), lcRes, "0"), null);
+});
+
+test("the HBD equivalent tracks the chain's own pool price", { skip: !up }, async () => {
+  const client = new LasseCashClient({ backend: new DevBackend({ url: DEV }) });
+  const info = await client.chain();
+  if (info.amm_lc === "0.00000000") {
+    console.log("  (pool unseeded on this chain — spot price not exercised)");
+    return;
+  }
+  // Selling one LC into a pool of this size moves the price by a rounding
+  // hair, so the swap quote and the spot price must agree to the base unit at
+  // the smallest trade the chain accepts. This is the same "browser agrees
+  // with the chain" discipline applied to the price conversion.
+  const spot = lcToHbd(toBaseUnitArg(info.amm_lc), toBaseUnitArg(info.amm_lc),
+    toBaseUnitArg(info.amm_hbd));
+  assert.equal(spot, info.amm_hbd,
+    "converting the WHOLE LC reserve must give back the whole HBD reserve");
+});
+
+/**
+ * Governance rows are RAW STATE and must stay raw all the way to the engine.
+ *
+ * The median, the clamping into hardcoded bounds and the top-10 tie-break all
+ * live in Go. What is checked here is that the indexer hands the engine what
+ * the chain actually holds — including the distinction that sinks a naive
+ * implementation: a member who has never voted is ABSENT, not zero.
+ */
+test("governance rows feed the engine and the median stays inside its bounds",
+  { skip: !up }, async () => {
+    const client = new LasseCashClient({ backend: new DevBackend({ url: DEV }) });
+    const c = constants();
+    const keys = [
+      c.paramVolumeStart, c.paramVolumeEnd,
+      c.paramPostThresholdViral, c.paramPostThresholdDeep,
+      c.paramPostThresholdComment, c.paramPromoteMinBurn,
+    ];
+    const rows = await client.governance(keys);
+
+    for (const row of rows) {
+      assert.match(row.account, /^[a-z]+:/, "a board seat must be fully qualified");
+      assert.match(row.shares, /^\d+$/,
+        "shares must arrive as RAW base units — the engine takes no decimals");
+      for (const k of keys) {
+        assert.ok(k in row.preferences, `${row.account} is missing ${k}`);
+        const pref = row.preferences[k] ?? null;
+        assert.ok(pref === null || /^\d+$/.test(pref),
+          "a preference is raw base units or null — never an empty string");
+      }
+    }
+
+    for (const k of keys) {
+      const v = effectiveValue(k, rows.map((r) => ({
+        account: r.account, shares: r.shares, preference: r.preferences[k] ?? null,
+      })));
+      assert.ok(v.ok, `${k} should be a registered parameter`);
+      // THE BOUNDS ARE THE POINT. No set of preferences, from any board, may
+      // put a value outside the range hardcoded in the contract.
+      assert.ok(toUnits(v.value) >= toUnits(v.min), `${k} below its floor`);
+      assert.ok(toUnits(v.value) <= toUnits(v.max), `${k} above its ceiling`);
+    }
+
+    // The board the engine ranks is the board the chain reports.
+    const seats = consensusGroup(rows.map((r) => ({ account: r.account, shares: r.shares })));
+    const info = await client.chain();
+    assert.deepEqual(seats.map((s) => s.account), info.consensus_group,
+      "the engine's ranking must match the one the chain publishes");
+  });

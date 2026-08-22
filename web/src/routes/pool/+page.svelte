@@ -14,6 +14,7 @@
     type SwapDirection,
   } from "$api/index.js";
   import Seo from "$lib/Seo.svelte";
+  import Hbd from "$lib/Hbd.svelte";
   import { SITE_URL } from "$lib/site.js";
 
   let direction = $state<SwapDirection>("lc_hbd");
@@ -469,7 +470,11 @@
         <div class="panel">
           <h2>Liquidity rewards</h2>
           <dl>
-            <dt>Unclaimed pool</dt><dd class="mono gold">{lc(info.pool_liquidity)}</dd>
+            <dt>Unclaimed pool</dt>
+            <dd class="mono gold">
+              {lc(info.pool_liquidity)}
+              <Hbd amount={info.pool_liquidity} block />
+            </dd>
             <dt>Total pool shares</dt><dd class="mono">{lcShort(info.amm_shares)}</dd>
           </dl>
           <small class="dim">Funded by 25% of every block reward — not by trading fees.</small>
@@ -503,6 +508,7 @@
                 <td class="num">{lc(t.value_lc)} LC <small class="dim">+ {lc(t.value_hbd, 6)} HBD</small></td>
                 <td class="num" class:gold={!isZero(t.pending_reward)} class:dim={isZero(t.pending_reward)}>
                   {lc(t.pending_reward, 6)}
+                  <Hbd amount={t.pending_reward} decimals={6} block />
                 </td>
                 <td class="actions">
                   <button

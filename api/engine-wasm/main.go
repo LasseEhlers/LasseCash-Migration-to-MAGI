@@ -50,6 +50,7 @@ func main() {
 
 		// functions of live pool state — ESTIMATES, label them as such
 		"swapOut":        js.FuncOf(swapOut),
+		"lcToHbd":        js.FuncOf(lcToHbd),
 		"rewardShare":    js.FuncOf(rewardShare),
 		"entitlement":    js.FuncOf(entitlement),
 		"liquidityQuote": js.FuncOf(liquidityQuote),
@@ -225,6 +226,18 @@ func shareRate(_ js.Value, a []js.Value) any {
 // converted at the pool's spot price. ESTIMATE: reserves move.
 func shareRateHbd(_ js.Value, a []js.Value) any {
 	v, ok := engine.ShareRateInHbd(argU(a, 0), argU(a, 1), arg(a, 2), arg(a, 3))
+	if !ok {
+		return ""
+	}
+	return amt(v)
+}
+
+// lcToHbd(amount, lcReserve, hbdReserve) — a LASSECASH amount at the pool's
+// spot price, for the "≈ X HBD" figures beside LASSECASH sums. ESTIMATE:
+// reserves move. Empty string while the pool is unseeded — there is no price
+// yet, and a zero would read as "worthless" rather than "unknown".
+func lcToHbd(_ js.Value, a []js.Value) any {
+	v, ok := engine.LcToHbd(arg(a, 0), arg(a, 1), arg(a, 2))
 	if !ok {
 		return ""
 	}

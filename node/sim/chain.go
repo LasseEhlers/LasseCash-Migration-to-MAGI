@@ -604,6 +604,17 @@ func (c *Chain) rawAmount(key string) engine.Amount {
 	return engine.Amount(n)
 }
 
+// rawString reads a state value, collapsing MAGI's empty-string-for-missing
+// into "". Never test a state key with != nil alone — see CLAUDE.md, the
+// empty-vs-nil bug.
+func (c *Chain) rawString(key string) string {
+	v := c.store.Get(key)
+	if v == nil {
+		return ""
+	}
+	return *v
+}
+
 func (c *Chain) rawU64(key string) uint64 {
 	v := c.store.Get(key)
 	if v == nil {
@@ -655,6 +666,32 @@ func (c *Chain) Publish(
 	payload := permlink + "|" + strconv.FormatUint(uint64(window), 10) +
 		"|" + strconv.FormatUint(mode, 10)
 	return permlink, c.Submit(sender, "post", payload)
+}
+
+// PublishComment writes a REPLY to the content layer and registers it, in the
+// same order and for the same reason as Publish.
+//
+// A comment is a post record with a parent: same encoding, viral economics,
+// but gated by the lower `post.threshold_comment` stake. The permlink is
+// supplied by the CALLER rather than derived from a title — a reply has no
+// title, and the frontend has already derived the permlink it wrote to the
+// content layer. Both steps must use the identical string or the reward
+// attaches to nothing.
+func (c *Chain) PublishComment(
+	sender, permlink, body, parentAuthor, parentPermlink string, mode uint64,
+) (string, Result) {
+	if permlink == "" {
+		return "", Result{Msg: "permlink required", Height: c.Height()}
+	}
+	if parentAuthor == "" || parentPermlink == "" {
+		return "", Result{Msg: "a comment needs a parent post", Height: c.Height()}
+	}
+	// The reply has no title of its own; the feed and the sitemap never list
+	// comments, so nothing needs one.
+	c.content.put(sender, permlink, Content{Body: body})
+	payload := permlink + "|" + parentAuthor + "|" + parentPermlink +
+		"|" + strconv.FormatUint(mode, 10)
+	return permlink, c.Submit(sender, "comment", payload)
 }
 
 // Content returns an article body, if the content layer has it.
@@ -897,44 +934,15 @@ func (c *Chain) Posts(limit int) []PostView {
 		if !ok {
 			continue
 		}
-		w := engine.Viral
-		name := "viral"
-		if p.Window == uint8(engine.Deep) {
-			w, name = engine.Deep, "deep"
+		// ROOT POSTS ONLY. A registered reply is a post record with a parent,
+		// and it must never surface in the feed, the sitemap or the RSS as an
+		// article. Replies are served by Comments() instead — which is also
+		// what MagiBackend does, where the two lists are disjoint because
+		// discovery watches two different entrypoints.
+		if p.ParentPermlink != "" {
+			continue
 		}
-		payoutHeight := p.CreatedHeight + w.PayoutHeights()
-
-		body, _ := c.content.get(author, permlink)
-		title := body.Title
-		if title == "" {
-			// Registered on-chain but never published to the content layer.
-			// Show the permlink rather than an empty card.
-			title = strings.ReplaceAll(permlink, "-", " ")
-		}
-		out = append(out, PostView{
-			Author:            author,
-			Permlink:          permlink,
-			PayoutMode:        int(p.Mode),
-			ParentAuthor:      p.ParentAuthor,
-			ParentPermlink:    p.ParentPermlink,
-			Promoted:          dec(p.Promoted),
-			Title:             title,
-			Summary:           body.Summary,
-			BodyExcerpt:       excerptOf(body.Body, 600),
-			Tags:              body.Tags,
-			Window:            name,
-			CreatedHeight:     p.CreatedHeight,
-			CreatedTime:       c.timeAt(p.CreatedHeight).Format(time.RFC3339),
-			PayoutHeight:      payoutHeight,
-			PayoutTime:        c.timeAt(payoutHeight).Format(time.RFC3339),
-			Rshares:           encI64(p.Rshares),
-			Votes:             state.VoteCount(c.store, author, permlink),
-			PaidOut:           p.PaidOut,
-			Payable:           !p.PaidOut && c.height >= payoutHeight,
-			PendingPayout:     dec(state.PendingPayout(c.store, author, permlink)),
-			CuratorPot:        dec(p.CuratorPot),
-			CurationExpiresAt: state.CurationExpiresAt(c.store, author, permlink),
-		})
+		out = append(out, c.viewOf(author, permlink, p))
 		if len(out) >= limit {
 			break
 		}
@@ -942,6 +950,150 @@ func (c *Chain) Posts(limit int) []PostView {
 	// Newest first.
 	for i, j := 0, len(out)-1; i < j; i, j = i+1, j-1 {
 		out[i], out[j] = out[j], out[i]
+	}
+	return out
+}
+
+// Comments lists the registered REPLIES to one post, newest first.
+//
+// SCANNING KEYS IS FINE HERE AND NOWHERE ELSE, exactly as in Posts() and
+// PostVotes(): the contract can never enumerate, which is why listing lives
+// off-chain. MagiBackend reaches the same rows by rediscovering `comment`
+// calls from transaction history.
+//
+// Every figure below is read from contract state. A reply earns viral
+// economics and carries a real pending payout, so it is a full PostView — the
+// UI renders it more lightly, but the money is the same money.
+func (c *Chain) Comments(author, permlink string) []PostView {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	keys := c.store.Keys()
+	sortStrings(keys)
+
+	out := []PostView{}
+	for _, k := range keys {
+		if !strings.HasPrefix(k, "post_") {
+			continue
+		}
+		rest := strings.TrimPrefix(k, "post_")
+		sep := strings.Index(rest, "_")
+		if sep < 0 {
+			continue
+		}
+		a, pl := rest[:sep], rest[sep+1:]
+		p, ok := state.GetPostView(c.store, a, pl)
+		if !ok || p.ParentAuthor != author || p.ParentPermlink != permlink {
+			continue
+		}
+		out = append(out, c.viewOf(a, pl, p))
+	}
+	// Newest first. The UI re-orders by pending reward, which is a fact about
+	// money it already holds; a stable order here is only so two calls agree.
+	for i, j := 0, len(out)-1; i < j; i, j = i+1, j-1 {
+		out[i], out[j] = out[j], out[i]
+	}
+	return out
+}
+
+// viewOf renders one post record — root or reply — as a PostView.
+//
+// ONE decoder for both, because a comment IS a post record with a parent:
+// same encoding, same window arithmetic, same payout estimate. A second copy
+// is how the two would drift the day the frozen field order grew a field.
+//
+// Caller must hold c.mu.
+func (c *Chain) viewOf(author, permlink string, p state.PostRecord) PostView {
+	w := engine.Viral
+	name := "viral"
+	if p.Window == uint8(engine.Deep) {
+		w, name = engine.Deep, "deep"
+	}
+	payoutHeight := p.CreatedHeight + w.PayoutHeights()
+
+	body, _ := c.content.get(author, permlink)
+	title := body.Title
+	// A reply has no title and needs none — it is rendered as a body. Only a
+	// root post registered on-chain but never published to the content layer
+	// gets the permlink as a stand-in, so the feed shows a card and not a gap.
+	if title == "" && p.ParentPermlink == "" {
+		title = strings.ReplaceAll(permlink, "-", " ")
+	}
+	return PostView{
+		Author:            author,
+		Permlink:          permlink,
+		PayoutMode:        int(p.Mode),
+		ParentAuthor:      p.ParentAuthor,
+		ParentPermlink:    p.ParentPermlink,
+		Promoted:          dec(p.Promoted),
+		Title:             title,
+		Summary:           body.Summary,
+		BodyExcerpt:       excerptOf(body.Body, 600),
+		Tags:              body.Tags,
+		Window:            name,
+		CreatedHeight:     p.CreatedHeight,
+		CreatedTime:       c.timeAt(p.CreatedHeight).Format(time.RFC3339),
+		PayoutHeight:      payoutHeight,
+		PayoutTime:        c.timeAt(payoutHeight).Format(time.RFC3339),
+		Rshares:           encI64(p.Rshares),
+		Votes:             state.VoteCount(c.store, author, permlink),
+		PaidOut:           p.PaidOut,
+		Payable:           !p.PaidOut && c.height >= payoutHeight,
+		PendingPayout:     dec(state.PendingPayout(c.store, author, permlink)),
+		CuratorPot:        dec(p.CuratorPot),
+		CurationExpiresAt: state.CurationExpiresAt(c.store, author, permlink),
+	}
+}
+
+// GovernanceMember is one `gov_board` account as RAW STATE.
+//
+// Base-unit strings, not decimals: these rows exist to be handed straight to
+// engine.ConsensusGroup and engine.EffectiveValue. Nothing here decides who
+// holds a seat or what value is in force — the median, the clamping and the
+// tie-break belong to the engine, and this is the identical read a foreign
+// dApp contract makes against the frozen public ABI (CLAUDE.md, "Public state
+// ABI").
+type GovernanceMember struct {
+	Account string `json:"account"`
+	Shares  string `json:"shares"`
+	// Preferences maps a parameter key to that member's standing preference.
+	// ABSENT (null) means never voted — which is NOT zero. The engine skips a
+	// non-voter; one counted at zero would drag every median to the floor.
+	Preferences map[string]*string `json:"preferences"`
+}
+
+// Governance returns the whole board — up to 20 candidates, not a
+// pre-selected ten — with each member's L-Shares and standing preferences.
+func (c *Chain) Governance(paramKeys []string) []GovernanceMember {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	out := []GovernanceMember{}
+	for _, account := range strings.Split(c.rawString("gov_board"), "|") {
+		if account == "" {
+			continue
+		}
+		prefs := map[string]*string{}
+		for _, k := range paramKeys {
+			if k == "" {
+				continue
+			}
+			// A missing key reads as a pointer to "" here exactly as it does
+			// on MAGI, so empty must collapse to absent — never to "0".
+			if v := c.rawString("gov_" + k + "_" + account); v != "" {
+				pref := v
+				prefs[k] = &pref
+			} else {
+				prefs[k] = nil
+			}
+		}
+		shares := c.rawString("shr_" + account)
+		if shares == "" {
+			shares = "0"
+		}
+		out = append(out, GovernanceMember{
+			Account: account, Shares: shares, Preferences: prefs,
+		})
 	}
 	return out
 }

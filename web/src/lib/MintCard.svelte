@@ -10,6 +10,7 @@
   import { chain, client } from "$lib/chain.svelte.js";
   import { durationWords, fractionPct, lc, shortDate } from "$lib/format.js";
   import MintTimeline from "$lib/MintTimeline.svelte";
+  import Hbd from "$lib/Hbd.svelte";
   import type { MintView } from "$api/index.js";
 
   let { mint }: { mint: MintView } = $props();
@@ -69,12 +70,14 @@
     <div>
       <span class="k">Yield earned</span>
       <span class="v mono">{lc(mint.pending_yield)}</span>
+      <Hbd amount={mint.pending_yield} block />
     </div>
     <div>
       <span class="k">If claimed now</span>
       <span class="v mono" class:green={mint.mature && !bleeding} class:red={early || bleeding}>
         {lc(mint.if_claimed_now)}
       </span>
+      <Hbd amount={mint.if_claimed_now} block />
     </div>
   </div>
 

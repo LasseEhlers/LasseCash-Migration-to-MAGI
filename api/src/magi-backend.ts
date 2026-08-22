@@ -16,8 +16,9 @@ import { BackendError, type Backend } from "./backend.js";
 import * as engine from "./engine.js";
 import { toUnits } from "./amount.js";
 import type {
-  AccountView, ChainInfo, Content, LiquidityQuote, MintQuote, PostMeta, PostVote,
-  PostView, PublishResult, ResourceCredits, SwapDirection, SwapQuote,
+  AccountView, ChainInfo, Content, GovernanceMember, LiquidityQuote, MintQuote,
+  PostMeta, PostVote, PostView, PublishResult, ResourceCredits, SwapDirection,
+  SwapQuote,
 } from "./types.js";
 
 export interface MagiBackendOptions {
@@ -124,7 +125,7 @@ export class MagiBackend implements Backend {
    * preference row across all the parameters asked for. Returns BASE-UNIT
    * strings, ready to hand back to the engine.
    */
-  async #governed(paramKeys: string[]): Promise<Record<string, string>> {
+  async governance(paramKeys: string[]): Promise<GovernanceMember[]> {
     const boardRaw = await this.state(["gov_board"]);
     const board = (boardRaw["gov_board"] ?? "").split("|").filter(Boolean);
 
@@ -132,15 +133,31 @@ export class MagiBackend implements Backend {
       ["shr_" + a, ...paramKeys.map((p) => `gov_${p}_${a}`)]);
     const rows = keys.length ? await this.state(keys) : {};
 
+    return board.map((account) => {
+      const preferences: Record<string, string | null> = {};
+      for (const p of paramKeys) {
+        // A MISSING KEY ON MAGI READS AS AN EMPTY STRING, not as absent — and
+        // "" must become null, not 0. A member who has never voted is skipped
+        // by the engine; one counted at zero would drag every median to the
+        // floor.
+        preferences[p] = rows[`gov_${p}_${account}`] || null;
+      }
+      return { account, shares: rows["shr_" + account] || "0", preferences };
+    });
+  }
+
+  async #governed(paramKeys: string[]): Promise<Record<string, string>> {
+    const members = await this.governance(paramKeys);
+
     const out: Record<string, string> = {};
     for (const p of paramKeys) {
       // An empty board is not a special case: the engine returns the
       // registered default for an empty member list, which is what a chain
       // with no consensus group is actually running.
-      const r = engine.effectiveValue(p, board.map((a) => ({
-        account: a,
-        shares: rows["shr_" + a] ?? "0",
-        preference: rows[`gov_${p}_${a}`] ?? null,
+      const r = engine.effectiveValue(p, members.map((m) => ({
+        account: m.account,
+        shares: m.shares,
+        preference: m.preferences[p] ?? null,
       })));
       if (!r.ok) {
         throw new BackendError(`${p} is not a governable parameter`);
@@ -327,7 +344,11 @@ export class MagiBackend implements Backend {
    * made names its author and permlink. What is TRUE about each one still comes
    * from its state record; history only says where to look.
    */
-  async #discover(limit: number): Promise<{ author: string; permlink: string }[]> {
+  async #discover(
+    limit: number,
+    action: "post" | "comment" = "post",
+    accept?: (payload: string) => boolean,
+  ): Promise<{ author: string; permlink: string }[]> {
     const data = await this.query<{
       findTransaction: {
         anchr_ts: string;
@@ -347,9 +368,11 @@ export class MagiBackend implements Backend {
     const found: { author: string; permlink: string }[] = [];
     for (const tx of data.findTransaction ?? []) {
       for (const op of tx.ops ?? []) {
-        if (op.type !== "call" || op.data?.action !== "post") continue;
+        if (op.type !== "call" || op.data?.action !== action) continue;
+        const payload = op.data.payload ?? "";
+        if (accept && !accept(payload)) continue;
         const author = tx.required_auths?.[0];
-        const permlink = (op.data.payload ?? "").split("|")[0];
+        const permlink = payload.split("|")[0];
         if (!author || !permlink) continue;
         const key = author + "/" + permlink;
         if (!seen.has(key)) {
@@ -410,7 +433,43 @@ export class MagiBackend implements Backend {
   }
 
   async posts(limit = 50): Promise<PostView[]> {
-    const found = await this.#discover(limit);
+    return this.#viewsFor(await this.#discover(limit));
+  }
+
+  /**
+   * The registered REPLIES to one post.
+   *
+   * Discovery is the same trick as `posts()` with a different action: every
+   * `comment` call carries `<permlink>|<parentAuthor>|<parentPermlink>`, so the
+   * payload itself names the parent and the filter is exact. State, as always,
+   * is what is TRUE about each reply — history only says where to look.
+   *
+   * Root posts come from `post` calls and comments from `comment` calls, so the
+   * two lists are disjoint by construction: a reply can never surface in the
+   * feed or the sitemap as an article.
+   */
+  async comments(author: string, permlink: string): Promise<PostView[]> {
+    // `comment` takes <permlink>|<parentAuthor>|<parentPermlink>[|mode]. Match
+    // on the two parent fields rather than a substring, so a permlink that
+    // merely CONTAINS this post's name cannot be mistaken for a reply to it.
+    const found = await this.#discover(100, "comment", (payload) => {
+      const f = payload.split("|");
+      return f[1] === author && f[2] === permlink;
+    });
+    return this.#viewsFor(found);
+  }
+
+  /**
+   * Turn a discovered author/permlink list into full views.
+   *
+   * Shared by `posts()` and `comments()` because a comment IS a post record
+   * with a parent — same encoding, same window arithmetic, same payout
+   * estimate. A second copy of this decoder is exactly how the two would drift
+   * once the frozen field order gained a field.
+   */
+  async #viewsFor(
+    found: { author: string; permlink: string }[],
+  ): Promise<PostView[]> {
     if (found.length === 0) return [];
 
     const [records, height] = await Promise.all([
@@ -585,6 +644,21 @@ export class MagiBackend implements Backend {
    */
   publish(_i: unknown): Promise<PublishResult> {
     return Promise.reject(new BackendError(notWired("publish")));
+  }
+
+  /**
+   * ⚠️ NOT WIRED, for exactly the same reason as `publish` — and with the same
+   * obligation. A reply is two signed operations (Hive `comment` with
+   * `parent_author`/`parent_permlink`, then the contract's `comment`
+   * entrypoint), and both need a wallet.
+   *
+   * When it is wired it MUST go through `AiohaWallet.publishCommentToHive()`,
+   * which attaches `commentMetadata()`. A comment thread is precisely the
+   * long-tail text that ends up indexed against somebody else's domain by
+   * default, so skipping the canonical claim gives it away silently.
+   */
+  publishComment(_i: unknown): Promise<PublishResult> {
+    return Promise.reject(new BackendError(notWired("publishComment")));
   }
 
   /**

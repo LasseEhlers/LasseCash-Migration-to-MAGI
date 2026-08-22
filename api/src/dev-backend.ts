@@ -8,8 +8,8 @@
  */
 import { BackendError, type Backend, type Signer } from "./backend.js";
 import type {
-  AccountView, ChainInfo, Content, LiquidityQuote, MintQuote, PostMeta, PostVote,
-  PostView, PublishResult, SwapDirection, SwapQuote, TxResult,
+  AccountView, ChainInfo, Content, GovernanceMember, LiquidityQuote, MintQuote,
+  PostMeta, PostVote, PostView, PublishResult, SwapDirection, SwapQuote, TxResult,
 } from "./types.js";
 
 export interface DevBackendOptions {
@@ -102,6 +102,27 @@ export class DevBackend implements Backend {
       `/post/${encodeURIComponent(author)}/${encodeURIComponent(permlink)}/votes`);
   }
 
+  /**
+   * A post's registered replies. The simulator scans its own keyspace for
+   * records whose parent matches; a real node cannot, which is why this is a
+   * backend method and not a filter over `posts()`.
+   */
+  comments(author: string, permlink: string): Promise<PostView[]> {
+    return this.#req(
+      `/post/${encodeURIComponent(author)}/${encodeURIComponent(permlink)}/comments`);
+  }
+
+  /**
+   * The whole `gov_board` with shares and standing preferences.
+   *
+   * The dev chain reads the same `gov_board` / `shr_` / `gov_<param>_<account>`
+   * keys the frozen public ABI exposes, and returns them RAW. Nothing here
+   * decides what is in force — that is `engine.effectiveValue`'s job.
+   */
+  governance(paramKeys: string[]): Promise<GovernanceMember[]> {
+    return this.#req(`/governance?params=${encodeURIComponent(paramKeys.join(","))}`);
+  }
+
   async content(author: string, permlink: string): Promise<Content | null> {
     try {
       return await this.#req<Content>(
@@ -120,6 +141,30 @@ export class DevBackend implements Backend {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ...input, sender: input.sender ?? "" }),
+    });
+  }
+
+  /**
+   * Publish a reply, then register it. Same endpoint as `publish` with a
+   * parent attached — a comment IS a post with a parent, on the chain and
+   * here.
+   */
+  publishComment(input: {
+    permlink: string; body: string;
+    parentAuthor: string; parentPermlink: string; payoutMode: number;
+    sender?: string;
+  }): Promise<PublishResult> {
+    return this.#req<PublishResult>("/publish", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sender: input.sender ?? "",
+        permlink: input.permlink,
+        body: input.body,
+        parent_author: input.parentAuthor,
+        parent_permlink: input.parentPermlink,
+        payout_mode: input.payoutMode,
+      }),
     });
   }
 

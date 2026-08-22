@@ -21,6 +21,10 @@
   import { displayName, durationWords, lc, shortDate } from "$lib/format.js";
   import { renderMarkdown } from "$lib/markdown.js";
   import Seo from "$lib/Seo.svelte";
+  import Comments from "$lib/Comments.svelte";
+  import Hbd from "$lib/Hbd.svelte";
+  import PromoteForm from "$lib/PromoteForm.svelte";
+  import PromotedBadge from "$lib/PromotedBadge.svelte";
   import VoteSlider from "$lib/VoteSlider.svelte";
   import VoterList from "$lib/VoterList.svelte";
   import { SITE_NAME, SITE_URL, absolute, metaDescription, profileUrl } from "$lib/site.js";
@@ -122,6 +126,7 @@
           {:else if post?.payout_mode === PayoutMode.PowerUp}
             <span class="pill ok">100% minted</span>
           {/if}
+          <PromotedBadge promoted={post?.promoted} />
         </div>
 
         <h1>{a.title}</h1>
@@ -170,7 +175,11 @@
                   <dd class="mono">{lc(post.curator_pot)}</dd>
                 {/if}
               {:else}
-                <dt>Pending</dt><dd class="mono gold">{lc(post.pending_payout)}</dd>
+                <dt>Pending</dt>
+                <dd class="mono gold">
+                  {lc(post.pending_payout)}
+                  <Hbd amount={post.pending_payout} block />
+                </dd>
                 <dt>Pays</dt>
                 <dd class="mono">
                   {post.payable ? "window closed" : durationWords(post.payout_height - height)}
@@ -204,9 +213,30 @@
           </div>
         {/if}
 
+        {#if post && !post.parent_permlink}
+          <div class="panel">
+            <h2>Promote</h2>
+            <p class="auto">
+              Burn LASSECASH to buy this post a clearly labelled slot in
+              Trending — every fifth row, ordered by burn, <strong>never above
+              the voted posts</strong>. Money and votes are not mixed.
+            </p>
+            <div class="promote-slot">
+              <PromoteForm {post} onpromoted={load} />
+            </div>
+          </div>
+        {/if}
+
         {#if error}<div class="panel err">{error}</div>{/if}
       </aside>
     </div>
+
+    <!-- Comments hang off the CHAIN half, not the server-rendered article: a
+         reply's pending reward moves every block and must never be baked into
+         cached HTML. A registered post with no replies still renders the box. -->
+    {#if post && !post.parent_permlink}
+      <Comments {post} />
+    {/if}
   {/if}
 </div>
 
@@ -223,6 +253,7 @@
   .meta .author:hover { text-decoration: underline; }
 
   .voters { margin-bottom: 0.7rem; }
+  .promote-slot { margin-top: 0.6rem; }
 
   h1 { margin: 0.6rem 0 1rem; font-size: 1.65rem; line-height: 1.3; }
 

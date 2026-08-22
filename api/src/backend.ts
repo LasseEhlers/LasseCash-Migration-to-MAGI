@@ -9,8 +9,9 @@
  * is typed and testable.
  */
 import type {
-  AccountView, ChainInfo, Content, LiquidityQuote, MintQuote, PostMeta, PostVote,
-  PostView, PublishResult, ResourceCredits, SwapDirection, SwapQuote, TxResult,
+  AccountView, ChainInfo, Content, GovernanceMember, LiquidityQuote, MintQuote,
+  PostMeta, PostVote, PostView, PublishResult, ResourceCredits, SwapDirection,
+  SwapQuote, TxResult,
 } from "./types.js";
 
 /** A signer produces authorised transactions. */
@@ -73,6 +74,48 @@ export interface Backend {
     title: string; body: string; summary: string; tags: string[];
     window: number; payoutMode: number;
   }): Promise<PublishResult>;
+  /**
+   * The registered REPLIES to one post.
+   *
+   * A comment is an ordinary post record with a parent (`comment` entrypoint),
+   * so the money side is identical — the only reason this is not just a filter
+   * over `posts()` is that neither backend can enumerate contract state. The
+   * simulator scans its keyspace for records whose parent matches; MAGI
+   * rediscovers `comment` calls from transaction history, exactly as it
+   * rediscovers posts.
+   *
+   * Root posts are EXCLUDED from `posts()` and comments appear only here, so a
+   * reply can never turn up in the feed or the sitemap as an article.
+   */
+  comments(author: string, permlink: string): Promise<PostView[]>;
+  /**
+   * Publish a reply and register it on-chain.
+   *
+   * Same two-step shape as `publish()` and for the same reason: the body goes
+   * to the content layer first, the contract second. `permlink` is supplied by
+   * the caller rather than derived here — it is the contract's KEY for the
+   * reply, and both the content write and the registration must use the same
+   * string or the reward attaches to nothing.
+   */
+  publishComment(input: {
+    permlink: string; body: string;
+    parentAuthor: string; parentPermlink: string; payoutMode: number;
+  }): Promise<PublishResult>;
+  /**
+   * The `gov_board` accounts, their L-Shares, and their standing preferences.
+   *
+   * RAW ROWS, not a decision. What is IN FORCE for a parameter is the lower
+   * median of the top ten's clamped preferences, and that is computed by
+   * `engine.effectiveValue` from exactly these rows — the same code path the
+   * contract runs in `EffectiveParam`, and the same reads a foreign dApp
+   * contract makes against the frozen public ABI. A backend that returned "the
+   * value" would be a second implementation of the median.
+   *
+   * Returns the WHOLE board, up to 20 candidates, not a pre-selected ten:
+   * `shares` is what decides who holds a seat, and selecting outside the
+   * engine would mean re-implementing its tie-break.
+   */
+  governance(paramKeys: string[]): Promise<GovernanceMember[]>;
   quoteSwap(direction: SwapDirection, amountUnits: string): Promise<SwapQuote>;
   quoteMint(amountUnits: string, days: number): Promise<MintQuote>;
   quoteLiquidity(amountUnits: string): Promise<LiquidityQuote>;

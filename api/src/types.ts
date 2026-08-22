@@ -252,6 +252,28 @@ export interface ResourceCredits {
   max: number;
 }
 
+/**
+ * One `gov_board` account as RAW STATE, ready to hand to the engine.
+ *
+ * ⚠️ THESE ARE BASE-UNIT STRINGS, not the decimal `Amount`s everything else in
+ * this file carries. That is deliberate: they exist to be passed straight into
+ * `engine.effectiveValue` and `engine.consensusGroup`, which is where the
+ * median, the clamping and the top-10 ranking happen. Formatting them on the
+ * way through would mean converting back before the engine could use them, and
+ * every conversion is a chance to lose a base unit.
+ *
+ * `preferences[key]` is null when that member has never voted on that
+ * parameter. Absent is NOT zero — the engine skips a non-voter rather than
+ * counting them at the floor.
+ */
+export interface GovernanceMember {
+  /** Fully qualified, e.g. `hive:lasseehlers` — never a bare name. */
+  account: string;
+  /** `shr_<account>`: HELD L-Shares, which is what decides who holds a seat. */
+  shares: string;
+  preferences: Record<string, string | null>;
+}
+
 /** Swap direction. */
 export type SwapDirection = "lc_hbd" | "hbd_lc";
 
@@ -268,6 +290,8 @@ export const Entrypoint = {
   Promote: "promote",
   SetParam: "set_param",
   Post: "post",
+  Comment: "comment",
+  PromotePost: "promote_post",
   Vote: "vote",
   Payout: "payout",
   ClaimCuration: "claim_curation",
@@ -302,6 +326,8 @@ export const Param = {
   VolumeEnd: "mint.volume_end",
   PostThresholdViral: "post.threshold_viral",
   PostThresholdDeep: "post.threshold_deep",
+  PostThresholdComment: "post.threshold_comment",
+  PromoteMinBurn: "promote.min_burn",
   // No swap-fee key: the LASSECASH:HBD fee is hardcoded to zero, not governed.
 } as const;
 export type Param = (typeof Param)[keyof typeof Param];

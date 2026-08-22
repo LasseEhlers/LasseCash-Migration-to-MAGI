@@ -16,11 +16,13 @@
   import { chain, client } from "$lib/chain.svelte.js";
   import { displayName, lc, shortDate, durationWords } from "$lib/format.js";
   import { coverImage, excerpt } from "$lib/markdown.js";
+  import Hbd from "$lib/Hbd.svelte";
+  import PromotedBadge from "$lib/PromotedBadge.svelte";
   import VoteSlider from "$lib/VoteSlider.svelte";
   import VoterList from "$lib/VoterList.svelte";
   import Seo from "$lib/Seo.svelte";
   import { SITE_DESCRIPTION, SITE_NAME, SITE_URL, postPath } from "$lib/site.js";
-  import { compare, PayoutMode, type PostMeta, type PostView } from "$api/index.js";
+  import { compare, isPositive, PayoutMode, type PostMeta, type PostView } from "$api/index.js";
   import type { PageData } from "./$types";
 
   let { data }: { data: PageData } = $props();
@@ -83,17 +85,32 @@
   onMount(() => { restoreSort(); void load(); });
 
   /**
-   * The rendered list: filtered, then ordered.
+   * Trending gives every Nth row to the highest bidder.
+   *
+   * ONE CONSTANT, because the interval is a product decision that will get
+   * argued about, not a number to find in three places. Steem's promoted posts
+   * died in a separate tab nobody opened; these sit in the SAME list, labelled,
+   * at a fixed cadence — visible, but never able to outrank a voted post,
+   * because money and votes are not mixed.
+   */
+  const PROMOTED_SLOT_EVERY = 5;
+
+  /** One rendered row. `slot` means it is here because someone burned for it. */
+  type Row = { post: PostMeta; slot: boolean };
+
+  /**
+   * The rendered list: filtered, then ordered, then slotted.
    *
    * NOTHING IS COMPUTED HERE. Trending orders by `pending_payout`, which the
    * chain worked out against the live window pool, and New orders by the height
-   * the post was registered at. Both are chain facts; this only arranges them.
+   * the post was registered at. The slot rule arranges rows; it never changes
+   * a figure.
    *
    * `compare` does the ordering because a payout is a decimal STRING — sorting
    * these as JavaScript numbers would start misplacing posts as soon as a
    * payout passed the safe integer range.
    */
-  const shown = $derived.by(() => {
+  const shown = $derived.by<Row[]>(() => {
     const base =
       filter === "all" ? data.posts : data.posts.filter((p) => p.window === filter);
     const out = [...base];
@@ -104,14 +121,61 @@
           rewards.get(key(a))?.pending_payout ?? "0",
         ),
       );
-    } else {
-      // Newest-first is also the pre-hydration order: "trending" is a fact
-      // about money the browser has not read yet, and inventing an order for it
-      // would reshuffle the page under the reader.
-      out.sort((a, b) => b.created_height - a.created_height);
+      return withPromotedSlots(out);
     }
-    return out;
+    // Newest-first is also the pre-hydration order: "trending" is a fact
+    // about money the browser has not read yet, and inventing an order for it
+    // would reshuffle the page under the reader. NEW HAS NO SLOTS — it is a
+    // chronological record, and selling a position in it would make it a lie.
+    out.sort((a, b) => b.created_height - a.created_height);
+    return out.map((post) => ({ post, slot: false }));
   });
+
+  /**
+   * Hand positions 5, 10, 15… to the highest burns.
+   *
+   * The rules, all of them:
+   *   - A candidate must have burned something, must not have paid out, and
+   *     must still be INSIDE its payout window (`!payable` is the chain's own
+   *     answer to that) — a slot that ends before anyone sees it is not a slot.
+   *   - Highest burn takes the earliest slot.
+   *   - There are only `floor(n / 5)` slots, so a promoted post that does not
+   *     win one STAYS IN ITS VOTE-RANKED PLACE. It is not demoted for losing.
+   *   - An empty slot COLLAPSES: the next ordinary post takes the position.
+   *     A "this slot is for sale" placeholder is an advert for us, not content
+   *     for the reader.
+   */
+  function withPromotedSlots(ranked: PostMeta[]): Row[] {
+    const bid = (p: PostMeta) => rewards.get(key(p))?.promoted ?? "0";
+    const candidates = ranked
+      .filter((p) => {
+        const m = rewards.get(key(p));
+        return !!m && isPositive(m.promoted) && !m.paid_out && !m.payable;
+      })
+      .sort((a, b) => compare(bid(b), bid(a)));
+
+    const slots = Math.floor(ranked.length / PROMOTED_SLOT_EVERY);
+    const winners = candidates.slice(0, slots);
+    const claimed = new Set(winners.map(key));
+    const rest = ranked.filter((p) => !claimed.has(key(p)));
+
+    const rows: Row[] = [];
+    let w = 0;
+    let r = 0;
+    while (rows.length < ranked.length) {
+      const position = rows.length + 1;
+      if (position % PROMOTED_SLOT_EVERY === 0 && w < winners.length) {
+        rows.push({ post: winners[w++]!, slot: true });
+      } else if (r < rest.length) {
+        rows.push({ post: rest[r++]!, slot: false });
+      } else if (w < winners.length) {
+        rows.push({ post: winners[w++]!, slot: true });
+      } else {
+        break;
+      }
+    }
+    return rows;
+  }
   const height = $derived(chain.info?.height ?? 0);
   const awaitingPayout = $derived(live.filter((p) => p.payable));
 
@@ -193,10 +257,18 @@
     </p>
   {:else}
     <div class="feed">
-      {#each shown as post (post.author + "/" + post.permlink)}
+      {#each shown as { post, slot } (post.author + "/" + post.permlink)}
         {@const img = cover(post)}
         {@const money = rewards.get(key(post))}
-        <article class="post panel" class:settled={money?.paid_out}>
+        <article class="post panel" class:settled={money?.paid_out} class:slotted={slot}>
+          {#if slot}
+            <!-- The slot says WHY this row is here, in the row itself. A
+                 promoted post that is not in a slot carries the same badge in
+                 its meta line instead — the fact is public either way. -->
+            <div class="slotlabel">
+              <PromotedBadge promoted={money?.promoted} slot />
+            </div>
+          {/if}
           <!-- The whole card is still one click target, but as an OVERLAY
                rather than a wrapping <a>. An anchor cannot legally contain
                another anchor, and the author's name has to be a real link to
@@ -219,6 +291,7 @@
                 {:else if money?.payout_mode === PayoutMode.PowerUp}
                   <span class="pill ok">100% minted</span>
                 {/if}
+                {#if !slot}<PromotedBadge promoted={money?.promoted} />{/if}
               </div>
 
               <h3>{post.title}</h3>
@@ -239,6 +312,7 @@
                   <span class="pill ok">paid out</span>
                 {:else}
                   <span class="pending mono gold">{lc(money.pending_payout)} LC</span>
+                  <Hbd amount={money.pending_payout} />
                   <span class="dim">
                     {#if money.payable}window closed{:else}pays in {durationWords(money.payout_height - height)}{/if}
                   </span>
@@ -289,6 +363,18 @@
   .feed { display: grid; gap: 0.85rem; }
   .post { display: flex; gap: 1rem; align-items: flex-start; flex-wrap: wrap; padding: 0; overflow: hidden; }
   .post.settled { opacity: 0.72; }
+  /* A promoted slot is marked, not decorated: one amber hairline down the left
+     edge and the label above the card content. It must read as "someone paid
+     for this position", never as "this is better". */
+  .post.slotted { border-color: rgba(255, 165, 63, 0.4); }
+  .post.slotted::before {
+    content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 2px;
+    background: var(--amber); z-index: 1;
+  }
+  .slotlabel {
+    flex: 1 1 100%; padding: 0.55rem 1rem 0; position: relative; z-index: 1;
+    pointer-events: none;
+  }
   .post:hover { border-color: var(--line-hot); }
 
   /* The card-wide click target. Positioned, so it paints over the static

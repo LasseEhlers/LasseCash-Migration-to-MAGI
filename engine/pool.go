@@ -104,6 +104,32 @@ func SwapPreservesK(reserveIn, reserveOut, amountIn, amountOut Amount) bool {
 	return afterLo >= beforeLo
 }
 
+// LcToHbd converts a LASSECASH amount into HBD at the pool's SPOT PRICE.
+//
+//	hbd = amount * hbdReserve / lcReserve
+//
+// This is an ESTIMATE by nature — the reserves move between reading and acting
+// — but the arithmetic belongs here, in the one engine, exactly like
+// ShareRateInHbd above it. A "≈ X HBD" figure beside a LASSECASH amount is a
+// calculation, and a calculation written in TypeScript is the drift the golden
+// rule exists to prevent.
+//
+// Floors, like every other conversion in the pool: an approximate figure shown
+// to a user must never round UP into money that is not there.
+//
+// Returns ok=false while the pool is UNSEEDED. There is no price yet, and a
+// zero would read as "worth nothing" rather than "not known" — so callers get
+// nothing to show rather than something false.
+func LcToHbd(amount, lcReserve, hbdReserve Amount) (Amount, bool) {
+	if amount < 0 || lcReserve <= 0 || hbdReserve <= 0 {
+		return 0, false
+	}
+	if amount == 0 {
+		return 0, true
+	}
+	return MulDiv(amount, int64(hbdReserve), int64(lcReserve))
+}
+
 // --- liquidity ------------------------------------------------------------
 
 // LPSharesFor returns the pool shares minted for a liquidity deposit.

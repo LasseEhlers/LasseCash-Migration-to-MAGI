@@ -7,6 +7,7 @@
   import SendForm from "$lib/SendForm.svelte";
   import MintCard from "$lib/MintCard.svelte";
   import RateChart from "$lib/RateChart.svelte";
+  import Hbd from "$lib/Hbd.svelte";
   import Seo from "$lib/Seo.svelte";
   import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "$lib/site.js";
   import {
@@ -146,7 +147,7 @@
     <div class="panel stat">
       <div class="label">Liquid</div>
       <div class="value">{me ? lcShort(me.balance) : "—"}</div>
-      <div class="sub">LASSECASH</div>
+      <div class="sub">LASSECASH&nbsp;{#if me}<Hbd amount={me.balance} />{/if}</div>
     </div>
     <div class="panel stat">
       <div class="label">L-Shares</div>
@@ -157,7 +158,7 @@
       <div class="label">Pending rewards</div>
       <div class="value">{me ? lcShort(me.pending) : "—"}</div>
       <div class="sub">
-        mints on the 1st{#if me && me.pending_curation > 0}
+        mints on the 1st&nbsp;{#if me}<Hbd amount={me.pending} />{/if}{#if me && me.pending_curation > 0}
           · {me.pending_curation} curation claim{me.pending_curation > 1 ? "s" : ""} queued
         {/if}
       </div>
@@ -224,10 +225,16 @@
           <h2>Mint rewards</h2>
           <dl>
             <dt>Today's mint rewards</dt>
-            <dd class="mono gold">{todaysLShare ? lc(todaysLShare) : "—"} <span class="dim">/ day</span></dd>
+            <dd class="mono gold">
+              {todaysLShare ? lc(todaysLShare) : "—"} <span class="dim">/ day</span>
+              {#if todaysLShare}<Hbd amount={todaysLShare} block />{/if}
+            </dd>
             {#if myDailyCut}
               <dt class="sub">your cut</dt>
-              <dd class="mono sub">{lc(myDailyCut)} <span class="dim">/ day</span></dd>
+              <dd class="mono sub">
+                {lc(myDailyCut)} <span class="dim">/ day</span>
+                <Hbd amount={myDailyCut} block />
+              </dd>
             {/if}
             <dt>Unclaimed rewards</dt><dd class="mono">{lc(chain.info.pool_lshare)}</dd>
             <dt>Network L-Shares</dt>

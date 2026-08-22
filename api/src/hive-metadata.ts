@@ -70,15 +70,48 @@ export function postMetadata(input: PostMetadataInput): PostMetadata {
 }
 
 /**
+ * A reply's permlink, in Hive's own convention: `re-<parent>-<timestamp>`.
+ *
+ * THIS IS THE CONTRACT'S KEY FOR THE REPLY. It is derived once, here, and used
+ * for BOTH steps of publishing — the Hive `comment` operation and the
+ * contract's `comment` entrypoint. If the two ever disagreed the reward would
+ * attach to nothing, which is why the client computes it rather than letting
+ * each backend invent its own.
+ *
+ * Constraints it has to satisfy at once:
+ *   - Hive permlinks are lowercase, `[a-z0-9-]`, and at most 256 characters.
+ *   - The contract refuses any permlink containing `|` — arguments are
+ *     pipe-delimited positional strings — and refuses a permlink already used
+ *     by the same author, which the timestamp is there to prevent.
+ *
+ * Not economics: this is content plumbing, and it lives beside the metadata
+ * that goes out with the same operation.
+ */
+export function commentPermlink(
+  parentAuthor: string,
+  parentPermlink: string,
+  now: number = Date.now(),
+): string {
+  const parent = parentAuthor.replace(/^hive:/, "").replace(/^@/, "");
+  // Millisecond stamp: two replies to the same parent in the same second is a
+  // double-click, not a rare event, and a collision is a rejected transaction.
+  const stamp = new Date(now).toISOString().replace(/[^0-9]/g, "");
+  const slug = `re-${parent}-${parentPermlink}-${stamp}`
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, "-")
+    .replace(/-+/g, "-");
+  // Trim from the FRONT of the parent part, never the stamp: uniqueness is
+  // load-bearing and the parent name is only there for readability.
+  return slug.length <= 255 ? slug : slug.slice(slug.length - 255).replace(/^-+/, "");
+}
+
+/**
  * The same declaration for a COMMENT.
  *
- * ⚠️ TODO — THERE IS NO COMMENT PUBLISH PATH YET. Nothing in the frontend calls
- * this: LasseMedia publishes articles and the contract opens payout windows for
- * articles only. When comments arrive they must carry the same claim, because a
- * comment thread is exactly the sort of long-tail content that gets indexed on
- * somebody else's domain by default. A comment's canonical URL is its parent
- * article's page plus the comment's own permlink as a fragment, since that is
- * where a reader would actually land.
+ * A comment's canonical URL is its parent article's page plus the comment's own
+ * permlink as a fragment, since that is where a reader would actually land —
+ * and a reply thread is exactly the sort of long-tail content that otherwise
+ * gets indexed on somebody else's domain by default.
  */
 export function commentMetadata(
   input: PostMetadataInput & { parentAuthor: string; parentPermlink: string },

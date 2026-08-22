@@ -56,6 +56,7 @@ interface Bridge {
     ok: boolean; amountOut: string; rate?: string; priceImpactPct?: string;
   };
   rewardShare(pool: string, userShares: string, totalShares: string): string;
+  lcToHbd(amount: string, lcReserve: string, hbdReserve: string): string;
   liquidityQuote(lcIn: string, lcReserve: string, hbdReserve: string, totalShares: string): {
     ok: boolean; isFirstDeposit: boolean; hbdNeeded: string; shares: string;
   };
@@ -451,6 +452,25 @@ export function estimateRewardShare(
   poolUnits: string, userSharesUnits: string, totalSharesUnits: string,
 ): Amount {
   return u(must().rewardShare(poolUnits, userSharesUnits, totalSharesUnits));
+}
+
+/**
+ * A LASSECASH amount at the pool's spot price. **ESTIMATE** — the reserves move
+ * between reading and acting.
+ *
+ * Returns null while the pool is UNSEEDED: there is no price yet, and showing
+ * "≈ 0.000 HBD" would read as "worthless" rather than "not known". Callers
+ * should hide the figure entirely in that case.
+ *
+ * The division happens in Go (`engine.LcToHbd`). Do not be tempted to do it
+ * here — a price conversion is money math, and money math has exactly one
+ * implementation.
+ */
+export function lcToHbd(
+  amountUnits: string, lcReserveUnits: string, hbdReserveUnits: string,
+): Amount | null {
+  const v = must().lcToHbd(amountUnits, lcReserveUnits, hbdReserveUnits);
+  return v === "" ? null : u(v);
 }
 
 /** HBD required and shares earned for a deposit. **ESTIMATE**. */

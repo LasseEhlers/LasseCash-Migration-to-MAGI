@@ -209,3 +209,115 @@ test("the voter list names real voters and its parts sum to the whole",
     const none = await c.postVotes(voted.author, "no-such-permlink-exists");
     assert.deepEqual(none, [], "an unknown post has no voters, not an error");
   });
+
+/**
+ * Comments are a SEPARATE list from posts, and that separation is load-bearing.
+ *
+ * A registered reply is a post record with a parent, so the money side is
+ * identical — but if replies leaked into `posts()` they would show up in the
+ * feed, the sitemap and the RSS as articles. Both backends keep the two
+ * disjoint: the simulator filters on the parent, MAGI watches two different
+ * entrypoints.
+ */
+test("replies are listed under their parent and never in the feed",
+  { skip: !up }, async () => {
+    const c = client();
+    const posts = await c.posts(50);
+    for (const p of posts) {
+      assert.equal(p.parent_permlink, "",
+        `${p.author}/${p.permlink} is a reply and must not be in the feed`);
+    }
+
+    const parent = posts.find((p) => p.permlink === "lassemint-explained");
+    if (!parent) {
+      console.log("  (no seeded parent post on this chain — comments not exercised)");
+      return;
+    }
+    const replies = await c.comments(parent.author, parent.permlink);
+    assert.ok(replies.length > 0, "the demo chain seeds replies on this post");
+    for (const r of replies) {
+      assert.equal(r.parent_author, parent.author);
+      assert.equal(r.parent_permlink, parent.permlink);
+      // A reply runs VIRAL economics whatever window its parent is in.
+      assert.equal(r.window, "viral");
+      assert.match(r.pending_payout, /^\d+\.\d{8}$/);
+    }
+    // A voted reply earns; the pending figure is the chain's, not ours.
+    assert.ok(replies.some((r) => isPositive(r.pending_payout)),
+      "a voted comment must carry a real pending reward");
+
+    assert.deepEqual(await c.comments(parent.author, "no-such-permlink"), [],
+      "an unknown post has no replies, not an error");
+  });
+
+/**
+ * A comment round-trips: written to the content layer, registered on-chain,
+ * and readable under its parent with a permlink both steps agreed on.
+ */
+test("a comment is published and registered as one unit", { skip: !up }, async () => {
+  const c = client("hive:tibfox");
+  const parentAuthor = "hive:lasseehlers";
+  const parentPermlink = "lassemint-explained";
+
+  const before = await c.comments(parentAuthor, parentPermlink);
+  const res = await c.comment({
+    body: "Round-trip check from the indexer test suite.",
+    parentAuthor,
+    parentPermlink,
+  });
+  assert.ok(res.ok, res.msg);
+  assert.match(res.permlink, /^re-/, "a reply uses Hive's re- permlink convention");
+
+  const after = await c.comments(parentAuthor, parentPermlink);
+  assert.equal(after.length, before.length + 1);
+  const mine = after.find((r) => r.permlink === res.permlink);
+  assert.ok(mine, "the registered permlink must be the one that was published");
+  assert.equal(mine.author, "hive:tibfox");
+
+  // The BODY must be readable back under the same key, or the reward window is
+  // open over content nobody can find.
+  const content = await c.content("hive:tibfox", res.permlink);
+  assert.equal(content?.body, "Round-trip check from the indexer test suite.");
+});
+
+/**
+ * Promotion BURNS. The money leaves the promoter, lands at @null — provably
+ * unspendable — and the post records the running total. All three are checked,
+ * because a promotion that debited without burning would quietly inflate
+ * supply, and one that recorded without debiting would be free advertising.
+ */
+test("promoting a post burns the money to null", { skip: !up }, async () => {
+  const c = client("hive:silvertop");
+  const posts = await c.posts(50);
+  const target = posts.find((p) => !p.paid_out && !p.payable && !p.parent_permlink);
+  if (!target) {
+    console.log("  (no promotable post on this chain — promotion not exercised)");
+    return;
+  }
+
+  const before = await c.me();
+  const burnedBefore = (await c.chain()).total_burned;
+  const promotedBefore = target.promoted;
+
+  const res = await c.promotePost(target.author, target.permlink, "250");
+  assert.ok(res.ok, res.msg);
+
+  const after = await c.me();
+  const burnedAfter = (await c.chain()).total_burned;
+  const target2 = (await c.posts(50)).find(
+    (p) => p.author === target.author && p.permlink === target.permlink);
+
+  assert.equal(toUnits(before.balance) - toUnits(after.balance), toUnits("250"),
+    "exactly the promoted amount must leave the promoter");
+  assert.equal(toUnits(burnedAfter) - toUnits(burnedBefore), toUnits("250"),
+    "the same amount must arrive at @null — burned, not moved");
+  assert.equal(toUnits(target2!.promoted) - toUnits(promotedBefore), toUnits("250"),
+    "the post must record what was burned for it");
+
+  // Comments cannot be promoted: a reply has no slot to buy.
+  const replies = await c.comments(target.author, target.permlink);
+  if (replies.length > 0) {
+    const bad = await c.promotePost(replies[0]!.author, replies[0]!.permlink, "250");
+    assert.equal(bad.ok, false, "a comment must not be promotable");
+  }
+});
