@@ -18,7 +18,15 @@
 
   let { post, onvoted }: { post: PostView; onvoted?: () => void } = $props();
 
+  // Remembered per browser: a curator's habitual weight (the old site's "7%"
+  // people) should not reset to 100% every time — a 100% fat-finger cannot be
+  // undone on the contract, only replaced.
+  const WEIGHT_KEY = "lassecash:vote-weight";
   let weight = $state(100);
+  try {
+    const saved = Number(localStorage.getItem(WEIGHT_KEY));
+    if (saved >= 1 && saved <= 100) weight = saved;
+  } catch { /* no storage: default stands */ }
   let open = $state(false);
   let error = $state<string | null>(null);
 
@@ -60,7 +68,10 @@
   async function cast() {
     error = null;
     error = await chain.submit(() => client.vote(post.author, post.permlink, weight));
-    if (!error) { open = false; onvoted?.(); }
+    if (!error) {
+      try { localStorage.setItem(WEIGHT_KEY, String(weight)); } catch { /* fine */ }
+      open = false; onvoted?.();
+    }
   }
 </script>
 
