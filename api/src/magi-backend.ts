@@ -350,12 +350,12 @@ export class MagiBackend implements Backend {
     }
 
     const board = (base["gov_board"] ?? "").split("|").filter(Boolean);
-    // MAGI HBD balance: the node keeps it in milli-units.
+    // MAGI HBD balance: the node keeps milli-HBD; the view uses 1e8 base units.
     let hbdBalance = 0;
     try {
       const bal = await this.query<{ getAccountBalance: { hbd: number } | null }>(
         `query($a: String!) { getAccountBalance(account: $a) { hbd } }`, { a: acct });
-      hbdBalance = (bal.getAccountBalance?.hbd ?? 0) / 1000;
+      hbdBalance = (bal.getAccountBalance?.hbd ?? 0) * 100_000;
     } catch { /* an account with no ledger record simply has none */ }
 
     // Vote meters: the engine regenerates the stored reading to `height`.
@@ -405,8 +405,9 @@ export class MagiBackend implements Backend {
       pending: units((base["pend_" + acct] ?? "0").split("|")[0]),
       pending_curation: 0, // informational only; needs the queue cursors
       mint_duration_days: num(base["set_" + acct + "_days"]) || 1095,
-      // The caller's liquid HBD on MAGI (milli-HBD on the node → 3 decimals),
-      // from `getAccountBalance` — the L1-style ledger, not contract state.
+      // The caller's liquid HBD on MAGI from `getAccountBalance` (the ledger,
+      // not contract state), in the engine's 1e8 base units like every other
+      // amount in this view. The node keeps milli-HBD.
       hbd: hbdBalance,
       vote_power: { viral: votePowerOf(0), deep: votePowerOf(1) },
       mints,
