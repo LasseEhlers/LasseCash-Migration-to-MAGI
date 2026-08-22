@@ -557,20 +557,27 @@ type assets struct{}
 //
 // sdk.HiveDraw aborts the transaction on failure rather than returning an
 // error, so reaching the return means it succeeded.
+//
+// UNITS: the engine books HBD in 1e8 units; the SDK moves MILLI-HBD. A draw
+// rounds UP so custody is never short of the ledger (engine.HbdDrawMilli).
 func (assets) Draw(amount int64) bool {
-	if amount <= 0 {
+	milli := engine.HbdDrawMilli(engine.Amount(amount))
+	if milli <= 0 {
 		return false
 	}
-	sdk.HiveDraw(amount, sdk.AssetHbd)
+	sdk.HiveDraw(milli, sdk.AssetHbd)
 	return true
 }
 
 // Transfer sends HBD from the contract to an address.
+//
+// Rounds DOWN to milli-HBD: the contract never pays out more than it books.
 func (assets) Transfer(to string, amount int64) bool {
-	if amount <= 0 || to == "" {
+	milli := engine.HbdPayMilli(engine.Amount(amount))
+	if milli <= 0 || to == "" {
 		return false
 	}
-	sdk.HiveTransfer(sdk.Address(to), amount, sdk.AssetHbd)
+	sdk.HiveTransfer(sdk.Address(to), milli, sdk.AssetHbd)
 	return true
 }
 

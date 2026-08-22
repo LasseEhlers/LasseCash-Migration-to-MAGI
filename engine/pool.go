@@ -236,3 +236,28 @@ func PoolRewardsOwed(weight Shares, accStart int64, pool, seen, held Amount, acc
 	}
 	return owed
 }
+
+// MAGI moves HBD in MILLI-units (3 decimals); the engine accounts in 1e8
+// units like everything else. The adapter between them must never let real
+// custody fall below the ledger: a draw rounds UP (the contract receives at
+// least what it books; the payer is out by under 0.001 HBD at worst) and a
+// payout rounds DOWN (the contract never pays more than it books). Found on
+// mainnet 2026-08-22: the adapter passed 200,000,000 (2 HBD) to an SDK
+// expecting 2,000, and the node refused the draw.
+const HbdUnitsPerMilli = 100_000
+
+// HbdDrawMilli is the milli-HBD to draw so that at least `units` is custodied.
+func HbdDrawMilli(units Amount) int64 {
+	if units <= 0 {
+		return 0
+	}
+	return (int64(units) + HbdUnitsPerMilli - 1) / HbdUnitsPerMilli
+}
+
+// HbdPayMilli is the milli-HBD to pay out for `units`, never more.
+func HbdPayMilli(units Amount) int64 {
+	if units <= 0 {
+		return 0
+	}
+	return int64(units) / HbdUnitsPerMilli
+}

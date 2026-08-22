@@ -327,3 +327,25 @@ func TestLcToHbdUsesSpotPriceAndFloors(t *testing.T) {
 		t.Fatal("a negative amount produced a price")
 	}
 }
+
+func TestHbdMilliConversionNeverUnderCustodies(t *testing.T) {
+	cases := []struct{ units Amount; draw, pay int64 }{
+		{0, 0, 0},
+		{1, 1, 0},                 // a dust draw still custodies a whole milli
+		{99_999, 1, 0},
+		{100_000, 1, 1},           // exactly 0.001 HBD
+		{200_000_000, 2000, 2000}, // 2 HBD — the mainnet case
+		{200_000_001, 2001, 2000},
+	}
+	for _, c := range cases {
+		if got := HbdDrawMilli(c.units); got != c.draw {
+			t.Errorf("draw %d: got %d want %d", c.units, got, c.draw)
+		}
+		if got := HbdPayMilli(c.units); got != c.pay {
+			t.Errorf("pay %d: got %d want %d", c.units, got, c.pay)
+		}
+		if HbdDrawMilli(c.units)*HbdUnitsPerMilli < int64(c.units) || HbdPayMilli(c.units)*HbdUnitsPerMilli > int64(c.units) {
+			t.Errorf("%d: custody could fall below the ledger", c.units)
+		}
+	}
+}
