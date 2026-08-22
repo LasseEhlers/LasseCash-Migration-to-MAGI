@@ -42,6 +42,11 @@ interface Bridge {
   voteCost(weightPct: number): string;
   voteWeight(shares: string, powerSpent: string): string;
   votePower(power: string, lastHeight: string, height: string, window: number): string;
+  trancheView(
+    shares: string, startHeight: string, weight: string, accStart: string, height: string,
+    totalShares: string, lcReserve: string, hbdReserve: string,
+    poolLiq: string, accSeen: string, accHeld: string, acc: string, totalWeight: string,
+  ): { age_days: number; loyalty: string; value_lc: string; value_hbd: string; pending_reward: string };
   routePayout(amount: string): { liquid: string; pending: string };
   blockSplit(amount: string): {
     proofOfBrain: string; lshare: string; liquidity: string;
@@ -402,6 +407,25 @@ export function votePower(
   powerUnits: string, lastHeight: number, height: number, window: 0 | 1,
 ): Amount {
   return u(must().votePower(powerUnits, String(lastHeight), String(height), window));
+}
+
+/**
+ * A liquidity tranche's live figures from raw chain state. EXACT for the
+ * state passed in (the reserves move between read and render, as always).
+ */
+export function trancheView(t: {
+  shares: string; startHeight: number; weight: string; accStart: string; height: number;
+  totalShares: string; lcReserve: string; hbdReserve: string;
+  poolLiq: string; accSeen: string; accHeld: string; acc: string; totalWeight: string;
+}): { age_days: number; loyalty: Amount; value_lc: Amount; value_hbd: Amount; pending_reward: Amount } {
+  const r = must().trancheView(
+    t.shares, String(t.startHeight), t.weight, t.accStart, String(t.height),
+    t.totalShares, t.lcReserve, t.hbdReserve, t.poolLiq, t.accSeen, t.accHeld, t.acc, t.totalWeight,
+  );
+  return {
+    age_days: r.age_days, loyalty: u(r.loyalty), value_lc: u(r.value_lc),
+    value_hbd: u(r.value_hbd), pending_reward: u(r.pending_reward),
+  };
 }
 
 /** The 20% liquid / 80% pending split on a Proof-of-Brain reward. EXACT. */

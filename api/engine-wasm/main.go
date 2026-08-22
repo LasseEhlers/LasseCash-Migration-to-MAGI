@@ -38,6 +38,7 @@ func main() {
 		"voteCost":           js.FuncOf(voteCost),
 		"voteWeight":         js.FuncOf(voteWeight),
 		"votePower":          js.FuncOf(votePower),
+		"trancheView":        js.FuncOf(trancheView),
 		"routePayout":        js.FuncOf(routePayout),
 		"blockSplit":         js.FuncOf(blockSplit),
 		"dailyRewards":       js.FuncOf(dailyRewards),
@@ -274,6 +275,23 @@ func voteWeight(_ js.Value, a []js.Value) any {
 func votePower(_ js.Value, a []js.Value) any {
 	vp := engine.VotePower{Power: argI(a, 0), LastHeight: argU(a, 1)}
 	return str(vp.Current(window(argI(a, 3)), argU(a, 2)))
+}
+
+// trancheView(shares, startHeight, weight, accStart, height, totalShares,
+// lcReserve, hbdReserve, poolLiq, accSeen, accHeld, acc, totalWeight) — a
+// liquidity tranche's live figures, exactly as the contract computes them:
+// age, loyalty multiplier, withdrawable LC/HBD, and the reward owed now.
+func trancheView(_ js.Value, a []js.Value) any {
+	age := engine.AgeDays(argU(a, 1), argU(a, 4))
+	lc, hbd, _ := engine.WithdrawAmounts(engine.Shares(arg(a, 0)), engine.Shares(arg(a, 5)), arg(a, 6), arg(a, 7))
+	owed := engine.PoolRewardsOwed(engine.Shares(arg(a, 2)), argI(a, 3), arg(a, 8), arg(a, 9), arg(a, 10), argI(a, 11), engine.Shares(arg(a, 12)))
+	return map[string]any{
+		"age_days":       age,
+		"loyalty":        str(engine.LoyaltyMultiplier(age)),
+		"value_lc":       amt(lc),
+		"value_hbd":      amt(hbd),
+		"pending_reward": amt(owed),
+	}
 }
 
 // routePayout(amount) — the 20% liquid / 80% pending split on PoB rewards.

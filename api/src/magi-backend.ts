@@ -271,12 +271,20 @@ export class MagiBackend implements Backend {
       "bal_" + acct, "shr_" + acct, "pend_" + acct, "mseq_" + acct,
       "set_" + acct + "_days", "acc_per", "acc_day", "cfg_genesis",
       "gov_board",
+      // vote meters (absent = never voted = FULL; the contract's
+      // NewVotePower starts at 100%)
+      "vp_" + acct + "_0", "vp_" + acct + "_1",
+      // liquidity tranches and the pool figures their views need
+      "lpseq_" + acct, "amm_lc", "amm_hbd", "amm_shares",
+      "pool_liq", "amm_accseen", "amm_accheld", "amm_acc", "amm_weight",
     ]);
     const height = await this.height();
     const seq = num(base["mseq_" + acct]);
 
     const mintKeys: string[] = [];
     for (let id = 1; id <= seq; id++) mintKeys.push(`mint_${acct}_${id}`);
+    const lseq = num(base["lpseq_" + acct]);
+    for (let id = 1; id <= lseq; id++) mintKeys.push(`lp_${acct}_${id}`);
     const recs = mintKeys.length ? await this.state(mintKeys) : {};
 
     const genesis = num(base["cfg_genesis"]);
@@ -342,6 +350,46 @@ export class MagiBackend implements Backend {
     }
 
     const board = (base["gov_board"] ?? "").split("|").filter(Boolean);
+    // Vote meters: the engine regenerates the stored reading to `height`.
+    const votePowerOf = (w: 0 | 1): string => {
+      const raw = base[`vp_${acct}_${w}`];
+      if (!raw) return units(engine.constants().multScale);
+      const [power = "0", last = "0"] = raw.split("|");
+      return engine.votePower(power, num(last), height, w);
+    };
+
+    // Liquidity tranches, newest first, through the same engine function the
+    // contract uses (trancheView → engine.PoolRewardsOwed / WithdrawAmounts).
+    const tranches = [];
+    for (let id = lseq; id >= 1; id--) {
+      const raw = recs[`lp_${acct}_${id}`];
+      if (!raw) continue;
+      // Frozen field order (contract/state/pool.go encodeTranche):
+      // shares|startHeight|weight|closed|accStart
+      const f = raw.split("|");
+      if (f.length < 4) continue;
+      const tv = engine.trancheView({
+        shares: f[0] ?? "0", startHeight: num(f[1]), weight: f[2] ?? "0", accStart: f[4] ?? "0",
+        height,
+        totalShares: base["amm_shares"] || "0", lcReserve: base["amm_lc"] || "0",
+        hbdReserve: base["amm_hbd"] || "0", poolLiq: base["pool_liq"] || "0",
+        accSeen: base["amm_accseen"] || "0", accHeld: base["amm_accheld"] || "0",
+        acc: base["amm_acc"] || "0", totalWeight: base["amm_weight"] || "0",
+      });
+      tranches.push({
+        id,
+        shares: units(f[0]),
+        start_height: num(f[1]),
+        age_days: tv.age_days,
+        loyalty_multiplier: tv.loyalty,
+        weight: units(f[2]),
+        closed: f[3] === "1",
+        value_lc: tv.value_lc,
+        value_hbd: tv.value_hbd,
+        pending_reward: tv.pending_reward,
+      });
+    }
+
     return {
       account: acct,
       balance: units(base["bal_" + acct]),
@@ -357,9 +405,9 @@ export class MagiBackend implements Backend {
       // guessing; the /pool page's liquidity panel treats 0 as "insufficient"
       // and disables "Add liquidity" accordingly, which is honest here.
       hbd: 0,
-      vote_power: { viral: "0.00000000", deep: "0.00000000" },
+      vote_power: { viral: votePowerOf(0), deep: votePowerOf(1) },
       mints,
-      tranches: [],
+      tranches,
       is_consensus_member: board.includes(acct),
     };
   }

@@ -217,3 +217,22 @@ func TrancheWeight(shares Shares, ageDays int64) Shares {
 	}
 	return Shares(w)
 }
+
+// PoolRewardsOwed is what a tranche would be paid right now: the accumulator
+// as it would read after folding the unsynced inflow across the registered
+// weight, minus the tranche's starting reading, clamped to what the pool
+// actually holds. Pure — the contract passes its state in, the browser passes
+// the same figures read from the chain, and both get the same number.
+func PoolRewardsOwed(weight Shares, accStart int64, pool, seen, held Amount, acc int64, totalWeight Shares) Amount {
+	if weight <= 0 {
+		return 0
+	}
+	if pool > seen {
+		acc, _ = AccumulatorStep(acc, pool-seen, held, totalWeight)
+	}
+	owed := Entitlement(weight, accStart, acc)
+	if owed > pool {
+		owed = pool
+	}
+	return owed
+}

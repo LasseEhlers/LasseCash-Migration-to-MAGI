@@ -288,20 +288,12 @@ func RemoveLiquidity(s Store, a Assets, ctx Ctx, id uint64) Result {
 // tranche right now: the accumulator as it would read after folding in the
 // inflow since the last sync, without writing anything. For dashboards.
 func PoolRewardsOwed(s Store, t Tranche) engine.Amount {
-	if t.Closed || t.Weight <= 0 {
+	if t.Closed {
 		return 0
 	}
-	pool := getAmount(s, keyPoolLiquidity)
-	seen := getAmount(s, keyPoolAccSeen)
-	acc := int64(getU64(s, keyPoolAcc))
-	if pool > seen {
-		acc, _ = engine.AccumulatorStep(acc, pool-seen, getAmount(s, keyPoolAccHeld), getShares(s, keyPoolWeight))
-	}
-	owed := engine.Entitlement(t.Weight, t.AccStart, acc)
-	if owed > pool {
-		owed = pool
-	}
-	return owed
+	return engine.PoolRewardsOwed(t.Weight, t.AccStart,
+		getAmount(s, keyPoolLiquidity), getAmount(s, keyPoolAccSeen), getAmount(s, keyPoolAccHeld),
+		int64(getU64(s, keyPoolAcc)), getShares(s, keyPoolWeight))
 }
 
 // ClaimPoolRewards pays a tranche the rewards that arrived while its weight
