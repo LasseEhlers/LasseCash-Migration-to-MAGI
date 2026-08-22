@@ -26,6 +26,8 @@ export { KeyTypes, Providers };
 export interface AiohaOptions {
   /** The deployed LasseCash contract id on MAGI. */
   contractId: string;
+  /** MAGI node GraphQL endpoint, for free pre-flight simulation. */
+  chainUrl?: string;
   /** MAGI network id. Omit for mainnet. */
   netId?: string;
   /**
@@ -73,6 +75,7 @@ export class AiohaWallet {
   readonly siteUrl: string;
 
   readonly #netId: string;
+  readonly #chainUrl: string;
 
   constructor(opts: AiohaOptions) {
     this.aioha = new Aioha();
@@ -93,6 +96,7 @@ export class AiohaWallet {
     if (opts.peakVault !== false) this.aioha.registerPeakVault();
     if (opts.hiveSigner) this.aioha.registerHiveSigner(opts.hiveSigner);
     this.#netId = opts.netId ?? "vsc-mainnet";
+    this.#chainUrl = opts.chainUrl ?? "https://api.vsc.eco/api/v1/graphql";
     if (opts.netId) this.aioha.vscSetNetId(opts.netId);
   }
 
@@ -254,6 +258,42 @@ export class AiohaWallet {
     }
   }
 
+
+  /**
+   * Dry-run a call on the node — free, no wallet, no broadcast. Returns the
+   * gas it would use, or the contract's refusal.
+   *
+   * Two things ride on this. (1) RC sizing: a static per-entrypoint limit
+   * cannot know how far the accrual walk lags at the moment of the call, and
+   * mainnet weighs state writes 19x in gas — a real mint and a real vote both
+   * hit `cost limit exceeded` under table limits on 2026-08-22. (2) Refusals
+   * before the wallet: a call the chain would refuse ("insufficient balance")
+   * is reported here, and no Keychain popup is ever shown for it.
+   */
+  async simulate(account: string, action: string, payload: string, intents: unknown[]): Promise<
+    { ok: true; gas: number } | { ok: false; msg: string; gasLimitHit: boolean }
+  > {
+    const res = await fetch(this.#chainUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        query: `query($i: SimulateContractCallsInput!) {
+          simulateContractCalls(input: $i) { success err_msg gas_used } }`,
+        variables: { i: {
+          tx_id: "sim", required_auths: account,
+          calls: [{ contract_id: this.#contractId, action, payload, rc_limit: 100_000, intents }],
+        } },
+      }),
+    });
+    const body = (await res.json()) as {
+      data?: { simulateContractCalls?: { success: boolean; err_msg?: string | null; gas_used: number }[] };
+    };
+    const r = body.data?.simulateContractCalls?.[0];
+    if (!r) throw new BackendError("simulation returned nothing");
+    if (r.success) return { ok: true, gas: r.gas_used };
+    const msg = r.err_msg ?? "refused";
+    return { ok: false, msg, gasLimitHit: /gas_limit|cost limit/i.test(msg) };
+  }
 
   /**
    * ONE confirm for publishing: the Hive `comment` and the contract's
@@ -504,35 +544,31 @@ export class AiohaSigner implements Signer {
   }
 
   /** Article + registration in ONE signed transaction (see broadcastWithCall). */
-  publishAndRegister(input: {
+  async publishAndRegister(input: {
     permlink: string; title: string; body: string; tags: string[];
     summary?: string; image?: string | null; window: number; payoutMode: number;
   }): Promise<TxResult> {
+    const payload = `${input.permlink}|${input.window}|${input.payoutMode}`;
+    const rcLimit = await this.sizeRc("post", payload, [], AiohaSigner.RC_LIMITS["post"] ?? this.rcLimit);
+    if (typeof rcLimit !== "number") return rcLimit;
     return this.wallet.broadcastWithCall(
       [this.wallet.articleOp(input)],
-      {
-        action: "post",
-        payload: `${input.permlink}|${input.window}|${input.payoutMode}`,
-        rcLimit: AiohaSigner.RC_LIMITS["post"] ?? this.rcLimit,
-        intents: [],
-      },
+      { action: "post", payload, rcLimit, intents: [] },
       this.contractId,
     );
   }
   /** Reply + registration in ONE signed transaction. */
-  commentAndRegister(input: {
+  async commentAndRegister(input: {
     permlink: string; body: string; parentAuthor: string; parentPermlink: string; payoutMode: number;
   }): Promise<TxResult> {
     const parent = input.parentAuthor.replace(/^@/, "");
     const qualified = parent.startsWith("hive:") ? parent : `hive:${parent}`;
+    const payload = `${input.permlink}|${qualified}|${input.parentPermlink}|${input.payoutMode}`;
+    const rcLimit = await this.sizeRc("comment", payload, [], AiohaSigner.RC_LIMITS["comment"] ?? this.rcLimit);
+    if (typeof rcLimit !== "number") return rcLimit;
     return this.wallet.broadcastWithCall(
       [this.wallet.replyOp(input)],
-      {
-        action: "comment",
-        payload: `${input.permlink}|${qualified}|${input.parentPermlink}|${input.payoutMode}`,
-        rcLimit: AiohaSigner.RC_LIMITS["comment"] ?? this.rcLimit,
-        intents: [],
-      },
+      { action: "comment", payload, rcLimit, intents: [] },
       this.contractId,
     );
   }
@@ -548,6 +584,41 @@ export class AiohaSigner implements Signer {
     permlink: string; body: string; parentAuthor: string; parentPermlink: string;
   }): Promise<void> {
     return this.wallet.publishCommentToHive(input);
+  }
+
+  /** Gas → RC on MAGI: 100,000 cycles per RC (node source, rc-system/). */
+  static readonly GAS_PER_RC = 100_000;
+  /**
+   * Headroom over the simulated figure. The simulator does not weigh state
+   * writes the way settlement does (19x), so a walk-heavy call lands well
+   * above its simulated gas; 3x has covered every case observed so far. The
+   * limit is FROZEN for the 5-day thaw, not spent, so headroom is cheap.
+   */
+  static readonly RC_HEADROOM = 3;
+  /** Never freeze more than this for one call, whatever the simulation says. */
+  static readonly RC_CEILING = 30_000;
+
+  /**
+   * Size the RC limit from a dry run of the exact call: max(table, 3x simulated),
+   * capped. Returns a refusal TxResult instead when the chain would refuse the
+   * call outright, so the caller never opens the wallet for it. If the node
+   * cannot simulate (network hiccup), fall back to the table.
+   */
+  async sizeRc(entrypoint: string, args: string, intents: unknown[], tableLimit: number): Promise<number | TxResult> {
+    let sim: Awaited<ReturnType<AiohaWallet["simulate"]>>;
+    try {
+      sim = await this.wallet.simulate(this.account, entrypoint, args, intents);
+    } catch {
+      return tableLimit;
+    }
+    if (!sim.ok) {
+      if (sim.gasLimitHit) {
+        return { ok: false, msg: "this call would exceed the per-call gas ceiling — call advance first to close the accrual gap", height: 0 };
+      }
+      return { ok: false, msg: sim.msg, height: 0 };
+    }
+    const sized = Math.ceil((sim.gas / AiohaSigner.GAS_PER_RC) * AiohaSigner.RC_HEADROOM);
+    return Math.min(AiohaSigner.RC_CEILING, Math.max(tableLimit, sized));
   }
 
   async submit(entrypoint: string, args: string, opts?: SubmitOptions): Promise<TxResult> {
@@ -574,7 +645,9 @@ export class AiohaSigner implements Signer {
 
     // Per-entrypoint limit from measurement; the constructor's value is only
     // the fallback for an entrypoint this table does not know.
-    const rcLimit = opts?.rcLimit ?? AiohaSigner.RC_LIMITS[entrypoint] ?? this.rcLimit;
+    const tableLimit = opts?.rcLimit ?? AiohaSigner.RC_LIMITS[entrypoint] ?? this.rcLimit;
+    const rcLimit = await this.sizeRc(entrypoint, args, intents, tableLimit);
+    if (typeof rcLimit !== "number") return rcLimit; // the chain would refuse: say so, no popup
 
     const res = await this.wallet.aioha.vscCallContract(
       this.contractId,

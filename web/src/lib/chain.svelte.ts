@@ -46,6 +46,7 @@ export const wallet = WALLET_MODE && typeof window !== "undefined"
   ? new AiohaWallet({
       contractId: CONTRACT_ID,
       netId: import.meta.env.VITE_MAGI_NET_ID,
+      chainUrl: import.meta.env.VITE_CHAIN_URL,
       // The origin every published post declares as its canonical home. The
       // indexer must not know the site's address; the site tells it.
       siteUrl: SITE_URL,
