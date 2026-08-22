@@ -29,7 +29,7 @@ type ParamKey string
 
 const (
 	// ParamVolumeStart / ParamVolumeEnd bound the Bigger-Pays-Better ramp.
-	// Defaults 10,000 and 100,000 LC.
+	// Defaults 1,000 and 50,000 LC (revised 2026-08-22 — see NewRegistry).
 	ParamVolumeStart ParamKey = "mint.volume_start"
 	ParamVolumeEnd   ParamKey = "mint.volume_end"
 
@@ -75,13 +75,25 @@ type Registry struct {
 // must keep its meaning forever.
 func NewRegistry() *Registry {
 	r := &Registry{params: map[ParamKey]Param{}}
+	// Bigger-Pays-Better defaults REVISED 2026-08-22: 10,000 -> 1,000 start,
+	// 100,000 -> 50,000 end.
+	//
+	// Measured against the actual post-migration set (262 accounts, C6): at
+	// 10,000 / 100,000 only 40 accounts would ever see any volume bonus and
+	// only 13 could reach the 1.50x ceiling. 201 of 241 holders — 83% — could
+	// never touch the mechanic at all, and 164 of them hold under 1,000 LC.
+	// A bonus that most of the community can never reach is not an incentive,
+	// it is concentration with extra steps.
+	//
+	// These are DEFAULTS, not bounds. The bounds below are frozen with the
+	// contract; the top-10 median can move the values inside them forever.
 	r.register(Param{
-		Key: ParamVolumeStart, Value: int64(LC(10_000)),
+		Key: ParamVolumeStart, Value: int64(LC(1_000)),
 		Min: int64(LC(100)), Max: int64(LC(50_000)),
 		Desc: "Bigger Pays Better: amount below which no volume bonus applies",
 	})
 	r.register(Param{
-		Key: ParamVolumeEnd, Value: int64(LC(100_000)),
+		Key: ParamVolumeEnd, Value: int64(LC(50_000)),
 		Min: int64(LC(1_000)), Max: int64(LC(5_000_000)),
 		Desc: "Bigger Pays Better: amount at which the full 1.5x bonus applies",
 	})

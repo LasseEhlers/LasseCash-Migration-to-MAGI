@@ -45,7 +45,24 @@ const (
 
 	// GraceDays is the safe period after maturity: nothing happens.
 	// Exists so illness or forgetfulness costs nothing.
-	GraceDays = 30
+	//
+	// REVISED 2026-08-22: 30 -> 90. Thirty days was the harshest parameter in
+	// the whole design. Someone who locked faithfully for three years and then
+	// spent six weeks in hospital could not even ARM Good Accounting — the
+	// window is [maturity, maturity+GraceDays) — and was bleeding, at zero by
+	// day 120. Three years of good behaviour undone by one bad month.
+	//
+	// Ninety days is the same quarter of warning the pool's dormancy check
+	// gives a liquidity provider, and the principle is the same one: be tight
+	// with people who were GIVEN tokens, generous with people who COMMITTED
+	// capital. A matured mint is committed capital. Recycling still happens,
+	// just later; nothing about the perpetual engine depends on it being 30.
+	//
+	// This also widens the migration claim window to
+	// MigrationMintDays + GraceDays + BleedDays = 210 days, and the Good
+	// Accounting arming window to 90 days. Both derived, neither a new
+	// constant. See state.ClaimDeadlineHeight.
+	GraceDays = 90
 	// BleedDays is how long the post-grace bleed takes to reach zero.
 	BleedDays = 90
 	// GoodAccountingArmDays is the window in which Good Accounting may be

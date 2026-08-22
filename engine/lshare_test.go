@@ -215,11 +215,11 @@ func TestBleedTimeline(t *testing.T) {
 		msg  string
 	}{
 		{0, MultScale, "at maturity: untouched"},
-		{29, MultScale, "day 29: still in grace"},
-		{30, MultScale, "day 30: grace boundary, still whole"},
-		{75, MultScale / 2, "day 75: halfway through bleed"},
-		{120, 0, "day 120: fully liquidated"},
-		{200, 0, "day 200: stays at zero"},
+		{89, MultScale, "day 89: still in grace"},
+		{90, MultScale, "day 90: grace boundary, still whole"},
+		{135, MultScale / 2, "day 135: halfway through bleed"},
+		{180, 0, "day 180: fully liquidated"},
+		{260, 0, "day 260: stays at zero"},
 	}
 	for _, c := range checks {
 		h := mat + uint64(c.days)*HeightsPerDay
@@ -265,15 +265,17 @@ func TestGoodAccountingExtendsGraceToThreeYears(t *testing.T) {
 	t.Logf("good accounting: safe %d days, fully liquidated %d days after maturity",
 		GoodAccountingGraceDays, days)
 
-	// A normal mint must still liquidate at day 120.
+	// A normal mint liquidates at day 180: 90 days grace, then the 90-day
+	// bleed. (Grace was widened from 30 to 90 on 2026-08-22 — see GraceDays.)
 	n, _ := NewMint("dan", LC(30_000), 365, gen, defaultParams(gen))
-	if got := (n.LiquidationHeight() - n.MaturityHeight()) / HeightsPerDay; got != 120 {
-		t.Fatalf("normal mint liquidates after %d days, want 120", got)
+	if got := (n.LiquidationHeight() - n.MaturityHeight()) / HeightsPerDay; got != 180 {
+		t.Fatalf("normal mint liquidates after %d days, want 180", got)
 	}
 }
 
-// The arming window is the grace month AFTER maturity: decide while the
-// position is mature and whole, never while bleeding.
+// The arming window is the grace period AFTER maturity — 90 days since
+// 2026-08-22: decide while the position is mature and whole, never while
+// bleeding.
 func TestGoodAccountingArmWindow(t *testing.T) {
 	m, _ := NewMint("dave", LC(30_000), 365, gen, defaultParams(gen))
 	mat := m.MaturityHeight()
@@ -286,9 +288,10 @@ func TestGoodAccountingArmWindow(t *testing.T) {
 		{m.StartHeight, false, "at creation: too early"},
 		{mat - HeightsPerDay, false, "1 day before maturity: nothing to decide yet"},
 		{mat, true, "at maturity: window opens"},
-		{mat + 29*HeightsPerDay, true, "last day of grace: allowed"},
-		{mat + 30*HeightsPerDay, false, "grace over, bleed starts: TOO LATE"},
-		{mat + 60*HeightsPerDay, false, "mid-bleed: cannot retroactively opt out"},
+		{mat + 30*HeightsPerDay, true, "a month past maturity: still allowed"},
+		{mat + 89*HeightsPerDay, true, "last day of grace: allowed"},
+		{mat + 90*HeightsPerDay, false, "grace over, bleed starts: TOO LATE"},
+		{mat + 120*HeightsPerDay, false, "mid-bleed: cannot retroactively opt out"},
 	}
 	for _, c := range cases {
 		if got := m.CanArmGoodAccounting(c.h); got != c.want {

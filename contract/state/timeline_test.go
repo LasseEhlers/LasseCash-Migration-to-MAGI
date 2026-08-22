@@ -163,12 +163,13 @@ func TestMintLifeAtEveryBoundary(t *testing.T) {
 		{1094, "one day short of maturity", 99, 100},
 		{days, "MATURITY — full principal, all yield", 100, 100},
 		{days + 1, "grace: nothing happens yet", 100, 100},
-		{days + 29, "last day of grace", 100, 100},
-		{days + 30, "GRACE ENDS — the bleed starts", 100, 100},
-		{days + 30 + 45, "halfway through the bleed", 100, 50},
-		{days + 30 + 89, "one day from zero", 100, 1},
-		{days + 30 + 90, "LIQUIDATION — worth nothing", 100, 0},
-		{days + 30 + 200, "long past zero, still zero", 100, 0},
+		{days + 30, "a month into grace — still whole", 100, 100},
+		{days + 89, "last day of grace", 100, 100},
+		{days + 90, "GRACE ENDS — the bleed starts", 100, 100},
+		{days + 90 + 45, "halfway through the bleed", 100, 50},
+		{days + 90 + 89, "one day from zero", 100, 1},
+		{days + 90 + 90, "LIQUIDATION — worth nothing", 100, 0},
+		{days + 90 + 200, "long past zero, still zero", 100, 0},
 	}
 
 	w := newWorld(t)
@@ -222,9 +223,11 @@ func TestBleedActuallyTakesTheMoney(t *testing.T) {
 		return Balance(w.s, "alice") - before, PoolLShare(w.s)
 	}
 
-	graceEnd, poolGraceEnd := claimAfter(30)
-	midBleed, poolMidBleed := claimAfter(75)
-	fullyBled, poolFullyBled := claimAfter(120)
+	// GraceDays widened 30 -> 90 on 2026-08-22: grace now ends at day 90 and
+	// the bleed reaches zero at day 180.
+	graceEnd, poolGraceEnd := claimAfter(90)
+	midBleed, poolMidBleed := claimAfter(135)
+	fullyBled, poolFullyBled := claimAfter(180)
 	longAfter, _ := claimAfter(400)
 
 	if graceEnd <= 0 {
@@ -306,7 +309,7 @@ func TestWaitingPastGraceStillLosesMoney(t *testing.T) {
 		return Balance(w.s, "alice") - before
 	}
 
-	graceEnd, midBleed, zero := claimAfter(30), claimAfter(75), claimAfter(120)
+	graceEnd, midBleed, zero := claimAfter(90), claimAfter(135), claimAfter(180)
 	if !(graceEnd > midBleed && midBleed > zero) {
 		t.Errorf("the bleed did not bite: graceEnd=%s midBleed=%s zero=%s",
 			fmtA(graceEnd), fmtA(midBleed), fmtA(zero))
@@ -350,10 +353,10 @@ func TestSweepMintReleasesDeadPositions(t *testing.T) {
 		t.Fatal("matured shares still voting; the walk must retire them at maturity")
 	}
 
-	// One day past bleed-zero (30d lock + 30d grace + 90d bleed), the owner is
+	// One day past bleed-zero (30d lock + 90d grace + 90d bleed), the owner is
 	// owed exactly nothing, and now — and only now — anyone may close it.
 	poolBefore := PoolLShare(w.s)
-	res := sweep(30 + 30 + 90 + 1)
+	res := sweep(30 + 90 + 90 + 1)
 	if !res.OK {
 		t.Fatalf("sweep at liquidation refused: %s", res.Msg)
 	}

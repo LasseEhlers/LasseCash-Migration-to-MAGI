@@ -105,9 +105,12 @@ func TestClaimTimelineMatchesTheMintLifecycle(t *testing.T) {
 		wantLiquid engine.Amount // what carol (0 liquid, 4,000 staked) receives
 		wantPool   bool          // whether anything was recycled
 	}{
-		{45, lc(4_000), false},                // grace: full minted amount, as liquid
-		{30 + 30 + 45, lc(2_000), true},       // mid-bleed: half, rest to the pool
-		{30 + 30 + 89, lc(4_000) * 1 / 90, true}, // one day from zero
+		// Offsets are MigrationMintDays(30) + GraceDays(90) + days into the
+		// bleed. Grace widened 30 -> 90 on 2026-08-22, so the bleed now starts
+		// at day 120 and reaches zero at day 210.
+		{45, lc(4_000), false},                   // grace: full minted amount, as liquid
+		{30 + 90 + 45, lc(2_000), true},          // mid-bleed: half, rest to the pool
+		{30 + 90 + 89, lc(4_000) * 1 / 90, true}, // one day from zero
 	}
 	for _, c := range cases {
 		s, ctx, proofs := committedChain(t)
