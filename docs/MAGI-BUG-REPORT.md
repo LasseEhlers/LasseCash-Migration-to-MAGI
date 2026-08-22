@@ -182,7 +182,7 @@ minimal repro for any of it.
 
 ---
 
-## 5. `simulateContractCalls` under-reports what settlement charges
+## 7. `simulateContractCalls` under-reports what settlement charges
 
 Measured on mainnet 2026-08-22 (contract `vsc1BoLgTEZhcQKSGi9vCZN12yVjmM4mnvWrLB`):
 
@@ -200,10 +200,10 @@ over-freezes the account.
 Request: either apply the same cost model in simulation, or return both
 figures (`gas_used` and the RC that settlement would charge).
 
-## 6. A failed output carries no gas figure
+## 8. A failed output carries no gas figure
 
 `getDagByCID(output)` for a `gas_limit_hit` result carries only
 `{err, errMsg, ok, ret}`. There is no way to learn how much gas the call used
-before it died, so the gap in finding 5 cannot be measured from the chain;
+before it died, so the gap in finding 7 cannot be measured from the chain;
 it can only be bracketed by trial. `gas_used` on outputs (success and
 failure) would make RC budgeting an engineering question instead of a guess.
