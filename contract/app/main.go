@@ -473,7 +473,7 @@ func Vote(a *string) *string {
 	permlink := args.Str(1)
 	weight, ok := args.I64(2)
 	if author == "" || permlink == "" || !ok {
-		sdk.Abort("usage: <author>|<permlink>|<weightPct 1..100>")
+		sdk.Abort("usage: <author>|<permlink>|<weightPct 0..100, 0 removes your vote>")
 	}
 	return finish(state.Vote(store{}, c, author, permlink, weight))
 }

@@ -65,6 +65,22 @@
     } catch { return null; }
   });
 
+  // Whether this account already voted here, from the chain's voter list.
+  let mine = $state(false);
+  $effect(() => {
+    const acct = chain.account;
+    if (!acct || post.registered === false) { mine = false; return; }
+    client.postVotes(post.author, post.permlink)
+      .then((vs) => { mine = vs.some((v) => v.voter === acct); })
+      .catch(() => { mine = false; });
+  });
+
+  async function remove() {
+    error = null;
+    error = await chain.submit(() => client.unvote(post.author, post.permlink));
+    if (!error) { mine = false; open = false; onvoted?.(); }
+  }
+
   async function cast() {
     error = null;
     error = await chain.submit(() => client.vote(post.author, post.permlink, weight));
@@ -130,6 +146,12 @@
 
     {#if wallet}
       <p class="estimate">Also casts your Hive vote at {weight}% — one confirm, like the old tribe.</p>
+    {/if}
+    {#if mine}
+      <button class="ghost small" onclick={remove} disabled={chain.busy}
+        title="Takes back exactly what your vote added, on LasseCash and on Hive. Spent vote power is not refunded.">
+        Remove my vote
+      </button>
     {/if}
     {#if error}<p class="err">{error}</p>{/if}
     <button class="small" onclick={cast} disabled={!canAfford || chain.busy}>

@@ -233,6 +233,35 @@ func createContent(s Store, ctx Ctx, permlink string, window engine.Window, mode
 	return ok("posted")
 }
 
+// unvote removes the caller's vote from an open post: the post's and the
+// window's rshares drop by exactly what the vote added, the vote record is
+// deleted (so curation pays this account nothing for it — the queue entry
+// finds no record and clears itself) and the vote count falls by one.
+func unvote(s Store, ctx Ctx, author, permlink string) Result {
+	p, found := getPost(s, author, permlink)
+	if !found {
+		return fail("no such post")
+	}
+	w := p.win()
+	if p.PaidOut || ctx.Height >= p.CreatedHeight+w.PayoutHeights() {
+		return fail("voting has closed")
+	}
+	raw := get(s, postVoteKey(author, permlink, ctx.Sender))
+	if raw == nil {
+		return fail("no vote to remove")
+	}
+	prev := decI64(*raw)
+	p.Rshares -= prev
+	if p.Votes > 0 {
+		p.Votes--
+	}
+	putPost(s, author, permlink, p)
+	s.Delete(postVoteKey(author, permlink, ctx.Sender))
+	_, rk := poolKeys(w)
+	setAmount(s, rk, getAmount(s, rk)-engine.Amount(prev))
+	return ok("vote removed")
+}
+
 // registerForAuthor opens a VIRAL, default-split payout window for a post the
 // author published elsewhere, checked against the AUTHOR's stake rather than
 // the caller's. Called only from Vote (see there); refuses exactly as `post`
@@ -324,8 +353,15 @@ func Vote(s Store, ctx Ctx, author, permlink string, weightPct int64) Result {
 	if !IsInit(s) {
 		return fail("not initialised")
 	}
-	if weightPct <= 0 || weightPct > 100 {
-		return fail("weight must be 1..100")
+	if weightPct < 0 || weightPct > 100 {
+		return fail("weight must be 0..100")
+	}
+	if weightPct == 0 {
+		// WITHDRAW your own vote — decided 2026-08-22, mirroring Hive, where
+		// a LasseCash vote now also casts the Hive vote and "remove" must
+		// take both back. Not a downvote: it can only subtract what THIS
+		// account added. Spent power is not refunded (Hive does not either).
+		return unvote(s, ctx, author, permlink)
 	}
 	p, found := getPost(s, author, permlink)
 	if !found {

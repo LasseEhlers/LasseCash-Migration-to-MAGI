@@ -970,3 +970,56 @@ func TestFirstVoteRegistersAnOutsidePost(t *testing.T) {
 	}
 	auditSupply(t, s)
 }
+
+// Weight 0 withdraws the caller's own vote (decided 2026-08-22, so "remove"
+// can take back the bundled Hive vote AND the LasseCash vote). It subtracts
+// exactly what that account added, refunds no power, and is not a downvote:
+// a second account's vote is untouched, and nothing can go below zero.
+func TestZeroWeightWithdrawsOwnVote(t *testing.T) {
+	s, ctx := newChain(t)
+	creditLiquid(s, "hive:author", lc(50_000))
+	creditLiquid(s, "hive:a", lc(50_000))
+	creditLiquid(s, "hive:b", lc(50_000))
+	CreateMint(s, at(ctx, "hive:author", genesis), lc(20_000), 365)
+	CreateMint(s, at(ctx, "hive:a", genesis), lc(20_000), 365)
+	CreateMint(s, at(ctx, "hive:b", genesis), lc(20_000), 365)
+	if r := CreatePost(s, at(ctx, "hive:author", genesis), "p", engine.Viral, PayoutDefault); !r.OK {
+		t.Fatal(r.Msg)
+	}
+	if r := Vote(s, at(ctx, "hive:a", genesis+1), "hive:author", "p", 0); r.OK {
+		t.Fatal("removing a vote that does not exist must be refused")
+	}
+	Vote(s, at(ctx, "hive:a", genesis+1), "hive:author", "p", 100)
+	Vote(s, at(ctx, "hive:b", genesis+2), "hive:author", "p", 50)
+	p, _ := getPost(s, "hive:author", "p")
+	bRaw := get(s, postVoteKey("hive:author", "p", "hive:b"))
+	bShare := decI64(*bRaw)
+	_, rk := poolKeys(engine.Viral)
+	totalBefore := getAmount(s, rk)
+	vpBefore := votePower(s, "hive:a", engine.Viral).Power
+
+	if r := Vote(s, at(ctx, "hive:a", genesis+3), "hive:author", "p", 0); !r.OK {
+		t.Fatalf("withdraw: %s", r.Msg)
+	}
+	q, _ := getPost(s, "hive:author", "p")
+	if q.Votes != 1 || q.Rshares != bShare {
+		t.Fatalf("after withdraw: votes=%d rshares=%d want 1 / %d (only b's vote)", q.Votes, q.Rshares, bShare)
+	}
+	if get(s, postVoteKey("hive:author", "p", "hive:a")) != nil {
+		t.Fatal("a's vote record must be deleted")
+	}
+	if getAmount(s, rk) != totalBefore-engine.Amount(p.Rshares-bShare) {
+		t.Fatal("window rshares total must drop by exactly a's contribution")
+	}
+	if votePower(s, "hive:a", engine.Viral).Power != vpBefore {
+		t.Fatal("withdrawing must not refund vote power")
+	}
+	// a may vote again afterwards, and it counts as a fresh first vote.
+	if r := Vote(s, at(ctx, "hive:a", genesis+4), "hive:author", "p", 10); !r.OK {
+		t.Fatalf("re-vote after withdraw: %s", r.Msg)
+	}
+	if q, _ := getPost(s, "hive:author", "p"); q.Votes != 2 {
+		t.Fatal("re-vote must count again")
+	}
+	auditSupply(t, s)
+}

@@ -733,7 +733,7 @@ export class AiohaSigner implements Signer {
         voter: this.account.replace(/^hive:/, ""),
         author: author.replace(/^hive:/, ""),
         permlink,
-        weight: Math.max(1, Math.min(100, Number(weightPct))) * 100, // Hive: basis points
+        weight: Math.max(0, Math.min(100, Number(weightPct))) * 100, // Hive: basis points; 0 withdraws
       }]);
     }
 

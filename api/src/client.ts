@@ -402,6 +402,14 @@ export class LasseCashClient {
     return out;
   }
 
+  /**
+   * Withdraw your own vote: weight 0. Subtracts exactly what this account
+   * added, refunds no power; the bundled Hive vote is withdrawn too.
+   */
+  async unvote(author: string, permlink: string): Promise<TxResult> {
+    return this.#send(Entrypoint.Vote, args(author, permlink, 0), { sideCalls: this.#settlements() });
+  }
+
   /** Trigger a post's payout. Permissionless — anyone may call it. */
   async payout(author: string, permlink: string): Promise<TxResult> {
     return this.#send(Entrypoint.Payout, args(author, permlink));
