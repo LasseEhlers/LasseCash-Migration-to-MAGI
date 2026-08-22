@@ -390,8 +390,9 @@ only; the simulator keeps them). WASM 90,499 bytes. UI: `ClaimMigration.svelte` 
 itself once `mig_<acct>` exists, refuses to offer a button if the served
 root differs from the chain's, previews every figure via `previewMintClose`
 on the synthetic genesis mint. Current root (3-month set, signed-ops
-criteria, unstakes+delegations counted): `62bcdd58…53eaf3`, 9,921 leaves
-(1,986 claimable, 7,935 burned). Verified end to end on the simulator.
+criteria, unstakes + delegations + Diesel pool + open orders counted):
+`f22793d7…e9af2`, 9,924 leaves (1,985 claimable, 7,939 burned); re-taken at
+the announced block. Verified end to end on the simulator.
 
 **Launch-day consequences:** Hive-Engine LASSECASH keeps existing; the
 announcement and the token's info tab must say it is dead. Everyone needs a
@@ -2186,10 +2187,11 @@ pass the pairs to **`engine.ConsensusGroup`** — the same Go package, imported.
 across contracts: the tie-break (shares desc, then name asc) and the zero-share
 drop live in one place.
 
-**`shr/` is governance weight, not earning weight.** It includes a matured mint
-that has not been claimed yet. Only *active* shares (`shares/total`, internal)
-stop at maturity; the seat stays until the position is closed. A dApp reading
-`shr/` therefore sees exactly the figure core governance uses.
+**`shr_` is LIVE voting weight — SUPERSEDED 2026-08-21.** It used to include
+matured-but-unclaimed mints; since "ALL voting power ends at maturity" the
+accrual walk retires a mint's shares from `shr_` on its maturity day, so
+`shr_` and the active total now agree. A dApp reading `shr_` sees exactly the
+figure core governance uses, and a dead account cannot haunt the top-10.
 
 `public_abi_test.go` is the executable form of this table: a `foreignReader`
 that uses nothing but raw key reads must reproduce `ConsensusMembers` exactly,
