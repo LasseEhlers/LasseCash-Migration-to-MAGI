@@ -1459,6 +1459,38 @@ downloads; treat "devnet says X" as strong evidence but confirm consensus-
 critical behaviour (like the slash-key bug) against mainnet, since witnesses
 there may run different versions.
 
+## STATE OF PLAY — end of 2026-08-22 session (read this first)
+
+- **Site is LIVE: https://lassecash.pages.dev** (Cloudflare Pages, project
+  `lassecash`, root `web`, build `npm --prefix ../api ci && npm run build`,
+  auto-deploys on push to `main`). Env points at throwaway #5 with
+  `VITE_TESTWINDOWS=1`. Custom domain lassecash.com: Lasse adds it in the
+  dashboard. **Launch switch = change `VITE_CONTRACT_ID`, delete
+  `VITE_TESTWINDOWS`.** Verified by curl: SSR feed/post pages with canonical,
+  about, robots, sitemap, llms.txt, `.md` endpoints, engine WASM.
+- **Contract is a production candidate**, but three changes landed AFTER
+  throwaway #5 and are unproven on mainnet: weight-0 unvote; ordinary calls
+  retire at most `UserRetireBudget=50` (advance carries the rest);
+  `MaxRetirePerWalk=50` (DECIDED: a day-30 slice ≈ 6,500 RC fits any fresh
+  account — the crowd crosses the migration day, ~32 calls). → **throwaway
+  #6** (10 HBD) for a last soak, a fresh 500k fuzz on that exact build, then
+  the production deploy.
+- **Day-30 mechanics**: the site plans `advance` slices from `acc_day` and
+  `explc_<day>` counts (`LasseCashClient.catchUp`) and bundles them ahead of
+  mint/claim/settle in the same confirm (`SubmitOptions.preCalls`); if the
+  user's own call would still be refused for lag, only the slices are sent
+  and the user is told to press again. Devnet measurement in
+  docs/DEVNET-MATURITY-DAY.md.
+- **Open**: curation `settleOwed` as side calls (it would prompt Keychain
+  today); announcement + Hive-Engine token-info texts (Lasse's voice);
+  snapshot pipeline rehearsal; Sept 1 monthly PoB mint on #5 (57 LC pending
+  for @lasseehlers); Good Accounting arm / bleed / sweep_mint on the clock.
+- **Lasse's standing notes**: keep HBD on MAGI on @lasseehlers — it IS the RC
+  meter (never spent); ~200 HBD that week lets him clear day 30 alone.
+  Screenshots only when something looks wrong; text otherwise.
+- Background: a 500k fuzz started 08:20 on pre-change code
+  (scratchpad/fuzz500k.log) — a regression run, not the final one.
+
 ## THROWAWAY #5 — 2026-08-22 morning: the pool and first-vote registration on mainnet
 
 `vsc1BjLaDa5zFWPC8g61uL6mN84m2FSeeLKBpY`, genesis 109,238,176, TESTWINDOWS,
