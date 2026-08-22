@@ -242,6 +242,7 @@ export class MagiBackend implements Backend {
       migrated_supply: units(st["sup_migrated"]),
       snapshot_total: units(String(
         BigInt(st["cfg_migtotal"] || "0") + BigInt(st["cfg_migburn"] || "0"))),
+      snapshot_burned: units(st["cfg_migburn"] || "0"),
       total_emitted: units(st["sup_emitted"]),
       total_burned: units(st["bal_hive:null"]),
       total_shares: units(st["shares_total"]),

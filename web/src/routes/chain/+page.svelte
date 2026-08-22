@@ -24,10 +24,12 @@
   const limits = $derived(
     chain.ready && info ? supplyLimits(toBaseUnitArg(info.snapshot_total)) : null,
   );
-  /** Snapshot supply minus what sits at null: everything claimable, whether
-   *  claimed yet or not. A difference of two chain figures, display only. */
+  /** Snapshot supply minus the snapshot's own burn half: everything
+   *  claimable, whether claimed yet or not. Both operands are fixed at
+   *  genesis, so this cannot drift when someone later burns or promotes —
+   *  unlike total_burned, which keeps growing after genesis. Display only. */
   const claimable = $derived(
-    info ? fromUnits(toUnits(info.snapshot_total) - toUnits(info.total_burned)) : "0.00000000",
+    info ? fromUnits(toUnits(info.snapshot_total) - toUnits(info.snapshot_burned)) : "0.00000000",
   );
   const stillToEmit = $derived(
     info && limits ? fromUnits(toUnits(limits.emissionCap) - toUnits(info.total_emitted)) : "0.00000000",
@@ -70,7 +72,7 @@
     <div class="panel stat">
       <div class="label">Burned</div>
       <div class="value">{info ? lcShort(info.total_burned) : "—"}</div>
-      <div class="sub">held by @null — unspendable, visible forever</div>
+      <div class="sub">held by @null — the migration burn and every burn since, unspendable forever</div>
     </div>
     <div class="panel stat">
       <div class="label">Chain age</div>
@@ -96,7 +98,7 @@
         </div>
         {#if limits}
         <dl>
-          <dt>Held by @null — burned at the snapshot and since</dt><dd class="mono">{lc(info.total_burned)}</dd>
+          <dt>Did not migrate — burned to @null</dt><dd class="mono">{lc(info.snapshot_burned)}</dd>
           <dt>+ Claimable by holders (claimed or not)</dt><dd class="mono">{lc(claimable)}</dd>
           <dt>= Snapshot supply</dt><dd class="mono">{lc(info.snapshot_total)}</dd>
           <dt>+ Emission cap — never exceeded, approached asymptotically</dt><dd class="mono">{lc(limits.emissionCap)}</dd>
@@ -108,6 +110,15 @@
           <dd class="mono dim"><strong>{lc(limits.lost)}</strong></dd>
         </dl>
         {/if}
+        <small class="dim">
+          <strong>Did not migrate</strong> is everything the snapshot sent to
+          @null instead of to a holder: LASSECASH already burned on the old
+          chains, LASSECASH that was issued but never distributed, and the
+          balances of accounts that did not answer the roll call. It was fixed
+          at genesis and can never move again. The <strong>Burned</strong>
+          figure above is a different number — that is @null's live balance,
+          which carries the migration burn AND every burn since.
+        </small>
         <small class="dim">
           The 51M cap covers everything ever issued, before and after migration.
           The difference is LASSECASH that was issued on Steem-Engine and

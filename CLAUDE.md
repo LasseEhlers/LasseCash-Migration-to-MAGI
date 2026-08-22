@@ -1022,6 +1022,25 @@ POST /dev/advance        {"days"} or {"heights"} — move the clock
 GET  /dev/dump           every state key (debug only)
 ```
 
+### ⚠️ TWO SEEDS, AND THE TEST SUITE ONLY WORKS WITH ONE — 2026-08-22
+
+```
+./build.sh node                              demo economy (hive:demo, hive:tibfox, …)
+go run . -snapshot=…/migration_set.json      claim model — NOBODY holds anything
+```
+
+The `-snapshot` seed credits no account: that is the whole point of
+claim-based migration, nobody is credited until they claim. The `api` suite is
+written against the DEMO economy, so run against a snapshot-seeded chain it
+fails **7 tests with "insufficient balance"** — including `browser engine
+agrees with the chain EXACTLY`, the test that guards the golden rule. It reads
+exactly like a real regression and is not one.
+
+**The tell:** on a freshly snapshot-seeded chain `/chain` reports
+`migrated_supply` equal to the burn total alone (nothing claimed yet). Check
+that before believing a red suite. Run tests on the demo seed; use `-snapshot`
+for the claim page and the migration flows, and put the seed back when done.
+
 **Amounts cross the wire as decimal STRINGS, never JSON numbers.** 51M LASSECASH
 is 5.1e15 base units and JavaScript's `Number` loses precision above 2^53 — a
 frontend parsing these as floats would display balances that disagree with the

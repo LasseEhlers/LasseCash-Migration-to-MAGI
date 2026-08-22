@@ -84,6 +84,13 @@ func SnapshotTotal(s Store) engine.Amount {
 	return getAmount(s, keyMigTotal) + getAmount(s, keyMigBurn)
 }
 
+// SnapshotBurn is the burn half of the committed snapshot, fixed at genesis.
+// NOT the same as Balance(hive:null), which also carries every burn since
+// (user burn, PoB burn payout mode, promote_post).
+func SnapshotBurn(s Store) engine.Amount {
+	return getAmount(s, keyMigBurn)
+}
+
 // MigrationRoot reports the committed root, if any.
 func MigrationRoot(s Store) (string, bool) {
 	r := get(s, keyMigRoot)

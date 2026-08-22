@@ -21,6 +21,9 @@ export interface ChainInfo {
   migrated_supply: Amount;
   /** Burned + claimable as committed at genesis; the hardcap figure. */
   snapshot_total: Amount;
+  /** The burn half of the snapshot, fixed at genesis. NOT the same as
+   *  total_burned, which also carries every burn since. */
+  snapshot_burned: Amount;
   total_emitted: Amount;
   total_burned: Amount;
   total_shares: Amount;

@@ -385,7 +385,10 @@ type ChainInfo struct {
 	MigratedSupply string `json:"migrated_supply"`
 	// SnapshotTotal is burned + claimable as committed at genesis (claim
 	// model); equals MigratedSupply once every claim has landed or swept.
-	SnapshotTotal  string   `json:"snapshot_total"`
+	SnapshotTotal string `json:"snapshot_total"`
+	// SnapshotBurn is the burn half of the snapshot, fixed at genesis. NOT
+	// the same as TotalBurned, which also carries every burn since.
+	SnapshotBurn   string   `json:"snapshot_burned"`
 	TotalEmitted   string   `json:"total_emitted"`
 	TotalBurned    string   `json:"total_burned"`
 	TotalShares    string   `json:"total_shares"`
@@ -419,6 +422,7 @@ func (c *Chain) Info() ChainInfo {
 		SettledHeight:  state.SettledHeight(c.store),
 		MigratedSupply: dec(state.MigratedSupply(c.store)),
 		SnapshotTotal:  dec(state.SnapshotTotal(c.store)),
+		SnapshotBurn:   dec(state.SnapshotBurn(c.store)),
 		TotalEmitted:   dec(state.TotalEmitted(c.store)),
 		TotalBurned:    dec(state.TotalBurned(c.store)),
 		TotalShares:    dec(engine.Amount(state.TotalShares(c.store))),

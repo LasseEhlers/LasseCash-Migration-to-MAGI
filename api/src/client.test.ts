@@ -321,3 +321,33 @@ test("promoting a post burns the money to null", { skip: !up }, async () => {
     assert.equal(bad.ok, false, "a comment must not be promotable");
   }
 });
+
+/**
+ * total_burned = Balance(hive:null) and grows with every burn/promote after
+ * genesis. snapshot_total and snapshot_burned are committed ONCE at genesis
+ * (cfg_migtotal / cfg_migburn) and must never move again — they are the
+ * hardcap accounting the Chain page's "claimable" row (snapshot_total -
+ * snapshot_burned) depends on. Confusing the two used to make claimable
+ * silently shrink after any post-genesis burn.
+ */
+test("a later burn does not change the snapshot figures", { skip: !up }, async () => {
+  const c = client("hive:demo");
+
+  const before = await c.chain();
+  const claimableBefore = toUnits(before.snapshot_total) - toUnits(before.snapshot_burned);
+
+  const res = await c.burn("2.5");
+  assert.ok(res.ok, res.msg);
+
+  const after = await c.chain();
+  assert.equal(toUnits(after.total_burned) - toUnits(before.total_burned), toUnits("2.5"),
+    "total_burned must grow by exactly what was burned");
+  assert.equal(after.snapshot_burned, before.snapshot_burned,
+    "snapshot_burned is fixed at genesis — a later burn must not move it");
+  assert.equal(after.snapshot_total, before.snapshot_total,
+    "snapshot_total is fixed at genesis — a later burn must not move it");
+
+  const claimableAfter = toUnits(after.snapshot_total) - toUnits(after.snapshot_burned);
+  assert.equal(claimableAfter, claimableBefore,
+    "the claimable row (snapshot_total - snapshot_burned) must not shrink on a post-genesis burn");
+});
