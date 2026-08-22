@@ -176,6 +176,7 @@ export class LasseCashClient {
       tags: input.tags ?? [],
       window: input.window,
       payoutMode: input.payoutMode ?? 0,
+      signer,
       ...({ sender: signer.account } as object),
     });
   }
@@ -345,6 +346,7 @@ export class LasseCashClient {
       parentAuthor: input.parentAuthor,
       parentPermlink: input.parentPermlink,
       payoutMode: input.payoutMode ?? 0,
+      signer,
       ...({ sender: signer.account } as object),
     });
   }

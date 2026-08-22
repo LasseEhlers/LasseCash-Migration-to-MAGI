@@ -124,6 +124,11 @@
         error = res.msg;
         return;
       }
+      if (res.txId) {
+        // Hive has the reply; wait for MAGI's verdict on the registration.
+        const refused = await chain.awaitVerdict(res.txId, JSON.stringify(chain.me));
+        if (refused) { error = refused; return; }
+      }
       draft = "";
       previewing = false;
       await load();

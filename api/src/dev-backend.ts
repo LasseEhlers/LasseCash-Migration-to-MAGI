@@ -141,12 +141,13 @@ export class DevBackend implements Backend {
   /** Requires a signer; the dev chain takes the account name unsigned. */
   publish(input: {
     title: string; body: string; summary: string; tags: string[];
-    window: number; payoutMode: number; sender?: string;
+    window: number; payoutMode: number; sender?: string; signer?: Signer;
   }): Promise<PublishResult> {
+    const { signer: _signer, ...rest } = input;
     return this.#req<PublishResult>("/publish", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...input, sender: input.sender ?? "" }),
+      body: JSON.stringify({ ...rest, sender: input.sender ?? "" }),
     });
   }
 
@@ -158,7 +159,7 @@ export class DevBackend implements Backend {
   publishComment(input: {
     permlink: string; body: string;
     parentAuthor: string; parentPermlink: string; payoutMode: number;
-    sender?: string;
+    sender?: string; signer?: Signer;
   }): Promise<PublishResult> {
     return this.#req<PublishResult>("/publish", {
       method: "POST",

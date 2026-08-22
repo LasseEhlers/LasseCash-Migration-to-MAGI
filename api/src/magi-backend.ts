@@ -12,7 +12,7 @@
  *     quotes are produced without broadcasting
  *   - `localNodeInfo.last_processed_block` is the Hive height (3s per unit)
  */
-import { BackendError, type Backend } from "./backend.js";
+import { BackendError, type Backend, type Signer } from "./backend.js";
 import * as engine from "./engine.js";
 import { toUnits } from "./amount.js";
 import type { TxStatus } from "./types.js";
@@ -668,34 +668,72 @@ export class MagiBackend implements Backend {
     return { title: post.title ?? "", body: post.body ?? "", tags, summary };
   }
   /**
-   * ⚠️ NOT WIRED. Publishing against a real chain is two signed operations and
-   * both need a wallet, which lives in the frontend, not here.
+   * Publish an article: Hive FIRST, contract SECOND.
    *
-   * When it is wired it MUST go through `AiohaWallet.publishToHive()` rather
-   * than calling `aioha.comment()` directly, because that is the one place that
-   * attaches `canonical_url` and `app` to the post's `json_metadata` — the
-   * claim that makes lassecash.com the original copy of the article on peakd,
-   * ecency and every other Hive frontend. A publish path that skips it silently
-   * hands that authority away. Order is fixed: Hive first, contract second (an
-   * unregistered article is recoverable; a payout window over nothing is not).
+   * Both writes are signed by the wallet behind the signer. The Hive write goes
+   * through `publishToHive()` — the one place that attaches `canonical_url`
+   * and `app` to the post's `json_metadata`, the claim that makes lassecash.com
+   * the original copy of the article on peakd, ecency and every other Hive
+   * frontend. Order is fixed: an unregistered article is recoverable; a payout
+   * window over content that does not exist is not.
+   *
+   * The permlink is derived EXACTLY as the simulator derives it (`permlinkFor`
+   * mirrors `sim.Permlink`, pinned by a test), so a post written against the
+   * dev chain and against MAGI get the same key.
    */
-  publish(_i: unknown): Promise<PublishResult> {
-    return Promise.reject(new BackendError(notWired("publish")));
+  async publish(input: {
+    title: string; body: string; summary: string; tags: string[];
+    window: number; payoutMode: number; signer?: Signer;
+  }): Promise<PublishResult> {
+    const signer = input.signer;
+    if (!signer?.publishToHive) {
+      throw new BackendError("publishing needs a wallet that can write to Hive");
+    }
+    const permlink = permlinkFor(input.title);
+    if (!permlink) {
+      return { ok: false, msg: "title must contain letters or numbers", height: 0, permlink: "" };
+    }
+    await signer.publishToHive({
+      permlink,
+      title: input.title,
+      body: input.body,
+      tags: input.tags,
+      summary: input.summary,
+      image: firstImage(input.body),
+    });
+    const res = await signer.submit("post", `${permlink}|${input.window}|${input.payoutMode}`);
+    return { ...res, permlink };
   }
 
   /**
-   * ⚠️ NOT WIRED, for exactly the same reason as `publish` — and with the same
-   * obligation. A reply is two signed operations (Hive `comment` with
-   * `parent_author`/`parent_permlink`, then the contract's `comment`
-   * entrypoint), and both need a wallet.
-   *
-   * When it is wired it MUST go through `AiohaWallet.publishCommentToHive()`,
-   * which attaches `commentMetadata()`. A comment thread is precisely the
-   * long-tail text that ends up indexed against somebody else's domain by
-   * default, so skipping the canonical claim gives it away silently.
+   * Publish a reply: Hive `comment` with a parent, then the contract's
+   * `comment` entrypoint — same order, same reason, same canonical claim via
+   * `publishCommentToHive()`. The caller supplies the permlink because both
+   * writes must use the identical string or the reward attaches to nothing.
    */
-  publishComment(_i: unknown): Promise<PublishResult> {
-    return Promise.reject(new BackendError(notWired("publishComment")));
+  async publishComment(input: {
+    permlink: string; body: string;
+    parentAuthor: string; parentPermlink: string; payoutMode: number; signer?: Signer;
+  }): Promise<PublishResult> {
+    const signer = input.signer;
+    if (!signer?.publishCommentToHive) {
+      throw new BackendError("commenting needs a wallet that can write to Hive");
+    }
+    const parentAuthor = input.parentAuthor.replace(/^@/, "");
+    await signer.publishCommentToHive({
+      permlink: input.permlink,
+      body: input.body,
+      parentAuthor,
+      parentPermlink: input.parentPermlink,
+    });
+    // The contract keys posts by the FULLY QUALIFIED author (`hive:alice`),
+    // exactly as the SDK renders a sender.
+    const qualified = parentAuthor.startsWith("hive:") ? parentAuthor : `hive:${parentAuthor}`;
+    const res = await signer.submit(
+      "comment",
+      `${input.permlink}|${qualified}|${input.parentPermlink}|${input.payoutMode}`,
+    );
+    return { ...res, permlink: input.permlink };
   }
 
   /**
@@ -833,4 +871,34 @@ function notWired(what: string): string {
   return `MagiBackend.${what} is not wired yet. ` +
     `Reads need the deployed contract id; quotes must go through ` +
     `simulateContractCalls so the ENGINE computes them, never this layer.`;
+}
+
+/**
+ * The post slug, derived EXACTLY as the simulator's `sim.Permlink` derives it:
+ * lowercase, `[a-z0-9]` kept, runs of space/dash/underscore collapsed to one
+ * dash, everything else dropped, trimmed, cut at 80. Same title ⇒ same key on
+ * both chains; `permlink.test.ts` pins the parity.
+ */
+export function permlinkFor(title: string): string {
+  let out = "";
+  let lastDash = true; // trims a leading dash
+  for (const ch of title.toLowerCase()) {
+    if ((ch >= "a" && ch <= "z") || (ch >= "0" && ch <= "9")) {
+      out += ch;
+      lastDash = false;
+    } else if (ch === " " || ch === "-" || ch === "_") {
+      if (!lastDash) { out += "-"; lastDash = true; }
+    }
+  }
+  out = out.replace(/^-+|-+$/g, "");
+  if (out.length > 80) out = out.slice(0, 80).replace(/^-+|-+$/g, "");
+  return out;
+}
+
+/** The first image in a markdown body — the cover for og:image and the feed. */
+function firstImage(body: string): string | null {
+  const md = /!\[[^\]]*\]\((https?:\/\/[^\s)]+)\)/i.exec(body);
+  if (md) return md[1] ?? null;
+  const bare = /^(https?:\/\/\S+\.(?:png|jpe?g|gif|webp))\s*$/im.exec(body);
+  return bare?.[1] ?? null;
 }

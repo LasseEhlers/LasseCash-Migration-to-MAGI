@@ -175,7 +175,7 @@ class ChainStore {
         // On a real chain "ok" only means Hive accepted the transaction. The
         // contract's verdict arrives 30–90 s later; wait for it so a refusal
         // is SHOWN, not silently swallowed.
-        return await this.#awaitVerdict(res.txId, before);
+        return await this.awaitVerdict(res.txId, before);
       }
       await this.refresh();
       return null;
@@ -193,7 +193,7 @@ class ChainStore {
    * account view actually changes. `confirming` drives the banner. A refusal
    * returns the chain's error text; nobody should have to press F5 or guess.
    */
-  async #awaitVerdict(txId: string, before: string): Promise<string | null> {
+  async awaitVerdict(txId: string, before: string): Promise<string | null> {
     this.confirming = true;
     try {
       let verdict: Awaited<ReturnType<typeof client.txStatus>> = { status: "PENDING" };

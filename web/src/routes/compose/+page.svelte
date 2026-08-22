@@ -15,7 +15,8 @@
   import { chain, client } from "$lib/chain.svelte.js";
   import { lc } from "$lib/format.js";
   import { renderMarkdown } from "$lib/markdown.js";
-  import { PayoutMode, Window } from "$api/index.js";
+  import { PayoutMode, Window, permlinkFor } from "$api/index.js";
+  import { wallet } from "$lib/chain.svelte.js";
   import Seo from "$lib/Seo.svelte";
   import { SITE_URL } from "$lib/site.js";
 
@@ -36,15 +37,7 @@
   const rendered = $derived(renderMarkdown(body));
 
   /** The permlink is the CONTRACT'S KEY for the post, so it is shown, not hidden. */
-  const permlink = $derived(
-    title
-      .toLowerCase()
-      .replace(/[^a-z0-9 _-]/g, "")
-      .trim()
-      .replace(/[\s_-]+/g, "-")
-      .replace(/^-|-$/g, "")
-      .slice(0, 80),
-  );
+  const permlink = $derived(permlinkFor(title));
 
   const canPublish = $derived(
     !!chain.account &&
@@ -54,9 +47,20 @@
       (mode !== PayoutMode.Burn || burnConfirmed),
   );
 
+  /**
+   * Hive's tag rules: lowercase `[a-z0-9-]`, at most 24 characters, and at
+   * most 10 per post (the first slot is `lassecash`, the tribe tag, added at
+   * publish time — so 9 are the author's). A pasted "a b c" list is SPLIT,
+   * never glued into one tag.
+   */
+  const MAX_TAGS = 9;
+  const MAX_TAG_LEN = 24;
   function addTag() {
-    const t = tagInput.trim().toLowerCase().replace(/[^a-z0-9-]/g, "");
-    if (t && !tags.includes(t) && tags.length < 20) tags = [...tags, t];
+    const parts = tagInput.split(/[\s,]+/);
+    for (const raw of parts) {
+      const t = raw.toLowerCase().replace(/[^a-z0-9-]/g, "").replace(/^-+|-+$/g, "").slice(0, MAX_TAG_LEN);
+      if (t && t !== "lassecash" && !tags.includes(t) && tags.length < MAX_TAGS) tags = [...tags, t];
+    }
     tagInput = "";
   }
   function onTagKey(e: KeyboardEvent) {
@@ -78,16 +82,54 @@
     });
   }
 
+  let uploading = $state(false);
+  let fileInput = $state<HTMLInputElement | null>(null);
+
   /**
-   * Paste an image URL.
-   *
-   * Real uploads go to Hive's image server —
-   * `POST https://images.hive.blog/:username/:signature`, where the signature
-   * is sha256("ImageSigningChallenge" + imageData) signed with the POSTING key.
-   * That needs a wallet, so it lands with Aioha. Until then, paste a URL from
-   * anywhere (including an existing images.hive.blog link).
+   * Images go to Hive's own image server —
+   * `POST https://images.hive.blog/:username/:signature`, the signature being
+   * sha256("ImageSigningChallenge" + bytes) signed with the POSTING key. The
+   * wallet signs; the file never touches our servers. Every existing Hive post
+   * depends on that host, so it is maintained far beyond anything we could
+   * run ourselves. Three ways in, all the same path: Ctrl+V an image, drop a
+   * file on the editor, or the Image button. Without a wallet (dev chain) the
+   * button falls back to asking for a URL.
    */
+  async function uploadFiles(files: Iterable<File>) {
+    const user = chain.account?.replace(/^hive:/, "");
+    if (!wallet || !user) return false;
+    const images = Array.from(files).filter((f) => f.type.startsWith("image/"));
+    if (images.length === 0) return false;
+    uploading = true;
+    error = null;
+    try {
+      for (const f of images) {
+        const url = await wallet.uploadImage(f, user);
+        insert(`\n![${f.name.replace(/[\]\[]/g, "")}](${url})\n`);
+      }
+    } catch (e) {
+      error = `Image upload failed: ${e instanceof Error ? e.message : String(e)}`;
+    } finally {
+      uploading = false;
+    }
+    return true;
+  }
+  function onPaste(e: ClipboardEvent) {
+    const files = Array.from(e.clipboardData?.files ?? []);
+    if (files.some((f) => f.type.startsWith("image/"))) {
+      e.preventDefault();
+      void uploadFiles(files);
+    }
+  }
+  function onDrop(e: DragEvent) {
+    const files = Array.from(e.dataTransfer?.files ?? []);
+    if (files.some((f) => f.type.startsWith("image/"))) {
+      e.preventDefault();
+      void uploadFiles(files);
+    }
+  }
   function addImage() {
+    if (wallet && chain.account) { fileInput?.click(); return; }
     const url = prompt("Image URL");
     if (url && /^https?:\/\//i.test(url)) insert(`\n![](${url.trim()})\n`);
   }
@@ -112,6 +154,11 @@
       if (!res.ok) {
         error = res.msg;
         return;
+      }
+      if (res.txId) {
+        // Hive has the article; now wait for MAGI's verdict on the registration.
+        const refused = await chain.awaitVerdict(res.txId, JSON.stringify(chain.me));
+        if (refused) { error = refused; return; }
       }
       published = res.permlink;
       title = "";
@@ -185,16 +232,29 @@
         <button class="ghost small" onclick={addVideo}>Video</button>
       </div>
 
+      <input
+        type="file" accept="image/*" multiple hidden
+        bind:this={fileInput}
+        onchange={(e) => { const el = e.currentTarget; void uploadFiles(el.files ?? []); el.value = ""; }}
+      />
       <textarea
         bind:this={editor}
         bind:value={body}
+        onpaste={onPaste}
+        ondrop={onDrop}
+        ondragover={(e) => e.preventDefault()}
         rows="18"
         placeholder="Write in markdown.&#10;&#10;Paste an image or YouTube URL on its own line and it embeds."
       ></textarea>
 
       <p class="note">
-        Images upload to Hive's own image server once wallet signing is wired —
-        that is what keeps existing Hive posts alive. For now, paste any URL.
+        {#if uploading}
+          Uploading to Hive's image server — your wallet signs, the file never touches ours…
+        {:else if wallet}
+          Paste (Ctrl+V) or drop an image and it uploads to Hive's own image server, signed by your wallet.
+        {:else}
+          Image uploads need a wallet; on the dev chain, paste any image URL.
+        {/if}
       </p>
 
       <label class="field">
@@ -206,6 +266,7 @@
       <label class="field">
         <span>Tags</span>
         <input bind:value={tagInput} onkeydown={onTagKey} onblur={addTag} placeholder="enter or space to add" />
+        <small class="dim">{tags.length}/{MAX_TAGS} · up to {MAX_TAG_LEN} letters each · <code>lassecash</code> is added automatically</small>
       </label>
       {#if tags.length}
         <div class="tags">

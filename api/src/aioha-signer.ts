@@ -417,6 +417,19 @@ export class AiohaSigner implements Signer {
     return `${whole}.${frac}`;
   }
 
+  /** Content-layer writes, forwarded to the wallet (posting authority). */
+  publishToHive(input: {
+    permlink: string; title: string; body: string; tags: string[];
+    summary?: string; image?: string | null;
+  }): Promise<void> {
+    return this.wallet.publishToHive(input);
+  }
+  publishCommentToHive(input: {
+    permlink: string; body: string; parentAuthor: string; parentPermlink: string;
+  }): Promise<void> {
+    return this.wallet.publishCommentToHive(input);
+  }
+
   async submit(entrypoint: string, args: string, opts?: SubmitOptions): Promise<TxResult> {
     const keyType = AiohaSigner.ACTIVE_OPS.has(entrypoint)
       ? KeyTypes.Active

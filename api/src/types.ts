@@ -249,6 +249,8 @@ export interface PublishResult {
   height: number;
   /** The slug the post was registered under — the contract's key for it. */
   permlink: string;
+  /** Wallet signers: the L1 tx id of the contract registration (see TxResult). */
+  txId?: string | undefined;
 }
 
 /**

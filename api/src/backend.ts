@@ -23,6 +23,20 @@ export interface Signer {
    * signed through Aioha and broadcast.
    */
   submit(entrypoint: string, args: string, opts?: SubmitOptions): Promise<TxResult>;
+  /**
+   * Content-layer writes. Present on wallet signers only: the simulator keeps
+   * its own content store, so the dev signer has no Hive to write to. A
+   * backend that needs these and finds them absent must refuse, never skip —
+   * registering a post whose body does not exist opens a payout window over
+   * nothing.
+   */
+  publishToHive?(input: {
+    permlink: string; title: string; body: string; tags: string[];
+    summary?: string; image?: string | null;
+  }): Promise<void>;
+  publishCommentToHive?(input: {
+    permlink: string; body: string; parentAuthor: string; parentPermlink: string;
+  }): Promise<void>;
 }
 
 /** Per-call overrides a caller may pass when it knows more than the table. */
@@ -74,7 +88,7 @@ export interface Backend {
    */
   publish(input: {
     title: string; body: string; summary: string; tags: string[];
-    window: number; payoutMode: number;
+    window: number; payoutMode: number; signer?: Signer;
   }): Promise<PublishResult>;
   /**
    * The registered REPLIES to one post.
@@ -101,7 +115,7 @@ export interface Backend {
    */
   publishComment(input: {
     permlink: string; body: string;
-    parentAuthor: string; parentPermlink: string; payoutMode: number;
+    parentAuthor: string; parentPermlink: string; payoutMode: number; signer?: Signer;
   }): Promise<PublishResult>;
   /**
    * The `gov_board` accounts, their L-Shares, and their standing preferences.
