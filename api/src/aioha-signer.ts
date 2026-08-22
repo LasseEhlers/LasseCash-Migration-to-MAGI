@@ -296,6 +296,32 @@ export class AiohaWallet {
   }
 
   /**
+   * The account's RC right now. `getAccountRC` errors for an account the node
+   * has no record for — that is a FRESH account, which holds exactly the free
+   * allowance, so report that rather than nothing.
+   */
+  async availableRc(account: string): Promise<number | null> {
+    try {
+      const res = await fetch(this.#chainUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          query: `query($a: String!) { getAccountRC(account: $a) { amount max_rcs } }`,
+          variables: { a: account },
+        }),
+      });
+      const body = (await res.json()) as { data?: { getAccountRC?: { amount: number } | null } };
+      const rc = body.data?.getAccountRC;
+      if (rc && typeof rc.amount === "number") return rc.amount;
+      return AiohaWallet.FREE_RC;
+    } catch {
+      return null;
+    }
+  }
+  /** RC every hive: account has without staking anything on MAGI (rc-system/). */
+  static readonly FREE_RC = 10_000;
+
+  /**
    * ONE confirm for publishing: the Hive `comment` and the contract's
    * `vsc.call` registration travel in the SAME Hive transaction, signed once
    * with the posting key. Lasse 2026-08-22: Hive-Engine never asked twice.
@@ -617,8 +643,24 @@ export class AiohaSigner implements Signer {
       }
       return { ok: false, msg: sim.msg, height: 0 };
     }
-    const sized = Math.ceil((sim.gas / AiohaSigner.GAS_PER_RC) * AiohaSigner.RC_HEADROOM);
-    return Math.min(AiohaSigner.RC_CEILING, Math.max(tableLimit, sized));
+    const need = Math.ceil(sim.gas / AiohaSigner.GAS_PER_RC);
+    const sized = Math.min(AiohaSigner.RC_CEILING, Math.max(tableLimit, need * AiohaSigner.RC_HEADROOM));
+    // Never ask for more than the account has: the limit is admission-checked
+    // against AVAILABLE RC ("minimum RC requirement is not met"), so a fresh
+    // account's 10,000 must be able to carry a claim. Headroom gives way
+    // first; below 1.3x the simulated need the call is not worth sending.
+    const avail = await this.wallet.availableRc(this.account);
+    if (avail !== null && sized > avail) {
+      const floor = Math.ceil(need * 1.3);
+      if (avail < floor) {
+        return {
+          ok: false, height: 0,
+          msg: `not enough resource credits: this call needs about ${floor.toLocaleString()} RC and the account has ${avail.toLocaleString()}. RC thaws over 5 days; staking HBD on MAGI raises the meter.`,
+        };
+      }
+      return avail;
+    }
+    return sized;
   }
 
   async submit(entrypoint: string, args: string, opts?: SubmitOptions): Promise<TxResult> {
