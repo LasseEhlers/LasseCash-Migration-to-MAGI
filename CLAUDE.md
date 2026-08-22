@@ -1459,6 +1459,45 @@ downloads; treat "devnet says X" as strong evidence but confirm consensus-
 critical behaviour (like the slash-key bug) against mainnet, since witnesses
 there may run different versions.
 
+## THROWAWAY #5 — 2026-08-22 morning: the pool and first-vote registration on mainnet
+
+`vsc1BjLaDa5zFWPC8g61uL6mN84m2FSeeLKBpY`, genesis 109,238,176, TESTWINDOWS,
+real snapshot root committed. **Every user-reachable entrypoint has now run
+on mainnet with a real wallet.** The contract is a production candidate; what
+remains is observation on the clock (monthly mint Sept 1, bleed, Good
+Accounting in grace, sweep_mint), then the final fuzz and the real deploy.
+
+**Custody round trip, exact to the milli:** add 2,000 LC + 2 HBD (ledger
+−2000 milli, `transfer.allow` 2.000) → sell 100 LC (+95; engine owed 0.095238,
+paid 0.095, dust stays in custody) → buy 0.05 HBD (−50) → withdraw (+1954,
+plus 28.5 LC of LP rewards — the first LP payout ever). Custody ≥ ledger held
+throughout.
+
+**A FRESH account can claim.** @daneamanda (untouched meter: 10,000/10,000
+free RC, 250k staked, took a board seat) claimed at rc_limit 9,500 —
+CONFIRMED. This is the launch-day case for nearly every holder. @angeloextreme
+failed the same claim earlier only because his meter was still frozen from
+seven calls on #4 (thaw = 5 days). **Runbook rule: claim FIRST; do nothing
+else on MAGI before the claim.**
+
+**First-vote registration, live:** a PeakD post tagged `lassecash` by
+@lasseehlers (Hive reputation −12.6 → "grayed") was registered by a vote:
+record created at the vote's height, viral, default split. Findings:
+- **Hive's tag listings (`get_ranked_posts`, `get_discussions_by_created`)
+  silently omit grayed authors.** `get_post`/`get_account_posts` include
+  them. Discovery = tag listing ∪ per-author sweep of `gov_board` members;
+  any other grayed author's post works by direct URL and joins the feed on
+  its first vote. (LasseCash does not inherit Hive's downvote hiding.)
+- Discovery must also read `vote` call targets — a vote-registered post has
+  no `post` call.
+- Tagged posts older than the viral window, or pre-genesis, are not offered
+  (a first vote opens a FRESH window).
+- **A LasseCash vote also casts the Hive vote at the same weight in the same
+  transaction** (Lasse: tribe consistency). Hive refuses an identical re-vote,
+  which then blocks the bundled contract call — reported as Hive's reason.
+- The contract has no unvote (weights 1..100): a vote is REPLACED by
+  re-voting, never removed. Slider remembers the last weight per browser.
+
 ## WALLET EVENING on mainnet — throwaway #4, 2026-08-22 (02:00–06:30)
 
 | | |
