@@ -261,9 +261,15 @@ export class AiohaWallet {
    * depends on it staying up, so it is maintained far beyond anything we could
    * justify running.
    *
-   * ⚠️ UNVERIFIED AGAINST A LIVE WALLET. The digest is computed here and passed
-   * to `signMessage`; whether each provider signs the raw digest or re-hashes
-   * it has to be confirmed against real Keychain/PeakVault before launch.
+   * VERIFIED AGAINST KEYCHAIN 2026-08-22 — and the first attempt was wrong.
+   * Keychain's `signBuffer` HASHES whatever message it is handed and signs
+   * that hash. hive.blog therefore hands it the raw bytes of the challenge,
+   * serialised the way Node prints a Buffer: `{"type":"Buffer","data":[...]}`
+   * — Keychain recognises that shape, rebuilds the bytes, and signs
+   * sha256(bytes), which is exactly what the image server verifies. Passing a
+   * hex digest instead (the first version) made Keychain sign sha256(hex
+   * text) and the server refused the upload. Same shape every provider
+   * following Keychain's API accepts.
    */
   async uploadImage(file: Blob, username: string): Promise<string> {
     const bytes = new Uint8Array(await file.arrayBuffer());
@@ -273,10 +279,8 @@ export class AiohaWallet {
     payload.set(challenge, 0);
     payload.set(bytes, challenge.length);
 
-    const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", payload));
-    const hex = Array.from(digest, (b) => b.toString(16).padStart(2, "0")).join("");
-
-    const signed = await this.aioha.signMessage(hex, KeyTypes.Posting);
+    const message = JSON.stringify({ type: "Buffer", data: Array.from(payload) });
+    const signed = await this.aioha.signMessage(message, KeyTypes.Posting);
     if (!signed.success) {
       throw new BackendError(signed.error || "image signing failed", signed.errorCode);
     }
