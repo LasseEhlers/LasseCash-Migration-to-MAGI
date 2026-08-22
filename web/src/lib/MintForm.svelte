@@ -10,6 +10,7 @@
    * ratchets with height and the volume thresholds are governed.
    */
   import { chain, client } from "$lib/chain.svelte.js";
+  import { toUnits } from "$api/index.js";
   import { lc, mult } from "$lib/format.js";
   import { constants, mintQuote, toBaseUnitArg, type EngineMintQuote } from "$api/index.js";
 
@@ -53,9 +54,26 @@
   );
 
   const balance = $derived(chain.me?.balance ?? "0.00000000");
-  const canSubmit = $derived(
-    !!chain.account && !!preview?.ok && !chain.busy && !confirming,
+  // Never let a mint larger than the balance reach the wallet: the contract
+  // would refuse it 30–90 s after signing, which is the worst time to learn.
+  const overBalance = $derived(
+    !!preview?.ok && safeUnits(amount) > toUnits(balance),
   );
+  const canSubmit = $derived(
+    !!chain.account && !!preview?.ok && !overBalance && !chain.busy && !confirming,
+  );
+
+  // The amount field is free text while typing; an unparseable value is
+  // simply "not over balance" — the preview already reports it as invalid.
+  function safeUnits(a: string): bigint {
+    try { return toUnits(a); } catch { return 0n; }
+  }
+
+  function driftsMaterially(previewed: string, actual: string): boolean {
+    const a = toUnits(previewed), b = toUnits(actual);
+    const diff = a > b ? a - b : b - a;
+    return diff * 1000n > a;
+  }
 
   async function submit() {
     error = null;
@@ -65,7 +83,12 @@
       // and thresholds fetched a moment ago, and both can move.
       const authoritative = await client.quoteMint(amount, days);
       if (!authoritative.ok) { error = authoritative.msg; return; }
-      if (preview && authoritative.shares !== preview.shares) {
+      // The share rate ratchets every height, so on a real chain the preview
+      // is always a few heights stale. Only stop the user when the difference
+      // is one they would care about (> 0.1%); the contract prices the mint at
+      // its own height either way, and shares can only move DOWN between
+      // preview and execution.
+      if (preview && driftsMaterially(preview.shares, authoritative.shares)) {
         error = `Rate moved — you would now receive ${lc(authoritative.shares)} L-Shares. Submit again to accept.`;
         shareRate = authoritative.share_rate;
         return;
@@ -85,7 +108,7 @@
     <span>Amount to lock</span>
     <input inputmode="decimal" bind:value={amount} placeholder="10000" />
     <small class="dim">
-      Balance {lc(balance)} LC
+      Balance {lc(balance)} LC{#if overBalance} · <span class="red">more than you hold</span>{/if}
       {#if C}· minimum {lc(C.minMintAmount === "100000000" ? "1.00000000" : "1.00000000", 0)} LC{/if}
     </small>
   </label>

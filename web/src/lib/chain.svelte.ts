@@ -160,23 +160,63 @@ class ChainStore {
    * mean our view of the chain was stale, and showing the user a fresh state is
    * more useful than preserving the one that led to the rejection.
    */
-  async submit(fn: () => Promise<{ ok: boolean; msg: string }>): Promise<string | null> {
+  async submit(fn: () => Promise<{ ok: boolean; msg: string; txId?: string }>): Promise<string | null> {
     this.busy = true;
     try {
       const before = JSON.stringify(this.me);
       const res = await fn();
-      await this.refresh();
-      // Contract messages carry RAW BASE UNITS and are diagnostic. Surface the
-      // failure reason, never the formatting.
-      if (res.ok && WALLET_MODE && JSON.stringify(this.me) === before) {
-        void this.#awaitEffect(before);
+      if (!res.ok) {
+        await this.refresh();
+        // Contract messages carry RAW BASE UNITS and are diagnostic. Surface
+        // the failure reason, never the formatting.
+        return res.msg;
       }
-      return res.ok ? null : res.msg;
+      if (WALLET_MODE && res.txId) {
+        // On a real chain "ok" only means Hive accepted the transaction. The
+        // contract's verdict arrives 30–90 s later; wait for it so a refusal
+        // is SHOWN, not silently swallowed.
+        return await this.#awaitVerdict(res.txId, before);
+      }
+      await this.refresh();
+      return null;
     } catch (e) {
       await this.refresh();
       return e instanceof Error ? e.message : String(e);
     } finally {
       this.busy = false;
+    }
+  }
+
+  /**
+   * Follow a broadcast call to its verdict: poll the transaction status until
+   * CONFIRMED or FAILED (up to ~4 minutes), then keep refreshing until the
+   * account view actually changes. `confirming` drives the banner. A refusal
+   * returns the chain's error text; nobody should have to press F5 or guess.
+   */
+  async #awaitVerdict(txId: string, before: string): Promise<string | null> {
+    this.confirming = true;
+    try {
+      let verdict: Awaited<ReturnType<typeof client.txStatus>> = { status: "PENDING" };
+      for (let i = 0; i < 24; i++) {
+        await new Promise((r) => setTimeout(r, 10_000));
+        try { verdict = await client.txStatus(txId); } catch { /* node hiccup: keep waiting */ }
+        if (verdict.status === "CONFIRMED" || verdict.status === "FAILED") break;
+      }
+      await this.refresh();
+      if (verdict.status === "FAILED") {
+        return verdict.error ? `The chain refused this: ${verdict.error}` : "The chain refused this call.";
+      }
+      if (verdict.status !== "CONFIRMED") {
+        return "Still waiting for MAGI to include this transaction — the figures update when it lands.";
+      }
+      // Confirmed; the indexed state can lag the verdict by a block or two.
+      for (let i = 0; i < 6 && JSON.stringify(this.me) === before; i++) {
+        await new Promise((r) => setTimeout(r, 10_000));
+        await this.refresh();
+      }
+      return null;
+    } finally {
+      this.confirming = false;
     }
   }
 
@@ -233,25 +273,6 @@ class ChainStore {
       // Stop as soon as a round stops making progress, so a permanently stuck
       // entry cannot spin the loop.
       if ((this.me?.pending_curation ?? 0) >= before) return;
-    }
-  }
-
-  /**
-   * Poll until the account view differs from `before`, or give up after
-   * three minutes (a refused call changes nothing and must not spin forever).
-   * Runs in the background so the page stays usable; `confirming` drives the
-   * banner. Nobody should have to press F5 on this site.
-   */
-  async #awaitEffect(before: string) {
-    this.confirming = true;
-    try {
-      for (let i = 0; i < 18; i++) {
-        await new Promise((r) => setTimeout(r, 10_000));
-        await this.refresh();
-        if (JSON.stringify(this.me) !== before) return;
-      }
-    } finally {
-      this.confirming = false;
     }
   }
 

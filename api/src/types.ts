@@ -169,6 +169,19 @@ export interface TxResult {
   /** Diagnostic. Contains RAW BASE UNITS — never render this to a user. */
   msg: string;
   height: number;
+  /**
+   * Set by wallet signers: the Hive L1 transaction id. On MAGI, `ok` only
+   * means Hive ACCEPTED the custom_json — the contract runs it 30–90 s later
+   * and may refuse. `Backend.txStatus(txId)` reads the real verdict.
+   */
+  txId?: string | undefined;
+}
+
+/** The chain's verdict on a broadcast transaction. */
+export interface TxStatus {
+  status: "PENDING" | "CONFIRMED" | "FAILED" | "UNKNOWN";
+  /** Error text for FAILED, when the node exposes it. */
+  error?: string | undefined;
 }
 
 export interface SwapQuote {

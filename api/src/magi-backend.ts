@@ -15,6 +15,7 @@
 import { BackendError, type Backend } from "./backend.js";
 import * as engine from "./engine.js";
 import { toUnits } from "./amount.js";
+import type { TxStatus } from "./types.js";
 import type {
   AccountView, ChainInfo, Content, GovernanceMember, LiquidityQuote, MintQuote,
   PostMeta, PostVote, PostView, PublishResult, ResourceCredits, SwapDirection,
@@ -77,6 +78,42 @@ export class MagiBackend implements Backend {
       { id: this.#contractId, keys },
     );
     return data.getStateByKeys ?? {};
+  }
+
+  /**
+   * The chain's verdict on a broadcast call.
+   *
+   * `findTransaction` reports PENDING until a MAGI block includes the call;
+   * then CONFIRMED or FAILED. Contract outputs carry only `{ok, ret}` — the
+   * error text lives in the raw output DAG (`errMsg`), so a FAILED verdict
+   * fetches it from there. Found the hard way 2026-08-22: a mint the contract
+   * refused showed NOTHING on the page, because Keychain only reports that
+   * Hive accepted the transaction.
+   */
+  async txStatus(txId: string): Promise<TxStatus> {
+    const data = await this.query<{
+      findTransaction: { status: string; output?: { id: string }[] | null }[] | null;
+    }>(
+      `query($id: String!) { findTransaction(filterOptions: {byId: $id}) { status output { id } } }`,
+      { id: txId },
+    );
+    const tx = data.findTransaction?.[0];
+    if (!tx) return { status: "UNKNOWN" };
+    if (tx.status === "CONFIRMED") return { status: "CONFIRMED" };
+    if (tx.status !== "FAILED") return { status: "PENDING" };
+    const cid = tx.output?.[0]?.id;
+    if (!cid) return { status: "FAILED" };
+    try {
+      const dag = await this.query<{ getDagByCID: string }>(
+        `query($c: String!) { getDagByCID(cidString: $c) }`,
+        { c: cid },
+      );
+      const parsed = JSON.parse(dag.getDagByCID) as { results?: { errMsg?: string; err?: string }[] };
+      const r = parsed.results?.[0];
+      return { status: "FAILED", error: r?.errMsg || r?.err || undefined };
+    } catch {
+      return { status: "FAILED" };
+    }
   }
 
   /** Current Hive height, which is MAGI's height space (3 seconds per unit). */

@@ -7,6 +7,7 @@
  * which the MAGI backend cannot.
  */
 import { BackendError, type Backend, type Signer } from "./backend.js";
+import type { TxStatus } from "./types.js";
 import type {
   AccountView, ChainInfo, Content, GovernanceMember, LiquidityQuote, MintQuote,
   PostMeta, PostVote, PostView, PublishResult, SwapDirection, SwapQuote, TxResult,
@@ -63,6 +64,11 @@ export class DevBackend implements Backend {
 
   account(name: string): Promise<AccountView> {
     return this.#req(`/account/${encodeURIComponent(name)}`);
+  }
+
+  /** The simulator executes synchronously: anything broadcast is settled. */
+  async txStatus(_txId: string): Promise<TxStatus> {
+    return { status: "CONFIRMED" };
   }
 
   state(keys: string[]): Promise<Record<string, string>> {

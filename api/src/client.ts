@@ -60,6 +60,7 @@ export class LasseCashClient {
   chain(): Promise<ChainInfo> { return this.backend.chain(); }
   accountOf(name: string): Promise<AccountView> { return this.backend.account(name); }
   state(keys: string[]): Promise<Record<string, string>> { return this.backend.state(keys); }
+  txStatus(txId: string) { return this.backend.txStatus(txId); }
 
   /** Content, newest first. */
   posts(limit = 50): Promise<PostView[]> { return this.backend.posts(limit); }

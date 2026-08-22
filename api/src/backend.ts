@@ -11,7 +11,7 @@
 import type {
   AccountView, ChainInfo, Content, GovernanceMember, LiquidityQuote, MintQuote,
   PostMeta, PostVote, PostView, PublishResult, ResourceCredits, SwapDirection,
-  SwapQuote, TxResult,
+  SwapQuote, TxResult, TxStatus,
 } from "./types.js";
 
 /** A signer produces authorised transactions. */
@@ -42,6 +42,8 @@ export interface Backend {
   chain(): Promise<ChainInfo>;
   account(name: string): Promise<AccountView>;
   state(keys: string[]): Promise<Record<string, string>>;
+  /** Verdict on a broadcast transaction; the simulator answers CONFIRMED. */
+  txStatus(txId: string): Promise<TxStatus>;
   posts(limit?: number): Promise<PostView[]>;
   /**
    * The same list, CONTENT ONLY — no payout figures, and therefore no engine.

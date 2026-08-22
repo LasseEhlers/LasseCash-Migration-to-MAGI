@@ -458,6 +458,7 @@ export class AiohaSigner implements Signer {
       ok: !!res.success,
       msg: res.success ? (res.result ?? "submitted") : (res.error ?? "rejected"),
       height: 0, // the node assigns this; read it back on the next refresh
+      txId: res.success && typeof res.result === "string" ? res.result : undefined,
     };
   }
 }
