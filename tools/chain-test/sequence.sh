@@ -15,7 +15,7 @@ cd "$(dirname "$0")/../.."
 # ⚠️ UPDATE THIS after the next deploy — this id is throwaway #2 (slashed
 # keys, state can never persist). The rekeyed TESTWINDOWS deploy gets a new id,
 # which must also replace the pinned CONTRACT in call.js.
-CID=vsc1BjLaDa5zFWPC8g61uL6mN84m2FSeeLKBpY
+CID=vsc1BYKrSivqTYcQBRo376aQiZ1JFNSdDAmsp9
 GQL=https://api.vsc.eco/api/v1/graphql
 
 state() { # state <key> -> value or "null"
