@@ -122,6 +122,20 @@ export interface PostView {
   curator_pot: Amount;
   /** Height at which an unclaimed curator pot may be recycled. 0 until paid out. */
   curation_expires_at: number;
+  /**
+   * False for a post that exists on Hive under the `lassecash` tag but that
+   * nobody has voted on yet.
+   *
+   * A tagged post whose AUTHOR clears the viral posting threshold is SHOWN here
+   * before anyone registers it — that is the whole point of the tag — but it
+   * has no contract record, so every economic field above is a zero rather than
+   * a reading. The FIRST VOTE registers it (the contract's `vote` entrypoint
+   * calls `registerForAuthor` on an unknown author|permlink), and from that
+   * moment it is an ordinary viral post. Until then it earns nothing, and the
+   * UI must say so instead of showing a 0.00000000 payout as if it were a
+   * fact about the chain.
+   */
+  registered: boolean;
 }
 
 /**
@@ -145,6 +159,8 @@ export interface PostMeta {
   /** The opening of the article — enough to derive a cover image. */
   body_excerpt: string;
   tags: string[] | null;
+  /** False for a Hive post under the `lassecash` tag with no contract record. */
+  registered: boolean;
 }
 
 /**

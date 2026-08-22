@@ -497,7 +497,7 @@ export class MagiBackend implements Backend {
    */
   async postsMeta(limit = 50): Promise<PostMeta[]> {
     const found = await this.#discover(limit);
-    if (found.length === 0) return [];
+    if (found.length === 0) return this.#tagged(found);
 
     const [records, height] = await Promise.all([
       this.state(found.map((p) => `post_${p.author}_${p.permlink}`)),
@@ -523,13 +523,113 @@ export class MagiBackend implements Backend {
         summary: "",
         body_excerpt: "",
         tags: null,
+        registered: true,
       });
     }
-    return this.#hydrate(out);
+    // Registered posts first, then the tagged-but-unregistered ones. The feed
+    // orders the list itself; this only guarantees both kinds are IN it.
+    return [...await this.#hydrate(out), ...await this.#tagged(found)];
   }
 
   async posts(limit = 50): Promise<PostView[]> {
-    return this.#hydrate(await this.#viewsFor(await this.#discover(limit)));
+    const found = await this.#discover(limit);
+    const [views, tagged] = await Promise.all([
+      this.#viewsFor(found).then((v) => this.#hydrate(v)),
+      this.#tagged(found),
+    ]);
+    return [...views, ...tagged];
+  }
+
+  /**
+   * Posts that are on Hive under the `lassecash` tag but not on the chain.
+   *
+   * THE RULE, and it is deliberately narrow: a root post tagged `lassecash`
+   * whose AUTHOR holds at least the viral posting threshold in L-Shares is
+   * SHOWN on LasseCash before anybody registers it. It earns nothing until the
+   * first vote, which is what registers it — the contract's `vote` entrypoint
+   * calls `registerForAuthor` when it does not recognise author|permlink, so a
+   * vote is the registration and no separate step exists. The tag decides
+   * NOTHING ELSE: not the window (always viral), not the split, not the payout.
+   *
+   * Eligibility is the ENGINE's call, not this file's: `engine.canPost` is the
+   * same `engine.CanPost` the contract runs before it will accept a post, so a
+   * post shown here is one the chain would register. The threshold comes from
+   * `#governed`, i.e. the live median of the top ten — never a constant.
+   *
+   * EVERY failure is swallowed to an empty list, and there are two real ones:
+   *
+   *   - api.hive.blog is slow or down. Registered posts are chain truth and
+   *     must still render; a tag is a discovery hint, not a dependency.
+   *   - THE ENGINE IS NOT LOADED. `postsMeta()` runs in a Cloudflare worker,
+   *     which has no WASM engine by design — and eligibility is the engine's
+   *     call, so server rendering simply does not include tagged posts. They
+   *     arrive a few hundred milliseconds later when the browser calls
+   *     `posts()` with the engine loaded, which is the same deal money already
+   *     gets. Guessing at eligibility here instead would be the second
+   *     implementation the golden rule forbids.
+   */
+  async #tagged(registered: { author: string; permlink: string }[]): Promise<PostView[]> {
+    try {
+      const rows = await this.#taggedCached();
+      if (rows.length === 0) return [];
+
+      // One state read for every candidate author, one governance read for
+      // the threshold. Both are needed before a single row can be judged, so
+      // they go out together.
+      const authors = [...new Set(rows.map((r) => qualified(r.author)))];
+      const c = engine.constants();
+      const [shares, governed] = await Promise.all([
+        this.state(authors.map((a) => `shr_${a}`)),
+        this.#governed([c.paramPostThresholdViral]),
+      ]);
+      const byAuthor: Record<string, string> = {};
+      for (const a of authors) byAuthor[a] = shares[`shr_${a}`] || "0";
+
+      return mergeTagged(registered, rows, byAuthor,
+        governed[c.paramPostThresholdViral] ?? "0");
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * The tagged-post fetch, cached for a minute.
+   *
+   * A feed render, a profile render and a post page all ask for the same list
+   * within the same second; Hive's public API is shared infrastructure every
+   * post on the network depends on, and hammering it for a list that changes
+   * every few minutes would be rude and slow in equal measure.
+   */
+  #taggedAt = 0;
+  #taggedList: Promise<HiveTaggedPost[]> | undefined;
+
+  #taggedCached(): Promise<HiveTaggedPost[]> {
+    const now = Date.now();
+    if (!this.#taggedList || now - this.#taggedAt >= TAGGED_CACHE_MS) {
+      this.#taggedAt = now;
+      this.#taggedList = this.#fetchTagged().catch(() => []);
+    }
+    return this.#taggedList;
+  }
+
+  /** The newest posts carrying the `lassecash` tag, straight from Hive. */
+  async #fetchTagged(limit = 50): Promise<HiveTaggedPost[]> {
+    const res = await this.#fetch("https://api.hive.blog", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        method: "bridge.get_ranked_posts",
+        // "created" is newest-first. Trending on Hive is Hive's own ranking of
+        // Hive's own rewards, which has nothing to do with what a post earns
+        // here — LasseCash ranks by ITS pending payout, so all this needs is a
+        // recent window to look in.
+        params: { sort: "created", tag: LASSECASH_TAG, limit },
+        id: 1,
+      }),
+    });
+    const body = (await res.json()) as { result?: HiveTaggedPost[] };
+    return Array.isArray(body.result) ? body.result : [];
   }
 
   /**
@@ -621,6 +721,8 @@ export class MagiBackend implements Backend {
         // paidHeight + one year; 0 until paid, exactly like the record.
         curation_expires_at:
           num(f[8]) > 0 ? num(f[8]) + 365 * Number(c.heightsPerDay) : 0,
+        // A record exists, so by definition this one is registered.
+        registered: true,
       });
     }
     return views;
@@ -965,6 +1067,174 @@ export class MagiBackend implements Backend {
       msg: est.ok ? "" : "liquidity deposit not valid: check amount and pool reserves",
     };
   }
+}
+
+/**
+ * The Hive tag that puts a post in front of LasseCash readers.
+ *
+ * It is a DISCOVERY hint and nothing more. It does not decide the window, the
+ * split, the threshold or the payout — the chain decides all four, and the tag
+ * cannot make an ineligible author eligible.
+ */
+export const LASSECASH_TAG = "lassecash";
+
+/** How long a tagged-post listing is reused before Hive is asked again. */
+const TAGGED_CACHE_MS = 60_000;
+
+/**
+ * One row of `bridge.get_ranked_posts`, narrowed to the fields we read.
+ *
+ * `author` is a BARE Hive name — the chain's addresses are qualified
+ * (`hive:alice`), so every comparison against state goes through `qualified()`.
+ */
+export interface HiveTaggedPost {
+  author: string;
+  permlink: string;
+  title?: string;
+  body?: string;
+  /** Hive's own timestamp, UTC with no zone suffix: `2026-08-22T09:14:12`. */
+  created?: string;
+  /**
+   * 0 for a root post, 1+ for a reply. VERIFIED against api.hive.blog
+   * 2026-08-22: `bridge.get_ranked_posts` returns `depth` and does NOT return
+   * `parent_author` at all, so a reply that slipped into the listing would
+   * pass a `parent_author`-only check. Both are read; `depth` is the one that
+   * is actually there.
+   */
+  depth?: number;
+  parent_author?: string;
+  /**
+   * ⚠️ AN OBJECT, not a string. `condenser_api.get_content` hands back
+   * `json_metadata` as raw JSON text; the `bridge.*` API parses it first.
+   * Verified 2026-08-22 — read as a string it silently loses every tag and
+   * every description, which is the sort of bug that looks like "the author
+   * did not fill it in".
+   */
+  json_metadata?: unknown;
+}
+
+/** A bare Hive name as the chain addresses it. Anything namespaced is left alone. */
+function qualified(author: string): string {
+  const a = author.replace(/^@/, "");
+  return a.includes(":") ? a : `hive:${a}`;
+}
+
+/**
+ * Fold Hive's tagged posts into the registered list — the pure half of the
+ * rule, extracted so it can be tested without a network or a chain.
+ *
+ * WHAT IT DECIDES, in order:
+ *   1. Root posts only. A reply on Hive is not an article here; registered
+ *      replies come from the `comment` entrypoint and nowhere else.
+ *   2. Never something the chain already knows about. A registered post's
+ *      record is the truth about it, including its window and its payout; a
+ *      duplicate built from Hive metadata would compete with that record in the
+ *      feed and show a zero beside a post that is earning.
+ *   3. The author must clear the viral posting threshold, per `engine.canPost`
+ *      — the identical comparison the contract makes. Not re-implemented here:
+ *      a `>=` written in TypeScript is exactly the second implementation the
+ *      golden rule forbids.
+ *
+ * EVERY ECONOMIC FIELD IS A ZERO, not an estimate. There is no record to read,
+ * so there is nothing to estimate FROM; `registered: false` is the flag that
+ * tells the UI to print "earns from the first vote" instead of a payout.
+ *
+ * @param registered  what the chain already has, for deduplication
+ * @param hiveRows    `bridge.get_ranked_posts` output
+ * @param sharesByAuthor  `shr_<qualified author>` -> base-unit L-Shares
+ * @param threshold   the viral posting threshold in force, in base units
+ */
+export function mergeTagged(
+  registered: { author: string; permlink: string }[],
+  hiveRows: HiveTaggedPost[],
+  sharesByAuthor: Record<string, string>,
+  threshold: string,
+): PostView[] {
+  const known = new Set(registered.map((p) => `${p.author}/${p.permlink}`));
+  const out: PostView[] = [];
+
+  for (const row of hiveRows) {
+    if (!row?.author || !row.permlink) continue;
+    // A reply, not an article. Replies are registered through the `comment`
+    // entrypoint and are shown under their parent; one surfacing in the feed
+    // would offer a registration the tag can never deliver.
+    if ((row.depth ?? 0) > 0 || row.parent_author) continue;
+    const author = qualified(row.author);
+    const key = `${author}/${row.permlink}`;
+    if (known.has(key)) continue;                  // already on the chain, or a dupe
+    known.add(key);
+    if (!engine.canPost(sharesByAuthor[author] || "0", threshold)) continue;
+
+    const body = row.body ?? "";
+    const meta = hiveMeta(row.json_metadata);
+    out.push({
+      author,
+      permlink: row.permlink,
+      // Registration through a vote always opens the VIRAL window — the
+      // contract's `registerForAuthor` takes no window argument, and there is
+      // no way for a tag to ask for a different one.
+      window: "viral",
+      // No record, so no registration height. Ordering falls back to
+      // created_time, which is the only date that exists for this post.
+      created_height: 0,
+      created_time: isoUtc(row.created),
+      payout_height: 0,
+      payout_time: "",
+      rshares: "0",
+      payout_mode: 0,
+      parent_author: "",
+      parent_permlink: "",
+      promoted: "0.00000000",
+      title: row.title || row.permlink,
+      summary: meta.summary,
+      body_excerpt: body.slice(0, 2_000),
+      tags: meta.tags,
+      votes: 0,
+      paid_out: false,
+      payable: false,
+      pending_payout: "0.00000000",
+      curator_pot: "0.00000000",
+      curation_expires_at: 0,
+      registered: false,
+    });
+  }
+  return out;
+}
+
+/**
+ * `description` and `tags` out of a post's author metadata — the SAME two
+ * fields `content()` reads, and read the same way, because a post that arrives
+ * by tag must not describe itself differently from one that arrives by
+ * registration.
+ *
+ * Takes EITHER form: `bridge.get_ranked_posts` returns `json_metadata` already
+ * parsed, `condenser_api.get_content` returns it as text. Malformed metadata
+ * is the author's problem, not a crash.
+ */
+function hiveMeta(json: unknown): { summary: string; tags: string[] | null } {
+  let meta: Record<string, unknown> = {};
+  try {
+    if (typeof json === "string") meta = JSON.parse(json || "{}");
+    else if (json && typeof json === "object") meta = json as Record<string, unknown>;
+  } catch {
+    return { summary: "", tags: null };
+  }
+  const tags = meta["tags"];
+  return {
+    summary: typeof meta["description"] === "string" ? meta["description"] : "",
+    tags: Array.isArray(tags) ? tags.slice(0, 21) : null,
+  };
+}
+
+/**
+ * Hive stamps its timestamps UTC with no zone suffix, so `new Date()` would
+ * read them as LOCAL time — an hour or ten out, and enough to reorder a feed.
+ * Say Z explicitly.
+ */
+function isoUtc(created: string | undefined): string {
+  if (!created) return new Date(0).toISOString();
+  const t = Date.parse(created.endsWith("Z") ? created : created + "Z");
+  return Number.isNaN(t) ? new Date(0).toISOString() : new Date(t).toISOString();
 }
 
 /** Raw base-unit string (or missing key) -> 8dp decimal Amount string. */

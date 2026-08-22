@@ -93,7 +93,18 @@
         </div>
       {/if}
 
-      {#if estimate}
+      {#if !post.registered}
+        <!-- The cost above is the same either way: it is a pure function of
+             the weight and this account's shares. What is different is what
+             the vote DOES — it registers the post, which is worth saying
+             plainly, because the voter is doing the author a favour they
+             cannot do for themselves from another frontend. -->
+        <p class="estimate">
+          Your vote opens this post's 7-day window. It has no reward figure yet
+          because the chain has no record of it — casting the first vote
+          registers it as a viral post.
+        </p>
+      {:else if estimate}
         <div class="line">
           <span class="dim">Adds about</span>
           <b class="gold mono">{lc(estimate.added, 4)}</b>

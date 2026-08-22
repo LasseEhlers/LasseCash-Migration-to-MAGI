@@ -87,9 +87,10 @@ export interface ArticleMeta {
   summary: string;
   tags: string[];
   cover: string | null;
-  /** ISO 8601, or null when the post is not registered on-chain. */
+  /** ISO 8601, or null when the indexer has never seen this post at all. */
   created: string | null;
   window: "viral" | "deep" | null;
+  /** The chain holds a record for it. False for a tagged post awaiting its first vote. */
   registered: boolean;
   published: boolean;
   canonical: string;
@@ -145,7 +146,12 @@ export function toArticle(
     cover: body ? coverImage(body) : null,
     created: post?.created_time ?? null,
     window: post?.window ?? null,
-    registered: post !== null,
+    // A post the indexer found under the `lassecash` tag but that nobody has
+    // voted on yet is NOT registered — it carries no contract record. Reading
+    // `post !== null` would have called it registered simply because the feed
+    // knows it exists, and the page would then offer Promote and a comment box
+    // for a post the chain has never heard of.
+    registered: post?.registered ?? false,
     published: body.length > 0,
     canonical: postUrl(author, permlink),
     path: postPath(author, permlink),

@@ -36,6 +36,7 @@ func main() {
 		"volumeMultiplier":   js.FuncOf(volumeMultiplier),
 		"loyaltyMultiplier":  js.FuncOf(loyaltyMultiplier),
 		"voteCost":           js.FuncOf(voteCost),
+		"canPost":            js.FuncOf(canPost),
 		"voteWeight":         js.FuncOf(voteWeight),
 		"votePower":          js.FuncOf(votePower),
 		"trancheView":        js.FuncOf(trancheView),
@@ -263,6 +264,19 @@ func loyaltyMultiplier(_ js.Value, a []js.Value) any {
 // voteCost(weightPct) — vote power consumed by a vote of this weight.
 func voteCost(_ js.Value, a []js.Value) any {
 	return str(engine.VoteCost(argI(a, 0)))
+}
+
+// canPost(shares, threshold) — may an account holding `shares` publish into a
+// window whose governed threshold is `threshold`?
+//
+// Both arguments are base-unit strings (L-Shares, 1e8-scaled). The comparison
+// is one line, which is exactly why it belongs here and not in TypeScript: the
+// contract refuses a post with engine.CanPost, so a frontend that decides
+// eligibility any other way is a second implementation of the rule — and the
+// place it would be wrong is a post shown as publishable that the chain then
+// rejects, or a tagged Hive post shown on LasseCash that never qualified.
+func canPost(_ js.Value, a []js.Value) any {
+	return engine.CanPost(engine.Shares(arg(a, 0)), int64(arg(a, 1)))
 }
 
 // voteWeight(shares, powerSpent) — the rshares a vote contributes.

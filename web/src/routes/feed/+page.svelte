@@ -45,6 +45,25 @@
     new Map(live.map((p) => [p.author + "/" + p.permlink, p])),
   );
   const key = (p: PostMeta) => p.author + "/" + p.permlink;
+
+  /**
+   * The list to render: the server's posts, plus anything the browser found
+   * that the server could not.
+   *
+   * WHY THERE IS A DIFFERENCE. `data.posts` is server-rendered, and the server
+   * has no engine — deliberately, since it runs in an edge worker. A Hive post
+   * that arrives by the `lassecash` tag is only shown if its AUTHOR clears the
+   * viral posting threshold, and that comparison belongs to the engine, so the
+   * server cannot make it and leaves those posts out. The browser has the
+   * engine, so `live` has them.
+   *
+   * Registered posts still come from `data.posts` — they are the ones a
+   * crawler must read out of the raw HTML, and that has not changed.
+   */
+  const all = $derived.by<PostMeta[]>(() => {
+    const seen = new Set(data.posts.map(key));
+    return [...data.posts, ...live.filter((p) => !seen.has(key(p)))];
+  });
   let filter = $state<"all" | "viral" | "deep">("all");
   let error = $state<string | null>(null);
 
@@ -111,23 +130,31 @@
    * payout passed the safe integer range.
    */
   const shown = $derived.by<Row[]>(() => {
-    const base =
-      filter === "all" ? data.posts : data.posts.filter((p) => p.window === filter);
+    const base = filter === "all" ? all : all.filter((p) => p.window === filter);
     const out = [...base];
     if (sort === "trending" && hydrated) {
-      out.sort((a, b) =>
-        compare(
+      out.sort((a, b) => {
+        // Registered posts rank above unregistered ones, always. An
+        // unregistered post has no payout to compare — the tie would be
+        // decided by two zeroes — and Trending is a ranking BY REWARD, so a
+        // post that cannot yet earn belongs below every post that can.
+        if (a.registered !== b.registered) return a.registered ? -1 : 1;
+        return compare(
           rewards.get(key(b))?.pending_payout ?? "0",
           rewards.get(key(a))?.pending_payout ?? "0",
-        ),
-      );
+        );
+      });
       return withPromotedSlots(out);
     }
     // Newest-first is also the pre-hydration order: "trending" is a fact
     // about money the browser has not read yet, and inventing an order for it
     // would reshuffle the page under the reader. NEW HAS NO SLOTS — it is a
     // chronological record, and selling a position in it would make it a lie.
-    out.sort((a, b) => b.created_height - a.created_height);
+    //
+    // BY TIME, not by height: a post that arrived by tag has no registration
+    // height (there is no record), so ordering on height would bury every one
+    // of them at the bottom of a list that is supposed to be chronological.
+    out.sort((a, b) => a.created_time < b.created_time ? 1 : a.created_time > b.created_time ? -1 : 0);
     return out.map((post) => ({ post, slot: false }));
   });
 
@@ -150,7 +177,7 @@
     const candidates = ranked
       .filter((p) => {
         const m = rewards.get(key(p));
-        return !!m && isPositive(m.promoted) && !m.paid_out && !m.payable;
+        return !!m && m.registered && isPositive(m.promoted) && !m.paid_out && !m.payable;
       })
       .sort((a, b) => compare(bid(b), bid(a)));
 
@@ -308,6 +335,12 @@
               <div class="stats">
                 {#if !money}
                   <span class="dim">&nbsp;</span>
+                {:else if !money.registered}
+                  <!-- No record on the chain, so no figure to show. Printing a
+                       0.00000000 payout here would read as "this post has
+                       earned nothing", which is a claim about the chain; the
+                       truth is that the chain has never heard of it. -->
+                  <span class="dim unreg">earns from the first vote</span>
                 {:else if money.paid_out}
                   <span class="pill ok">paid out</span>
                 {:else}
@@ -327,8 +360,14 @@
             {#if !money}
               <span class="auto dim">{hydrated ? "not registered on-chain" : "reading the chain…"}</span>
             {:else}
-            <VoterList post={money} />
-            {#if money.paid_out}
+            {#if money.registered}<VoterList post={money} />{/if}
+            {#if !money.registered}
+              <!-- Voting IS the registration: the contract's `vote` entrypoint
+                   registers an author|permlink it does not recognise. So the
+                   control stays enabled — this is the one button on the page
+                   that turns a Hive post into a LasseCash post. -->
+              <VoteSlider post={money} onvoted={load} />
+            {:else if money.paid_out}
               <!-- Nothing to click. Curation settles itself on the 1st: the
                    chain queues what each curator is owed and the monthly
                    settle drains it. See CLAUDE.md, curation queue. -->
@@ -415,6 +454,8 @@
   .pending { text-shadow: var(--glow-gold); font-weight: 700; }
 
   .auto { font-size: var(--t-tiny); font-family: var(--mono); text-align: right; }
+  /* Dim and small on purpose: it is a note about status, not a number. */
+  .unreg { font-size: var(--t-tiny); font-family: var(--mono); }
 
   .actions {
     flex: 0 1 300px; display: flex; flex-direction: column;

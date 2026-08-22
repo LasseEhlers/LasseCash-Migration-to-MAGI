@@ -40,6 +40,7 @@ interface Bridge {
   volumeMultiplier(principal: string, start: string, end: string): string;
   loyaltyMultiplier(ageDays: number): string;
   voteCost(weightPct: number): string;
+  canPost(shares: string, threshold: string): boolean;
   voteWeight(shares: string, powerSpent: string): string;
   votePower(power: string, lastHeight: string, height: string, window: number): string;
   trancheView(
@@ -283,6 +284,20 @@ export function mintQuote(
  */
 export function entitlement(sharesUnits: string, accStart: string, accEnd: string): Amount {
   return u(must().entitlement(sharesUnits, accStart, accEnd));
+}
+
+/**
+ * May an account holding `sharesUnits` L-Shares publish into a window whose
+ * governed threshold is `thresholdUnits`? EXACT for the two figures passed.
+ *
+ * Both are BASE-UNIT strings, straight out of `shr_<account>` and
+ * `effectiveValue`. The comparison itself lives in `engine.CanPost` — the same
+ * function `contract/state/pob.go` calls before it will accept a post — so a
+ * caller can never disagree with the chain about who is allowed to publish.
+ * Re-read before acting on it: shares and the governed threshold both move.
+ */
+export function canPost(sharesUnits: string, thresholdUnits: string): boolean {
+  return must().canPost(sharesUnits, thresholdUnits);
 }
 
 /**

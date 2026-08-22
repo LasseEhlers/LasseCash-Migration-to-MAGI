@@ -174,7 +174,12 @@
             </a>
             <div class="line dim">
               <span>{shortDate(p.created)}</span>
-              {#if m}
+              {#if m && !m.registered}
+                <!-- Tagged on Hive, no contract record yet. It has no votes,
+                     no window and no payout — showing zeroes for all three
+                     would read as facts about the chain. -->
+                <span class="dim">earns from the first vote</span>
+              {:else if m}
                 <span class="mono">{m.votes} vote{m.votes === 1 ? "" : "s"}</span>
                 {#if m.paid_out}
                   <span class="pill ok">paid out</span>

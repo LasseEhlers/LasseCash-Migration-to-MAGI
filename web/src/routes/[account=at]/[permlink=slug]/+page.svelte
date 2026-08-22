@@ -166,6 +166,15 @@
             <p class="auto dim">Reading the chain…</p>
           {:else if !post}
             <p class="auto dim">Not registered on-chain — nothing to pay out.</p>
+          {:else if !post.registered}
+            <!-- On Hive under the `lassecash` tag, by an author who clears the
+                 viral threshold — so it is shown here. It has no contract
+                 record yet, so there is no pending payout to show and no
+                 window running. The vote below is what opens both. -->
+            <p class="auto dim">
+              <strong>Not registered yet</strong> — the first vote opens the
+              7-day window.
+            </p>
           {:else}
             <!-- The vote count opens the voter list in place. It sits above the
                  figures rather than inside the <dl>, because expanding it would
@@ -200,7 +209,11 @@
         {#if post}
           <div class="panel">
             <h2>{post.paid_out ? "Curation" : "Vote"}</h2>
-            {#if post.paid_out}
+            {#if !post.registered}
+              <!-- Voting IS the registration — the contract registers an
+                   author|permlink it does not recognise on the first vote. -->
+              <VoteSlider {post} onvoted={load} />
+            {:else if post.paid_out}
               <p class="auto">
                 <strong class="green">Settled.</strong>
                 Curators are paid automatically on the 1st — the chain remembers
@@ -218,7 +231,11 @@
           </div>
         {/if}
 
-        {#if post && !post.parent_permlink}
+        <!-- Promotion burns LASSECASH against a post RECORD and a running
+             window. Neither exists yet on an unregistered post, so the
+             contract would refuse the call — the panel stays away until the
+             first vote has opened the window. -->
+        {#if post && post.registered && !post.parent_permlink}
           <div class="panel">
             <h2>Promote</h2>
             <p class="auto">
@@ -239,7 +256,7 @@
     <!-- Comments hang off the CHAIN half, not the server-rendered article: a
          reply's pending reward moves every block and must never be baked into
          cached HTML. A registered post with no replies still renders the box. -->
-    {#if post && !post.parent_permlink}
+    {#if post && post.registered && !post.parent_permlink}
       <Comments {post} />
     {/if}
   {/if}

@@ -99,6 +99,10 @@ export class DevBackend implements Backend {
       summary: p.summary,
       body_excerpt: p.body_excerpt,
       tags: p.tags,
+      // The simulator only knows posts it holds a record for, so everything it
+      // returns is registered. Tagged-but-unregistered Hive posts are a MAGI
+      // concern — there is no Hive behind the dev chain to read them from.
+      registered: p.registered,
     }));
   }
 

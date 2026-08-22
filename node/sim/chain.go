@@ -908,6 +908,12 @@ type PostView struct {
 	// CurationExpiresAt is when an unclaimed curator pot may be swept into the
 	// reward pool. Zero until the post has paid out.
 	CurationExpiresAt uint64 `json:"curation_expires_at"`
+	// Registered is always true here: the simulator can only see posts it
+	// holds a record for. Against MAGI the indexer also surfaces Hive posts
+	// tagged `lassecash` whose author clears the viral threshold, which carry
+	// no record and no economics until the first vote registers them — those
+	// come back false. The field exists on both so the UI has one shape.
+	Registered bool `json:"registered"`
 }
 
 // Posts lists content, newest first.
@@ -1049,6 +1055,7 @@ func (c *Chain) viewOf(author, permlink string, p state.PostRecord) PostView {
 		PendingPayout:     dec(state.PendingPayout(c.store, author, permlink)),
 		CuratorPot:        dec(p.CuratorPot),
 		CurationExpiresAt: state.CurationExpiresAt(c.store, author, permlink),
+		Registered:        true,
 	}
 }
 
