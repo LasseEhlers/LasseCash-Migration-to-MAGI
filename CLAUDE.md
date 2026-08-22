@@ -1459,6 +1459,90 @@ downloads; treat "devnet says X" as strong evidence but confirm consensus-
 critical behaviour (like the slash-key bug) against mainnet, since witnesses
 there may run different versions.
 
+## WALLET EVENING on mainnet — throwaway #4, 2026-08-22 (02:00–06:30)
+
+| | |
+|---|---|
+| Contract id | `vsc1BoLgTEZhcQKSGi9vCZN12yVjmM4mnvWrLB` (TESTWINDOWS 240x, production code of 02:36) |
+| Genesis | 109,233,230 · real snapshot root `f22793d7…e9af2` committed |
+| Accounts | @lasseehlers (claimed 267,113 liquid + 7.0M mint), @angeloextreme (1,025 + 250k) |
+
+**All three "unverified until a live wallet" items are CLOSED.** Keychain
+passes our pipe-delimited payload untouched (a 940-byte proof included);
+`transfer.allow` intents are accepted; image upload works once the challenge
+is sent as hive.blog sends it — `{"type":"Buffer","data":[…]}` of
+`"ImageSigningChallenge"+bytes` (Keychain hashes the bytes it is handed; a hex
+digest made it sign the wrong thing).
+
+**Verified exact on the real chain:** claim (both accounts, board seat
+contention), mint (shares to the base unit of the preview), post, vote
+(rshares = shares × power spent, meter 90% after), payout 75/25 and 20/80 to
+the base unit, comment, promote (100 LC landed at `hive:null`), claim at
+maturity = principal + accumulator yield **exactly as simulated**
+(7,001,561.63340842), board re-ranking after the claim.
+
+### Bugs the real chain found (simulator could not) — all fixed same night
+
+1. **HBD custody unit — CONTRACT, would have been fatal after the burn.**
+   The SDK moves HBD in MILLI-units; the adapter passed engine 1e8 units
+   (2 HBD → 200,000,000 against an allowance of 2,000). `engine.HbdDrawMilli`
+   (rounds UP: custody ≥ ledger) / `HbdPayMilli` (rounds DOWN) + pinned test.
+   `MemAssets` speaks our unit, so no local test could see it. **Pool paths
+   are untested on mainnet until throwaway #5.**
+2. Keychain's "ok" only means Hive ACCEPTED the custom_json; the contract
+   runs it 30–90 s later and may refuse. The page now follows every call to
+   its verdict (`Backend.txStatus` — `findTransaction byId` + the output DAG's
+   `errMsg`), shows refusals in red, and re-reads the account until it
+   changes. Banner pinned to the viewport.
+3. **Static RC limits fail on the real chain**: a mint hit `cost limit
+   exceeded` at 4,000 when a day-step landed inside it (mainnet weighs writes
+   19x; the simulator does not). Every wallet call now DRY-RUNS on the node
+   first: limit = max(table, 3× simulated gas), capped at 30k and at the
+   account's available RC; a call the chain would refuse never opens the
+   wallet. A fresh account's free 10,000 RC carries one claim + a few actions
+   per 5 days — @angeloextreme ran dry after claim + 4 mints.
+4. Posting-key calls name their signer in `required_posting_auths`, not
+   `required_auths` — discovery was blind to every real post and vote.
+5. MAGI views never fetched content from Hive (bare permlinks), hardcoded
+   vote power 0, tranches [], hbd 0 (then wrong unit: node = milli);
+   `can_arm_good_accounting` still carried the superseded 7-days-before rule
+   in TypeScript — now from the engine (`trancheView` bridge added;
+   `engine.PoolRewardsOwed` is pure and shared).
+6. Mint form let an over-balance amount reach the wallet; the "rate moved"
+   check fired on every real call because the ratchet moves per height
+   (tolerance 0.1% now).
+
+### Decisions made during the evening (Lasse)
+
+- **ONE wallet confirm to publish**: the Hive `comment` and the `vsc.call`
+  registration travel in ONE Hive transaction (`signAndBroadcastTx`), atomic.
+  Same for replies. `AiohaWallet.broadcastWithCall/broadcastCalls`.
+- **Tagged posts from any Hive frontend count, like the old tribe, with the
+  threshold caveat**: shown on LasseCash if the AUTHOR holds the viral
+  threshold; **the first vote registers it** (`vote` on an unregistered
+  `author|permlink` calls `registerForAuthor`: author's stake checked, ALWAYS
+  viral, default split). **Tag = viral; deep only from our Write page** — no
+  `lassecash-deep` tag (rejected: "if they want deep they come to our
+  frontend"). No "register this post" button, ever.
+  `TestFirstVoteRegistersAnOutsidePost`. Frontend half (reading Hive for
+  tagged posts by eligible authors) — being built.
+- **Payout settlement without a cron or a bot**: every signed action carries
+  up to `MaxSideCalls = 2` pending `payout`s in the same transaction
+  (`SubmitOptions.sideCalls`; the client keeps the payable list from the
+  feed). "Settle payout" button remains as the manual path. Lasse: the
+  immutable design must not depend on a job on his PC. NOTE: no signed call
+  is ever silent on a real wallet — `settleOwed` will prompt too; the
+  side-call pattern is the answer for curation as well (TODO).
+- Write page: **Link field** (short address) separate from the headline; lands
+  on the post after publishing; tags split on space/comma, **20 + lassecash
+  first**, post page shows 10 with "+N more"; Ctrl+V / drop / button image
+  upload on Write AND comments (comment images capped 320px).
+- Tags decide NOTHING about visibility on LasseCash — registration does.
+
+Pending on this deploy: Sept 1 monthly PoB mint (57.08 LC pending), mint #2
+maturity, Good Accounting arm in grace, a bleed, `sweep_mint`. Needs #5: the
+pool, first-vote registration live, a PeakD-tagged post earning.
+
 ## On-chain verification log — throwaway #3, 2026-08-21
 
 Every row is a REAL broadcast whose state was READ BACK and checked to the
