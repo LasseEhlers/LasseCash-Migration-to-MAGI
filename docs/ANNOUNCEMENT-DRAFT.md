@@ -179,22 +179,36 @@ every other one.
 timelocked update described above. State is preserved. Nothing is lost and
 nobody has to do anything.
 
-**If a defect cannot be fixed in place**, the contract is redeployed against
-**the same snapshot**. The Merkle tree does not change, so every holder claims
-again from identical leaves, for the same amounts, at their own free Resource
-Credits.
+**If a defect cannot be fixed in place**, the contract would be redeployed —
+and what that costs depends entirely on when it happens, so here is both cases
+rather than the flattering one.
 
-**And the old contract does not stop working.** Nothing on a blockchain can be
-deleted, so it keeps running exactly as before. That matters more than it
-sounds: **withdrawing from the liquidity pool has no dependency on the reward
-machinery** — `remove_liquidity` does not read the accrual clock, the monthly
-payout or the emission schedule. If something breaks in the reward code, every
-liquidity provider can still take their LASSECASH and their HBD out of the old
-contract, in full, whenever they like. Their money is not trapped by a bug
-somewhere else in the contract.
+**In the first days**, when almost nothing has happened, it is simple: everyone
+claims again from the identical Merkle tree, for the same amounts, at their own
+free Resource Credits.
 
-The only value genuinely lost in a redeploy is the emission earned during the
-dead days — on the order of 9,000 LASSECASH a day at era-1 rates. If I can make
+**After a month of real use it is not simple, and I am not going to pretend
+otherwise.** By then people have transferred, posted, earned, minted and
+traded. Redeploying from the original snapshot would be a rollback — a month of
+everyone's decisions undone, and winners and losers picked at random by
+whatever each person happened to do in between. Somebody who sold into the pool
+would get their LASSECASH back while the person who bought it lost theirs.
+
+**That is not what would happen.** The contract keeps a roll of every account
+that has ever held value, so its entire state can be read by anyone at any
+block. A redeploy after real activity restores positions **as they stood at the
+moment of the fault**, not as they stood at the snapshot. Nobody is rolled back
+to August.
+
+**The exception is the HBD in the liquidity pool**, and it is a real one: that
+is custodied by the old contract and a new one cannot reach into it. Liquidity
+providers withdraw it themselves — withdrawal does not depend on the reward
+machinery, so it keeps working even if the reward machinery is what broke — but
+it is their action to take, not something a redeploy does for them.
+
+Beyond that, what a redeploy costs is the emission that was being minted while
+the chain was broken — on the order of 9,000 LASSECASH a day at era-1 rates —
+and the time everybody spends dealing with it. If I can make
 someone whole for a loss caused by a mistake of mine, I will, and I would
 rather say that plainly than promise something I might not be able to deliver
 at a size I cannot predict. What I can promise is what the code already

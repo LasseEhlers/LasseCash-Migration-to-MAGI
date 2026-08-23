@@ -173,9 +173,32 @@ balance. Its only power is to propose a code update, and on mainnet that is:
 So every update is public for two days before it can take effect, and state
 survives it. That is the recovery path for anything found in the first weeks.
 
-**If a defect is NOT fixable in place**, the fallback is a redeploy against the
-same snapshot: the Merkle tree does not change, so every holder claims again
-from identical leaves at their own free RC.
+**If a defect is NOT fixable in place**, the redeploy has TWO shapes and they
+are not interchangeable. Lasse caught this on 2026-08-23, in the announcement
+draft, which claimed the easy one held always.
+
+**Day 1-3: re-claim from the Merkle tree.** Almost nothing has happened, so
+everyone claims again from identical leaves. Clean.
+
+**After real activity: a STATE migration, never a re-claim.** By then people
+have transferred, posted, earned, minted and traded. Genesising from the
+original snapshot would be a ROLLBACK — every decision since undone, winners and
+losers assigned by whatever each person happened to do in between (whoever sold
+into the pool gets their LASSECASH back; whoever bought loses it). Instead read
+the dead contract's own state at the fault block and genesis from THAT.
+
+**This is what the account roll is for.** `AccountCount` / `AccountChunk`
+(keys `acct_n`, `acctl_<i>`, `seen_<acct>`) enumerate every account that ever
+held value — the contract cannot iterate its own accounts, and without the roll
+a full state read would be impossible. It was added to keep holders enumerable
+after the burn; it is also the thing that makes a non-destructive redeploy
+possible at all. Treat it as part of the frozen public ABI.
+
+**The HBD cannot be migrated.** It is custodied by the old contract and no new
+contract can reach it. LPs must withdraw it themselves — `RemoveLiquidity` ->
+`closeTranche` has no accrual precondition, so it keeps working even when the
+reward machinery is what broke. Say this out loud in any incident post rather
+than letting people assume a redeploy moves their HBD for them.
 
 **Pool HBD is NOT stranded by a redeploy**, and this was checked rather than
 assumed: `RemoveLiquidity` -> `closeTranche` has no accrual precondition — it
