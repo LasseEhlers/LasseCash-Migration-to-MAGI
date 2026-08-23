@@ -517,7 +517,7 @@ func (c *Chain) Account(account string) AccountView {
 		if !found {
 			continue
 		}
-		yield := state.PendingYield(s, account, id)
+		yield := state.PendingYield(s, account, id, h)
 		settlement := m.Settle(h, yield)
 		v.Mints = append(v.Mints, MintView{
 			ID:             id,

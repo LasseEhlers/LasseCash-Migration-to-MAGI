@@ -319,8 +319,17 @@ export class MagiBackend implements Backend {
       const maturity = start + nDays * hpd;
       const matDay = Math.floor((maturity - genesis) / hpd);
       const mature = height >= maturity;
-      const accEnd =
-        mature && accDay > matDay ? (accAt["accAt_" + matDay] || "0") : accPer;
+      // Matured but today's checkpoint isn't written yet (accDay <= matDay):
+      // a real claim_mint is refused outright, not partially paid (see
+      // contract/state/mint.go endMint, fixed 2026-08-23). accEnd = accStart
+      // routes through the same engine.entitlement call below to zero,
+      // rather than a second hardcoded "0" case — one formula, one path.
+      // Found 2026-08-24: this line used to read `accPer` (the live,
+      // still-growing accumulator) here, showing a plausible non-zero
+      // preview for a claim the chain would refuse entirely.
+      const accEnd = !mature ? accPer
+        : accDay > matDay ? (accAt["accAt_" + matDay] || "0")
+        : accStart;
       const accrued = engine.entitlement(shares ?? "0", accStart, accEnd);
       const view = engine.previewMintClose(
         {

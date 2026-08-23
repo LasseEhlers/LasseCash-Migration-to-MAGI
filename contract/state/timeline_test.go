@@ -277,14 +277,14 @@ func TestYieldStopsAtMaturity(t *testing.T) {
 	}
 
 	w.warpDays(t, days+1) // maturity day complete, checkpoint written
-	atMaturity := PendingYield(w.s, "alice", id)
+	atMaturity := PendingYield(w.s, "alice", id, w.ctx.Height)
 	if atMaturity <= 0 {
 		t.Fatal("a matured mint earned no yield at all")
 	}
 
 	for _, wait := range []uint64{30, 75, 120, 400} {
 		w.warpDays(t, days+wait)
-		if got := PendingYield(w.s, "alice", id); got != atMaturity {
+		if got := PendingYield(w.s, "alice", id, w.ctx.Height); got != atMaturity {
 			t.Errorf("%d days after maturity the yield is %s, but it was frozen at %s.\n"+
 				"A matured mint must stop earning — otherwise grace is a bonus, not a safety net.",
 				wait, fmtA(got), fmtA(atMaturity))

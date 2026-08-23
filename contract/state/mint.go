@@ -399,19 +399,35 @@ func ArmGoodAccounting(s Store, ctx Ctx, id uint64) Result {
 
 // PendingYield reports what a mint would currently earn, without settling it.
 // Read-only: used by the indexer to show a live figure on the dashboard.
-func PendingYield(s Store, account string, id uint64) engine.Amount {
+//
+// `height` is the real current height, not a day count — needed so this can
+// tell "still earning, not yet at the exact maturity height" apart from
+// "matured, but today's checkpoint isn't written yet". A day-count-only
+// version of this test (the previous implementation) conflated the two: it
+// used AccruedDays(s) > DayOf(MaturityHeight) as its only "am I mature"
+// signal, which is day-granular and so wrongly zeroed an ACTIVE mint for
+// the whole calendar day before its exact maturity height, and — after
+// endMint was fixed to refuse a same-day-matured claim (2026-08-23) —
+// wrongly showed a live, growing figure for a mint a real claim would
+// refuse outright. Found by review 2026-08-24, before genesis.
+func PendingYield(s Store, account string, id uint64, height uint64) engine.Amount {
 	m, found := GetMint(s, account, id)
 	if !found || m.Ended {
 		return 0
 	}
-	// Mirrors ClaimMint exactly: the accumulator's rise across this mint's
+	// Mirrors endMint exactly: the accumulator's rise across this mint's
 	// life, frozen at maturity. A figure that disagreed with what claiming
 	// actually pays would be worse than showing nothing.
 	accEnd := AccPerShare(s)
-	if day, mature := DayOf(s, m.MaturityHeight()), AccruedDays(s) > DayOf(s, m.MaturityHeight()); mature {
-		if cp, have := AccAtDay(s, day); have {
-			accEnd = cp
+	if height >= m.MaturityHeight() {
+		matDay := DayOf(s, m.MaturityHeight())
+		cp, have := AccAtDay(s, matDay)
+		if !have {
+			// Matured, but the maturity day has not closed yet: a real claim
+			// would be refused (see endMint), not partially paid.
+			return 0
 		}
+		accEnd = cp
 	}
 	return engine.Entitlement(m.Shares, m.AccStart, accEnd)
 }

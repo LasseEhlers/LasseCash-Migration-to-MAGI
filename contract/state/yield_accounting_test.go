@@ -136,8 +136,8 @@ func TestPoBMintEarnsExactlyLikeACapitalMint(t *testing.T) {
 	// Same commitment, same moment — the two must mature worth the same.
 	both := oneYear + 1 + (days+1)*day
 	w.warp(t, both)
-	carol := PendingYield(w.s, "hive:carol", 1)
-	dave := PendingYield(w.s, "hive:dave", 1)
+	carol := PendingYield(w.s, "hive:carol", 1, both)
+	dave := PendingYield(w.s, "hive:dave", 1, both)
 
 	if carol == 0 || dave == 0 {
 		t.Fatalf("a mint earned nothing: carol=%s dave=%s", fmtA(carol), fmtA(dave))
@@ -148,7 +148,7 @@ func TestPoBMintEarnsExactlyLikeACapitalMint(t *testing.T) {
 			"emission from before it existed.", fmtA(carol), fmtA(dave))
 	}
 	// And a year of the whale's history must dwarf both — nobody stole it.
-	whale := PendingYield(w.s, "hive:whale", 1)
+	whale := PendingYield(w.s, "hive:whale", 1, both)
 	if whale < carol*100 {
 		t.Errorf("the whale's year of accrual (%s) is implausibly small next to a "+
 			"30-day newcomer (%s) — history leaked to a latecomer", fmtA(whale), fmtA(carol))
@@ -217,6 +217,63 @@ func TestSameDayClaimIsRefusedNotWrong(t *testing.T) {
 	}
 }
 
+// PendingYield (the dashboard's "if claimed now" figure) must never promise
+// what a real claim would refuse to pay. Found alongside the fix above:
+// PendingYield had its own, separately-written maturity test (day-count
+// only, no real height) that disagreed with endMint's height-based one —
+// on the maturity day itself it kept showing a live, growing figure right
+// up until a real ClaimMint call, which paid nothing at all.
+func TestPendingYieldMatchesWhatClaimingWouldActuallyPay(t *testing.T) {
+	s, ctx := newChain(t)
+	creditLiquid(s, "hive:bob", lc(10_000))
+	id, r := CreateMint(s, at(ctx, "hive:bob", genesis), lc(10_000), 30)
+	if !r.OK {
+		t.Fatal(r.Msg)
+	}
+	mature := genesis + 30*day
+
+	// Shortly before the exact maturity height: still an ACTIVE mint, even
+	// though the calendar day containing its maturity height has already
+	// started (mature is not necessarily a day boundary in general, but
+	// this pins the case where it lands mid-day-processing regardless).
+	Accrue(s, mature-1)
+	stillActive := PendingYield(s, "hive:bob", id, mature-1)
+	if stillActive < 0 {
+		t.Fatal("an active mint's pending yield must never be negative")
+	}
+
+	// On the maturity day itself: a real claim is refused (see
+	// TestSameDayClaimIsRefusedNotWrong above). The preview must agree —
+	// zero, not a plausible-looking partial figure nobody will ever pay.
+	Accrue(s, mature)
+	sameDay := PendingYield(s, "hive:bob", id, mature)
+	if sameDay != 0 {
+		t.Fatalf("matured today: PendingYield showed %s, but a real claim pays nothing until "+
+			"the day closes — the preview promised money the chain will not pay", fmtA(sameDay))
+	}
+	if r := ClaimMint(s, at(ctx, "hive:bob", mature), id); r.OK {
+		t.Fatal("sanity: claim on the maturity day itself must still be refused")
+	}
+
+	// Once the day closes, the preview and a real claim must agree exactly.
+	afterClose := mature + day
+	Accrue(s, afterClose)
+	closed := PendingYield(s, "hive:bob", id, afterClose)
+	if closed <= 0 {
+		t.Fatal("once the day closes, PendingYield should show the earned yield, not zero")
+	}
+	before := Balance(s, "hive:bob")
+	if r := ClaimMint(s, at(ctx, "hive:bob", afterClose), id); !r.OK {
+		t.Fatalf("claim after the day closes should succeed: %s", r.Msg)
+	}
+	// principal (10,000) + yield must equal the balance increase exactly.
+	got := Balance(s, "hive:bob") - before
+	want := lc(10_000) + closed
+	if got != want {
+		t.Fatalf("preview promised principal+yield=%s, claim actually paid %s", fmtA(want), fmtA(got))
+	}
+}
+
 // TestMaturityCohortSharesTheDayEqually is the direct regression for the
 // concentration scenario: many mints maturing on the SAME day, one that does
 // not claim that day at all, must not be able to capture a disproportionate
@@ -261,7 +318,7 @@ func TestMaturityCohortSharesTheDayEqually(t *testing.T) {
 	// The bystander did not act at all that day, and never claims here —
 	// this checks what it would be OWED, not what it collects.
 	Accrue(s, afterClose+day)
-	bystanderEntitled := PendingYield(s, "hive:bystander", 1)
+	bystanderEntitled := PendingYield(s, "hive:bystander", 1, afterClose+day)
 
 	// The bug's signature: a ~0.002% shareholder (200 of 10,000,200 LC)
 	// capturing a share of emission wildly out of proportion to that weight —
