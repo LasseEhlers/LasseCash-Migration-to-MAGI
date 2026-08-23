@@ -54,9 +54,26 @@ you fetch. Do it promptly at X and record the Hive-Engine block you saw.
 cd tools/snapshot
 python3 fetch.py balances            # every LASSECASH holder, ~1 min
 python3 fetch.py activity            # signed-ops liveness, ~1 h, resumable
-python3 apply_criteria.py --write    # 3-month window → migration_set.json
+python3 apply_criteria.py --write    # 6-month C6 window → migration_set.json
+python3 check_snapshot.py            # INVARIANTS — must exit 0
+python3 build_status.py              # /check shards for the roll-call page
 ```
-Check the printed HARDCAP line (migrated + 20M < 51M) and the founder %.
+
+**`check_snapshot.py` is not optional and its failure is a stop.** Every
+serious defect in this pipeline was previously found by a human reading
+terminal output, which is not a control: on 2026-08-23 a resuming balance scan
+double-counted ~74,000 LASSECASH and pushed the snapshot 81,150 over the
+hardcap, and it was caught only because someone happened to read the line.
+
+Do NOT widen a tolerance to make it pass. The two baselines it pins — the
+Hive-Engine supply drift and the snapshot total — are CONSTANTS unless our
+capture changed, because nothing issues or burns LASSECASH on Hive-Engine any
+more. A move means tokens counted twice or a holding bucket missed. Re-baseline
+only with a written reason, and re-run the injected-fault self-test after any
+change to the checks (an assertion that has never failed is not known to work —
+the first version of these checks passed a 72,023 LASSECASH phantom balance
+because there was hardcap headroom to hide in).
+
 Re-run `fetch.py activity` once more if the first run reported any
 `search_truncated` accounts with no signal (see CLAUDE.md; retry resolves
 node failures).
