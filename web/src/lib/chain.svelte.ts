@@ -25,7 +25,7 @@ const DEV_URL = import.meta.env.VITE_CHAIN_URL ?? "http://localhost:8080";
  * this, NOT from a toggle: a switch that could put fake auth in front of a real
  * chain is a footgun waiting for a bad day.
  */
-const CONTRACT_ID = import.meta.env.VITE_CONTRACT_ID ?? "";
+export const CONTRACT_ID = import.meta.env.VITE_CONTRACT_ID ?? "";
 
 /** True when there is a real chain and real wallets to sign with. */
 export const WALLET_MODE = CONTRACT_ID !== "";

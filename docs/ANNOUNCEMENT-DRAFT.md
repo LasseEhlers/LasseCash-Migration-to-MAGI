@@ -24,7 +24,7 @@ contract instead of by my word.
 
 ## The snapshot
 
-At Hive block **[BLOCK X]**, on **[DATE, TIME UTC]**, I take a snapshot of every
+At Hive block **109,476,124**, on **Saturday 30 August 2026, 12:00 UTC**, I take a snapshot of every
 LASSECASH balance in existence. That snapshot is permanent. It is published in
 full — every account, every amount — and committed to the MAGI contract as a
 single Merkle root, so anyone can verify their own entry, and anyone can verify
@@ -43,7 +43,7 @@ have delegated out. Nothing you own is missed.
 **You must have used LASSECASH.**
 
 To be included, your account must have signed at least one **LASSECASH
-transaction on Hive-Engine within the 6 months before block [BLOCK X]**.
+transaction on Hive-Engine within the 6 months before block 109,476,124**.
 
 That means one of these, done **by you**:
 
@@ -77,7 +77,8 @@ LASSECASH → history]**
 ## Your last week
 
 If you are not in the snapshot under the rule above, **you have until block
-[BLOCK X] to fix it**. That is roughly **[N] days** from this post.
+109,476,124 — Saturday 30 August, 12:00 UTC — to fix it**. That is one week
+from this post.
 
 Do one LASSECASH transaction. Send 1 LASSECASH to a friend. Send it to
 yourself. Stake some. That is all it takes, and it costs you nothing but a
@@ -133,8 +134,10 @@ Hive-Engine I held the keys to 20 million unissued tokens for seven years and
 never touched one of them — but you had to take my word for it. On MAGI you
 will not have to.
 
-**The owner key is destroyed at block [BLOCK Y], about 40 days after genesis.**
-Not at launch, and I want to be straight about why.
+**The owner key is destroyed at a block about 40 days after genesis** — the
+exact height is `genesis + 1,152,000`, and I will publish it as a number in the
+genesis post the day the contract goes live. Not at launch, and I want to be
+straight about why.
 
 Until that block the key can do exactly **one** thing: propose a code update.
 It **cannot touch anyone's tokens** — there is no entrypoint in the contract
@@ -142,15 +145,18 @@ that lets the owner move somebody else's balance, mint, or liquidity. And a
 proposed update is not secret and not instant:
 
 - it is **visible on-chain for 48 hours** before it can take effect — anyone
-  can query `findPendingContractUpdates` for contract `[CONTRACT ID]`
+  can query `findPendingContractUpdates` for the contract id (published in the
+  genesis post) against `https://api.vsc.eco/api/v1/graphql`, and the query
+  returns the proposer, the CID of the new code, and the exact block at which
+  it could activate
 - it can be **cancelled** inside that window
 - it **cannot alter state** — balances, claims, mints and the pool survive an
   update untouched
 
 So for 40 days you are not trusting me, you are **watching** me, and you have
-two days' notice on anything I propose. After block [BLOCK Y] no update can
-ever be proposed by anyone, including me. The burn transaction id will be
-published here.
+two days' notice on anything I propose. After the burn block no update can ever
+be proposed by anyone, including me. The burn transaction id will be published
+here.
 
 I considered burning the key at launch. It sounds better and it is worse: the
 first weeks are when a live chain surprises you, and a contract nobody can
@@ -211,8 +217,8 @@ falling-out; it is a token outgrowing a spreadsheet.
 - The snapshot: every account and amount, published in full at **[LINK]**
 - The Merkle root, on-chain at **[LINK]** — proves the published list is the
   one the contract uses
-- The contract source at **[LINK]**
-- The full rules at **[LINK TO ABOUT]**
+- The contract source at **https://github.com/LasseEhlers/LasseCash-Migration-to-MAGI**
+- The full rules at **https://lassecash.com/about**
 
 You do not have to trust me on any of this. That is the entire point.
 

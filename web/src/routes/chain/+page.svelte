@@ -9,6 +9,7 @@
   import { displayName, lc, lcShort } from "$lib/format.js";
   import { blockSplit, constants, fromUnits, supplyLimits, toBaseUnitArg, toUnits } from "$api/index.js";
   import Seo from "$lib/Seo.svelte";
+  import Immutability from "$lib/Immutability.svelte";
   import { SITE_URL } from "$lib/site.js";
 
   const info = $derived(chain.info);
@@ -166,6 +167,8 @@
       {/if}
     </aside>
   </div>
+
+  <Immutability />
 
   <section class="panel">
     <h2>Consensus group — the top 10 L-Share holders</h2>

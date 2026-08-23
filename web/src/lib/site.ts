@@ -102,3 +102,36 @@ export function xmlEscape(s: string): string {
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&apos;");
 }
+
+/**
+ * How many heights after genesis the owner key is destroyed.
+ *
+ * DECIDED 2026-08-23: day 40, i.e. 40 x 28,800 = 1,152,000 heights. It was day
+ * 35 until the margin was checked: a mainnet code update carries a 48-hour
+ * timelock, and day 35 left the first full monthly Proof-of-Brain payout only
+ * one day of room before the key was gone. Day 40 gives about a week.
+ *
+ * Derived from the chain's own genesis height wherever it is displayed, never
+ * typed as an absolute block, so the number cannot drift from the contract.
+ */
+export const KEY_BURN_HEIGHTS = 40 * 28_800;
+
+/** The MAGI node this site reads consensus facts from. */
+export const MAGI_GRAPHQL =
+  (import.meta.env.VITE_CHAIN_URL as string | undefined) ??
+  "https://api.vsc.eco/api/v1/graphql";
+
+/**
+ * The announced snapshot block, and the moment it falls.
+ *
+ * PROVISIONAL until the announcement post goes out — it is an operational
+ * decision, not a chain fact, and it lives here so the checker, the
+ * announcement and the runbook cannot disagree about it. Computed from a live
+ * head reading on 2026-08-23: head 109,262,127 at 01:40:09 UTC, +213,997
+ * heights at 3s.
+ *
+ * After the snapshot is taken this becomes history rather than a deadline, and
+ * the checker says so on its own by comparing against the chain height.
+ */
+export const SNAPSHOT_BLOCK = 109_476_124;
+export const SNAPSHOT_WHEN = "Saturday 30 August 2026, 12:00 UTC";

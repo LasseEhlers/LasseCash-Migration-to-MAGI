@@ -18,7 +18,11 @@
   // "Admin" never reads as a set of powers over the protocol that nobody has.
   const navLinks = $derived([
     ["/feed", "Feed"], ["/compose", "Write"], ["/", "Mint"], ["/pool", "Pool"],
-    ["/chain", "Chain"], ["/governance", "Governance"], ["/about", "About"],
+    ["/chain", "Chain"], ["/governance", "Governance"],
+    // The roll call: for one week before the snapshot this is the most
+    // important page on the site, and it is useless to anyone who cannot find
+    // it. It stays afterwards as the permanent public record of who migrated.
+    ["/check", "Snapshot"], ["/about", "About"],
     ...(chain.account === FOUNDER ? [["/admin", "Migration"]] : []),
   ]);
 

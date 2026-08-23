@@ -27,6 +27,10 @@ export const GET: RequestHandler = async () => {
     { loc: `${SITE_URL}/about`, changefreq: "monthly", priority: "0.7" },
     { loc: `${SITE_URL}/chain`, changefreq: "hourly", priority: "0.6" },
     { loc: `${SITE_URL}/pool`, changefreq: "hourly", priority: "0.5" },
+    // High priority while the roll call runs: people will search for this
+    // rather than navigate to it, and a week is not long enough to be found
+    // slowly.
+    { loc: `${SITE_URL}/check`, changefreq: "daily", priority: "0.9" },
   ];
 
   for (const p of posts) {

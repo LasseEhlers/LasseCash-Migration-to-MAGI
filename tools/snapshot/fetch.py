@@ -144,9 +144,29 @@ def fetch_balances():
     Hive-Engine rejects offsets past ~10,500, so page by ascending _id instead
     of offset. _id is stable and monotonic, which also makes this resumable.
     """
-    rows = load(BALANCES, {})
-    last_id = max((r["_id"] for r in rows.values()), default=0) if rows else 0
-    print(f"stage 1: balances (resuming from _id {last_id}, {len(rows)} known)")
+    # ⚠️ ALWAYS A FULL PASS — NEVER RESUME FROM THE HIGHEST KNOWN _id.
+    #
+    # This used to start at `max(_id)` and fetch only rows above it, which is
+    # correct for DISCOVERING new accounts and silently wrong for everything
+    # else: an existing account's _id does not change when its BALANCE does, so
+    # every balance change since the last scan was invisible. Caught 2026-08-23,
+    # when a gift run moved ~74,000 LASSECASH from two accounts to 1,521 others:
+    # the recipients were discovered with their new balances while the senders
+    # kept their old ones, the same tokens were counted twice, and the snapshot
+    # total rose to 31,081,149 — an 81,150 BREACH of the 51,000,000 hardcap
+    # that was pure double-counting.
+    #
+    # This mattered far beyond that one run. The migration is announced with a
+    # roll call whose entire purpose is to make hundreds of people MOVE
+    # LASSECASH in the final week. A resuming scan would have recorded not one
+    # of those movements, and the snapshot would have committed stale balances
+    # to an immutable contract.
+    #
+    # A full pass is ~13 requests. There was never anything to save.
+    prev = load(BALANCES, {})
+    rows: dict = {}
+    last_id = 0
+    print(f"stage 1: balances (full pass; {len(prev)} known from the last scan)")
 
     while True:
         batch = he_find("tokens", "balances",
@@ -167,10 +187,21 @@ def fetch_balances():
                 "delegationsOut": r.get("delegationsOut") or "0",
             }
             last_id = max(last_id, r["_id"])
-        save(BALANCES, rows)
         print(f"  {len(rows):,} accounts (last _id {last_id})")
 
-    save(BALANCES, rows)
+    # Only overwrite once the pass completed. A half-finished pass must never
+    # replace a good file — it would look like thousands of accounts vanished.
+    if not rows:
+        print("  ! no rows read; keeping the previous balances file")
+        rows = prev
+    else:
+        gone = set(prev) - set(rows)
+        if gone:
+            # Hive-Engine does not delete balance rows, so this should be empty.
+            # If it ever is not, say so rather than silently dropping holders.
+            print(f"  ! {len(gone)} accounts present last scan and missing now: "
+                  f"{', '.join(sorted(gone)[:5])}{'…' if len(gone) > 5 else ''}")
+        save(BALANCES, rows)
 
     # LASSECASH that is OWNED but not in any account balance — found
     # 2026-08-22 when the "lost" gap under the 51M cap turned out to be
