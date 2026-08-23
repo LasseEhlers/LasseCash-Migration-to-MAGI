@@ -6,7 +6,7 @@ LasseCash is a social media platform and a set of financial rules sharing one to
 
 Content lives on Hive; the contract tracks only the money. Your article is a normal Hive post, readable on peakd, ecency or any Hive frontend, and readable a decade from now whether or not lassecash.com exists. The contract stores only author, permlink, payout window and accumulated vote weight, so LasseCash is never the sole custodian of anyone's writing.
 
-Every number here comes from one piece of code: the share formula, halving schedule, bleed curve and pool math are written once in Go and compiled twice — for the chain, and for your browser, so the site previews figures without drifting from what the chain pays. No accounting path uses floating point; everything is integers at eight decimals, and every rounding step floors, so the chain can under-pay by a base unit but never over-issue. About 35 days after launch, at an announced height, the owner key is destroyed: after that nobody can change the code, add an entrypoint or move a bound — not the founder, not the top ten, not anyone. What is below is what runs, permanently.
+Every number here comes from one piece of code: the share formula, halving schedule, bleed curve and pool math are written once in Go and compiled twice — for the chain, and for your browser, so the site previews figures without drifting from what the chain pays. No accounting path uses floating point; everything is integers at eight decimals, and every rounding step floors, so the chain can under-pay by a base unit but never over-issue. About 40 days after launch, at an announced height, the owner key is destroyed: after that nobody can change the code, add an entrypoint or move a bound — not the founder, not the top ten, not anyone. What is below is what runs, permanently.
 
 ## 2. The numbers that never change
 
@@ -29,9 +29,9 @@ Hardcoded in the contract. No governance path to any of them, and after the key 
 | Mint multipliers | Longer Pays Better 1.5x, Bigger Pays Better 1.5x, multiplied — **2.25x is the maximum, ever** |
 | Share-rate ratchet | one L-Share costs **7% more each year**, linear within the year, forever; never falls |
 | Mint duration | 1 day minimum, **1,095 days** maximum |
-| Grace after maturity | **30 days**, in which nothing happens |
+| Grace after maturity | **90 days**, in which nothing happens |
 | Bleed after grace | **90 days**, linear per height; worth nothing at day 180 |
-| Good Accounting grace | **1,095 days** instead of 30, moving liquidation to day 1,185 |
+| Good Accounting grace | **1,095 days** instead of 90, moving liquidation to day 1,185 |
 | Swap fee | **zero**. No fee parameter exists and none can be added |
 | LP loyalty bonus | **+1%/day**, linear, capped at 90 days — maximum **1.90x** |
 | Vote cost | a 100% vote costs **10%** of your power; viral refills in 7 days, deep in 30, separate meters |
@@ -46,26 +46,26 @@ LASSECASH launched in 2019 as a Hive-Engine token. The migration moves it to MAG
 
 ### Who qualifies
 
-One test: **did this account itself sign an operation requiring its ACTIVE key, within the last 3 months?** Bots run on the posting key; the active key is the one a human keeps. Qualifying Hive operations, signed by you:
+One test: **did this account itself sign a LASSECASH operation on Hive-Engine, within the last 6 months?**
 
-| Hive operation | Id |
-|---|---|
-| `transfer` | 2 |
-| `transfer_to_vesting` | 3 |
-| `withdraw_vesting` | 4 |
-| `account_update` | 10 |
-| `transfer_to_savings` | 32 |
-| `delegate_vesting_shares` | 40 |
-| `account_update2` | 43 |
-| `recurrent_transfer` | 49 |
+That is the whole rule. Qualifying operations, signed by you:
 
-Also qualifying: any **LASSECASH action you signed on Hive-Engine**, such as a transfer or a stake — a path that saved 175 accounts in an earlier scan.
+| What you did |
+|---|
+| a LASSECASH **transfer** |
+| a **stake** or an **unstake** (power up / power down) |
+| a **delegation** or undelegation |
+| a **market order** — buy, sell, or cancel |
 
-**What does not count:** posting, commenting and voting, which use the posting key; and anything that merely *involves* you — a transfer someone sent you, a power-up someone else paid for, a third-party stake, a buyer filling an old sell order, an automatic distribution payout. The test is that *you* signed it.
+**Being alive somewhere else on Hive no longer counts.** An earlier version of this rule accepted any Hive operation signed with your ACTIVE key. It was dropped: proving a human exists is not the same as proving they ever used LasseCash, and thousands of accounts hold LASSECASH only because Lasse gave it away for seven years — at HiveFest, in comment threads, to people who never asked. Lasse: *"its better to have real users that are a small group than to have fake users that are a huge group, which is the opposite of what 99% of crypto does."* Your Hive activity is still read and still recorded in the published snapshot, for the audit trail. It just does not make you eligible.
+
+**What does not count:** posting, commenting and voting, which use the posting key and which a bot can do; and anything that merely *involves* you — a transfer someone sent you, a third-party stake, a buyer filling an old sell order, an automatic distribution payout, the weekly instalment of a power-down you started years ago. The test is that *you* signed it, in the window.
+
+**An unresolved search never burns you.** If your Hive-Engine history is too long to walk to the end — the case for prolific posters with thousands of payout entries — you are included rather than excluded. The snapshot never destroys property on missing data.
 
 **There is no minimum balance.** Dust accounts qualify like anyone else.
 
-**The roll call.** The migration is announced before the snapshot, and anyone inactive longer than three months gets **one week** to sign one active-key operation — or any LASSECASH action — and keep their stake. Nobody is burned without an opportunity, and the only thing you can game is saving your own tokens, which is the definition of being alive. Lasse: LasseCash *"is not just money like bitcoin, its a social media DEFI NFT product, which justify that you need to be active and pay attention"* — *"people that snooze lose, supporters that used it gets their tokens."*
+**The roll call.** The migration is announced before the snapshot, and anyone who has not signed a LASSECASH operation in six months gets **one week** to sign one — a transfer, a stake, an unstake, a delegation, a market order — and keep their stake. Nobody is burned without an opportunity, and the only thing you can game is saving your own tokens, which is the definition of being alive. Lasse: LasseCash *"is not just money like bitcoin, its a social media DEFI NFT product, which justify that you need to be active and pay attention"* — *"people that snooze lose, supporters that used it gets their tokens."*
 
 ### What counts as your holdings
 
@@ -75,7 +75,7 @@ Everything you own, wherever the old chain kept it.
 |---|---|
 | Liquid balance | liquid |
 | Staked LASSECASH POWER | staked |
-| LASSECASH in the SWAP.HIVE:LASSECASH Diesel pool | liquid |
+| LASSECASH in any Hive-Engine Diesel pool | liquid |
 | LASSECASH in open sell orders | liquid |
 | A power-down in progress | staked — it is already under lock |
 | Stake you delegated out | staked — a delegation is still yours |
@@ -142,7 +142,7 @@ A **mint** is LASSECASH you lock for a period you choose, from 1 to 1,095 days. 
 
 `shares = principal / share rate x duration multiplier x volume multiplier`
 
-**Longer Pays Better** is the duration multiplier: 1.00x at one day, rising linearly to **1.50x** at 1,095 days. **Bigger Pays Better** is the volume multiplier: 1.00x at or below the start amount (default 10,000 LASSECASH), rising linearly to **1.50x** at or above the end amount (default 100,000). They **multiply**, so **2.25x** is the absolute maximum. Both ceilings are hardcoded; only the two trigger amounts are governable.
+**Longer Pays Better** is the duration multiplier: 1.00x at one day, rising linearly to **1.50x** at 1,095 days. **Bigger Pays Better** is the volume multiplier: 1.00x at or below the start amount (default 1,000 LASSECASH), rising linearly to **1.50x** at or above the end amount (default 50,000). They **multiply**, so **2.25x** is the absolute maximum. Both ceilings are hardcoded; only the two trigger amounts are governable.
 
 The **share rate** is what one L-Share costs. It starts at 1.00000000 LASSECASH and ratchets up 7% a year, forever, so early commitment is predictably worth more than late:
 
@@ -212,6 +212,10 @@ The contract runs the market itself, custodying **real HBD** on one side and its
 
 **Liquidity earns by age.** Each deposit is a **tranche** with its own creation height and loyalty bonus — **+1% per day, linear, capped at 90 days** — so a 90-day-old tranche earns 1.90x the weight of a fresh one. Tranches are exited **individually by id**, like mints, so a partial exit can never silently destroy your most-matured position. Claiming a tranche's rewards removes its weight and slice together and re-adds the weight at its current age, conserving exactly.
 
+**Dormant liquidity is evicted, not bled.** A position that draws its share of the 25% emission slice forever while its owner has stopped existing is dead weight on everyone still here — on Hive-Engine, 52 of 125 LASSECASH liquidity providers had not touched either chain in over a year. So a tranche whose rewards have not been claimed for **180 days** may be closed by anyone, and the owner gets **their LASSECASH and their HBD back, whole**. Claiming is the proof of life and resets the clock; the interface warns from day 90.
+
+Nothing is confiscated, and that distinction is the point. A minter is paid up to 1.5x for pledging a term, so a minter who abandons the pledge can fairly lose something. **A liquidity provider was never paid for a term**, so taking their capital would be the one thing a critic could accurately call theft. Eviction achieves the whole goal — dead capital stops drawing rewards — and takes nothing. The caller is paid nothing either, so nobody has an incentive to lobby for a shorter clock, and the payout goes to the **owner**, never to whoever triggered it.
+
 **The first deposit sets the price.** Nothing exists to arbitrage against at genesis, so the ratio of the first liquidity call becomes the opening price, seeded deliberately near the prevailing Hive-Engine price on the day. A thin pool is fine: price impact is high at first, which is what makes the 25% emission slice attractive to the providers who deepen it.
 
 ## 7. Governance — the median of ten numbers
@@ -222,8 +226,8 @@ Instead, the **ten largest holders of live L-Shares** hold seats, each keeping a
 
 | Parameter | Key | Floor | Default | Ceiling |
 |---|---|---|---|---|
-| Bigger Pays Better, start | `mint.volume_start` | 100 LASSECASH | 10,000 | 50,000 |
-| Bigger Pays Better, end | `mint.volume_end` | 1,000 LASSECASH | 100,000 | 5,000,000 |
+| Bigger Pays Better, start | `mint.volume_start` | 100 LASSECASH | 1,000 | 50,000 |
+| Bigger Pays Better, end | `mint.volume_end` | 1,000 LASSECASH | 50,000 | 5,000,000 |
 | Viral posting threshold | `post.threshold_viral` | 1 L-Share | 1,000 | 10,000 |
 | Deep posting threshold | `post.threshold_deep` | 1 L-Share | 10,000 | 100,000 |
 | Comment threshold | `post.threshold_comment` | 1 L-Share | 100 | 10,000 |
@@ -239,11 +243,11 @@ What the median does not defend against is one entity holding several seats. Tha
 
 ## 8. Immutability
 
-At an **announced block height, roughly 35 days after genesis**, the owner account's keys are destroyed — its owner, active, posting and memo authorities set to Hive's null public key — and the transaction id is published. MAGI resolves a contract update against the owner's active authority, so with no key in existence no update can ever be queued. It is not a promise not to; it is that nobody can.
+At an **announced block height, roughly 40 days after genesis**, the owner account's keys are destroyed — its owner, active, posting and memo authorities set to Hive's null public key — and the transaction id is published. MAGI resolves a contract update against the owner's active authority, so with no key in existence no update can ever be queued. It is not a promise not to; it is that nobody can.
 
 Lasse's reasoning: *"No, it's necessary to claim it's real blockchain immutable, no admin keys. If I want to change anything in the future it's a real hardfork. I think I will burn the keys at launch and say it's 100% immutable — that's more earnest than having 100% admin keys for 12 months. That's disingenuous."*
 
-**Why wait 35 days instead of burning on day one.** The window covers the heaviest first-time events on the real chain: the first claims, the first daily accruals, the first monthly Proof-of-Brain mint on the 1st, and the day-30 maturity of every migration mint at once. Until the burn, the key's only power is to queue a **public, timelocked code update** — the recovery path if the live chain surprises us. It **cannot touch anyone's tokens, balances, mints or votes**, before or after. The height and the reason are in the genesis post.
+**Why wait 40 days instead of burning on day one.** The window covers the heaviest first-time events on the real chain: the first claims, the first daily accruals, the day-30 maturity of every migration mint at once, and the first FULL monthly Proof-of-Brain payout — the one with a whole month of earnings behind it. Forty days rather than thirty-five because a mainnet code update carries a 48-hour timelock, and thirty-five left that payout a single day of margin before the key was gone. Until the burn, the key's only power is to queue a **public, timelocked code update**, visible to anyone via `findPendingContractUpdates` for 48 hours before it can activate, and cancellable inside that window — the recovery path if the live chain surprises us. It **cannot touch anyone's tokens, balances, mints or votes**, before or after. The height and the reason are in the genesis post.
 
 | Wish | After the burn |
 |---|---|
