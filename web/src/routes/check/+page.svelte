@@ -19,7 +19,7 @@
    */
   import Seo from "$lib/Seo.svelte";
   import { lc } from "$lib/format.js";
-  import { cleanName, fromUnits, selfSigned, shardOf, type HeOp } from "$api/index.js";
+  import { cleanName, fetchLegacyQuote, fromUnits, selfSigned, shardOf, usdValue, type HeOp, type LegacyQuote } from "$api/index.js";
   import { SITE_URL, SNAPSHOT_BLOCK, SNAPSHOT_WHEN } from "$lib/site.js";
   import { base } from "$app/paths";
 
@@ -40,6 +40,20 @@
   let missing = $state(false);
   let index = $state<{ generated: string; window_months: number; cutoff: string } | null>(null);
   let ops = $state<HeOp[] | null>(null);
+
+  /**
+   * A dollar figure next to the balance, from where LASSECASH trades TODAY —
+   * the Hive-Engine Diesel pool via HIVE/USD. Fetched once per page load, in
+   * the browser, never rendered server-side: it is two third-party spot prices
+   * multiplied together and is labelled as exactly that. If either API is
+   * down the row simply does not appear; a missing estimate is honest, a
+   * stale or made-up one is not.
+   */
+  let quote = $state<LegacyQuote | null>(null);
+  $effect(() => {
+    fetchLegacyQuote().then((q) => { quote = q; }).catch(() => { quote = null; });
+  });
+  const usd = (units: bigint) => (quote ? usdValue(units, quote.usdPerLc) : null);
 
 
 
@@ -133,6 +147,10 @@
         <dl>
           <dt>liquid</dt><dd class="mono">{lc(fromUnits(BigInt(row.liquid)))}</dd>
           <dt>staked (becomes a 30-day mint)</dt><dd class="mono">{lc(fromUnits(BigInt(row.staked)))}</dd>
+          {#if quote}
+            <dt class="est">≈ worth today</dt>
+            <dd class="mono est">${usd(BigInt(row.liquid) + BigInt(row.staked))}</dd>
+          {/if}
           {#if row.last_lassecash}
             <dt>last LASSECASH action</dt><dd class="mono">{row.last_lassecash}</dd>
           {/if}
@@ -165,6 +183,10 @@
         <h2>@{asked} — you are NOT in, yet</h2>
         <dl>
           <dt>you hold</dt><dd class="mono">{lc(fromUnits(BigInt(row.liquid) + BigInt(row.staked)))}</dd>
+          {#if quote}
+            <dt class="est">≈ worth today</dt>
+            <dd class="mono est">${usd(BigInt(row.liquid) + BigInt(row.staked))}</dd>
+          {/if}
           <dt>last LASSECASH action</dt>
           <dd class="mono">{row.last_lassecash ?? "no record"}</dd>
           {#if cutoffDate}
@@ -217,6 +239,15 @@
     {/if}
   {/if}
 
+  {#if quote}
+    <small class="dim foot">
+      Dollar figures are an <b>estimate</b>: the SWAP.HIVE:LASSECASH Diesel pool
+      on Hive-Engine (<span class="mono">{quote.hivePerLc}</span> HIVE per LASSECASH)
+      times HIVE/USD (<span class="mono">{Number(quote.usdPerHive).toFixed(4)}</span>),
+      read just now. That pool is thin and the price moves a lot; the LASSECASH
+      amount is exact, the dollar value is not.
+    </small>
+  {/if}
   {#if index}
     <small class="dim foot">
       Checked against the {index.window_months}-month rule, cutoff
@@ -263,6 +294,7 @@
   td { padding: 0.3rem 0.5rem 0.3rem 0; border-bottom: 1px solid var(--line); }
   .small { font-size: 0.82rem; }
   .foot { display: block; margin-top: 1.5rem; }
+  dt.est, dd.est { color: var(--dim); font-style: italic; }
 
   @media (max-width: 560px) {
     /* The figures are long (7,001,275.990) and the labels are prose. Side by
