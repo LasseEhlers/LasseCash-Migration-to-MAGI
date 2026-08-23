@@ -1,3 +1,6 @@
+![image.png](https://images.hive.blog/DQmeHb1rpB5v4eF25ZjJM95R8eLN1DDpBr3LWsiAL9nECmi/image.png)
+
+
 # LASSECASH migrates to MAGI — the snapshot rules, and your last week to act
 
 *Draft for Lasse to edit. Everything in `[SQUARE BRACKETS]` is a value we have
@@ -19,7 +22,7 @@ read, and after launch **the owner keys are burned**, so nobody — including me
 
 The tokenomics are the ones I published in 2019 and have never changed: a
 **51,000,000 hard cap**, **20,000,000** of new emission, halving every three
-years, ending in year 75. What is new is that they are now enforced by a
+years. What is new is that they are now enforced by a
 contract instead of by my word.
 
 ## The snapshot
@@ -35,7 +38,7 @@ POWER becomes a 30-day mint whose L-Shares equal your staked amount exactly —
 no bonus, no penalty, the same weight you already had.
 
 Your LASSECASH in the Diesel pool and in open sell orders is counted and
-credited to you. So is LASSECASH in an unstaking cooldown, and LASSECASH you
+credited to you. So is LASSECASH POWER under power down, and LASSECASH you
 have delegated out. Nothing you own is missed.
 
 ## Who is in the snapshot
@@ -71,7 +74,7 @@ every power-up, every trade. There are accounts on Hive showing "Active 7 years
 ago" that move tens of thousands of HIVE every month.
 
 It will tell you the wrong answer in both directions. Check your own
-LASSECASH history instead: **[LINK TO A CHECKER, or: hive-engine.com wallet →
+LASSECASH history instead: **[https://lassecash.com/check, or: hive-engine.com wallet →
 LASSECASH → history]**
 
 ## Your last week
@@ -85,10 +88,10 @@ yourself. Stake some. That is all it takes, and it costs you nothing but a
 signature.
 
 Nobody can say they were not told. I have been talking about the MAGI
-migration for a year and a half, and for the last [PERIOD] I have published a
-60-second video **five days a week across four platforms** — [N_PUBLISHED]
-published so far and [N_RECORDED] more already recorded — mentioning this
-migration in nearly all of them. Add this post and the earlier warnings, and I
+migration for over a year, and for the last 2 months I have published a
+60-second video **five days a week across four platforms** — ~40
+published so far — talking about this migration in nearly all of them. Add
+this post and the earlier warnings, and I
 would put it to you that no hardfork in blockchain history has been announced
 this many times, this far ahead, by one person.
 
@@ -101,8 +104,7 @@ LASSECASH belonging to accounts that do not qualify is credited to
 **@null** — Hive's black hole account, which has no keys and never will.
 
 It is not deleted and it is not quietly redistributed to me. It sits at @null
-where anyone can see it, forever, and the amount is displayed on the LasseCash
-chain page permanently. **Every account that is burned is also written into the
+where anyone can see it, forever. **Every account that is burned is also written into the
 public record**, with the exact amount it held, so the history is provable
 years from now.
 
@@ -136,7 +138,7 @@ will not have to.
 
 **The owner key is destroyed at a block about 40 days after genesis** — the
 exact height is `genesis + 1,152,000`, and I will publish it as a number in the
-genesis post the day the contract goes live. Not at launch, and I want to be
+migration genesis post the day the contract goes live. Not at launch, and I want to be
 straight about why.
 
 Until that block the key can do exactly **one** thing: propose a code update.
@@ -146,7 +148,7 @@ proposed update is not secret and not instant:
 
 - it is **visible on-chain for 48 hours** before it can take effect — anyone
   can query `findPendingContractUpdates` for the contract id (published in the
-  genesis post) against `https://api.vsc.eco/api/v1/graphql`, and the query
+  migration genesis post) against `https://api.vsc.eco/api/v1/graphql`, and the query
   returns the proposer, the CID of the new code, and the exact block at which
   it could activate
 - it can be **cancelled** inside that window
@@ -200,11 +202,15 @@ block. A redeploy after real activity restores positions **as they stood at the
 moment of the fault**, not as they stood at the snapshot. Nobody is rolled back
 to August.
 
-**The exception is the HBD in the liquidity pool**, and it is a real one: that
-is custodied by the old contract and a new one cannot reach into it. Liquidity
-providers withdraw it themselves — withdrawal does not depend on the reward
-machinery, so it keeps working even if the reward machinery is what broke — but
-it is their action to take, not something a redeploy does for them.
+**And the old contract does not stop working.** Nothing on a blockchain can be
+deleted, so it keeps running exactly as before. That matters more than it
+sounds: **withdrawing from the liquidity pool has no dependency on the reward
+machinery** — `remove_liquidity` does not read the accrual clock, the monthly
+payout or the emission schedule. If something breaks in the reward code, every
+liquidity provider can still take their LASSECASH and their HBD out of the old
+contract, in full, whenever they like. Their money is not trapped by a bug
+somewhere else in the contract. But it is their action to take — a redeploy
+cannot reach into the old contract's custody and move their HBD for them.
 
 Beyond that, what a redeploy costs is the emission that was being minted while
 the chain was broken — on the order of 9,000 LASSECASH a day at era-1 rates —
@@ -223,8 +229,12 @@ change the token's description to say so. If you see LASSECASH for sale there
 after the migration, do not buy it — those tokens are not the ones that move to
 MAGI.
 
-Seven years on Hive-Engine, and I am grateful for them. This is not a
-falling-out; it is a token outgrowing a spreadsheet.
+Seven years on Hive-Engine, and I am grateful for them. @Aggroed and his team
+have spent a lot of hours on me and on LasseCash, especially in the first
+years. They gave me an opportunity of a lifetime. It has been a rough ride
+living with the limitations of Hive-Engine's build, but for me personally it
+changed my life, so I am very thankful for that team. This is not a
+falling-out; it is a token outgrowing their 'spreadsheet'.
 
 ## Verify everything yourself
 
@@ -238,6 +248,11 @@ You do not have to trust me on any of this. That is the entire point.
 
 ---
 
-*[LASSE'S CHEEKY LINE HERE]*
+*This migration to MAGI is maybe the biggest achievement of my lifetime thus
+far. If this is really as good as I believe it is — to everyone that has been
+with me over the years, and to everybody that will use this product in the
+future, thank you for your contributions.*
+
+You heard it here first.
 
 Lasse
