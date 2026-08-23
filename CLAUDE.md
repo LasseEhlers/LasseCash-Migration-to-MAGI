@@ -1226,7 +1226,7 @@ key burn (see "Immutability" below), and the first was overstated:
 - ~~"this is what makes future dApp fees injectable"~~ — **it does not.** A
   registry row is only meaningful if deployed code reads that key. The core
   contract cannot read a key it was never written to read, and after the burn
-  its code is frozen. Writing `fee/rideshare = 0.4` into core state would
+  its code is frozen. Writing `fee/<some_dapp> = 0.4` into core state would
   change nothing anywhere.
 
 The rows the registry *can* govern are exactly the ones in the GOVERNABLE
@@ -1298,7 +1298,7 @@ for each parameter, changeable at any time. The **median** of those preferences
 is the value in force, continuously. No quorum, no voting round, no tallying
 job, nothing to time or snipe.
 
-Worked example (ridesharing fee): members prefer 0.1, 0.2, 0.4, 0.5, 0.2, 0.3,
+Worked example (a hypothetical dApp fee): members prefer 0.1, 0.2, 0.4, 0.5, 0.2, 0.3,
 0.8, 0.9, 0.6, 0.7 → sorted 0.1 0.2 0.2 0.3 0.4 | 0.5 ... → **0.4% in force**.
 
 **Why median, not mean or majority:** extreme votes are self-neutralising. A
@@ -1363,7 +1363,7 @@ cheap next to shipping a frozen bug.
 ### How dApps still get governance — Lasse's solution, 2026-08-21
 
 The problem: if the core is frozen and its registry is closed, how does a
-future ridesharing dApp get a governable fee?
+future third-party dApp get a governable fee?
 
 **Each dApp is its own contract with its own owner and its own registry.** It
 does not extend the core, it *reads* it:
@@ -2570,7 +2570,7 @@ curation queue — is internal and may change freely on a throwaway deploy.
 - [docs/LasseCash Core Migration to MAGI.md](docs/LasseCash%20Core%20Migration%20to%20MAGI.md) — the main spec
 - [docs/Note: L Shares and stuff.md](docs/Note:%20L%20Shares%20and%20stuff.md) — gap list from the discarded Gemini build
 - [docs/old about page LasseCash.md](docs/old%20about%20page%20LasseCash.md) — pre-migration tokenomics (2019 launch, 51M cap, 20M/10yr)
-- [docs/DAPPs build on LasseCash in the future possibly.md](docs/DAPPs%20build%20on%20LasseCash%20in%20the%20future%20possibly.md) — future scope, explicitly NOT in core migration (no NFTs)
+- `docs/DAPPs build on LasseCash in the future possibly.md` — future scope, explicitly NOT in core migration (no NFTs). **Not in the repo: gitignored as private product planning. Local only.**
 
 `.md` files are generated from the `.odt` originals. If an `.odt` is updated,
 regenerate rather than editing the `.md` by hand.

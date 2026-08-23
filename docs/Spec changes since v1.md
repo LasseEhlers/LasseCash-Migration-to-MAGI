@@ -624,7 +624,7 @@ governing dynamic protocol parameters." The spec does not say how they decide.
 - **Even parity uses the LOWER median** — exact integer arithmetic, no rounding,
   so every node computes the same value.
 
-Worked example (a ridesharing fee): members prefer 0.1, 0.2, 0.4, 0.5, 0.2, 0.3,
+Worked example (a hypothetical dApp fee): members prefer 0.1, 0.2, 0.4, 0.5, 0.2, 0.3,
 0.8, 0.9, 0.6, 0.7 → sorted 0.1 0.2 0.2 0.3 0.4 | 0.5 … → **0.4% in force**.
 
 **Decided:** 2026-08-20. Lasse designed proposals early and discarded them: you
@@ -735,7 +735,7 @@ contract permanently had the keys already been burned.)
 
 ### 25. Future dApps are separate contracts that READ core state — **not in spec (new)**
 
-**Now:** a future dApp (ridesharing, marketplace, anything) does **not** extend
+**Now:** a future dApp of any kind does **not** extend
 the core. It is **its own contract with its own owner and its own bounded
 registry**, and it *reads* core state to derive the same governing top 10:
 

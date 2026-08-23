@@ -11,8 +11,8 @@ package engine
 // A naive design hardcodes each tunable as a struct field, which means every
 // new dApp fee requires a contract rewrite. Instead, parameters live in a
 // registry keyed by string. Adding a parameter for a future dApp is a state
-// write, not a redeploy — which is what makes [REDACTED]/[REDACTED] fees
-// injectable later without touching the migration contract.
+// write, not a redeploy — which is what would make a dApp fee injectable later
+// without touching the migration contract.
 //
 // THE SAFETY PROPERTY: every parameter carries hardcoded Min/Max bounds. The
 // top-10 may move a value inside its bounds and can NEVER leave them. A fee
