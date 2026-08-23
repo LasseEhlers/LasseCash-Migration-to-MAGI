@@ -69,6 +69,32 @@ func Promote(s Store, account string) Result {
 	return ok("promoted")
 }
 
+// weakestOnBoard returns the board's worst live seat, by scanning ALL
+// entries and re-reading their shares — never by assuming `cur` stays
+// sorted. drainExpiryList (the mass unclaimed-maturity walk, exactly what
+// fires at the day-30 migration cliff) can zero many accounts' shares in
+// one call without touching gov_board at all, so a "just check the last
+// stored slot" shortcut can be wrong: a dead, zeroed entry can sit
+// anywhere in the list while a real, unrelated account happens to occupy
+// the literal last position. Found by review 2026-08-24, before genesis:
+// reproduced with 19 dead entries plus one live 1,500-share account in the
+// tail slot, where a legitimate 745-share newcomer — dwarfing all 19 dead
+// entries — was rejected, and Promote (the permissionless fix for exactly
+// this) hit the identical wall, because it calls this same function.
+// O(BoardSize) — a fixed, small (20) scan, the same cost class as the
+// insertion loop below that already runs whenever this exit doesn't fire.
+func weakestOnBoard(s Store, cur []string) string {
+	weakest := cur[0]
+	weakestShares := SharesOf(s, weakest)
+	for _, a := range cur[1:] {
+		if betterSeat(s, weakest, weakestShares, a) {
+			weakest = a
+			weakestShares = SharesOf(s, weakest)
+		}
+	}
+	return weakest
+}
+
 // offer inserts or repositions an account on the leaderboard. O(BoardSize).
 func offer(s Store, account string) {
 	cur := board(s)
@@ -89,8 +115,8 @@ func offer(s Store, account string) {
 			return // nothing to remove, nothing to write
 		}
 	} else if !onBoard && len(cur) >= BoardSize &&
-		!betterSeat(s, account, shares, cur[len(cur)-1]) {
-		return // full board and this account does not beat the last seat
+		!betterSeat(s, account, shares, weakestOnBoard(s, cur)) {
+		return // full board and this account does not beat the weakest live seat
 	}
 
 	// Drop any existing entry so repositioning cannot duplicate it.

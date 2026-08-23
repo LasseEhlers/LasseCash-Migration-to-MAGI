@@ -76,6 +76,93 @@ func TestPromoteLetsNewcomerTakeASeat(t *testing.T) {
 	}
 }
 
+// A mass unclaimed-maturity event — exactly what the day-30 migration cliff
+// is — zeroes many board members' shares via the accrual walk's own expiry
+// drain (drainExpiryList), NOT via offer(). The board's stored order can
+// then be stale: dead, zeroed entries anywhere in the list, while an
+// unrelated live account happens to sit in the literal last slot. A
+// newcomer that clearly outranks every dead entry must still be able to
+// take a seat — both automatically (via CreateMint -> addShares -> offer)
+// and via the permissionless Promote, which exists specifically to fix an
+// exclusion like this one. Found by review 2026-08-24, before genesis.
+func TestNewcomerCanSeatAfterMassUnclaimedMaturity(t *testing.T) {
+	s, ctx := newChain(t)
+
+	// Fill the board: 19 large, SHORT mints (the migration-cliff shape —
+	// they all mature the same day, unclaimed) plus one small, LONG mint
+	// that survives past that day and ends up the weakest live seat.
+	for i := 0; i < BoardSize-1; i++ {
+		acct := fmt.Sprintf("hive:cliff%02d", i)
+		amt := lc(100_000)
+		creditLiquid(s, acct, amt)
+		if _, r := CreateMint(s, at(ctx, acct, genesis), amt, 30); !r.OK {
+			t.Fatalf("cliff mint %s: %s", acct, r.Msg)
+		}
+	}
+	creditLiquid(s, "hive:longterm", lc(1_500))
+	if _, r := CreateMint(s, at(ctx, "hive:longterm", genesis), lc(1_500), 1095); !r.OK {
+		t.Fatal("longterm mint failed")
+	}
+	// Fund the newcomers NOW — CreditMigration refuses once emission has
+	// started, so their balance has to exist before the clock moves; they
+	// mint later, after the cliff, using this pre-funded balance.
+	creditLiquid(s, "hive:newcomer", lc(50_000))
+	creditLiquid(s, "hive:newcomer2", lc(50_000))
+	if cur := board(s); len(cur) != BoardSize {
+		t.Fatalf("board not full before the cliff: %d entries", len(cur))
+	}
+
+	// Past maturity+grace+bleed with nobody claiming: the accrual walk
+	// retires all 19 cliff mints' shares via drainExpiryList, not offer().
+	afterCliff := genesis + 200*day
+	AccrueFully(s, afterCliff)
+	for i := 0; i < BoardSize-1; i++ {
+		acct := fmt.Sprintf("hive:cliff%02d", i)
+		if got := SharesOf(s, acct); got != 0 {
+			t.Fatalf("test setup: %s still holds %d shares after the cliff, want 0", acct, got)
+		}
+	}
+	longtermShares := SharesOf(s, "hive:longterm")
+	if longtermShares <= 0 {
+		t.Fatal("test setup: the long-term holder should be unaffected (matures far later)")
+	}
+	t.Logf("hive:longterm shares after the cliff: %d", longtermShares)
+
+	// A legitimate newcomer, dwarfing every dead entry but smaller than the
+	// one real survivor — this is the exact shape the bug rejected.
+	if _, r := CreateMint(s, at(ctx, "hive:newcomer", afterCliff), lc(500), 30); !r.OK {
+		t.Fatalf("newcomer mint failed: %s", r.Msg)
+	}
+	found := false
+	for _, m := range ConsensusMembers(s) {
+		if m.Account == "hive:newcomer" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("a newcomer outranking every dead board entry was not seated automatically")
+	}
+
+	// And separately, Promote — the documented permissionless fix for
+	// exactly this situation — must also work, not hit the same wall.
+	if _, r := CreateMint(s, at(ctx, "hive:newcomer2", afterCliff), lc(500), 30); !r.OK {
+		t.Fatal("newcomer2 mint failed")
+	}
+	if r := Promote(s, "hive:newcomer2"); !r.OK {
+		t.Fatalf("Promote refused a legitimate newcomer: %s", r.Msg)
+	}
+	found = false
+	for _, m := range ConsensusMembers(s) {
+		if m.Account == "hive:newcomer2" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("Promote returned ok but did not actually seat the newcomer")
+	}
+	auditSupply(t, s)
+}
+
 // A seat holder who exits must lose influence immediately, even if the stored
 // board is briefly stale — shares are re-read live.
 func TestExitedHolderLosesInfluenceImmediately(t *testing.T) {
