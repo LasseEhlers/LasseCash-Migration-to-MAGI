@@ -120,18 +120,43 @@ def evaluate(balances, activity, cutoff):
     alive, dead, burned = {}, {}, {}
 
     for account, bal in balances.items():
-        # Everything the account OWNS. Found 2026-08-21: balance+stake alone
-        # dropped 525k LC sitting in unstaking cooldowns and 101k LC delegated
-        # out (a delegation leaves the delegator's `stake` figure but is still
-        # theirs; the receiver's `delegationsIn` is NOT theirs and is not
-        # counted). Both were under lock, so they migrate as staked power —
-        # the 30-day migration mint — like any other LASSECASH POWER.
-        # Liquid = balance + the account's LASSECASH in the Diesel pool + its
-        # open sell orders (owned, but held by contracts — see fetch.py).
+        # Everything the account OWNS.
+        #
+        # ⚠️ `pendingUnstake` OVERLAPS `stake` — it is NOT a separate bucket.
+        # This was recorded on 2026-08-21 as "verified disjoint against
+        # @cedricguillas to the base unit" and the rehearsal gate proved that
+        # wrong on 2026-08-23, on that same account, with live numbers:
+        #
+        #   powered down 100,000 in 26 instalments of 3,846.15; 2 paid so far
+        #     stake            88,461.54   = 100,000 − 3 × 3,846 (2 paid + the
+        #                                     next one pre-decremented)
+        #     pendingUnstake   92,307.69   = 100,000 − 2 × 3,846 (the SCHEDULE)
+        #     balance           7,692.31   = the 2 instalments paid out
+        #
+        #   balance + stake + pendingUnstake = 188,461   he never had that much
+        #   balance + stake                  =  96,154   + one instalment in flight
+        #
+        # The model predicts both observed fields to the cent. Adding the
+        # schedule on top of the stake credited every mid-cooldown account its
+        # power-down TWICE: 93 accounts, 513,209 LC. It also explains most of
+        # the "485,173 excess" in the published Hive-Engine supply audit —
+        # that was largely us, not Hive-Engine.
+        #
+        # What IS real and must be counted once: the single instalment Hive-
+        # Engine has already removed from `stake` but not yet paid into
+        # `balance`. It is exactly max(pendingUnstake − stake, 0), and it is
+        # still under lock, so it stays on the staked side.
+        #
+        # Delegations out are genuinely separate (a delegation leaves the
+        # delegator's `stake` but is still theirs; `delegationsIn` is NOT
+        # theirs and is never counted). Liquid = balance + Diesel-pool share +
+        # open sell orders (owned, held by contracts — see fetch.py).
+        stake = to_units(bal["stake"])
+        pending = to_units(bal.get("pendingUnstake", "0"))
+        in_flight = max(pending - stake, 0)
         liquid = (to_units(bal["balance"]) + to_units(bal.get("pooled", "0"))
                   + to_units(bal.get("onOrder", "0")))
-        staked = (to_units(bal["stake"]) + to_units(bal.get("pendingUnstake", "0"))
-                  + to_units(bal.get("delegationsOut", "0")))
+        staked = stake + in_flight + to_units(bal.get("delegationsOut", "0"))
         units = liquid + staked
         rec = {
             "liquid": liquid,

@@ -6,7 +6,7 @@ LasseCash is a website where you can earn money three ways. All of it is paid
 in LASSECASH, a token with a fixed supply that nobody — including the founder —
 can ever change.
 
-**Write.** Post an article and people vote on it with their own stake. If they
+**Write.** Post an article and people vote on it with their own mint. If they
 vote, you get paid. The voters get paid too. Your article lives on the Hive
 blockchain, so it stays up forever, whoever runs the website.
 

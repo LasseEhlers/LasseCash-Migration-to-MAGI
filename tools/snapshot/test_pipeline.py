@@ -166,19 +166,41 @@ class C6Rule(unittest.TestCase):
             self.cutoff)
         self.assertIn("lassecash", burned)
 
-    def test_every_holding_bucket_is_counted(self):
-        # Found 2026-08-21/22: balance+stake alone missed 525k in unstaking
-        # cooldowns, 101k delegated out, 553k in the Diesel pool and 50k in
-        # open orders. Each of those is somebody's property.
+    def test_every_holding_bucket_is_counted_once(self):
+        # Liquid = balance + pooled + onOrder. Staked = stake + delegationsOut
+        # + the ONE instalment in flight. pendingUnstake is a schedule that
+        # overlaps stake and must NOT be added on top — see the next test.
         b = self.bal(balance="1", pooled="2", onOrder="4",
-                     stake="8", pendingUnstake="16", delegationsOut="32")
+                     stake="8", pendingUnstake="8", delegationsOut="32")
         alive, _, _ = ac.evaluate({"alice": b},
                                   {"alice": {"last_lassecash_ts": self.now.timestamp()}},
                                   self.cutoff)
         r = alive["alice"]
         self.assertEqual(r["liquid"], ac.to_units("1") + ac.to_units("2") + ac.to_units("4"))
-        self.assertEqual(r["staked"], ac.to_units("8") + ac.to_units("16") + ac.to_units("32"))
+        self.assertEqual(r["staked"], ac.to_units("8") + ac.to_units("32"))
         self.assertEqual(r["total"], r["liquid"] + r["staked"])
+
+    def test_a_power_down_is_credited_exactly_once(self):
+        # @cedricguillas, LIVE figures 2026-08-23, 2 of 26 instalments paid on
+        # a 100,000 power-down. The previous arithmetic credited him 188,461.
+        # The only acceptable answer is the amount he actually powered down.
+        b = self.bal(balance="7692.30770814", stake="88461.53864362",
+                     pendingUnstake="92307.69249769")
+        alive, _, _ = ac.evaluate({"c": b},
+                                  {"c": {"last_lassecash_ts": self.now.timestamp()}},
+                                  self.cutoff)
+        self.assertEqual(alive["c"]["total"], ac.to_units("100000.00020583"))
+        # and the instalment in flight (pending − stake) stays on the STAKED
+        # side: it is still under lock
+        self.assertEqual(alive["c"]["staked"],
+                         ac.to_units("88461.53864362") + ac.to_units("3846.15385407"))
+
+    def test_no_power_down_means_no_in_flight_instalment(self):
+        b = self.bal(balance="10", stake="20", pendingUnstake="0")
+        alive, _, _ = ac.evaluate({"a": b},
+                                  {"a": {"last_lassecash_ts": self.now.timestamp()}},
+                                  self.cutoff)
+        self.assertEqual(alive["a"]["staked"], ac.to_units("20"))
 
     def test_delegations_IN_are_never_counted(self):
         # Stake delegated TO you is not yours. Counting it would credit it twice.

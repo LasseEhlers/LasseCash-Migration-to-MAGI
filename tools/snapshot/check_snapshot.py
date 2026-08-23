@@ -105,7 +105,9 @@ def main() -> None:
     total_direct = sum(
         ac.to_units(b["balance"]) + ac.to_units(b.get("pooled", "0"))
         + ac.to_units(b.get("onOrder", "0")) + ac.to_units(b["stake"])
-        + ac.to_units(b.get("pendingUnstake", "0"))
+        # the one instalment in flight, never the whole schedule (see
+        # apply_criteria: pendingUnstake OVERLAPS stake)
+        + max(ac.to_units(b.get("pendingUnstake", "0")) - ac.to_units(b["stake"]), 0)
         + ac.to_units(b.get("delegationsOut", "0"))
         for b in balances.values()
     )
@@ -131,15 +133,18 @@ def main() -> None:
     #        snapshot + undistributed = everything that exists,
     #    so
     #        recorded - snapshot - undistributed = recorded - exists,
-    #    which is the Hive-Engine supply drift documented in
-    #    docs/HIVE-ENGINE-SUPPLY-AUDIT.md. Nothing issues or burns LASSECASH on
+    #    which is the Hive-Engine supply drift. ⚠️ RE-BASELINED 2026-08-23:
+    #    the drift was −485,117 (Hive-Engine "over" its own supply) until the
+    #    pendingUnstake double-count was fixed; it is now +4,129 — dust lost
+    #    over seven years, the sensible direction. The published supply audit
+    #    attributed that 485k to Hive-Engine. Most of it was ours. Nothing issues or burns LASSECASH on
     #    Hive-Engine any more — the token is fully issued and its issuer does
     #    not mint. So that number is a CONSTANT, and any movement in it means
     #    our capture changed: tokens counted twice, or a holding bucket missed.
     #
     #    Pinned tight on purpose. If this fails, do not widen the tolerance —
     #    find what moved. Re-baseline only with a written reason.
-    DRIFT_BASELINE = -48511709796171     # measured 2026-08-23, full-pass scan
+    DRIFT_BASELINE = 412922057726      # re-measured 2026-08-23 after the pendingUnstake fix
     DRIFT_TOLERANCE = 1000 * UNIT
     UNDISTRIBUTED = 59878408873677       # tokens.contractsBalances, distribution
     RECORDED = 31_000_000 * UNIT
@@ -153,7 +158,7 @@ def main() -> None:
     #    under the same failure: the total is recorded here and any change must
     #    be deliberate. Tokens move between accounts constantly; the SUM over
     #    all accounts does not move at all unless the scan changed.
-    TOTAL_BASELINE = 3088633300922494    # measured 2026-08-23, full-pass scan
+    TOTAL_BASELINE = 3039708669068597    # re-measured 2026-08-23 after the pendingUnstake fix
     total_moved = abs(snapshot - TOTAL_BASELINE)
     check(total_moved <= 1000 * UNIT,
           "snapshot total matches the recorded baseline",
@@ -174,8 +179,8 @@ def main() -> None:
     #    grand total is, and a move is a stop. Re-baseline only with a written
     #    reason — and a GROWING claimable set during the roll call is the
     #    expected direction, a shrinking one almost never is.
-    CLAIMABLE_BASELINE = 1043726514400409   # measured 2026-08-23, 6-month C6
-    ALIVE_BASELINE = 420
+    CLAIMABLE_BASELINE = 1059561171404356   # re-measured 2026-08-23 after the pendingUnstake + market-ops fixes
+    ALIVE_BASELINE = 520
     moved_c = claimable - CLAIMABLE_BASELINE
     check(abs(moved_c) <= 2_000_000 * UNIT,
           "claimable total is within 2M of the recorded baseline",
@@ -191,8 +196,8 @@ def main() -> None:
     #    day 210; swapping the two for every account conserves every total.
     liq = sum(r["liquid"] for r in list(alive.values()) + list(dead.values()) + list(burned.values()))
     stk = sum(r["staked"] for r in list(alive.values()) + list(dead.values()) + list(burned.values()))
-    LIQUID_BASELINE = 1362680787375364     # measured 2026-08-23 full-pass scan
-    STAKED_BASELINE = 1601833333035005
+    LIQUID_BASELINE = 1424640278439744     # re-measured 2026-08-23 after the pendingUnstake fix
+    STAKED_BASELINE = 1615068390628853
     check(abs(liq - LIQUID_BASELINE) <= 200_000 * UNIT,
           "liquid total matches its baseline", f"{lc(liq)} vs {lc(LIQUID_BASELINE)}")
     check(abs(stk - STAKED_BASELINE) <= 200_000 * UNIT,
