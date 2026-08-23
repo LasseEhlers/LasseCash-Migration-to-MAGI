@@ -23,7 +23,7 @@ contract instead of by my word.
 
 ## The snapshot
 
-At Hive block **109,476,124**, on **Sunday 30 August 2026, 12:00 UTC (14:00 CEST)**, I take a snapshot of every
+At Hive block **109,447,319**, on **Saturday 29 August 2026, 12:00 UTC (14:00 CEST)**, I take a snapshot of every
 LASSECASH balance in existence. That snapshot is permanent. It is published in
 full — every account, every amount — and committed to the MAGI contract as a
 single Merkle root, so anyone can verify their own entry, and anyone can verify
@@ -42,7 +42,7 @@ have delegated out. Nothing you own is missed.
 **You must have used LASSECASH.**
 
 To be included, your account must have signed at least one **LASSECASH
-transaction on Hive-Engine within the 6 months before block 109,476,124**.
+transaction on Hive-Engine within the 6 months before block 109,447,319**.
 
 That means one of these, done **by you**:
 
@@ -80,8 +80,8 @@ history, and look for an operation **you** signed since February.
 ## Your last week
 
 If you are not in the snapshot under the rule above, **you have until block
-109,476,124 — Sunday 30 August, 12:00 UTC (14:00 CEST) — to fix it**. That is one week
-from this post.
+109,447,319 — Saturday 29 August, 12:00 UTC (14:00 CEST) — to fix it**. That is six
+days from this post.
 
 Do one LASSECASH transaction. Send 1 LASSECASH to a friend. Send it to
 yourself. Stake some. That is all it takes, and it costs you nothing but a

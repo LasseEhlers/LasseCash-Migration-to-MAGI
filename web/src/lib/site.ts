@@ -127,11 +127,14 @@ export const MAGI_GRAPHQL =
  * PROVISIONAL until the announcement post goes out — it is an operational
  * decision, not a chain fact, and it lives here so the checker, the
  * announcement and the runbook cannot disagree about it. Computed from a live
- * head reading on 2026-08-23: head 109,262,127 at 01:40:09 UTC, +213,997
- * heights at 3s.
+ * head reading on 2026-08-23: head 109,264,456 at 03:36 UTC, at 3s per height.
+ *
+ * MOVED off Sunday 30 August at Lasse's request — he does not want the launch
+ * falling on a Sunday. Saturday the 29th costs one day of roll call (six rather
+ * than seven) and moves the key burn to Thursday 8 October.
  *
  * After the snapshot is taken this becomes history rather than a deadline, and
  * the checker says so on its own by comparing against the chain height.
  */
-export const SNAPSHOT_BLOCK = 109_476_124;
-export const SNAPSHOT_WHEN = "Sunday 30 August 2026, 12:00 UTC";
+export const SNAPSHOT_BLOCK = 109_447_319;
+export const SNAPSHOT_WHEN = "Saturday 29 August 2026, 12:00 UTC";

@@ -1663,7 +1663,7 @@ was briefly added to `ACTIVE_OPS`, which left the four inconsistent; removed.
 **Announce AFTER Sept 1**, so the monthly PoB mint — the one behaviour that
 cannot be compressed, because TESTWINDOWS shrinks days but not calendars — is
 observed on a THROWAWAY before the production contract is frozen. Roll call one
-week, snapshot + genesis ~Sept 9-10, key burn day 40 ≈ Oct 19.
+week; snapshot Sat 29 Aug 12:00 UTC (block 109,447,319), genesis 18:00 UTC (block 109,454,519), key burn day 40 = Thu 8 Oct (block 110,606,519).
 Draft: `docs/ANNOUNCEMENT-DRAFT.md` (technical parts written; Lasse's voice and
 closing line to add; criteria section still says 12 months and five months —
 update to 6 and seven).
