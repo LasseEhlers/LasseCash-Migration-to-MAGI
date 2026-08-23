@@ -120,6 +120,16 @@ def evaluate(balances, activity, cutoff):
     alive, dead, burned = {}, {}, {}
 
     for account, bal in balances.items():
+        # fetch.py guarantees "balance" and "stake" on every row (defaulting
+        # to "0"). A corrupted or hand-edited file lacking them used to raise
+        # a bare KeyError mid-evaluation — confusing, and it could happen
+        # partway through a run rather than failing clearly upfront. Found by
+        # fuzz_pipeline.py, 2026-08-23.
+        if "balance" not in bal or "stake" not in bal:
+            raise ValueError(
+                f"balances.json entry for {account!r} is missing 'balance' or "
+                f"'stake' — the file is corrupt or was hand-edited. Re-run fetch.py."
+            )
         # Everything the account OWNS.
         #
         # ⚠️ `pendingUnstake` OVERLAPS `stake` — it is NOT a separate bucket.
