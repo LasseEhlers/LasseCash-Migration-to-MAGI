@@ -23,8 +23,8 @@ Every new LASSECASH that will ever exist is paid out through those three doors,
 on a schedule that was written down in 2019 and halves every three years. There
 are no fees. There is no company. There is no key that can change any of it.
 
-**If you want to know exactly how, keep reading.** Everything below is the
-complete rule book, written precisely enough to be checked against the code.
+**If you want to know exactly how**, the full version is the complete rule
+book below, written precisely enough to be checked against the code.
 
 ---
 
