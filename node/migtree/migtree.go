@@ -106,6 +106,22 @@ func Load(path string) (*Snapshot, error) {
 	seen := map[string]bool{}
 
 	add := func(name string, e setEntry, burned bool) error {
+		// REFUSE rather than build a dead leaf. Two independent reviews on
+		// 2026-08-23 showed this loader accepted everything: a negative field
+		// (liquid -5, staked 10 sums to 5 and passes), a key already carrying
+		// "hive:" (becomes hive:hive:bob), uppercase (ctx.Sender is never
+		// uppercase), a pipe (shifts the leaf's field count). Each of those
+		// builds a leaf with a valid proof that the contract can NEVER honour —
+		// the holder is told "amount must be positive" or "no leaf" and their
+		// tokens sweep at day 210. This is the last gate before an immutable
+		// commit and it is re-run on freshly fetched data at the announced
+		// block, so it gets its own defence instead of trusting upstream.
+		if e.Liquid < 0 || e.Staked < 0 {
+			return fmt.Errorf("account %q has a negative field (liquid %d, staked %d)", name, e.Liquid, e.Staked)
+		}
+		if !validHiveName(name) {
+			return fmt.Errorf("account %q is not a bare lowercase Hive name", name)
+		}
 		if e.Liquid+e.Staked <= 0 {
 			return nil
 		}
@@ -207,6 +223,26 @@ type ProofEntry struct {
 // filesystem, and the first character additionally refuses "." and "-" — the
 // account name is attacker-chosen data as far as this function is concerned,
 // and a shard name is both a file path here and a URL path in the browser.
+// validHiveName is the Hive account-name grammar as the contract will see it
+// in ctx.Sender after "hive:" is prepended: 3-16 chars, lowercase, starting
+// with a letter, dots and dashes allowed inside. Anything else can never be a
+// sender and so can never claim.
+func validHiveName(n string) bool {
+	if len(n) < 3 || len(n) > 16 {
+		return false
+	}
+	for i := 0; i < len(n); i++ {
+		c := n[i]
+		switch {
+		case c >= 'a' && c <= 'z', c >= '0' && c <= '9':
+		case (c == '.' || c == '-') && i > 0 && i < len(n)-1:
+		default:
+			return false
+		}
+	}
+	return n[0] >= 'a' && n[0] <= 'z'
+}
+
 func Shard(name string) string {
 	const alnum = "abcdefghijklmnopqrstuvwxyz0123456789"
 	out := []byte("__")

@@ -19,6 +19,7 @@ Every check is a property of data already on disk, so it costs nothing and can
 be run as often as it is doubted.
 """
 import json
+import os
 import sys
 from datetime import datetime, timezone, timedelta
 
@@ -49,6 +50,28 @@ def main() -> None:
     activity = json.load(open(ac.ACTIVITY))
     cutoff = datetime.now(timezone.utc) - timedelta(days=30 * 6)
     alive, dead, burned = ac.evaluate(balances, activity, cutoff)
+
+    # 0. THE TWO FILES DESCRIBE THE SAME ACCOUNTS. `evaluate` treats a missing
+    #    activity record as "dead" — burning on the most complete form of
+    #    missing data there is. Found by two independent reviews on
+    #    2026-08-23: remove 200 alive accounts' records and every other check
+    #    in this file still passed, with 10.43M LC (99.9% of the migrating
+    #    supply) silently moved to null. apply_criteria only compares COUNTS,
+    #    which equal-and-different sets satisfy. Compare the sets.
+    missing = sorted(set(balances) - set(activity))
+    extra = sorted(set(activity) - set(balances))
+    check(not missing, "every account with a balance has an activity record",
+          f"{len(missing):,} missing: {', '.join(missing[:5])}{'…' if len(missing) > 5 else ''}" if missing else "")
+    check(not extra, "no activity record for an account that has no balance",
+          f"{len(extra):,} extra: {', '.join(extra[:5])}{'…' if len(extra) > 5 else ''}" if extra else "")
+
+    #    And every record must come from a COMPLETE pass of the fixed scanner:
+    #    one carrying the LASSECASH-only truncation flag. A record without it
+    #    predates the 2026-08-23 fix and would fall back to the Hive-inclusive
+    #    flag, letting the dropped Hive limb decide the account's fate.
+    unflagged = sorted(a for a in balances if "he_search_truncated" not in (activity.get(a) or {}))
+    check(not unflagged, "every activity record carries the LASSECASH-only truncation flag",
+          f"{len(unflagged):,} records predate the scanner fix — rescan" if unflagged else "")
 
     claimable = ac.totals(alive)
     to_null = ac.totals(dead) + ac.totals(burned)
@@ -142,6 +165,67 @@ def main() -> None:
     wrongly_dead = [a for a, r in dead.items() if r.get("he_search_truncated")]
     check(not wrongly_dead, "no account burned on an unresolved history walk",
           ", ".join(wrongly_dead[:5]) if wrongly_dead else "")
+
+    # 8. THE SPLIT IS BASELINED, NOT JUST THE TOTAL. Every check above is a
+    #    sum over the whole snapshot, so moving every account from alive to
+    #    dead changes none of them. Two independent reviews demonstrated it:
+    #    zero out all 2,892 liveness timestamps and checks 1-7 all pass. So
+    #    the claimable total and the alive count are pinned the same way the
+    #    grand total is, and a move is a stop. Re-baseline only with a written
+    #    reason — and a GROWING claimable set during the roll call is the
+    #    expected direction, a shrinking one almost never is.
+    CLAIMABLE_BASELINE = 1043726514400409   # measured 2026-08-23, 6-month C6
+    ALIVE_BASELINE = 420
+    moved_c = claimable - CLAIMABLE_BASELINE
+    check(abs(moved_c) <= 2_000_000 * UNIT,
+          "claimable total is within 2M of the recorded baseline",
+          f"{lc(claimable)} vs {lc(CLAIMABLE_BASELINE)}, moved {lc(moved_c)}")
+    check(len(alive) >= ALIVE_BASELINE * 0.8,
+          "alive count has not collapsed",
+          f"{len(alive)} alive vs baseline {ALIVE_BASELINE} — a fall below 80% means the "
+          f"liveness data is stale, partial or mis-keyed" if len(alive) < ALIVE_BASELINE * 0.8
+          else f"{len(alive)} alive")
+
+    #    Liquid and staked are pinned SEPARATELY. The split decides whether a
+    #    holder gets tokens immediately or a 30-day mint that bleeds to zero by
+    #    day 210; swapping the two for every account conserves every total.
+    liq = sum(r["liquid"] for r in list(alive.values()) + list(dead.values()) + list(burned.values()))
+    stk = sum(r["staked"] for r in list(alive.values()) + list(dead.values()) + list(burned.values()))
+    LIQUID_BASELINE = 1362680787375364     # measured 2026-08-23 full-pass scan
+    STAKED_BASELINE = 1601833333035005
+    check(abs(liq - LIQUID_BASELINE) <= 200_000 * UNIT,
+          "liquid total matches its baseline", f"{lc(liq)} vs {lc(LIQUID_BASELINE)}")
+    check(abs(stk - STAKED_BASELINE) <= 200_000 * UNIT,
+          "staked total matches its baseline", f"{lc(stk)} vs {lc(STAKED_BASELINE)}")
+
+    # 9. THE COMMITTED ARTIFACT IS WHAT WAS CHECKED. This file used to validate
+    #    a fresh evaluation and never open migration_set.json — the file the
+    #    Merkle tree is actually built from. On 2026-08-23 the two disagreed by
+    #    1,999 accounts (a stale 3-month set on disk, a 6-month rule in the
+    #    gate) and every check passed. Now the written set must be IDENTICAL to
+    #    the evaluation: same accounts in each bucket, same liquid and staked
+    #    for every one of them, same window.
+    if os.path.exists(ac.OUT):
+        ms = json.load(open(ac.OUT))
+        same_window = ms.get("window_months") == 6
+        check(same_window, "migration_set.json was written with the 6-month window",
+              f"file says window_months={ms.get('window_months')}" if not same_window else "")
+        diffs = []
+        for name, mine, theirs in (("migrate", alive, ms.get("migrate", {})),
+                                   ("burn_inactive", dead, ms.get("burn_inactive", {})),
+                                   ("burn_protocol", burned, ms.get("burn_protocol", {}))):
+            if set(mine) != set(theirs):
+                diffs.append(f"{name}: {len(set(mine) ^ set(theirs))} accounts differ")
+                continue
+            for a, r in mine.items():
+                t = theirs[a]
+                if r["liquid"] != t["liquid"] or r["staked"] != t["staked"]:
+                    diffs.append(f"{name}: @{a} liquid/staked differ")
+                    break
+        check(not diffs, "migration_set.json is byte-for-byte what this check evaluated",
+              "; ".join(diffs[:3]) if diffs else "")
+    else:
+        check(False, "migration_set.json exists", "run apply_criteria.py --write first")
 
     for n in notes:
         print(f"\n  note: {n}")

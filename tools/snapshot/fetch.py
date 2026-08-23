@@ -376,7 +376,33 @@ def last_active_op(account, node_idx=0):
 # though the entry carries no `from`/`to` (verified live against
 # accounts.hive-engine.com 2026-08-22: a `tokens_unstakeStart` row for
 # @cedricguillas has from=None, to=None, account=cedricguillas).
-HE_SELF_INITIATED_OPS = {"tokens_unstakeStart", "tokens_undelegateStart"}
+HE_SELF_INITIATED_OPS = {
+    "tokens_unstakeStart", "tokens_undelegateStart",
+    # ⚠️ THE MARKET AND POOL OPERATIONS WERE MISSING — found 2026-08-23 by an
+    # independent review, with a named victim. The authorship fallback on
+    # `entry.account` was removed (bug 2) but this table, which replaced it,
+    # was populated with only the two unstake ops above. Every market row
+    # carries no `from` (placeOrder, cancel) or the COUNTERPARTY's name in
+    # `from` (a fill), so he_authorized_by fell through to False for all of
+    # them. Placing or cancelling an order is an owner-signed, active-key
+    # LASSECASH operation under any reading of C6 — it is the most deliberate
+    # thing a holder can do with the token — and the scanner counted none of
+    # it. @krakonos (15,918 LC) placed LASSECASH sell orders on 11, 14, 16 and
+    # 19 August and read as dead since July 2025. Of the 15 accounts with an
+    # open sell order on the book, 10 were judged dead.
+    #
+    # The ORDER is the signature. A fill (market_buy / market_sell) happens
+    # when someone ELSE trades against it, at a time the owner did not choose,
+    # so fills are deliberately NOT here: they are evidence of the counterparty
+    # acting, not the account. Verified live: a market_sell row for @krakonos
+    # carries from=None, to=<buyer>.
+    "market_placeOrder", "market_cancel",
+    "tokens_cancelUnstake",
+    # Diesel-pool actions are owner-signed too: swapping through the pool, and
+    # adding or removing liquidity. Their rows carry from=contract_marketpools,
+    # which is why a `from` check could never have credited them.
+    "marketpools_swapTokens", "marketpools_addLiquidity", "marketpools_removeLiquidity",
+}
 
 # Operations that are the automatic, unsigned completion of the above —
 # nobody authorizes these; they fire on a timer regardless of whether the
@@ -413,13 +439,19 @@ def he_authorized_by(account, entry):
     - anything else lacking a `from`: fail closed, do not count.
     """
     op_type = entry.get("operation")
+    # ORDER MATTERS. The automatic completions and the self-initiated table
+    # are consulted BEFORE the `from` check, because some self-initiated rows
+    # carry a `from` that is not the owner: a Diesel-pool action has
+    # from=contract_marketpools. Checking `from` first returned False for every
+    # one of those and the table was never reached — the 2026-08-23 review's
+    # finding, with the market ops it cited.
+    if op_type in HE_AUTOMATIC_OPS:
+        return False
+    if op_type in HE_SELF_INITIATED_OPS:
+        return True
     frm = entry.get("from")
     if frm is not None:
         return frm == account
-    if op_type in HE_SELF_INITIATED_OPS:
-        return True
-    if op_type in HE_AUTOMATIC_OPS:
-        return False
     return False
 
 
@@ -440,7 +472,10 @@ def he_authorized_by(account, entry):
 HE_USER_OPS = ",".join([
     "tokens_transfer", "tokens_stake", "tokens_unstakeStart",
     "tokens_cancelUnstake", "tokens_delegate", "tokens_undelegateStart",
-    "market_buy", "market_sell", "market_placeOrder", "market_cancel",
+    # Orders and cancels are the owner's signature; fills are the
+    # counterparty's and are not requested (see HE_SELF_INITIATED_OPS).
+    "market_placeOrder", "market_cancel",
+    "marketpools_swapTokens", "marketpools_addLiquidity", "marketpools_removeLiquidity",
 ])
 
 

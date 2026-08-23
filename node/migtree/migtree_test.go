@@ -2,7 +2,6 @@ package migtree
 
 import (
 	"encoding/json"
-	"math/rand"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -54,17 +53,30 @@ func TestPublishedTreeRebuildsToTheCommittedRoot(t *testing.T) {
 		t.Fatalf("burn total %d != published %s", burn, root.BurnUnit)
 	}
 
-	// 50 random accounts, verified the way the CONTRACT verifies: the shard
-	// file's proof, the shard file's amounts, against the published root.
+	// EVERY account, verified the way the CONTRACT verifies: the shard file's
+	// proof, the shard file's amounts, against the published root.
+	//
+	// This used to sample 50 accounts with rand.NewSource(1) — the SAME 50 on
+	// every run, so 99.5% of holders' shard rows were never checked by any
+	// number of re-runs. Write() emits root.json first and the shards last; a
+	// crash in between leaves a fresh root over stale shards, and the old test
+	// passed unless one of its fixed 50 happened to land in a bad one. Two
+	// independent reviews flagged it on 2026-08-23. The full check takes a
+	// quarter of a second for 12,550 leaves. There was never a reason to sample.
 	rootHash, ok := engine.HexToHash(root.Root)
 	if !ok {
 		t.Fatalf("published root is not 64 hex characters: %q", root.Root)
 	}
-	rng := rand.New(rand.NewSource(1))
-	for n := 0; n < 50 && len(entries) > 0; n++ {
-		i := rng.Intn(len(entries))
-		e := entries[i]
-		shard := readShard(t, Shard(bare(e.account)))
+	shards := map[string]map[string]ProofEntry{}
+	rows := 0
+	for i, e := range entries {
+		key := Shard(bare(e.account))
+		shard, cached := shards[key]
+		if !cached {
+			shard = readShard(t, key)
+			shards[key] = shard
+			rows += len(shard)
+		}
 		pe, found := shard[e.account]
 		if !found {
 			t.Fatalf("%s missing from shard %s", e.account, Shard(bare(e.account)))
@@ -84,10 +96,22 @@ func TestPublishedTreeRebuildsToTheCommittedRoot(t *testing.T) {
 		if !engine.VerifyProof(leaves[i], proof, rootHash) {
 			t.Fatalf("%s: published proof does not verify", e.account)
 		}
-		// And the proof the shard serves must be the proof the tree built.
+		// And the proof the shard serves must be the proof the tree built —
+		// element for element, not just the same length.
 		if len(proof) != len(proofs[i]) {
 			t.Fatalf("%s: proof length %d != rebuilt %d", e.account, len(proof), len(proofs[i]))
 		}
+		for j := range proof {
+			if proof[j] != proofs[i][j] {
+				t.Fatalf("%s: proof element %d differs from the rebuilt tree", e.account, j)
+			}
+		}
+	}
+	// Every shard row must be a leaf, and every leaf a shard row. A shard that
+	// kept rows from an older build would otherwise offer a proof for an
+	// account the committed root has never heard of.
+	if rows != len(entries) {
+		t.Fatalf("shard files hold %d rows but the tree has %d leaves — stale shard on disk", rows, len(entries))
 	}
 }
 
@@ -97,7 +121,10 @@ func TestPublishedTreeRebuildsToTheCommittedRoot(t *testing.T) {
 func TestPublishedTreeMatchesTheSnapshotItClaimsToDescribe(t *testing.T) {
 	const setPath = "../../tools/snapshot/data/migration_set.json"
 	if _, err := os.Stat(setPath); err != nil {
-		t.Skipf("no snapshot at %s", setPath)
+		// Was t.Skip. A checkout without the snapshot reported GREEN, which is a
+		// guard that silently stops guarding. The published tree exists only to
+		// describe this file; its absence is a failure, not an exemption.
+		t.Fatalf("no snapshot at %s — the published tree cannot be checked against what it claims to describe", setPath)
 	}
 	tree, err := BuildFromFile(setPath)
 	if err != nil {
@@ -144,7 +171,8 @@ func readPublished(t *testing.T) (RootFile, []pubLeaf) {
 	var root RootFile
 	raw, err := os.ReadFile(filepath.Join(staticDir, "root.json"))
 	if err != nil {
-		t.Skipf("no published tree (%v) — run ./build.sh tree", err)
+		// Was t.Skip — deleting root.json turned both migration tests green.
+		t.Fatalf("no published tree (%v) — run ./build.sh tree", err)
 	}
 	if err := json.Unmarshal(raw, &root); err != nil {
 		t.Fatalf("root.json: %v", err)

@@ -229,3 +229,51 @@ class TruncationFlags(unittest.TestCase):
             {"bob": {"search_truncated": True, "he_search_truncated": True}},
             cutoff)
         self.assertIn("bob", alive)
+
+
+class MarketAndPoolOps(unittest.TestCase):
+    """
+    Placing or cancelling an order, and pool actions, are the owner's signature.
+
+    Found 2026-08-23 by independent review with a named victim: @krakonos
+    (15,918 LC) placed LASSECASH sell orders on 11, 14, 16 and 19 August and was
+    read as dead since July 2025, because market rows carry no `from` and the
+    self-initiated table only held the two unstake ops. Of 15 accounts with an
+    open sell order on the book, 10 were judged dead.
+    """
+
+    def test_placing_an_order_counts(self):
+        # Exactly the row shape the API returns: no from, no to.
+        self.assertTrue(fetch.he_authorized_by("krakonos", op(operation="market_placeOrder")))
+
+    def test_cancelling_an_order_counts(self):
+        self.assertTrue(fetch.he_authorized_by("krakonos", op(operation="market_cancel")))
+
+    def test_a_fill_is_the_counterparty_acting_not_you(self):
+        # A market_sell fires when someone ELSE buys into your order, at a time
+        # you did not choose. Verified live: from=None, to=<buyer>.
+        self.assertFalse(fetch.he_authorized_by("krakonos", op(operation="market_sell", to="fandala")))
+        # A market_buy carries the counterparty in `from`.
+        self.assertFalse(fetch.he_authorized_by("lasseehlers",
+                                                op(operation="market_buy", **{"from": "d3jus"})))
+
+    def test_pool_actions_count_despite_their_from_field(self):
+        # Pool rows carry from=contract_marketpools. A `from` check first
+        # would return False before the table is consulted.
+        for kind in ["marketpools_swapTokens", "marketpools_addLiquidity",
+                     "marketpools_removeLiquidity"]:
+            self.assertTrue(fetch.he_authorized_by(
+                "alice", op(operation=kind, **{"from": "contract_marketpools"})), kind)
+
+    def test_cancelling_an_unstake_counts(self):
+        self.assertTrue(fetch.he_authorized_by("alice", op(operation="tokens_cancelUnstake")))
+
+    def test_the_requested_ops_match_the_table(self):
+        # Every self-initiated op must be requested, or the scanner never sees
+        # it; fills must NOT be requested, or they bury the signal.
+        requested = set(fetch.HE_USER_OPS.split(","))
+        for o in ["market_placeOrder", "market_cancel", "tokens_cancelUnstake",
+                  "marketpools_swapTokens", "marketpools_addLiquidity", "marketpools_removeLiquidity"]:
+            self.assertIn(o, requested, o)
+        self.assertNotIn("market_buy", requested)
+        self.assertNotIn("market_sell", requested)
