@@ -84,8 +84,15 @@ would rather change a rule before the snapshot than defend a bad one after it.
 
 I edited that first warning post afterwards. **Every version of it is still in
 Hive's block history and anyone can read them all** — I cannot delete what I
-wrote, and I am not trying to. That is the point of the chain, and it is the
-point of this migration.
+wrote, and I am not trying to.
+
+I have changed my mind in public plenty of times over seven years, usually
+because I found a better answer, sometimes because the first one was bad. That
+is what building something alone looks like. **What matters is that this is
+close to the last time it can happen.** On 10 October the owner key is
+destroyed, and after that nothing here can be revised by anyone, including me —
+not because I have become more careful, but because the key will not exist.
+That is the whole reason for this migration.
 
 ### ⚠️ Do not trust "Active X ago" on hive.blog
 
