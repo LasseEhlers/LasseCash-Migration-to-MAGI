@@ -134,4 +134,4 @@ export const MAGI_GRAPHQL =
  * the checker says so on its own by comparing against the chain height.
  */
 export const SNAPSHOT_BLOCK = 109_476_124;
-export const SNAPSHOT_WHEN = "Saturday 30 August 2026, 12:00 UTC";
+export const SNAPSHOT_WHEN = "Sunday 30 August 2026, 12:00 UTC";
