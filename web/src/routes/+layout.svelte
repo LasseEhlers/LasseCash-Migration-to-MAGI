@@ -5,6 +5,7 @@
   import { hbdPref } from "$lib/hbd.svelte.js";
   import SignIn from "$lib/SignIn.svelte";
   import { displayName } from "$lib/format.js";
+  import { PRELAUNCH } from "$lib/site.js";
   import "../app.css";
 
   let { children } = $props();
@@ -16,7 +17,9 @@
   // force for every governable parameter is readable by anyone. The founder's
   // private console is the MIGRATION console — named for what it does, so
   // "Admin" never reads as a set of powers over the protocol that nobody has.
-  const navLinks = $derived([
+  // Pre-launch the nav is the two pages that are actually true today. See
+  // +layout.ts — the rest redirect, so linking them would be a dead end.
+  const navLinks = $derived(PRELAUNCH ? [["/check", "Snapshot"], ["/about", "About"]] : [
     ["/feed", "Feed"], ["/compose", "Write"], ["/", "Mint"], ["/pool", "Pool"],
     ["/chain", "Chain"], ["/governance", "Governance"],
     // The roll call: for one week before the snapshot this is the most
@@ -75,7 +78,9 @@
         <span class="who">{displayName(chain.account)}</span>
         <button class="ghost" onclick={() => chain.signOut()}>sign out</button>
       {:else}
-        <SignIn />
+        <!-- Hidden pre-launch: signing in would connect a real wallet to a
+             TESTWINDOWS throwaway contract that is abandoned at genesis. -->
+        {#if !PRELAUNCH}<SignIn />{/if}
       {/if}
     </div>
   </header>

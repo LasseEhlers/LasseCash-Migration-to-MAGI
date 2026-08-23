@@ -147,3 +147,13 @@ export const MAGI_GRAPHQL =
  */
 export const SNAPSHOT_BLOCK = 109_504_918;
 export const SNAPSHOT_WHEN = "Monday 31 August 2026, 12:00 UTC";
+
+/**
+ * True while the site should show only the snapshot checker and About.
+ *
+ * Set VITE_PRELAUNCH=1 until the production contract is live. See
+ * src/routes/+layout.ts for why: the deployed contract today is a TESTWINDOWS
+ * throwaway, so every economic figure is 240x out and sign-in would let a
+ * stranger put real HBD into a pool that gets abandoned at genesis.
+ */
+export const PRELAUNCH = import.meta.env.VITE_PRELAUNCH === "1";

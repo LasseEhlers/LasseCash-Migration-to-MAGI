@@ -19,6 +19,7 @@
    */
   import Seo from "$lib/Seo.svelte";
   import { lc } from "$lib/format.js";
+  import { cleanName, fromUnits, selfSigned, shardOf, type HeOp } from "$api/index.js";
   import { SITE_URL, SNAPSHOT_BLOCK, SNAPSHOT_WHEN } from "$lib/site.js";
   import { base } from "$app/paths";
 
@@ -31,14 +32,6 @@
     last_hive_op?: string;
     protocol?: boolean;
   };
-  type HeOp = {
-    timestamp: number;
-    operation: string;
-    from?: string;
-    to?: string;
-    quantity: string;
-    transactionId: string;
-  };
 
   let query = $state("");
   let looking = $state(false);
@@ -48,23 +41,10 @@
   let index = $state<{ generated: string; window_months: number; cutoff: string } | null>(null);
   let ops = $state<HeOp[] | null>(null);
 
-  const ALNUM = "abcdefghijklmnopqrstuvwxyz0123456789";
-  /** Mirrors migtree.Shard in Go and shard_of() in build_status.py. */
-  function shardOf(name: string): string {
-    let out = "";
-    for (let i = 0; i < 2; i++) {
-      const c = name[i] ?? "";
-      out += (i === 0 ? ALNUM : ALNUM + ".-").includes(c) ? c : "_";
-    }
-    return out;
-  }
 
-  function clean(s: string): string {
-    return s.trim().toLowerCase().replace(/^@+/, "");
-  }
 
   async function lookup() {
-    const name = clean(query);
+    const name = cleanName(query);
     if (!name) return;
     looking = true;
     asked = name;
@@ -107,11 +87,6 @@
   function when(ts: number): string {
     return new Date(ts * 1000).toISOString().slice(0, 10);
   }
-  /** True when an operation is one the account itself must have signed. */
-  function selfSigned(o: HeOp, name: string): boolean {
-    if (o.operation === "tokens_transfer") return o.from === name;
-    return o.operation.startsWith("tokens_") && o.operation !== "tokens_unstakeDone";
-  }
 </script>
 
 <Seo
@@ -138,7 +113,7 @@
       autocorrect="off"
       spellcheck="false"
     />
-    <button type="submit" disabled={looking || !clean(query)}>
+    <button type="submit" disabled={looking || !cleanName(query)}>
       {looking ? "checking…" : "Check"}
     </button>
   </form>
@@ -156,8 +131,8 @@
       <div class="verdict in">
         <h2>@{asked} — you are IN</h2>
         <dl>
-          <dt>liquid</dt><dd class="mono">{lc(row.liquid)}</dd>
-          <dt>staked (becomes a 30-day mint)</dt><dd class="mono">{lc(row.staked)}</dd>
+          <dt>liquid</dt><dd class="mono">{lc(fromUnits(BigInt(row.liquid)))}</dd>
+          <dt>staked (becomes a 30-day mint)</dt><dd class="mono">{lc(fromUnits(BigInt(row.staked)))}</dd>
           {#if row.last_lassecash}
             <dt>last LASSECASH action</dt><dd class="mono">{row.last_lassecash}</dd>
           {/if}
@@ -189,7 +164,7 @@
       <div class="verdict out">
         <h2>@{asked} — you are NOT in, yet</h2>
         <dl>
-          <dt>you hold</dt><dd class="mono">{lc(String(BigInt(row.liquid) + BigInt(row.staked)))}</dd>
+          <dt>you hold</dt><dd class="mono">{lc(fromUnits(BigInt(row.liquid) + BigInt(row.staked)))}</dd>
           <dt>last LASSECASH action</dt>
           <dd class="mono">{row.last_lassecash ?? "no record"}</dd>
           {#if cutoffDate}
@@ -227,7 +202,9 @@
                 <td class="mono">{when(o.timestamp)}</td>
                 <td class="mono">{o.operation.replace("tokens_", "")}</td>
                 <td class="mono">{o.quantity}</td>
-                <td>{selfSigned(o, asked) ? "yes" : "no — received"}</td>
+                <td class={selfSigned(o, asked) ? "yes" : "no"}>
+                  {#if selfSigned(o, asked)}yes{:else}no — from @{o.from ?? "?"}{/if}
+                </td>
               </tr>
             {/each}
           </tbody>

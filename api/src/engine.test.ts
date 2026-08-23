@@ -38,9 +38,9 @@ test("the engine loads and reports the protocol constants", () => {
   assert.equal(c.decimals, 8);
   assert.equal(c.minMintDays, 1);
   assert.equal(c.maxMintDays, 1095);
-  assert.equal(c.graceDays, 30);
+  assert.equal(c.graceDays, 90);
   assert.equal(c.bleedDays, 90);
-  assert.equal(c.goodAcctArmDays, 30); // the grace month AFTER maturity
+  assert.equal(c.goodAcctArmDays, 90); // DERIVED from GraceDays, widened 30 -> 90
   assert.equal(c.goodAcctGrace, 1095);
   assert.equal(c.loyaltyMaxDays, 90);
   assert.equal(c.fullVoteCostPct, 10);
@@ -153,16 +153,20 @@ test("Good Accounting arms only during the 30-day grace AFTER maturity", () => {
   assert.equal(previewMintClose(mint, maturity - day, "0").canArmGoodAccounting, false,
     "not before maturity");
   assert.equal(previewMintClose(mint, maturity, "0").canArmGoodAccounting, true, "opens at maturity");
-  assert.equal(previewMintClose(mint, maturity + 29 * day, "0").canArmGoodAccounting, true,
+  // GraceDays widened 30 -> 90 on 2026-08-22, and GoodAccountingArmDays is
+  // DERIVED from it, so the window moved with it. Pinned at the boundary in
+  // both directions: this suite was red for a day because only the code moved.
+  assert.equal(previewMintClose(mint, maturity + 89 * day, "0").canArmGoodAccounting, true,
     "last day of grace");
-  assert.equal(previewMintClose(mint, maturity + 30 * day, "0").canArmGoodAccounting, false,
+  assert.equal(previewMintClose(mint, maturity + 90 * day, "0").canArmGoodAccounting, false,
     "closed once the bleed starts");
 });
 
 test("governed values: the default, the LOWER median, and bounds no vote can leave", () => {
   const key = constants().paramVolumeStart;
   // Every figure below is the registration in engine/governance.go:
-  // ParamVolumeStart = LC(10_000), bounded [LC(100), LC(50_000)].
+  // ParamVolumeStart: DEFAULT LC(1_000) since 2026-08-22, bounded
+  // [LC(100), LC(50_000)] — the bounds are frozen, only the default moved.
   const m = (account: string, shares: string, preference: string | null) => ({
     account,
     shares: toBaseUnitArg(shares),
@@ -171,13 +175,13 @@ test("governed values: the default, the LOWER median, and bounds no vote can lea
 
   const none = effectiveValue(key, []);
   assert.ok(none.ok);
-  assert.equal(none.defaultValue, "10000.00000000");
+  assert.equal(none.defaultValue, "1000.00000000");
   assert.equal(none.min, "100.00000000");
   assert.equal(none.max, "50000.00000000");
-  assert.equal(none.value, "10000.00000000", "no board at all: the default stands");
+  assert.equal(none.value, "1000.00000000", "no board at all: the default stands");
   assert.equal(
     effectiveValue(key, [m("hive:alice", "500", null), m("hive:bob", "400", null)]).value,
-    "10000.00000000", "a board that has never voted: still the default");
+    "1000.00000000", "a board that has never voted: still the default");
 
   // Four votes -> 1000, 2000, 3000, 4000. The lower of the two middle values
   // wins, so 2000 and never 2500: integer, exact, identical on every node.
@@ -199,7 +203,7 @@ test("governed values: the default, the LOWER median, and bounds no vote can lea
   // which would clamp to Min and drag the median down.
   assert.equal(effectiveValue(key, [
     { account: "hive:alice", shares: toBaseUnitArg("500"), preference: "" },
-  ]).value, "10000.00000000");
+  ]).value, "1000.00000000");
 
   // A board entry holding no shares holds no seat, so it casts no vote.
   assert.equal(effectiveValue(key, [

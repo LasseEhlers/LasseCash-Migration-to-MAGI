@@ -23,3 +23,4 @@ export * from "./engine.js";
 export * from "./hive-metadata.js";
 export * from "./aioha-signer.js";
 export * from "./client.js";
+export * from "./snapshot-check.js";
