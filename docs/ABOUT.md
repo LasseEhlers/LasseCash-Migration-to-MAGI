@@ -1,5 +1,33 @@
 # LasseCash
 
+## The short version
+
+LasseCash is a website where you can earn money three ways. All of it is paid
+in LASSECASH, a token with a fixed supply that nobody — including the founder —
+can ever change.
+
+**Write.** Post an article and people vote on it with their own stake. If they
+vote, you get paid. The voters get paid too. Your article lives on the Hive
+blockchain, so it stays up forever, whoever runs the website.
+
+**Lock.** Lock up LASSECASH for anywhere from a day to three years and earn a
+share of every new token while it is locked. Longer locks earn more. Bigger
+locks earn more. Break the lock early and you lose some of it — that is the
+price of the promise.
+
+**Provide.** Put LASSECASH and HBD into the trading pool together and earn a
+share of every new token for as long as it sits there. The longer it sits, the
+bigger your share, up to ninety days.
+
+Every new LASSECASH that will ever exist is paid out through those three doors,
+on a schedule that was written down in 2019 and halves every three years. There
+are no fees. There is no company. There is no key that can change any of it.
+
+**If you want to know exactly how, keep reading.** Everything below is the
+complete rule book, written precisely enough to be checked against the code.
+
+---
+
 ## 1. What LasseCash is
 
 LasseCash is a social media platform and a set of financial rules sharing one token. You write on lassecash.com, people vote with their own stake, and the protocol pays authors and voters in LASSECASH from a fixed, published schedule. You can also lock LASSECASH into a mint — a time-locked position earning L-Shares — or trade it against HBD in a pool the contract runs itself. All of it runs on MAGI, a smart-contract chain on Hive: contracts are Go compiled to WebAssembly, settled by Hive's block producers.
