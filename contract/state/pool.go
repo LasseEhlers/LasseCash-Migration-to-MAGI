@@ -43,7 +43,14 @@ func (a *MemAssets) Draw(amount int64) bool {
 }
 
 func (a *MemAssets) Transfer(to string, amount int64) bool {
-	if a.Fail || amount <= 0 || amount > a.Held {
+	// Mirrors the real chain's milli-HBD floor exactly (see
+	// contract/app/main.go's assets.Transfer): an amount under 0.001 HBD
+	// pays nothing and fails, same as production. A kinder mock here is
+	// what let the sub-milli tranche-lockup bug (found by review
+	// 2026-08-24) go unseen by every state-layer test and the fuzzer —
+	// the same class of gap the empty-vs-nil postmortem already warned
+	// against repeating.
+	if a.Fail || engine.HbdPayMilli(engine.Amount(amount)) <= 0 || amount > a.Held {
 		return false
 	}
 	a.Held -= amount
@@ -288,12 +295,33 @@ func closeTranche(s Store, a Assets, ctx Ctx, owner string, id uint64) Result {
 		return fail("cannot compute withdrawal")
 	}
 
-	if hbdOut > 0 && !a.Transfer(owner, int64(hbdOut)) {
-		return fail("HBD transfer failed")
+	// Real HBD moves in MILLI-units on the real chain; a proportional share
+	// under 0.001 HBD (base units 1..HbdUnitsPerMilli-1) floors to 0 milli,
+	// and the real Transfer refuses an amount that pays nothing. Unlike
+	// SwapLCForHBD (which can fail safely and let the caller retry a larger
+	// amount), a tranche's size is fixed by what its owner already
+	// deposited — failing here would brick the withdrawal FOREVER, and
+	// SweepTranche (the anti-zombie eviction) shares this exact function,
+	// so even the permissionless rescue path would hit the identical wall.
+	// Found by review 2026-08-24, before genesis.
+	//
+	// Genuine sub-milli dust is simply left in the pool rather than paid: it
+	// is not withdrawn (real custody is untouched, since no transfer
+	// happens) AND not subtracted from the tracked reserve either, so
+	// custody and the ledger stay in EXACT agreement — the dust benefits
+	// remaining LPs slightly instead of becoming orphaned, unaccounted
+	// custody nobody's bookkeeping ever sees again.
+	realHbdOut := hbdOut
+	if hbdOut > 0 {
+		if engine.HbdPayMilli(hbdOut) <= 0 {
+			realHbdOut = 0
+		} else if !a.Transfer(owner, int64(hbdOut)) {
+			return fail("HBD transfer failed")
+		}
 	}
 
 	setAmount(s, keyPoolLC, lcRes-lcOut)
-	setAmount(s, keyPoolHBD, hbdRes-hbdOut)
+	setAmount(s, keyPoolHBD, hbdRes-realHbdOut)
 	setShares(s, keyPoolShares, total-t.Shares)
 	setShares(s, keyPoolWeight, getShares(s, keyPoolWeight)-t.Weight)
 
@@ -305,7 +333,7 @@ func closeTranche(s Store, a Assets, ctx Ctx, owner string, id uint64) Result {
 	t.Weight = 0
 	putTranche(s, id, t)
 
-	return ok("withdrew " + encI64(int64(lcOut)) + " LC and " + encI64(int64(hbdOut)) + " HBD")
+	return ok("withdrew " + encI64(int64(lcOut)) + " LC and " + encI64(int64(realHbdOut)) + " HBD")
 }
 
 // --- rewards --------------------------------------------------------------

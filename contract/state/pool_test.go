@@ -289,6 +289,77 @@ func TestWithdrawReturnsBothSidesAndClosesOnce(t *testing.T) {
 	}
 }
 
+// A tranche whose proportional HBD claim floors below 0.001 HBD (the real
+// chain's milli-HBD granularity) used to brick RemoveLiquidity forever —
+// and SweepTranche, the permissionless anti-zombie rescue, hit the exact
+// same wall, since both route through closeTranche. Found by review
+// 2026-08-24, before genesis. This pins that a genuinely dust-sized
+// tranche can still be withdrawn (dust forfeit, not paid) and, separately,
+// still be evicted by SweepTranche once dormant.
+func TestDustSizedTrancheCanStillBeWithdrawn(t *testing.T) {
+	s, a, ctx := newPool(t)
+	// A large pool, then a deliberately tiny second deposit — its
+	// proportional share of hbdRes on withdrawal must floor to 0 milli.
+	_, r := AddLiquidity(s, a, at(ctx, "hive:lp1", genesis), lc(900_000), lc(90_000))
+	if !r.OK {
+		t.Fatalf("lp1 open failed: %s", r.Msg)
+	}
+	dustID, r := AddLiquidity(s, a, at(ctx, "hive:lp2", genesis), 1_000, lc(1))
+	if !r.OK {
+		t.Fatalf("lp2 dust deposit failed: %s", r.Msg)
+	}
+
+	lcRes, hbdRes := PoolReserves(s)
+	total := PoolShares(s)
+	tr, _ := GetTranche(s, "hive:lp2", dustID)
+	_, hbdOut, okAmt := engine.WithdrawAmounts(tr.Shares, total, lcRes, hbdRes)
+	if !okAmt {
+		t.Fatal("cannot compute withdrawal")
+	}
+	if engine.HbdPayMilli(hbdOut) > 0 {
+		t.Fatalf("test setup is not actually dust: hbdOut=%s pays %d milli — "+
+			"adjust the deposit size", fmtA(hbdOut), engine.HbdPayMilli(hbdOut))
+	}
+
+	lcBefore := Balance(s, "hive:lp2")
+	if r := RemoveLiquidity(s, a, at(ctx, "hive:lp2", genesis), dustID); !r.OK {
+		t.Fatalf("dust tranche withdrawal should succeed (dust forfeit, not a hard failure): %s", r.Msg)
+	}
+	if Balance(s, "hive:lp2") <= lcBefore {
+		t.Fatal("dust tranche owner should still get their LC principal back")
+	}
+	auditPool(t, s, a) // custody must still equal the ledger EXACTLY — the
+	// dust must stay in the pool, never orphaned in unaccounted custody.
+	auditSupply(t, s)
+}
+
+// The permissionless eviction path shares closeTranche with RemoveLiquidity,
+// so a dust-sized dormant tranche must be sweepable too — otherwise the
+// anti-zombie mechanism's own promise ("dead capital stops drawing rewards")
+// would silently fail for exactly the positions most likely to be abandoned.
+func TestDustSizedTrancheCanStillBeSwept(t *testing.T) {
+	s, a, ctx := newPool(t)
+	_, r := AddLiquidity(s, a, at(ctx, "hive:lp1", genesis), lc(900_000), lc(90_000))
+	if !r.OK {
+		t.Fatalf("lp1 open failed: %s", r.Msg)
+	}
+	dustID, r := AddLiquidity(s, a, at(ctx, "hive:lp2", genesis), 1_000, lc(1))
+	if !r.OK {
+		t.Fatalf("lp2 dust deposit failed: %s", r.Msg)
+	}
+
+	dormant := genesis + (engine.TrancheDormantDays+1)*day
+	if r := SweepTranche(s, a, at(ctx, "hive:anyone", dormant), "hive:lp2", dustID); !r.OK {
+		t.Fatalf("sweeping a dormant dust tranche should succeed: %s", r.Msg)
+	}
+	tr, _ := GetTranche(s, "hive:lp2", dustID)
+	if !tr.Closed {
+		t.Fatal("swept tranche should be closed")
+	}
+	auditPool(t, s, a)
+	auditSupply(t, s)
+}
+
 // Tranches are exited by id, so a partial exit never silently destroys the
 // user's most-matured loyalty position.
 func TestTranchesAreExitedIndividually(t *testing.T) {
