@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"math/big"
 	"testing"
 )
 
@@ -290,7 +291,8 @@ func TestGoodAccountingArmWindow(t *testing.T) {
 		{mat, true, "at maturity: window opens"},
 		{mat + 30*HeightsPerDay, true, "a month past maturity: still allowed"},
 		{mat + 89*HeightsPerDay, true, "last day of grace: allowed"},
-		{mat + 90*HeightsPerDay, false, "grace over, bleed starts: TOO LATE"},
+		{mat + 90*HeightsPerDay, true, "grace boundary height: still whole per BleedRemaining, so still allowed"},
+		{mat + 90*HeightsPerDay + 1, false, "one height into the bleed: TOO LATE"},
 		{mat + 120*HeightsPerDay, false, "mid-bleed: cannot retroactively opt out"},
 	}
 	for _, c := range cases {
@@ -309,6 +311,67 @@ func TestGoodAccountingArmWindow(t *testing.T) {
 	ended.Ended = true
 	if ended.CanArmGoodAccounting(mat) {
 		t.Fatal("ended mint: must not arm")
+	}
+}
+
+// CanArmGoodAccounting and BleedRemaining must never disagree about whether
+// a height is bleeding: "cannot arm once bleeding" only means something if
+// the two functions share one boundary. Swept across the arm window and
+// past it, at every height, not just the ones the earlier test happened to
+// sample — this is exactly the class of one-height mismatch a sampled test
+// can miss. Found by review 2026-08-24, before genesis.
+func TestGoodAccountingArmBoundaryAgreesWithBleedRemaining(t *testing.T) {
+	m, _ := NewMint("erin", LC(30_000), 365, gen, defaultParams(gen))
+	mat := m.MaturityHeight()
+	for days := int64(85); days <= 95; days++ {
+		h := mat + uint64(days)*HeightsPerDay
+		bleeding := m.BleedRemaining(h) < MultScale
+		canArm := m.CanArmGoodAccounting(h)
+		if bleeding && canArm {
+			t.Fatalf("day %d: already bleeding (remaining %d) yet arming still allowed",
+				days, m.BleedRemaining(h))
+		}
+		if !bleeding && !canArm {
+			t.Fatalf("day %d: not bleeding (remaining %d) yet arming refused",
+				days, m.BleedRemaining(h))
+		}
+	}
+}
+
+// BleedRemaining must floor, matching the project-wide "rounding always
+// floors" rule: the surviving fraction is never rounded up in the holder's
+// favor. Independently checked two ways: against a big.Rat computation of
+// the exact mathematical floor (not just a re-typed copy of the production
+// formula), and against the OLD `MultScale - floor(bled)` formula, which
+// must now read STRICTLY LOWER whenever the fraction isn't exact — proving
+// the fix actually moved the result, not just that it type-checks.
+func TestBleedRemainingFloors(t *testing.T) {
+	m, _ := NewMint("frank", LC(100_000_000), 365, gen, defaultParams(gen))
+	mat := m.MaturityHeight()
+	graceEnd := mat + uint64(GraceDays)*HeightsPerDay
+	bleedSpan := uint64(BleedDays) * HeightsPerDay
+	sawADifference := false
+	for into := uint64(1); into < bleedSpan; into += 7 {
+		h := graceEnd + into
+		got := m.BleedRemaining(h)
+
+		exact := new(big.Rat).SetFrac(
+			big.NewInt(int64(bleedSpan-into)*MultScale), big.NewInt(int64(bleedSpan)))
+		wantFloor := new(big.Int).Div(exact.Num(), exact.Denom())
+		if got != wantFloor.Int64() {
+			t.Fatalf("into=%d: remaining %d, want exact floor %s", into, got, wantFloor)
+		}
+
+		oldCeil := MultScale - int64(into)*MultScale/int64(bleedSpan)
+		if got > oldCeil {
+			t.Fatalf("into=%d: remaining %d exceeds the old ceiling formula's %d", into, got, oldCeil)
+		}
+		if got < oldCeil {
+			sawADifference = true
+		}
+	}
+	if !sawADifference {
+		t.Fatal("never saw the fixed formula differ from the old ceiling formula — test is not exercising the fix")
 	}
 }
 

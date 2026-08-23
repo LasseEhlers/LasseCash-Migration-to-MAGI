@@ -349,12 +349,20 @@ func (m Mint) IsMature(height uint64) bool {
 // The window opens AT maturity and closes when the ordinary grace ends — the
 // moment the bleed would start. Never before maturity (nothing to decide yet)
 // and never once bleeding (no retroactive opt-out).
+//
+// The upper bound is INCLUSIVE (`<=`), matching BleedRemaining's own grace
+// check (`past <= graceEnd`) at the same height. An earlier exclusive `<`
+// here disagreed with BleedRemaining by exactly one height: at
+// mat+GoodAccountingArmDays*HeightsPerDay the mint is still whole per
+// BleedRemaining (nothing has bled yet), but arming was refused as "too
+// late" — a real position could not opt in during a height where it was
+// provably not bleeding. Found by review 2026-08-24, before genesis.
 func (m Mint) CanArmGoodAccounting(height uint64) bool {
 	if m.Ended || m.GoodAccounting {
 		return false
 	}
 	mat := m.MaturityHeight()
-	return height >= mat && height < mat+uint64(GoodAccountingArmDays)*HeightsPerDay
+	return height >= mat && height <= mat+uint64(GoodAccountingArmDays)*HeightsPerDay
 }
 
 // EarlyEndRecovery returns the fraction of principal recoverable by ending
@@ -412,8 +420,14 @@ func (m Mint) BleedRemaining(height uint64) int64 {
 	if into >= bleedSpan {
 		return 0
 	}
-	// 100% * (1 - into/bleedSpan)
-	return MultScale - int64(into)*MultScale/int64(bleedSpan)
+	// Compute the surviving fraction directly, so integer division floors
+	// IT — never `MultScale - floor(bled)`, which floors the bled amount and
+	// so rounds the surviving (paid-out) amount UP, violating "rounding
+	// always floors". Found by review 2026-08-24, before genesis; magnitude
+	// is at most one part in bleedSpan (~1e-8 of the position) but the
+	// direction was wrong on principle, not just in size.
+	remaining := bleedSpan - into
+	return int64(remaining) * MultScale / int64(bleedSpan)
 }
 
 // LiquidationHeight is the height at which the position reaches zero.
