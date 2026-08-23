@@ -73,9 +73,13 @@ That number only measures **posting and voting**. It ignores every transfer,
 every power-up, every trade. There are accounts on Hive showing "Active 7 years
 ago" that move tens of thousands of HIVE every month.
 
-It will tell you the wrong answer in both directions. Check your own
-LASSECASH history instead: **[https://lassecash.com/check, or: hive-engine.com wallet →
-LASSECASH → history]**
+It will tell you the wrong answer in both directions. **Check whether you are
+in the snapshot here: https://lassecash.pages.dev/check** — type your account
+name and it tells you which side of the line you are on, and what to do about
+it if you are out. It reads the same rule the snapshot itself uses.
+
+If you would rather check by hand: hive-engine.com wallet → LASSECASH →
+history, and look for an operation **you** signed since February.
 
 ## Your last week
 
@@ -88,12 +92,11 @@ yourself. Stake some. That is all it takes, and it costs you nothing but a
 signature.
 
 Nobody can say they were not told. I have been talking about the MAGI
-migration for over a year, and for the last 2 months I have published a
-60-second video **five days a week across four platforms** — ~40
-published so far — talking about this migration in nearly all of them. Add
-this post and the earlier warnings, and I
-would put it to you that no hardfork in blockchain history has been announced
-this many times, this far ahead, by one person.
+migration for over a year, and over the last three months I published **20
+videos across four platforms**, talking about this migration in nearly all of
+them. Add this post and the earlier warnings, and I would put it to you that
+few migrations of a token this old have been announced this many times, this
+far ahead, by one person.
 
 If you follow me at all, you have heard about this. If you have not, it is
 because you were not listening.
@@ -242,7 +245,9 @@ falling-out; it is a token outgrowing their 'spreadsheet'.
 - The Merkle root, on-chain at **[LINK]** — proves the published list is the
   one the contract uses
 - The contract source at **https://github.com/LasseEhlers/LasseCash-Migration-to-MAGI**
-- The full rules at **https://lassecash.com/about**
+- The full rules at **https://lassecash.pages.dev/about** — the new site.
+  ⚠️ Not the old About page on lassecash.com: that one describes the
+  Hive-Engine era and this migration supersedes it.
 
 You do not have to trust me on any of this. That is the entire point.
 
