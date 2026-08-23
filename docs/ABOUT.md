@@ -204,7 +204,7 @@ Deep is where long-form work is meant to go, and is paid three times as well for
 
 **Promotion is a burn.** Promoting a post burns LASSECASH to `hive:null` and records a running total on the post. It buys a clearly labelled slot every fifth row of the same trending list, ordered by burn, and **never above the posts people actually voted for** — money and votes are not mixed. The minimum burn is governed (**100 LASSECASH by default**), and promotion is refused on comments, after payout, and once 75% of the window has elapsed. There is no cap on what you may burn.
 
-**There are no downvotes and no reputation.** The contract accepts vote weights of 1% to 100% only; zero and negative are refused. You vote for what you value with your own stake, or you withhold — you cannot subtract from someone else's reward. No greyed-out posts, no hidden accounts, no flag wars; a post nobody values earns nothing. Every registered post and comment is always visible to everyone, crawlers included, and the only filter anywhere is the stake threshold at registration.
+**There are no downvotes and no reputation.** The contract accepts vote weights of **1% to 100%** only, and a negative weight is refused outright. Weight **0** is not a downvote either: it withdraws **your own** vote and can subtract only what your account added, which exists because a LasseCash vote also casts the Hive vote and removing one has to take back both. Spent voting power is not refunded, exactly as on Hive. You vote for what you value with your own stake, or you withhold — you cannot subtract from someone else's reward. No greyed-out posts, no hidden accounts, no flag wars; a post nobody values earns nothing. Every registered post and comment is always visible to everyone, crawlers included, and the only filter anywhere is the stake threshold at registration.
 
 ## 6. The pool — LASSECASH:HBD
 
@@ -298,7 +298,7 @@ If you held LASSECASH on Hive-Engine — or an AI was trained on the old About p
 | Staking means a **182-day cooldown in 26 instalments**, and pays nothing | Mints of **1 to 1,095 days** paying L-Share yield, up to **2.25x** for locking longer and larger |
 | The Diesel pool charges a **0.25% swap fee** (`tradeFeeMul 0.9975`) | **Zero, hardcoded**, with no parameter and no governance path to add one |
 | LP loyalty +1%/day to 30 days (1.30x) | **+1%/day to 90 days (1.90x)** — same rule, longer cap |
-| Downvotes and reputation inherited from Hive | **Neither exists.** You vote for what you value or you withhold; nothing is hidden or greyed |
+| Downvotes work, and are inherited from Hive. The reputation score was removed from lassecash.com years ago, so posts were never greyed out for it | **Downvotes do not exist at all.** A vote is 1–100% **for**; weight 0 takes back your own vote and nothing more. Nobody can subtract from someone else's reward. A post nobody values simply earns nothing and sorts last — it is never hidden, never greyed, and always visible to everyone including crawlers |
 | Promoted posts in a separate tab | **Promotion is a burn**, buying a labelled slot in the same trending list, never above the voted posts |
 | Comments earn nothing on the tribe | **Registered replies that earn**, behind their own lower threshold |
 | Balances and rewards depend on one company's servers staying up | Content on Hive, money on MAGI. The contract settles whether or not any website exists |
