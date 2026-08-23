@@ -81,6 +81,8 @@ Everything you own, wherever the old chain kept it.
 | Stake you delegated out | staked — a delegation is still yours |
 | Stake delegated **to** you | nothing. It is not yours and is never counted |
 
+**Only the LASSECASH token migrates.** The small number of NFTs minted on Hive-Engine are not in the snapshot and are not carried across. They stay exactly where they are, on the chain that issued them, owned by whoever owns them now. Nothing about them changes and nothing about them is lost — they are simply not part of this contract, which is a token, a reward system and a pool.
+
 ### Liquid, staked, and the claim
 
 Your liquid balance migrates one-for-one. Your staked amount becomes a **30-day migration mint** whose L-Shares equal it **one-for-one** — no multipliers, no share rate — because legacy stake is not a new voluntary commitment and keeps only the weight it had. Thirty days later you are liquid and decide fresh what to lock.
