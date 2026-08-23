@@ -182,24 +182,37 @@ def fetch_balances():
     # sellers would have been burned at the snapshot.
     from decimal import Decimal, ROUND_DOWN
     pooled, on_order = {}, {}
-    pool = he_find_one("marketpools", "pools", {"tokenPair": "SWAP.HIVE:LASSECASH"})
-    if pool:
-        reserve = Decimal(pool["quoteQuantity"])   # quote = LASSECASH
+
+    # EVERY pool holding LASSECASH, not just SWAP.HIVE:LASSECASH. Found
+    # 2026-08-23: the LASSECASH:PUPPY pool holds ~14,459 LASSECASH belonging
+    # to 35 providers, and the old hardcoded pair meant all of them would have
+    # been burned at the snapshot. Never hardcode one pair again — read the
+    # pool list and take whichever side is LASSECASH.
+    all_pools = he_find("marketpools", "pools", {}, limit=1000) or []
+    lc_pools = [p for p in all_pools if SYMBOL in (p.get("tokenPair") or "")]
+    if not lc_pools:
+        print("  ! could not read any Diesel pool — pooled LASSECASH NOT captured")
+    for pool in lc_pools:
+        pair = pool["tokenPair"]
+        base, quote = pair.split(":")
+        reserve = Decimal(pool["baseQuantity"] if base == SYMBOL else pool["quoteQuantity"])
         total_shares = Decimal(pool["totalShares"])
+        if total_shares <= 0:
+            continue
         offset = 0
+        n_lp = 0
         while True:
             batch = he_find("marketpools", "liquidityPositions",
-                            {"tokenPair": "SWAP.HIVE:LASSECASH"}, limit=1000, offset=offset) or []
+                            {"tokenPair": pair}, limit=1000, offset=offset) or []
             for lp in batch:
                 share = (Decimal(lp["shares"]) * reserve / total_shares).quantize(
                     Decimal("0.00000001"), rounding=ROUND_DOWN)
                 pooled[lp["account"]] = pooled.get(lp["account"], Decimal(0)) + share
+                n_lp += 1
             if len(batch) < 1000:
                 break
             offset += 1000
-        print(f"  Diesel pool: {reserve} LASSECASH across {len(pooled)} LPs")
-    else:
-        print("  ! could not read the Diesel pool — pooled LASSECASH NOT captured")
+        print(f"  pool {pair}: {reserve} {SYMBOL} across {n_lp} positions")
     offset = 0
     while True:
         batch = he_find("market", "sellBook", {"symbol": "LASSECASH"}, limit=1000, offset=offset) or []
@@ -208,7 +221,37 @@ def fetch_balances():
         if len(batch) < 1000:
             break
         offset += 1000
-    print(f"  open sell orders: {sum(on_order.values(), Decimal(0))} LASSECASH across {len(on_order)} sellers")
+    print(f"  open sell orders: {sum(on_order.values(), Decimal(0))} {SYMBOL} across {len(on_order)} sellers")
+
+    # RECONCILE against Hive-Engine's own contract-held table. This is the
+    # check that would have caught both misses above on the day they appeared,
+    # instead of a month later. tokens.contractsBalances is authoritative for
+    # every token a contract holds: market (the sell book), marketpools (all
+    # pools) and distribution (undistributed pool rewards).
+    #
+    # NOTE 2026-08-23: account-held + contract-held does NOT equal the token's
+    # own `supply` field. For LASSECASH it exceeds it by ~485,310. That is a
+    # Hive-Engine problem, not ours — the identical calculation reconciles to
+    # 0.00 on VIBES and CTP, while LEO, POB and PIZZA are also over. Audited
+    # and published rather than papered over.
+    contracts = {c["account"]: Decimal(c.get("balance") or 0) + Decimal(c.get("stake") or 0)
+                 for c in (he_find("tokens", "contractsBalances", {"symbol": SYMBOL},
+                                   limit=100) or [])}
+    print(f"\n  contract-held ({SYMBOL}), per tokens.contractsBalances:")
+    for name, amt in sorted(contracts.items()):
+        print(f"    {name:<16}{amt:>20,.8f}")
+    captured_pool = sum(pooled.values(), Decimal(0))
+    captured_ord = sum(on_order.values(), Decimal(0))
+    mp, mk = contracts.get("marketpools", Decimal(0)), contracts.get("market", Decimal(0))
+    print(f"    captured as pooled  {captured_pool:>20,.8f}  (vs marketpools {mp:,.8f})")
+    print(f"    captured as onOrder {captured_ord:>20,.8f}  (vs market      {mk:,.8f})")
+    if abs(mp - captured_pool) > Decimal("1"):
+        print(f"    ! POOL MISMATCH {mp - captured_pool:,.8f} — a pool is not being read")
+    if abs(mk - captured_ord) > Decimal("1"):
+        print(f"    ! ORDER MISMATCH {mk - captured_ord:,.8f} — the sell book is not being read")
+    dist = contracts.get("distribution", Decimal(0))
+    if dist > 0:
+        print(f"    distribution holds {dist:,.8f} — undistributed inflation, NOT migrated")
     for acct, amt in pooled.items():
         rows.setdefault(acct, {"_id": 0, "balance": "0", "stake": "0", "pendingUnstake": "0",
                                "delegationsIn": "0", "delegationsOut": "0"})["pooled"] = str(amt)

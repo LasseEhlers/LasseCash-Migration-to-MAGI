@@ -57,6 +57,14 @@ const (
 	keyAccPerShare = "acc_per"  // int64, cumulative reward per share
 	keyAccHeld     = "acc_held" // inflow not yet distributable (see MinSharesForAccrual)
 	keyAccDay      = "acc_day"  // whole days since genesis already accrued
+
+	// The account roll — every account that has ever held LASSECASH, as an
+	// append-only chunked list. MAGI cannot enumerate state, so without this
+	// nobody can rebuild the holder set from the chain alone. Frozen public
+	// ABI: a future redeploy reads these. See ledger.go, noteAccount.
+	keyAcctCount  = "acct_n" // how many accounts have ever held LASSECASH
+	keyAcctChunk  = "acctl_" // + chunk index -> up to 25 names, pipe-separated
+	keySeenPrefix = "seen_"  // + account -> "1" once it has been rolled
 )
 
 // balKey is an account's liquid LASSECASH balance.

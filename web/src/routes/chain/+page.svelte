@@ -94,7 +94,7 @@
           <span><i class="migrated"></i> snapshot {lcShort(info.snapshot_total)}</span>
           <span><i class="emitted"></i> emitted {lcShort(info.total_emitted)}</span>
           <span><i class="future"></i> still to emit</span>
-          <span><i class="head"></i> lost on the old chains</span>
+          <span><i class="head"></i> unused headroom</span>
         </div>
         {#if limits}
         <dl>
@@ -106,26 +106,21 @@
           <dt class="sub">still to come, at most</dt><dd class="mono sub">{lc(stillToEmit)}</dd>
           <dt>= Maximum that will ever exist</dt><dd class="mono gold">{lc(limits.maxEver)}</dd>
           <dt>Historic hardcap</dt><dd class="mono">{lc(limits.hardcap)}</dd>
-          <dt><strong>Lost on the old chains — never mintable</strong></dt>
+          <dt><strong>Unused headroom under the cap</strong></dt>
           <dd class="mono dim"><strong>{lc(limits.lost)}</strong></dd>
         </dl>
         {/if}
         <small class="dim">
           <strong>Did not migrate</strong> is everything the snapshot sent to
-          @null instead of to a holder: LASSECASH already burned on the old
-          chains, LASSECASH that was issued but never distributed, and the
-          balances of accounts that did not answer the roll call. It was fixed
-          at genesis and can never move again. The <strong>Burned</strong>
-          figure above is a different number — that is @null's live balance,
-          which carries the migration burn AND every burn since.
+          @null rather than to a holder. It was fixed at genesis and can never
+          change. The <strong>Burned</strong> tile above is a different figure —
+          @null's live balance, which grows with every burn since.
         </small>
         <small class="dim">
-          The 51M cap covers everything ever issued, before and after migration.
-          The difference is LASSECASH that was issued on Steem-Engine and
-          Hive-Engine but is held by no account any more — dust lost in those
-          years. Nobody can ever mint it: there is no issuer. Emission approaches
-          20M asymptotically and never reaches it — every division floors, so
-          rounding can only ever under-issue.
+          A further <strong>598,784 LASSECASH</strong> was left behind on
+          Hive-Engine entirely: undistributed inflation that never reached a
+          holder. That is what keeps the 51,000,000 cap exact — the full
+          arithmetic is on the About page.
         </small>
       {/if}
     </section>

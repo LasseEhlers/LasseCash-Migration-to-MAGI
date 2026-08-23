@@ -24,3 +24,7 @@ tools/snapshot/data/*.tmp
 # Personal editor / agent settings
 .claude/settings.local.json
 .vscode/
+
+# Python bytecode
+__pycache__/
+*.pyc

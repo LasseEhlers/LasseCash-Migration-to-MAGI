@@ -1,6 +1,10 @@
 package state
 
-import "github.com/lassecash/engine"
+import (
+	"strings"
+
+	"github.com/lassecash/engine"
+)
 
 // The ledger: liquid balances, supply accounting, and the three reward pools.
 
@@ -58,6 +62,7 @@ func credit(s Store, account string, amt engine.Amount) bool {
 		return false
 	}
 	setAmount(s, balKey(account), next)
+	noteAccount(s, account)
 	return true
 }
 
@@ -471,4 +476,75 @@ type MigrationEntry struct {
 	Account string
 	Liquid  engine.Amount
 	Staked  engine.Amount
+}
+
+// --- the account roll -------------------------------------------------------
+//
+// MAGI cannot enumerate contract state: getStateByKeys needs keys you already
+// know, and there is no "list everything under this contract" call. So without
+// help, nobody — not even the owner — can answer "who holds LASSECASH?" from
+// the chain alone. Today the answer comes from the published migration leaves,
+// but that stops being the universe the moment somebody transfers to an
+// account that was never in the snapshot.
+//
+// That matters because of the key burn. The contract can never be updated, so
+// if MAGI ever changes underneath it the only recovery is to snapshot this
+// contract's state and redeploy elsewhere — and you cannot snapshot a holder
+// set you cannot enumerate. An off-chain indexer could do it, but then the
+// recovery path depends on a script and a hard drive surviving for years.
+//
+// The roll is an append-only chunked list, the same shape the per-day expiry
+// lists already use. The first time an account is ever credited or ever
+// registers a mint, its name is appended. After that it costs nothing. Any
+// reader can walk acctl_0..n with plain getStateByKeys and rebuild the entire
+// holder set from the chain, with no trust in anybody's tooling.
+//
+// DECIDED 2026-08-22. Unfixable after the burn, which is why it goes in now.
+
+// AccountChunkSize bounds one row of the roll. Appending rewrites its whole
+// chunk, so this trades write size against how many reads a full walk costs.
+// Matches ExpiryChunkSize for the same reason: small rows, bounded cost.
+const AccountChunkSize = 25
+
+func acctChunkKey(i uint64) string  { return keyAcctChunk + encU64(i) }
+func seenKey(account string) string { return keySeenPrefix + account }
+
+// noteAccount records an account in the roll the first time it is ever seen
+// holding value. Idempotent and O(1): one read to check the marker, and on the
+// very first sighting one marker write plus one chunk append.
+//
+// Called from credit() and registerMints() — between them those cover every
+// way value can reach an account. A stake-only holder (0 liquid, all staked —
+// @daneamanda at genesis is exactly that) never passes through credit at a
+// non-zero amount, which is why the mint path needs its own hook.
+func noteAccount(s Store, account string) {
+	if account == "" {
+		return
+	}
+	if get(s, seenKey(account)) != nil {
+		return
+	}
+	s.Set(seenKey(account), "1")
+
+	n := getU64(s, keyAcctCount)
+	key := acctChunkKey(n / AccountChunkSize)
+	row := account
+	if cur := get(s, key); cur != nil && *cur != "" {
+		row = *cur + sep + account
+	}
+	s.Set(key, row)
+	setU64(s, keyAcctCount, n+1)
+}
+
+// AccountCount is how many distinct accounts have ever held LASSECASH.
+func AccountCount(s Store) uint64 { return getU64(s, keyAcctCount) }
+
+// AccountChunk returns one row of the roll: up to AccountChunkSize account
+// names. Walk i = 0 .. (AccountCount()+AccountChunkSize-1)/AccountChunkSize.
+func AccountChunk(s Store, i uint64) []string {
+	raw := get(s, acctChunkKey(i))
+	if raw == nil || *raw == "" {
+		return nil
+	}
+	return strings.Split(*raw, sep)
 }

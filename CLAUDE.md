@@ -1349,7 +1349,7 @@ contract update against the owner's active authority; with no key in existence,
 
 There is no staged rollout and no "12 months of admin keys just in case".
 That was explicitly rejected as dishonest. **REFINED 2026-08-21: the burn
-happens at an ANNOUNCED height ≈ day 35 after genesis** — once the first
+happens at an ANNOUNCED height ≈ day 40 after genesis** — once the first
 claims, the first accruals, the first monthly PoB mint and the day-30
 migration-mint maturity have all passed on the real chain. The key cannot
 touch anyone's tokens; its only power is a public, timelocked code update,
@@ -1663,7 +1663,7 @@ was briefly added to `ACTIVE_OPS`, which left the four inconsistent; removed.
 **Announce AFTER Sept 1**, so the monthly PoB mint — the one behaviour that
 cannot be compressed, because TESTWINDOWS shrinks days but not calendars — is
 observed on a THROWAWAY before the production contract is frozen. Roll call one
-week, snapshot + genesis ~Sept 9-10, key burn day 35 ≈ Oct 14.
+week, snapshot + genesis ~Sept 9-10, key burn day 40 ≈ Oct 19.
 Draft: `docs/ANNOUNCEMENT-DRAFT.md` (technical parts written; Lasse's voice and
 closing line to add; criteria section still says 12 months and five months —
 update to 6 and seven).

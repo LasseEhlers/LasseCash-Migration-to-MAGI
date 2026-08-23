@@ -193,7 +193,17 @@ func SweepUnclaimed(_ *string) *string {
 
 // transfer moves liquid LASSECASH.
 //
-//	args: <to>|<amount>
+//	args: <to>|<amount>[|memo]
+//
+// A THIRD FIELD IS A MEMO. The contract reads only <to> and <amount> and
+// ignores anything after them, but the whole payload travels in the vsc.call
+// custom_json on Hive L1, so the memo is permanently public and readable from
+// transaction history. Documented deliberately rather than left as an
+// accident: exchanges identify omnibus-wallet deposits by memo, and after the
+// key burn a missing memo path could never be added.
+//
+// The memo is NOT written to contract state — it lives in the transaction, not
+// in the ledger — and it costs RC in proportion to its length.
 //
 //go:wasmexport transfer
 func Transfer(a *string) *string {

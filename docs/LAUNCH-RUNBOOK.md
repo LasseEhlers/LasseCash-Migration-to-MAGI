@@ -121,23 +121,77 @@ Look up the Hive-Engine price of the day. On the Pool page: opening price,
 your HBD, LASSECASH derives. One click. Verify `amm_lc` / `amm_hbd` read
 back exactly what you entered.
 
-## 7. 💸 Burn the owner keys — IRREVERSIBLE — at DAY 35
+## 7. 💸 Burn the owner keys — IRREVERSIBLE — at DAY 40
 
-DECIDED 2026-08-21: the key is destroyed at a block height announced in the
-genesis post, ≈ day 35 after genesis — after the heaviest first-time events
-have passed on the real chain: the first claims, the first daily accruals,
-the first monthly Proof-of-Brain mint on the 1st, and the migration mints
-maturing on day 30 (~2,000 retirements drained across several `advance`
-calls). Until then any code update is public and timelocked; the announced
-text: *"the owner key is destroyed at block Y (≈ day 35), after the migration
-mints have matured; until then any code update would be public and
-timelocked."* Block Y = genesis + 35 × 28,800 = genesis + 1,008,000.
-Publish the burn transaction id when it happens. Procedure: change the owner account's owner, active,
-posting and memo authorities to the Hive null public key
-(`STM1111111111111111111111111111111114T1Anm`) via `account_update`, with
-the owner key, after a final `./deploy.sh preflight` confirms the contract's
-owner is that account. Verify afterwards that no operation from the account
-can be signed. Announce the burn with the transaction id.
+DECIDED 2026-08-21, MOVED 35 -> 40 ON 2026-08-23: the key is destroyed at a
+block height announced in the genesis post, ≈ day 40 after genesis.
+**Block Y = genesis + 40 × 28,800 = genesis + 1,152,000.**
+
+**Why day 40 and not 35.** Day 35 left the first FULL monthly Proof-of-Brain
+mint — the one on the 1st of the second month, with a real month of pending
+balances behind it — only one day of margin before the burn. A mainnet code
+update carries a 48-hour timelock (below), so a defect found in that payout
+could not have been fixed in time. Day 40 gives roughly a week. The margin is
+free; the burn is the single most irreversible act in the project.
+
+By block Y these have all happened on the real chain: the first claims, the
+first daily accruals, the first monthly PoB mint (a near-empty smoke test a
+day or two after genesis), the migration mints maturing on day 30 (~233
+retirements drained across five `advance` calls), and the first monthly PoB
+mint carrying real value.
+
+**What the key can and cannot do until then.** It cannot touch anyone's
+tokens — there is no entrypoint that lets the owner move another account's
+balance. Its only power is to propose a code update, and on mainnet that is:
+
+| | |
+|---|---|
+| fee | 10 HBD (`params.CONTRACT_DEPLOYMENT_FEE`) |
+| timelock | 57,600 blocks ≈ **48 hours** (`params.CONTRACT_UPDATE_TIMELOCK_BLOCKS`) |
+| in force? | yes — gated on `Version0_2_0Active`; mainnet is at protocol_version 3 |
+| visible while queued | `findPendingContractUpdates` — id, code, proposer, creation_height, activation_height |
+| cancellable | yes, `vsc.cancel_contract_update`, owner-gated, free |
+| effect on state | **none** — the handler sets `Code` and `Runtime` and re-registers the SAME contract id; contract state is a separate store and is untouched |
+
+So every update is public for two days before it can take effect, and state
+survives it. That is the recovery path for anything found in the first weeks.
+
+**If a defect is NOT fixable in place**, the fallback is a redeploy against the
+same snapshot: the Merkle tree does not change, so every holder claims again
+from identical leaves at their own free RC.
+
+**Pool HBD is NOT stranded by a redeploy**, and this was checked rather than
+assumed: `RemoveLiquidity` -> `closeTranche` has no accrual precondition — it
+never reads the accrual clock, the monthly payout or the emission schedule. The
+old contract also keeps running forever, since nothing on a chain can be
+deleted. So a defect anywhere in the reward machinery still leaves every LP able
+to withdraw their LASSECASH and HBD in full from the old contract. HBD is only
+at risk if the defect is IN the custody or pool path itself, which is the one
+area to re-verify hardest before the production deploy.
+
+The only value genuinely lost in a redeploy is therefore the emission earned in
+the dead days (~9,132 LC/day in era 1). Lasse has DECIDED 2026-08-23 that the
+announcement carries no refund PROMISE — "use this chain at your own risk", and
+he makes people whole where he can. A promise scales with someone else's
+deposit size; a stated risk does not.
+
+**The announced text** (genesis post):
+
+> The owner key is destroyed at block **Y** (≈ day 40), after the migration
+> mints have matured and the first full monthly Proof-of-Brain payout has
+> settled. Until then the key can do exactly one thing: propose a code update.
+> It cannot touch anyone's tokens. Every proposed update is visible on-chain
+> for 48 hours before it can activate — query `findPendingContractUpdates` for
+> contract `<id>` — and can be cancelled inside that window. After block Y no
+> update can ever be proposed by anyone, including me. The burn transaction id
+> will be published.
+
+**Procedure.** Change the owner account's owner, active, posting and memo
+authorities to the Hive null public key
+(`STM1111111111111111111111111111111114T1Anm`) via `account_update`, with the
+owner key, after a final `./deploy.sh preflight` confirms the contract's owner
+is that account. Verify afterwards that no operation from the account can be
+signed. Announce the burn with the transaction id.
 
 ## 8. After launch
 

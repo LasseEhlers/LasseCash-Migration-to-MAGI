@@ -30,7 +30,7 @@ Hardcoded in the contract. No governance path to any of them, and after the key 
 | Share-rate ratchet | one L-Share costs **7% more each year**, linear within the year, forever; never falls |
 | Mint duration | 1 day minimum, **1,095 days** maximum |
 | Grace after maturity | **30 days**, in which nothing happens |
-| Bleed after grace | **90 days**, linear per height; worth nothing at day 120 |
+| Bleed after grace | **90 days**, linear per height; worth nothing at day 180 |
 | Good Accounting grace | **1,095 days** instead of 30, moving liquidation to day 1,185 |
 | Swap fee | **zero**. No fee parameter exists and none can be added |
 | LP loyalty bonus | **+1%/day**, linear, capped at 90 days — maximum **1.90x** |
@@ -90,13 +90,13 @@ The mint runs on a shared clock from genesis whether or not you have claimed, so
 | Claim on | What you receive |
 |---|---|
 | Day 0–30 | a real 30-day mint, earning yield and carrying voting power from the moment you claim |
-| Day 30–60 (grace) | the full minted amount, straight to liquid, no yield |
-| Day 60–150 (bleed) | the surviving fraction; what has bled away recycles into the L-Share reward pool |
-| After day 150 | refused. Anyone may then call `sweep_unclaimed` once, recycling everything unclaimed — stake and liquid — into the L-Share reward pool |
+| Day 30–120 (grace) | the full minted amount, straight to liquid, no yield |
+| Day 120–210 (bleed) | the surviving fraction; what has bled away recycles into the L-Share reward pool |
+| After day 210 | refused. Anyone may then call `sweep_unclaimed` once, recycling everything unclaimed — stake and liquid — into the L-Share reward pool |
 
 Your liquid balance is credited in full on any claim inside the window. Nobody earns or votes before claiming.
 
-[figure: the claim window — day 0 to 150, showing mint, grace and bleed]
+[figure: the claim window — day 0 to 210, showing mint, grace and bleed]
 
 ### Burning, and why nothing is destroyed
 
@@ -108,7 +108,27 @@ The burn is recorded **per account**, not as an anonymous lump: anyone may call 
 
 Every account in the snapshot — qualifying and burned — is a leaf in a Merkle tree, hashed as `sha256("lassecash-migration-leaf-v1" + hive:account + liquid + staked + m or b)` with pipe separators. The **root** is committed on-chain in one owner transaction and can never change; the **full leaf list is published** in the repository and by root hash in a Hive post, so anyone can prove forever what any account held and whether it migrated or burned. You claim by presenting your leaf and its proof; a bad proof writes nothing.
 
-The pre-launch draft snapshot, re-taken at the announced block: **2,260 accounts qualify** (1,985 with a non-zero balance), **13,728,741.07919908 LASSECASH** migrates to its owners, **17,265,456.59325241** goes to `hive:null`, and the full snapshot totals **30,994,197.67245149** across 9,924 leaves. Against Hive-Engine's 31,000,000 issued, 5,802.33 LASSECASH is lost in the Steem-Engine and Hive-Engine years — never mintable, because no issuer exists any more. Adding the 20,000,000 emission cap gives 50,994,197.67 against the 51,000,000 hard cap.
+The pre-launch draft snapshot, re-taken at the announced block: **2,260 accounts qualify** (1,985 with a non-zero balance), **13,728,741.07919908 LASSECASH** migrates to its owners, **17,265,456.59325241** goes to `hive:null`, and the full snapshot totals **30,994,197.67245149** across 9,924 leaves.
+
+### The Hive-Engine supply discrepancy
+
+Auditing the token for the migration turned up something that had gone unnoticed for years: **Hive-Engine's recorded supply understates what actually exists.** Summing every balance, stake, pending unstake, delegation and contract holding gives **31,485,173 LASSECASH** against a recorded supply of **31,000,000** — a difference of **485,173**.
+
+It is not specific to LASSECASH. The same check on five other Hive-Engine tokens found LEO over by 12,880, POB by 36,998 and PIZZA by 1,364, while CTP and VIBES reconcile exactly. LASSECASH is the worst affected at 1.57%. The cause is inside Hive-Engine's own ledger; it is not delegations, not the unstaking schedule, and not an error in the calculation — two tokens reconcile to zero using the identical method.
+
+**The 51,000,000 cap survives it**, because the undistributed inflation still sitting in the old pool-rewards distribution contract — **598,784.15 LASSECASH** — is not migrated at all. It was issued, it never reached a holder, and it stays behind on Hive-Engine:
+
+```
+exists on Hive-Engine today                   31,485,173
+− undistributed inflation, not migrated          598,784
+= credited to holders at the snapshot         30,886,389
++ MAGI emission cap                           20,000,000
+= maximum that will ever exist                50,886,389
+  historic hard cap                           51,000,000
+  unused headroom                                113,611
+```
+
+Nobody can ever mint that headroom: after the key burn there is no issuer. Emission approaches the 20,000,000 cap asymptotically and never reaches it — every division floors, so rounding can only ever under-issue.
 
 ### The old token is dead
 
@@ -139,13 +159,13 @@ The **share rate** is what one L-Share costs. It starts at 1.00000000 LASSECASH 
 
 **Yield ends at maturity**, and so does **all voting power**, governance and content weight alike. A matured, unclaimed mint votes with nothing, so no dormant account can haunt the top ten. Grace is a safety net for the ill or forgetful, not a bonus for leaving money sitting.
 
-[figure: the life of a mint — lock, maturity, 30-day grace, 90-day bleed, zero]
+[figure: the life of a mint — lock, maturity, 90-day grace, 90-day bleed, zero]
 
-**After maturity:** 30 days of grace in which nothing happens, then a **90-day bleed**, linear per height, taking principal and rewards from 100% to zero. Everything bled sweeps into the L-Share reward pool, and at day 120 the position is worth nothing.
+**After maturity:** 90 days of grace in which nothing happens, then a **90-day bleed**, linear per height, taking principal and rewards from 100% to zero. Everything bled sweeps into the L-Share reward pool, and at day 180 the position is worth nothing.
 
 **Ending early.** You can close a mint at any time, recovering **50% of your principal** on day one and rising **linearly to 100%** at maturity, forfeiting all yield; the slashed principal sweeps into the reward pool. The site shows what you would lose before you sign.
 
-**Good Accounting.** During the 30-day grace after maturity — and only then — you, the owner, may arm Good Accounting on a mint. Grace becomes **1,095 days**, after which the ordinary 90-day bleed runs, liquidating at day 1,185. It exists for tax timing: three years spans four tax years, so you choose which to realise in. It cannot be armed before maturity (nothing to decide yet) or once the bleed starts (nobody opts out of a loss retroactively), and unlike HEX it is **strictly owner-only** — a stranger must not reshape someone else's tax position. Lasse: *"lets do that that you can only run good accounting after maturity and that gives them 1 month to do it.. thats much more clean."*
+**Good Accounting.** During the 90-day grace after maturity — and only then — you, the owner, may arm Good Accounting on a mint. Grace becomes **1,095 days**, after which the ordinary 90-day bleed runs, liquidating at day 1,185. It exists for tax timing: three years spans four tax years, so you choose which to realise in. It cannot be armed before maturity (nothing to decide yet) or once the bleed starts (nobody opts out of a loss retroactively), and unlike HEX it is **strictly owner-only** — a stranger must not reshape someone else's tax position. Lasse: *"lets do that that you can only run good accounting after maturity and that gives them 1 month to do it.. thats much more clean."* (The grace was widened from 30 to 90 days on 2026-08-22, so the arming window is a full quarter.)
 
 **Dead positions can be swept.** `sweep_mint` is permissionless, pays the caller nothing, and refuses unless the owner is owed exactly zero, so it can only touch a position already worth nothing. It releases the shares and returns the value to the pool; without it a lost key would strand principal and a seat forever.
 
@@ -273,7 +293,7 @@ If you know the original LasseCash tokenomics — or an AI was trained on them �
 | 1.5x + 1.5x = 2.0x | **1.5x times 1.5x = 2.25x** |
 | Yield = your share of the pool when you claim | **A reward-per-share accumulator**; the old formula rewarded claiming last, not locking longest |
 | Yield and votes continue after maturity | **Both end at maturity**, governance and content alike |
-| Good Accounting armed before maturity | **Armed after maturity, in the 30-day grace, by the owner only**; it changes the grace period and nothing else |
+| Good Accounting armed before maturity | **Armed after maturity, in the 90-day grace, by the owner only**; it changes the grace period and nothing else |
 | A governable swap fee | **Zero, hardcoded, ungovernable** |
 | LP loyalty +1%/day to 30 days (1.30x) | **+1%/day to 90 days (1.90x)** — same rule, longer cap |
 | Comments not addressed | **Registered replies that earn**, behind their own lower threshold; below-threshold ones are not shown here, never deleted from Hive |
@@ -283,7 +303,7 @@ If you know the original LasseCash tokenomics — or an AI was trained on them �
 | The `@lassecash` remainder was "unissued" | **Undistributed**; the 20,000,000 was fully issued, and what was never paid out is what burns |
 | NFTs implied in scope | **Not in this migration** — possible future work as separate contracts |
 
-Unchanged: **8 decimals**, the **51,000,000 hard cap**, the **20,000,000 emission cap**, the **50/25/25 split**, the **75/25 author/curator split**, the **7%/year ratchet**, the **three-year maximum mint**, the **30-day grace and 90-day bleed**, and the **linear 50%→100% early-end recovery**.
+Unchanged: **8 decimals**, the **51,000,000 hard cap**, the **20,000,000 emission cap**, the **50/25/25 split**, the **75/25 author/curator split**, the **7%/year ratchet**, the **three-year maximum mint**, the **90-day grace and 90-day bleed**, and the **linear 50%→100% early-end recovery**.
 
 ---
 

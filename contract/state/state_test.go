@@ -671,3 +671,105 @@ func TestBurnBatchRecordsProvenanceAtNull(t *testing.T) {
 	}
 	auditSupply(t, s)
 }
+
+// --- the account roll -------------------------------------------------------
+
+// walkRoll rebuilds the holder set the way a foreign reader would: chunk by
+// chunk through plain key reads, with no enumeration and no knowledge of the
+// contract's internals beyond acct_n and acctl_<i>.
+func walkRoll(s Store) []string {
+	n := AccountCount(s)
+	var out []string
+	for i := uint64(0); i*AccountChunkSize < n; i++ {
+		out = append(out, AccountChunk(s, i)...)
+	}
+	return out
+}
+
+// TestTheAccountRollCanRebuildTheHolderSet is the whole point of the roll:
+// MAGI cannot enumerate state, so without this nobody could answer "who holds
+// LASSECASH?" from the chain alone — and after the key burn that is the only
+// thing standing between a broken MAGI and an unrecoverable LasseCash.
+func TestTheAccountRollCanRebuildTheHolderSet(t *testing.T) {
+	s, ctx := newChain(t)
+
+	// A liquid holder.
+	if !credit(s, "hive:liquid", lc(1_000)) {
+		t.Fatal("credit failed")
+	}
+	// A STAKE-ONLY holder: zero liquid, entire position is a mint. This is the
+	// case that would silently break the roll, and it is not hypothetical —
+	// @daneamanda arrives at genesis with 0 liquid and 250,000 staked.
+	if !creditMigrationMint(s, "hive:stakeonly", lc(250_000)) {
+		t.Fatal("migration mint failed")
+	}
+	if Balance(s, "hive:stakeonly") != 0 {
+		t.Fatal("test setup wrong: the stake-only holder should have no liquid")
+	}
+
+	roll := walkRoll(s)
+	has := func(a string) bool {
+		for _, x := range roll {
+			if x == a {
+				return true
+			}
+		}
+		return false
+	}
+	if !has("hive:liquid") {
+		t.Error("a liquid holder is missing from the roll")
+	}
+	if !has("hive:stakeonly") {
+		t.Error("A STAKE-ONLY HOLDER IS MISSING FROM THE ROLL — the mint hook is broken")
+	}
+
+	// Idempotent: crediting the same account again must not duplicate it.
+	before := AccountCount(s)
+	for i := 0; i < 5; i++ {
+		credit(s, "hive:liquid", lc(1))
+	}
+	if AccountCount(s) != before {
+		t.Errorf("repeat credits grew the roll: %d -> %d", before, AccountCount(s))
+	}
+	_ = ctx
+}
+
+// TestTheRollChunksAndStaysExact pushes past a chunk boundary — an off-by-one
+// there would drop or duplicate holders, and the failure would only show up
+// years later at the moment the roll is actually needed.
+func TestTheRollChunksAndStaysExact(t *testing.T) {
+	s, _ := newChain(t)
+
+	want := map[string]bool{}
+	total := AccountChunkSize*3 + 7 // deliberately not a chunk multiple
+	for i := 0; i < total; i++ {
+		a := "hive:h" + encU64(uint64(i))
+		want[a] = true
+		if !credit(s, a, lc(1)) {
+			t.Fatalf("credit %s failed", a)
+		}
+	}
+	if got := AccountCount(s); got != uint64(total) {
+		t.Fatalf("roll counted %d accounts, want %d", got, total)
+	}
+
+	roll := walkRoll(s)
+	if len(roll) != total {
+		t.Fatalf("walking the roll returned %d names, want %d", len(roll), total)
+	}
+	seen := map[string]bool{}
+	for _, a := range roll {
+		if seen[a] {
+			t.Fatalf("%s appears twice in the roll", a)
+		}
+		seen[a] = true
+		if !want[a] {
+			t.Fatalf("%s is in the roll but never held anything", a)
+		}
+	}
+	for a := range want {
+		if !seen[a] {
+			t.Fatalf("%s held LASSECASH but is missing from the roll", a)
+		}
+	}
+}

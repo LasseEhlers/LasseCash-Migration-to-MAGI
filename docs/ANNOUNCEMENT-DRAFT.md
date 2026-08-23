@@ -43,7 +43,7 @@ have delegated out. Nothing you own is missed.
 **You must have used LASSECASH.**
 
 To be included, your account must have signed at least one **LASSECASH
-transaction on Hive-Engine within the [12] months before block [BLOCK X]**.
+transaction on Hive-Engine within the 6 months before block [BLOCK X]**.
 
 That means one of these, done **by you**:
 
@@ -111,20 +111,88 @@ Nothing is pushed to you. **You claim your own tokens**, with a proof, paying
 your own Resource Credits — a new account's free allowance covers it, so this
 costs you nothing.
 
-The claim window is **five months**, and *when* you claim matters:
+The claim window is **seven months** (210 days), and *when* you claim matters:
 
 | You claim | Your staked half becomes |
 |---|---|
 | **day 0–30** | a real 30-day mint, earning and voting from the moment you claim |
-| day 30–60 | the full amount, straight to liquid, no yield |
-| day 60–150 | the surviving fraction — it bleeds to zero across those 90 days |
-| after day 150 | refused; the position recycles into the reward pool |
+| day 30–120 | the full amount, straight to liquid, no yield |
+| day 120–210 | the surviving fraction — it bleeds to zero across those 90 days |
+| after day 210 | refused; the position recycles into the reward pool |
 
 Your **liquid** half is always credited in full, whenever you claim inside the
 window.
 
 Claim early. Claiming in the first 30 days is the only way to get the mint,
 the yield and the voting power.
+
+## No admin keys — and exactly when
+
+The point of this migration is that the rules stop depending on me. On
+Hive-Engine I held the keys to 20 million unissued tokens for seven years and
+never touched one of them — but you had to take my word for it. On MAGI you
+will not have to.
+
+**The owner key is destroyed at block [BLOCK Y], about 40 days after genesis.**
+Not at launch, and I want to be straight about why.
+
+Until that block the key can do exactly **one** thing: propose a code update.
+It **cannot touch anyone's tokens** — there is no entrypoint in the contract
+that lets the owner move somebody else's balance, mint, or liquidity. And a
+proposed update is not secret and not instant:
+
+- it is **visible on-chain for 48 hours** before it can take effect — anyone
+  can query `findPendingContractUpdates` for contract `[CONTRACT ID]`
+- it can be **cancelled** inside that window
+- it **cannot alter state** — balances, claims, mints and the pool survive an
+  update untouched
+
+So for 40 days you are not trusting me, you are **watching** me, and you have
+two days' notice on anything I propose. After block [BLOCK Y] no update can
+ever be proposed by anyone, including me. The burn transaction id will be
+published here.
+
+I considered burning the key at launch. It sounds better and it is worse: the
+first weeks are when a live chain surprises you, and a contract nobody can
+repair is not a feature if it breaks in week one.
+
+## If something goes wrong
+
+I would rather write this down now than improvise it later.
+
+**Use this chain at your own risk.** It is new code on a new chain. I have
+tested it as hard as I know how — every entrypoint has been run on mainnet with
+a real wallet, the economics have survived 500,000 randomised simulated
+economies with a full supply audit after every single operation, and the whole
+mint lifecycle has been time-travelled from day one to day 1,185. That is not
+the same as a guarantee, and I am not going to pretend it is. Do not put in
+more than you are willing to lose. That is true of this chain and it is true of
+every other one.
+
+**If a defect is found and can be fixed in the code**, it is fixed by the
+timelocked update described above. State is preserved. Nothing is lost and
+nobody has to do anything.
+
+**If a defect cannot be fixed in place**, the contract is redeployed against
+**the same snapshot**. The Merkle tree does not change, so every holder claims
+again from identical leaves, for the same amounts, at their own free Resource
+Credits.
+
+**And the old contract does not stop working.** Nothing on a blockchain can be
+deleted, so it keeps running exactly as before. That matters more than it
+sounds: **withdrawing from the liquidity pool has no dependency on the reward
+machinery** — `remove_liquidity` does not read the accrual clock, the monthly
+payout or the emission schedule. If something breaks in the reward code, every
+liquidity provider can still take their LASSECASH and their HBD out of the old
+contract, in full, whenever they like. Their money is not trapped by a bug
+somewhere else in the contract.
+
+The only value genuinely lost in a redeploy is the emission earned during the
+dead days — on the order of 9,000 LASSECASH a day at era-1 rates. If I can make
+someone whole for a loss caused by a mistake of mine, I will, and I would
+rather say that plainly than promise something I might not be able to deliver
+at a size I cannot predict. What I can promise is what the code already
+enforces: **no key of mine can move your tokens, before the burn or after it.**
 
 ## Hive-Engine LASSECASH is dead after this
 

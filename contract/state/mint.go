@@ -199,6 +199,11 @@ func registerMints(s Store, ctx Ctx, mints []engine.Mint) ([]uint64, bool) {
 	}
 	for i := range mints {
 		putMint(s, ids[i], mints[i])
+		// The account roll. A stake-only holder never passes through credit at
+		// a non-zero amount -- at genesis @daneamanda is 0 liquid and 250,000
+		// staked -- so without this hook the roll would silently miss exactly
+		// the holders whose whole position is a mint. See ledger.go.
+		noteAccount(s, mints[i].Owner)
 	}
 	return ids, true
 }
