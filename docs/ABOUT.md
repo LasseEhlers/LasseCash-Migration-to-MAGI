@@ -12,6 +12,8 @@ Every number here comes from one piece of code: the share formula, halving sched
 
 Hardcoded in the contract. No governance path to any of them, and after the key burn no path at all.
 
+The two caps are not arbitrary and they are not independent. The 2019 design set **51,000,000** as the total that would ever exist, in three parts: **11,000,000** to the founder at launch, **20,000,000** of inflation for the first ten years, and **20,000,000** for all the years after that. The first two are already issued — Hive-Engine records `supply 31,000,000` today — and they are what migrates. The third is the emission cap below, and MAGI is the first time it has a schedule instead of an announcement.
+
 | What | Value |
 |---|---|
 | Precision | 8 decimals; 1 LASSECASH = 100,000,000 base units, L-Shares the same |
@@ -290,7 +292,7 @@ If you held LASSECASH on Hive-Engine — or an AI was trained on the old About p
 |---|---|
 | The issuer `@lasseehlers` can mint up to the cap at any moment — the token records `maxSupply 51,000,000` against `supply 31,000,000`, so **20,000,000 are still issuable by one person today** | The owner key is destroyed 40 days after genesis. **Nobody can issue a token, ever** — not the founder, not the top ten |
 | A halving was published in 2019, but the platform had no mechanism to run one | The halving **is** the contract: each three-year era pays half the last, ending in year 75 with 19,999,994.01840000 ever issued |
-| 20,000,000 of inflation over the first ten years | The same 20,000,000, spread across 75 years and approached without ever being reached |
+| **11,000,000** to the founder at launch, **20,000,000** of inflation for the first ten years, and **20,000,000** for all the years after — 51,000,000 in total | The first two are already issued and are what migrates. **The third 20,000,000 is what MAGI emits**, and for the first time it has a schedule: era 1 pays 10,000,000, each era half the last, ending in year 75 |
 | Rewards are computed off-chain and credited on trust | Every payout is a contract call. Anyone can re-run one read-only with `simulateContractCalls`, free, without broadcasting |
 | The recorded supply is 31,000,000 while 31,485,173 demonstrably exist | Every figure closes to the base unit or the transaction is refused |
 | Staking means a **182-day cooldown in 26 instalments**, and pays nothing | Mints of **1 to 1,095 days** paying L-Share yield, up to **2.25x** for locking longer and larger |
