@@ -259,7 +259,7 @@ Lasse's reasoning: *"No, it's necessary to claim it's real blockchain immutable,
 
 The pre-launch test deployments were therefore the entire safety margin, and the economics were fuzz-tested across 500,000 randomised economies with a supply audit after every operation.
 
-**Future dApps do not extend the core — they read it.** Any such application is its own contract, with its own owner, registry and bounds, reading the core's public state to derive the same legitimate top ten. It keeps its owner key and can iterate forever behind its own timelocks; the core never moves. The governing set must live in the dApp's *contract*, not its frontend — a frontend enforces nothing, since anyone can call a contract directly. The suggested norm for dApp fees is **0.1% to 1%**, against Uber's 20–30%: a norm for authors to follow, not something the frozen core can enforce.
+**Future dApps do not extend the core — they read it.** Any such application is its own contract, with its own owner, registry and bounds, reading the core's public state to derive the same legitimate top ten. It keeps its owner key and can iterate forever behind its own timelocks; the core never moves. The governing set must live in the dApp's *contract*, not its frontend — a frontend enforces nothing, since anyone can call a contract directly. The suggested norm for dApp fees is **0.1% to 1%**, against the 20–30% a centralised platform typically takes: a norm for authors to follow, not something the frozen core can enforce.
 
 ## 9. Where to verify
 

@@ -755,7 +755,7 @@ frontend. A frontend enforces nothing — anyone can call a contract directly wi
 their own client. The frontend may *display* the top 10; only the contract may
 *obey* it.
 
-**Standard dApp fee band: 0.1%–1%** (versus Uber's 20–30%). This is a **norm for
+**Standard dApp fee band: 0.1%–1%** (versus the 20–30% a centralised platform typically takes). This is a **norm for
 dApp authors to follow**, not something the core contract can enforce.
 
 **Consequence, already handled:** the core must expose L-Share balances in a

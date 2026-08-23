@@ -1318,7 +1318,7 @@ limit the damage. A test asserts that even 6-of-10 seats captured cannot push a
 value outside its bounds. The About page should describe the top 10 as a
 *tweaking committee*, not a check on the founder.
 
-Standard dApp fee band: **0.1%–1%** (versus Uber's 20–30%). This is a *norm for
+Standard dApp fee band: **0.1%–1%** (versus the 20–30% a centralised platform typically takes). This is a *norm for
 dApp authors to follow*, not something the core contract enforces — see the
 immutability section below for why the core cannot enforce it.
 
