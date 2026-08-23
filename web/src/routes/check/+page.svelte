@@ -38,6 +38,8 @@
   let asked = $state("");
   let row = $state<Row | null>(null);
   let missing = $state(false);
+  /** null = not checked yet; true/false = Hive's answer. */
+  let hiveExists = $state<boolean | null>(null);
   let index = $state<{ generated: string; window_months: number; cutoff: string } | null>(null);
   let ops = $state<HeOp[] | null>(null);
 
@@ -64,6 +66,7 @@
     asked = name;
     row = null;
     missing = false;
+    hiveExists = null;
     ops = null;
     try {
       if (!index) {
@@ -78,11 +81,31 @@
         .catch(() => ({}));
       row = shard[name] ?? null;
       missing = row === null;
+      // A name with no LASSECASH record is either a real account that never
+      // held any, or a typo. Those deserve different answers: Lasse typed
+      // "reolandp" for @roelandp and was told the account had never held
+      // LASSECASH, which was true of the typo and useless about the person.
+      // Hive itself knows whether the account exists.
+      if (missing) void existsOnHive(name);
       // Anyone not already qualifying wants to see whether the action they just
       // took has landed. Fetched only in that case — it is a third-party API.
       if (!row?.in) void recent(name);
     } finally {
       looking = false;
+    }
+  }
+
+  async function existsOnHive(name: string) {
+    try {
+      const r = await fetch("https://api.hive.blog", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1,
+          method: "condenser_api.get_accounts", params: [[name]] }),
+      });
+      const j = await r.json();
+      hiveExists = Array.isArray(j.result) && j.result.length > 0;
+    } catch {
+      hiveExists = null;   // unknown — fall back to the generic wording
     }
   }
 
@@ -169,13 +192,21 @@
           and votes.
         </p>
       </div>
+    {:else if missing && hiveExists === false}
+      <div class="verdict none">
+        <h2>There is no Hive account called @{asked}</h2>
+        <p>
+          Check the spelling — it is easy to swap two letters. Account names are
+          lowercase, and the <span class="mono">@</span> is not part of them.
+        </p>
+      </div>
     {:else if missing}
       <div class="verdict none">
         <h2>@{asked} has never held LASSECASH</h2>
         <p>
-          There is no balance for this account on Hive-Engine, so there is
-          nothing to migrate. That is not a rejection — there is simply nothing
-          there. If you think this is wrong, check the spelling.
+          {#if hiveExists}The account exists on Hive, but there{:else}There{/if}
+          is no LASSECASH balance for it on Hive-Engine, so there is nothing to
+          migrate. That is not a rejection — there is simply nothing there.
         </p>
       </div>
     {:else if row}
