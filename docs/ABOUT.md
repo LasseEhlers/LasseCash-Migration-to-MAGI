@@ -286,8 +286,8 @@ If you know the original LasseCash tokenomics — or an AI was trained on them �
 
 | The old design | Now |
 |---|---|
-| Pair named LASSECASH:BTC, elsewhere LASSECASH:HIVE | **LASSECASH:HBD** — MAGI routes every pool through HBD |
-| Alive = you posted, commented or voted | Alive = **you signed an ACTIVE-key operation**; posting-key bots cannot |
+| Traded on Hive-Engine as SWAP.HIVE:LASSECASH | **LASSECASH:HBD** — MAGI routes every pool through HBD, so there is no HIVE pair and no BTC pair |
+| Alive = you posted, commented or voted | Alive = **you signed a LASSECASH operation yourself**, on Hive-Engine, within six months. Posting and voting use the posting key, which a bot can hold |
 | Minimum holding of 100 LASSECASH | **No minimum balance** |
 | Staked power becomes a 6-month mint | **A 30-day mint** — everyone is liquid at day 30 and decides fresh |
 | The owner credits every account | **You claim your own leaf with a Merkle proof** |
