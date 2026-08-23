@@ -299,7 +299,7 @@ If you held LASSECASH on Hive-Engine — or an AI was trained on the old About p
 | The Diesel pool charges a **0.25% swap fee** (`tradeFeeMul 0.9975`) | **Zero, hardcoded**, with no parameter and no governance path to add one |
 | LP loyalty +1%/day to 30 days (1.30x) | **+1%/day to 90 days (1.90x)** — same rule, longer cap |
 | Downvotes work, and are inherited from Hive. The reputation score was removed from lassecash.com years ago, so posts were never greyed out for it | **Downvotes do not exist at all.** A vote is 1–100% **for**; weight 0 takes back your own vote and nothing more. Nobody can subtract from someone else's reward. A post nobody values simply earns nothing and sorts last — it is never hidden, never greyed, and always visible to everyone including crawlers |
-| Promoted posts in a separate tab | **Promotion is a burn**, buying a labelled slot in the same trending list, never above the voted posts |
+| Promoting a post adds a `PROMOTED` badge and nothing else — it never moved the post anywhere | **Promotion is a burn** that buys a real position: a labelled slot every fifth row of the same trending list, highest burn taking the earliest slot, and **never above the voted posts**. The tokens go to `hive:null` and the total is recorded on the post forever |
 | Comments earn nothing on the tribe | **Registered replies that earn**, behind their own lower threshold |
 | Balances and rewards depend on one company's servers staying up | Content on Hive, money on MAGI. The contract settles whether or not any website exists |
 | The `@lassecash` remainder was described as "unissued" | **Undistributed.** The 20,000,000 was fully issued; what was never paid out is what burns |
