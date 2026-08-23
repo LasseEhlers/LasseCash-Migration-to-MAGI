@@ -481,6 +481,23 @@ def scan_one(item):
         "last_lassecash_op": he_op,
         # A truncated search means "not found within the walked window", not
         # "proven absent". Recorded so criteria can treat it honestly.
+        #
+        # TWO FLAGS, AND THE DIFFERENCE DECIDES WHO IS BURNED. `he_trunc` is
+        # the LASSECASH walk; `trunc` is the Hive L1 walk. C6 dropped the Hive
+        # limb from eligibility entirely on 2026-08-22 — Hive activity is read
+        # for the audit trail and makes nobody eligible — so only the LASSECASH
+        # walk's truncation may trigger the fail-open rule.
+        #
+        # Writing only the OR of the two was a real bug, found in the 2026-08-23
+        # rehearsal: any account with a Hive history too long to walk failed
+        # open and migrated regardless of whether it ever touched LASSECASH.
+        # 357 accounts flipped from correctly-burned to migrating, including
+        # @signumpizza with 1,370,834 LC and silent since 2022, and prolific
+        # Hive accounts like @themarkymark, @peakd, @gtg and @deathwing that
+        # have no LASSECASH activity at all. apply_criteria has always PREFERRED
+        # he_search_truncated; fetch.py simply never wrote it, so the fallback
+        # to the combined flag fired every time.
+        "he_search_truncated": bool(he_trunc),
         "search_truncated": bool(trunc or he_trunc),
     }
 

@@ -191,3 +191,41 @@ class C6Rule(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class TruncationFlags(unittest.TestCase):
+    """
+    fetch.scan_one must record the LASSECASH truncation SEPARATELY.
+
+    C6 dropped the Hive L1 limb from eligibility, so only a truncated LASSECASH
+    walk may trigger the fail-open rule. Writing one combined OR flag meant any
+    account with a Hive history too long to walk migrated regardless — 357 of
+    them in the 2026-08-23 rehearsal, including @signumpizza with 1.37M LC and
+    silent since 2022.
+    """
+
+    def test_the_two_walks_are_recorded_separately(self):
+        import inspect
+        src = inspect.getsource(fetch.scan_one)
+        self.assertIn('"he_search_truncated": bool(he_trunc)', src,
+                      "scan_one must record the LASSECASH walk's truncation on its own")
+
+    def test_apply_criteria_prefers_the_lassecash_only_flag(self):
+        now = datetime.now(timezone.utc)
+        cutoff = now - timedelta(days=180)
+        bal = {"balance": "100", "stake": "0"}
+        # Hive walk truncated, LASSECASH walk RESOLVED and found nothing:
+        # this account is provably dead and must burn.
+        alive, dead, _ = ac.evaluate(
+            {"alice": bal},
+            {"alice": {"search_truncated": True, "he_search_truncated": False}},
+            cutoff)
+        self.assertIn("alice", dead,
+                      "a resolved LASSECASH search must burn even if the Hive walk truncated")
+
+        # LASSECASH walk truncated: unresolved, so fail OPEN.
+        alive, dead, _ = ac.evaluate(
+            {"bob": bal},
+            {"bob": {"search_truncated": True, "he_search_truncated": True}},
+            cutoff)
+        self.assertIn("bob", alive)
