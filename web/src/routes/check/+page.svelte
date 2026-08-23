@@ -194,6 +194,7 @@
           periodically, so an action you took today may not be reflected in it
           yet — but if you can see it here, the chain has it.
         </p>
+        <div class="scroll">
         <table>
           <thead><tr><th>date</th><th>operation</th><th>amount</th><th>signed by you?</th></tr></thead>
           <tbody>
@@ -209,6 +210,7 @@
             {/each}
           </tbody>
         </table>
+        </div>
       </div>
     {:else if ops}
       <p class="dim">No LASSECASH operations found for @{asked} on Hive-Engine.</p>
@@ -251,9 +253,31 @@
   ol li { margin-bottom: 0.4rem; }
   .note { font-size: 0.88rem; color: var(--dim); background: var(--panel-2); padding: 0.6rem 0.8rem; border-radius: 6px; }
   .ops { margin-bottom: 1.2rem; }
-  table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  /* The activity table has four columns and one of them holds an account
+     name. On a 390px phone it would push the page wider than the viewport,
+     and CLAUDE.md's rule is that the body must NEVER scroll horizontally —
+     wide content scrolls inside its own container instead. */
+  .scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 22rem; }
   th { text-align: left; color: var(--dim); font-weight: 500; border-bottom: 1px solid var(--line); padding: 0.35rem 0.5rem 0.35rem 0; }
   td { padding: 0.3rem 0.5rem 0.3rem 0; border-bottom: 1px solid var(--line); }
   .small { font-size: 0.82rem; }
   .foot { display: block; margin-top: 1.5rem; }
+
+  @media (max-width: 560px) {
+    /* The figures are long (7,001,275.990) and the labels are prose. Side by
+       side they squeeze the number onto two lines; stacked, both stay whole. */
+    dl { grid-template-columns: 1fr; gap: 0.1rem; }
+    dt { margin-top: 0.5rem; }
+    dd { text-align: left; }
+    /* Thumb-sized target, and the button under the field rather than beside
+       it — at 390px a side-by-side row leaves the input too narrow to read
+       your own account name back. */
+    form { flex-wrap: wrap; }
+    input { flex: 1 1 100%; font-size: 1rem; }
+    button { flex: 1 1 100%; padding: 0.8rem; }
+    .at { display: none; }
+    h1 { font-size: 1.5rem; }
+    .verdict { padding: 0.9rem 1rem; }
+  }
 </style>
