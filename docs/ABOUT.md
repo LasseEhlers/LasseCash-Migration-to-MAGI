@@ -89,6 +89,8 @@ Everything you own, wherever the old chain kept it.
 
 Your liquid balance migrates one-for-one. Your staked amount becomes a **30-day migration mint** whose L-Shares equal it **one-for-one** — no multipliers, no share rate — because legacy stake is not a new voluntary commitment and keeps only the weight it had. Thirty days later you are liquid and decide fresh what to lock.
 
+**The claim window is 210 days — seven months from genesis.** After that the position is gone. It is not a figure anyone picked: it is the migration mint's own life, 30 days locked plus 90 days of grace plus 90 days of bleed, ending where that curve reaches zero, because past that point there is nothing left to claim.
+
 The mint runs on a shared clock from genesis whether or not you have claimed, so what you get depends on when:
 
 | Claim on | What you receive |
