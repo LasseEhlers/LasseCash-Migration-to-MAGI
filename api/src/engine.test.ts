@@ -158,8 +158,15 @@ test("Good Accounting arms only during the 30-day grace AFTER maturity", () => {
   // both directions: this suite was red for a day because only the code moved.
   assert.equal(previewMintClose(mint, maturity + 89 * day, "0").canArmGoodAccounting, true,
     "last day of grace");
-  assert.equal(previewMintClose(mint, maturity + 90 * day, "0").canArmGoodAccounting, false,
-    "closed once the bleed starts");
+  // The upper bound is INCLUSIVE (fixed 2026-08-24): at the grace-boundary
+  // height itself the mint is still whole per bleedRemaining (bleed only
+  // starts the height AFTER), so arming must still be allowed there — an
+  // earlier exclusive bound disagreed with bleedRemaining by exactly one
+  // height and refused arming on a position that was provably not bleeding.
+  assert.equal(previewMintClose(mint, maturity + 90 * day, "0").canArmGoodAccounting, true,
+    "grace boundary height: still whole, so still allowed");
+  assert.equal(previewMintClose(mint, maturity + 90 * day + 1, "0").canArmGoodAccounting, false,
+    "one height into the bleed: too late");
 });
 
 test("governed values: the default, the LOWER median, and bounds no vote can leave", () => {
