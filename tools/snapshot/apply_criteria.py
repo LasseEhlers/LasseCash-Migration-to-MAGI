@@ -248,10 +248,33 @@ def main():
 
     if not activity:
         sys.exit("no activity.json yet — run `fetch.py activity` first")
-    if len(activity) < len(balances):
-        print(f"WARNING: activity scan incomplete "
-              f"({len(activity):,}/{len(balances):,}). Numbers are provisional.",
-              file=sys.stderr)
+
+    # THE CONSUMER ENFORCES THE PASS, NOT JUST THE PRODUCER. fetch.py's pass
+    # discipline is sound inside fetch.py, but this file used to read whatever
+    # was on disk with a COUNT comparison as its only guard — which equal-sized
+    # but different sets satisfy. On 2026-08-23 the on-disk file was a mix of
+    # two passes (3,950 records from an earlier one) plus 1,650 records from
+    # before the scanner fix, and `--write` would have emitted that set with
+    # zero warnings. During the roll call, writing while a rescan is 75% through
+    # burns every responder in the unscanned 25% — bug 2 reborn one file
+    # downstream. So: refuse unless EVERY balance account has a record, every
+    # record carries the LASSECASH-only flag, and every record comes from ONE
+    # completed pass.
+    missing = [a for a in balances if a not in activity]
+    if missing:
+        sys.exit(f"activity.json is missing {len(missing):,} accounts that hold a balance "
+                 f"(e.g. {', '.join(missing[:4])}) — a missing record BURNS. Re-run fetch.py activity.")
+    unflagged = [a for a in balances if "he_search_truncated" not in activity[a]]
+    if unflagged:
+        sys.exit(f"{len(unflagged):,} activity records predate the scanner fix "
+                 f"(no he_search_truncated) — re-run fetch.py activity.")
+    passes = {activity[a].get("pass") for a in balances}
+    if len(passes) != 1 or None in passes:
+        sys.exit(f"activity.json mixes {len(passes)} scan passes {sorted(str(p) for p in passes)[:3]} — "
+                 f"not one completed run. Re-run fetch.py activity to completion.")
+    if os.path.exists(os.path.join(DATA, "activity_pass.json")):
+        sys.exit("a fetch.py activity pass is still IN PROGRESS (activity_pass.json exists) — "
+                 "wait for it to finish, or it is not the set you think it is.")
 
     if args.compare:
         print(f"\n{'window':>10}{'migrating':>12}{'supply':>26}{'burned':>26}")

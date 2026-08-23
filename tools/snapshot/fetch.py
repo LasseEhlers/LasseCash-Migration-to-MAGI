@@ -141,6 +141,23 @@ def save(path, obj):
 
 # --- stage 1: balances ----------------------------------------------------
 
+def must_find(contract, table, query, **kw):
+    """
+    he_find, but a failed read ABORTS the stage instead of reading as "no rows".
+
+    Every `he_find(...) or []` in the balance pass turned an RPC failure into
+    "there is nothing here": a failed pools read zeroed `pooled` for 160
+    liquidity providers, a failed sellBook page dropped every seller's escrowed
+    tokens, a failed contractsBalances read made the reconcile compare against
+    zero. Each printed a warning nobody is obliged to read and saved anyway.
+    Found 2026-08-23 by independent review. Owned tokens that could not be read
+    are a failed snapshot, not an empty bucket.
+    """
+    rows = he_find(contract, table, query, **kw)
+    if rows is None:
+        sys.exit(f"  ! could not read {contract}.{table} — NOTHING written. Re-run.")
+    return rows
+
 def fetch_balances():
     """
     Every account that has ever held LASSECASH.
@@ -223,7 +240,7 @@ def fetch_balances():
     # to 35 providers, and the old hardcoded pair meant all of them would have
     # been burned at the snapshot. Never hardcode one pair again — read the
     # pool list and take whichever side is LASSECASH.
-    all_pools = he_find("marketpools", "pools", {}, limit=1000) or []
+    all_pools = must_find("marketpools", "pools", {}, limit=1000)
     lc_pools = [p for p in all_pools if SYMBOL in (p.get("tokenPair") or "")]
     if not lc_pools:
         print("  ! could not read any Diesel pool — pooled LASSECASH NOT captured")
@@ -237,8 +254,8 @@ def fetch_balances():
         offset = 0
         n_lp = 0
         while True:
-            batch = he_find("marketpools", "liquidityPositions",
-                            {"tokenPair": pair}, limit=1000, offset=offset) or []
+            batch = must_find("marketpools", "liquidityPositions",
+                              {"tokenPair": pair}, limit=1000, offset=offset)
             for lp in batch:
                 share = (Decimal(lp["shares"]) * reserve / total_shares).quantize(
                     Decimal("0.00000001"), rounding=ROUND_DOWN)
@@ -250,7 +267,7 @@ def fetch_balances():
         print(f"  pool {pair}: {reserve} {SYMBOL} across {n_lp} positions")
     offset = 0
     while True:
-        batch = he_find("market", "sellBook", {"symbol": "LASSECASH"}, limit=1000, offset=offset) or []
+        batch = must_find("market", "sellBook", {"symbol": "LASSECASH"}, limit=1000, offset=offset)
         for o in batch:
             on_order[o["account"]] = on_order.get(o["account"], Decimal(0)) + Decimal(o["quantity"])
         if len(batch) < 1000:
@@ -270,8 +287,8 @@ def fetch_balances():
     # 0.00 on VIBES and CTP, while LEO, POB and PIZZA are also over. Audited
     # and published rather than papered over.
     contracts = {c["account"]: Decimal(c.get("balance") or 0) + Decimal(c.get("stake") or 0)
-                 for c in (he_find("tokens", "contractsBalances", {"symbol": SYMBOL},
-                                   limit=100) or [])}
+                 for c in must_find("tokens", "contractsBalances", {"symbol": SYMBOL},
+                                    limit=100)}
     print(f"\n  contract-held ({SYMBOL}), per tokens.contractsBalances:")
     for name, amt in sorted(contracts.items()):
         print(f"    {name:<16}{amt:>20,.8f}")
