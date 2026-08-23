@@ -23,7 +23,7 @@ contract instead of by my word.
 
 ## The snapshot
 
-At Hive block **109,447,319**, on **Saturday 29 August 2026, 12:00 UTC (14:00 CEST)**, I take a snapshot of every
+At Hive block **109,504,918**, on **Monday 31 August 2026, 12:00 UTC (14:00 CEST)**, I take a snapshot of every
 LASSECASH balance in existence. That snapshot is permanent. It is published in
 full — every account, every amount — and committed to the MAGI contract as a
 single Merkle root, so anyone can verify their own entry, and anyone can verify
@@ -42,7 +42,7 @@ have delegated out. Nothing you own is missed.
 **You must have used LASSECASH.**
 
 To be included, your account must have signed at least one **LASSECASH
-transaction on Hive-Engine within the 6 months before block 109,447,319**.
+transaction on Hive-Engine within the 6 months before block 109,504,918**.
 
 That means one of these, done **by you**:
 
@@ -63,6 +63,30 @@ of accounts hold LASSECASH only because I handed it to them — at HiveFest, in
 comment threads, for years. If you never did anything with it, you are not
 being punished; you are simply not claiming something you never wanted.
 
+### This rule is stricter than the one in my first warning
+
+On 21 August I posted a first warning that described the rule differently. It
+said an **ACTIVE-key transaction on Hive** would count — a transfer, a power-up,
+a delegation, an account update — and it called the design "heavily locked in".
+I have since changed it, and I would rather tell you that here than have you
+find it on your own.
+
+**The Hive half of the rule is gone.** Being alive somewhere on Hive proves a
+human exists. It does not prove that human ever used LasseCash. Thousands of
+these accounts hold LASSECASH only because I handed it to them, and staying
+active on Hive while never once touching the token is not the same as wanting
+it. So the test is now the one above: a **LASSECASH** operation, signed by you.
+
+This is stricter, and it burns more accounts than the version I first
+published. I am not going to dress that up. I would rather have a small number
+of people who actually use this than a large number who never wanted it, and I
+would rather change a rule before the snapshot than defend a bad one after it.
+
+I edited that first warning post afterwards. **Every version of it is still in
+Hive's block history and anyone can read them all** — I cannot delete what I
+wrote, and I am not trying to. That is the point of the chain, and it is the
+point of this migration.
+
 ### ⚠️ Do not trust "Active X ago" on hive.blog
 
 That number only measures **posting and voting**. It ignores every transfer,
@@ -80,8 +104,8 @@ history, and look for an operation **you** signed since February.
 ## Your last week
 
 If you are not in the snapshot under the rule above, **you have until block
-109,447,319 — Saturday 29 August, 12:00 UTC (14:00 CEST) — to fix it**. That is six
-days from this post.
+109,504,918 — Monday 31 August, 12:00 UTC (14:00 CEST) — to fix it**. That is
+eight days from this post.
 
 Do one LASSECASH transaction. Send 1 LASSECASH to a friend. Send it to
 yourself. Stake some. That is all it takes, and it costs you nothing but a

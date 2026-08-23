@@ -129,12 +129,21 @@ export const MAGI_GRAPHQL =
  * announcement and the runbook cannot disagree about it. Computed from a live
  * head reading on 2026-08-23: head 109,264,456 at 03:36 UTC, at 3s per height.
  *
- * MOVED off Sunday 30 August at Lasse's request — he does not want the launch
- * falling on a Sunday. Saturday the 29th costs one day of roll call (six rather
- * than seven) and moves the key burn to Thursday 8 October.
+ * MOVED TWICE on 2026-08-23. Off Sunday 30 August, because Lasse does not want
+ * the launch falling on a Sunday. Then off Saturday 29 August, because his own
+ * first-warning post — still readable in Hive's block history, edited but never
+ * erased — promised "a warning period of at least 1 week", and the 29th gave
+ * six days. Monday the 31st gives eight and is not a Sunday.
+ *
+ * The argument for the 29th turned out to be wrong and is recorded here so it
+ * is not made again: launching before 1 September does NOT buy a live test of
+ * the monthly Proof-of-Brain mint. Pending balances come from post payouts and
+ * the shortest payout window is seven days, so nothing can have paid out by 1
+ * September whatever the genesis date. The first monthly mint carrying real
+ * value is 1 October either way.
  *
  * After the snapshot is taken this becomes history rather than a deadline, and
  * the checker says so on its own by comparing against the chain height.
  */
-export const SNAPSHOT_BLOCK = 109_447_319;
-export const SNAPSHOT_WHEN = "Saturday 29 August 2026, 12:00 UTC";
+export const SNAPSHOT_BLOCK = 109_504_918;
+export const SNAPSHOT_WHEN = "Monday 31 August 2026, 12:00 UTC";
