@@ -22,12 +22,16 @@ import sys
 import time
 import urllib.error
 import urllib.request
+from datetime import datetime, timezone
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DATA = os.path.join(HERE, "data")
 BALANCES = os.path.join(DATA, "balances.json")
 ACTIVITY = os.path.join(DATA, "activity.json")
+# Marks a scan pass in progress. Present = resume it; absent = start a
+# fresh full pass. Removed only when every account has been scanned.
+PASS_FILE = os.path.join(DATA, "activity_pass.json")
 
 HE_RPC = "https://api.hive-engine.com/rpc/contracts"
 HE_HISTORY = "https://accounts.hive-engine.com/accountHistory"
@@ -482,14 +486,45 @@ def scan_one(item):
 
 
 def fetch_activity():
+    """
+    Scan every account's signed-operation history.
+
+    ⚠️ EVERY ACCOUNT IS RE-SCANNED ON EVERY PASS. It used to skip any account
+    that already had a record — `todo = [a for a in balances if a not in acts]` —
+    which is the same defect the balance scan had, and far worse here.
+
+    The migration is announced with a ROLL CALL: 12,286 accounts are told they
+    have until the snapshot block to sign one LASSECASH operation and keep
+    their stake. Every one of those people already has an activity record
+    saying "dead". A scan that skips known accounts would not see a single
+    action taken in response to the announcement, and would burn the tokens of
+    exactly the people who did what they were asked. Found 2026-08-23, eight
+    days before the snapshot.
+
+    Resumability is kept, but WITHIN a pass rather than across passes. A pass
+    id is written to PASS_FILE at the start; records carry the pass that wrote
+    them, so a crash-and-rerun resumes and a completed run leaves no marker,
+    making the next invocation a full fresh scan. That is the safe default: an
+    unnecessary re-scan costs an hour, a skipped one costs somebody's tokens.
+    """
     balances = load(BALANCES, {})
     if not balances:
         print("no balances yet — run `fetch.py balances` first")
         return
     acts = load(ACTIVITY, {})
-    todo = [a for a in balances if a not in acts]
-    print(f"stage 2: activity — {len(acts):,} done, {len(todo):,} to go "
-          f"({WORKERS} workers over {len(HIVE_NODES)} nodes)")
+
+    resuming = os.path.exists(PASS_FILE)
+    if resuming:
+        pass_id = json.load(open(PASS_FILE))["pass"]
+    else:
+        pass_id = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        with open(PASS_FILE, "w") as fh:
+            json.dump({"pass": pass_id, "accounts": len(balances)}, fh)
+
+    todo = [a for a in balances if (acts.get(a) or {}).get("pass") != pass_id]
+    print(f"stage 2: activity — {'RESUMING' if resuming else 'FULL PASS'} {pass_id}")
+    print(f"  {len(balances) - len(todo):,} already scanned in this pass, "
+          f"{len(todo):,} to go ({WORKERS} workers over {len(HIVE_NODES)} nodes)")
 
     start = time.time()
     done_now = 0
@@ -502,6 +537,7 @@ def fetch_activity():
                 account = futures[fut]  # kill an 11k-account scan
                 print(f"    ! @{account}: {type(e).__name__}: {e}", file=sys.stderr)
                 continue
+            rec["pass"] = pass_id
             acts[account] = rec
             done_now += 1
             if done_now % 100 == 0:
@@ -513,7 +549,14 @@ def fetch_activity():
                       f"{rate:.1f}/s  eta {eta:.0f}m")
 
     save(ACTIVITY, acts)
-    print(f"done: {len(acts):,} accounts in {(time.time() - start) / 60:.1f}m")
+    stale = [a for a in balances if (acts.get(a) or {}).get("pass") != pass_id]
+    if stale:
+        print(f"  ! {len(stale):,} accounts still unscanned in this pass — "
+              f"re-run to finish; the marker is kept so it resumes")
+    else:
+        os.remove(PASS_FILE)   # pass complete: the NEXT run scans everything again
+        print(f"done: {len(acts):,} accounts in {(time.time() - start) / 60:.1f}m "
+              f"(pass complete — the next run is a fresh full scan)")
 
 
 def status():
