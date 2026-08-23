@@ -65,34 +65,23 @@ being punished; you are simply not claiming something you never wanted.
 
 ### This rule is stricter than the one in my first warning
 
-On 21 August I posted a first warning that described the rule differently. It
-said an **ACTIVE-key transaction on Hive** would count — a transfer, a power-up,
-a delegation, an account update — and it called the design "heavily locked in".
-I have since changed it, and I would rather tell you that here than have you
-find it on your own.
+On 21 August I said an **ACTIVE-key transaction on Hive** would count — a
+transfer, a power-up, a delegation — and I called the design "heavily locked
+in". **That half of the rule is gone.** Being alive on Hive proves a human
+exists; it does not prove that human ever used LasseCash. Thousands of these
+accounts hold LASSECASH only because I handed it to them. So the test is the one
+above: a **LASSECASH** operation, signed by you. It is stricter, it burns more
+accounts, and I am not going to dress that up — I would rather change a rule
+before the snapshot than defend a bad one after it.
 
-**The Hive half of the rule is gone.** Being alive somewhere on Hive proves a
-human exists. It does not prove that human ever used LasseCash. Thousands of
-these accounts hold LASSECASH only because I handed it to them, and staying
-active on Hive while never once touching the token is not the same as wanting
-it. So the test is now the one above: a **LASSECASH** operation, signed by you.
-
-This is stricter, and it burns more accounts than the version I first
-published. I am not going to dress that up. I would rather have a small number
-of people who actually use this than a large number who never wanted it, and I
-would rather change a rule before the snapshot than defend a bad one after it.
-
-I edited that first warning post afterwards. **Every version of it is still in
-Hive's block history and anyone can read them all** — I cannot delete what I
-wrote, and I am not trying to.
-
-I have changed my mind in public plenty of times over seven years, usually
-because I found a better answer, sometimes because the first one was bad. That
-is what building something alone looks like. **What matters is that this is
-close to the last time it can happen.** On 10 October the owner key is
-destroyed, and after that nothing here can be revised by anyone, including me —
-not because I have become more careful, but because the key will not exist.
-That is the whole reason for this migration.
+I edited that post afterwards, but **every version of it is still in Hive's
+block history and anyone can read them all.** I cannot delete what I wrote, and
+I am not trying to. I have changed my mind in public plenty of times over seven
+years — usually because I found a better answer, sometimes because the first one
+was bad. That is what building something alone looks like. **What matters is
+that this is close to the last time it can happen.** On 10 October the owner key
+is destroyed, and after that nothing here can be revised by anyone, including me
+— not because I have become more careful, but because the key will not exist.
 
 ### ⚠️ Do not trust "Active X ago" on hive.blog
 
