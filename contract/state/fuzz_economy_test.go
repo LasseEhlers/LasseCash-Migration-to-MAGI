@@ -1,6 +1,7 @@
 package state
 
 import (
+	"math/big"
 	"math/rand"
 	"os"
 	"strconv"
@@ -25,6 +26,17 @@ import (
 //	FUZZ_ROUNDS=100000 go test -run TestFuzzEconomy -timeout 12h
 //
 // A failure prints the seed; FUZZ_SEED replays it exactly.
+// poolOpsDone tallies pool operations that actually SUCCEEDED across a whole
+// fuzz run.
+//
+// WHY IT EXISTS. A fuzzer whose pool calls are all refused — insufficient
+// balance, ratio mismatch, no open tranche — passes every invariant while
+// testing nothing, and it does so silently. That failure mode is invisible
+// precisely because the run goes green. The tally makes it loud: if any pool
+// operation never once succeeded across every economy in the run, the run
+// FAILS rather than reassuring.
+var poolOpsDone = map[string]int{}
+
 func TestFuzzEconomy(t *testing.T) {
 	rounds := 25
 	if v := os.Getenv("FUZZ_ROUNDS"); v != "" {
@@ -39,17 +51,31 @@ func TestFuzzEconomy(t *testing.T) {
 			seeds = append(seeds, rand.Int63())
 		}
 	}
+	poolOpsDone = map[string]int{}
 	for _, seed := range seeds {
 		seed := seed
 		t.Run("seed="+strconv.FormatInt(seed, 10), func(t *testing.T) {
 			fuzzOneEconomy(t, seed)
 		})
 	}
+	for _, op := range []string{"add", "remove", "claim", "swap_lc", "swap_hbd", "sweep"} {
+		t.Logf("pool %-9s %d successful", op, poolOpsDone[op])
+		if poolOpsDone[op] == 0 {
+			t.Errorf("pool operation %q NEVER succeeded in this run — "+
+				"the fuzzer is not exercising the pool, and a green run means nothing", op)
+		}
+	}
 }
 
 func fuzzOneEconomy(t *testing.T, seed int64) {
 	r := rand.New(rand.NewSource(seed))
 	s, _ := newChain(t)
+	// Real HBD custody. The pool is the ONLY place in the contract that holds
+	// somebody else's actual money, and until 2026-08-23 the 500k fuzzer never
+	// touched it — no AddLiquidity, no Swap, no ClaimPoolRewards, no
+	// SweepTranche. Every pool test was a case a human thought to write, which
+	// is exactly the gap this fuzzer exists to cover everywhere else.
+	assets := NewMemAssets()
 
 	actors := []string{"hive:a", "hive:b", "hive:c", "hive:d", "did:pkh:eip155:1:0xe"}
 	for _, a := range actors {
@@ -71,10 +97,14 @@ func fuzzOneEconomy(t *testing.T, seed int64) {
 	// Track live mints per actor: id -> maturity, so ops can aim at real ones.
 	mints := map[string][]uint64{}
 	var posts []string
+	tranches := map[string][]uint64{}
 
 	audit := func(op string) {
 		t.Helper()
 		if failed := auditEconomy(s); failed != "" {
+			t.Fatalf("seed %d, after %s at height %d:\n%s", seed, op, height, failed)
+		}
+		if failed := auditPoolCustody(s, assets); failed != "" {
 			t.Fatalf("seed %d, after %s at height %d:\n%s", seed, op, height, failed)
 		}
 	}
@@ -91,7 +121,7 @@ func fuzzOneEconomy(t *testing.T, seed int64) {
 		who := actors[r.Intn(len(actors))]
 		c := Ctx{Sender: who, Height: height, Epoch: epoch}
 
-		switch r.Intn(10) {
+		switch r.Intn(16) {
 		case 0, 1: // mint something affordable
 			bal := Balance(s, who)
 			if bal > engine.MinMintAmount {
@@ -111,11 +141,11 @@ func fuzzOneEconomy(t *testing.T, seed int64) {
 		case 3: // transfer a random slice
 			if bal := Balance(s, who); bal > 0 {
 				to := actors[r.Intn(len(actors))]
-				Transfer(s, c, to, engine.Amount(r.Int63n(int64(bal))+1))
+				Transfer(s, c, to, engine.Amount(r.Int63n(int64(bal)+1)+1))
 			}
 		case 4: // burn a sliver
 			if bal := Balance(s, who); bal > 100 {
-				Burn(s, c, engine.Amount(r.Int63n(int64(bal/100))+1))
+				Burn(s, c, engine.Amount(r.Int63n(int64(bal/100)+1)+1))
 			}
 		case 5: // post, if rich enough in shares
 			perm := "p" + strconv.Itoa(i)
@@ -137,6 +167,74 @@ func fuzzOneEconomy(t *testing.T, seed int64) {
 		case 9: // good accounting on a random mint
 			if ids := mints[who]; len(ids) > 0 {
 				ArmGoodAccounting(s, c, ids[r.Intn(len(ids))])
+			}
+
+		case 10: // add liquidity — opens the pool, or matches its ratio
+			if bal := Balance(s, who); bal > lc(1) {
+				in := engine.Amount(r.Int63n(int64(bal/2)+1) + int64(lc(1)))
+				// A deliberately generous HBD ceiling most of the time, and an
+				// occasionally stingy one, so the maxHbd refusal path is hit
+				// with its money still un-moved.
+				maxHbd := in * 4
+				if r.Intn(8) == 0 {
+					maxHbd = engine.Amount(r.Int63n(int64(in) + 1))
+				}
+				if id, res := AddLiquidity(s, assets, c, in, maxHbd); res.OK {
+					tranches[who] = append(tranches[who], id)
+					poolOpsDone["add"]++
+				}
+			}
+		case 11: // withdraw a tranche, whole
+			if ids := tranches[who]; len(ids) > 0 {
+				n := r.Intn(len(ids))
+				if res := RemoveLiquidity(s, assets, c, ids[n]); res.OK {
+					tranches[who] = append(ids[:n], ids[n+1:]...)
+					poolOpsDone["remove"]++
+				}
+			}
+		case 12: // claim pool rewards — re-registers loyalty at today's age
+			if ids := tranches[who]; len(ids) > 0 {
+				if ClaimPoolRewards(s, c, ids[r.Intn(len(ids))]).OK {
+					poolOpsDone["claim"]++
+				}
+			}
+		case 13: // sell LASSECASH into the pool
+			if bal := Balance(s, who); bal > lc(1) {
+				in := engine.Amount(r.Int63n(int64(bal/4)+1) + 1)
+				before := productK(s)
+				if res := SwapLCForHBD(s, assets, c, in, 0); res.OK {
+					mustNotShrinkK(t, seed, "swap lc->hbd", before, productK(s))
+					poolOpsDone["swap_lc"]++
+				}
+			}
+		case 14: // buy LASSECASH with HBD
+			if lcRes, hbdRes := PoolReserves(s); lcRes > 0 && hbdRes > 0 {
+				before := productK(s)
+				if res := SwapHBDForLC(s, assets, c, engine.Amount(r.Int63n(int64(hbdRes/4)+1)+1), 0); res.OK {
+					mustNotShrinkK(t, seed, "swap hbd->lc", before, productK(s))
+					poolOpsDone["swap_hbd"]++
+				}
+			}
+		case 15: // a STRANGER tries to evict somebody else's tranche
+			// The single most dangerous line in the pool: closeTranche must pay
+			// the OWNER, never ctx.Sender. Fuzzed from the hostile direction —
+			// a random actor sweeping a random other actor's position — because
+			// getting it wrong turns a permissionless sweep into permissionless
+			// robbery, and it would only show up as somebody else's money
+			// arriving in the caller's balance.
+			victim := actors[r.Intn(len(actors))]
+			if ids := tranches[victim]; len(ids) > 0 {
+				n := r.Intn(len(ids))
+				before := Balance(s, who)
+				res := SweepTranche(s, assets, c, victim, ids[n])
+				if res.OK {
+					if who != victim && Balance(s, who) != before {
+						t.Fatalf("seed %d: SWEEP PAID THE CALLER: %s swept %s's tranche %d and gained %s",
+							seed, who, victim, ids[n], fmtRaw(Balance(s, who)-before))
+					}
+					tranches[victim] = append(ids[:n], ids[n+1:]...)
+					poolOpsDone["sweep"]++
+				}
 			}
 		}
 		// Whatever happened, the walk may lag; close it like `advance` would,
@@ -188,3 +286,74 @@ func auditEconomy(s *MemStore) string {
 }
 
 func fmtRaw(a engine.Amount) string { return strconv.FormatInt(int64(a), 10) }
+
+// auditPoolCustody is the pool's half of the per-operation audit.
+//
+// The LASSECASH side is already covered: auditEconomy sums `amm_lc` and the
+// `pool_*` keys into the supply identity, so a leak there fails as a supply
+// leak. What it cannot see is the HBD side, because HBD is not LasseCash's
+// money — it is real, custodied, and belongs to whoever put it in.
+//
+// Three properties, checked after EVERY operation:
+//
+//  1. CUSTODY MATCHES THE LEDGER. The HBD reserve the contract has written down
+//     must equal the HBD it actually holds. This is the invariant the 2026-08-22
+//     milli-unit bug broke on mainnet — the adapter handed the engine 1e8 units
+//     against a 1e3 allowance — and it would have been fatal after the key burn.
+//
+//  2. THE POOL NEVER OWES MORE SHARES THAN EXIST. If the sum of open tranche
+//     shares exceeded the recorded total, the last provider out would find the
+//     reserves already spent.
+//
+// Returns "" when sound.
+func auditPoolCustody(s *MemStore, a *MemAssets) string {
+	lcRes, hbdRes := PoolReserves(s)
+
+	if int64(hbdRes) != a.Held {
+		return "HBD CUSTODY MISMATCH: reserve says " + fmtRaw(hbdRes) +
+			" but the contract holds " + strconv.FormatInt(a.Held, 10)
+	}
+	if hbdRes < 0 || lcRes < 0 {
+		return "NEGATIVE RESERVE: lc " + fmtRaw(lcRes) + " hbd " + fmtRaw(hbdRes)
+	}
+	var open engine.Amount
+	for _, key := range s.Keys() {
+		if !strings.HasPrefix(key, "amm_t_") {
+			continue
+		}
+		f := strings.Split(*s.Get(key), "|")
+		// field 1 is Shares, field 3 the closed flag — see the tranche codec.
+		if len(f) >= 4 && !decBool(f[3]) {
+			open += engine.Amount(decI64(f[1]))
+		}
+	}
+	if total := getAmount(s, keyPoolShares); open > total {
+		return "SHARES OVERSOLD: open tranches hold " + fmtRaw(open) +
+			" against a recorded total of " + fmtRaw(total)
+	}
+	return ""
+}
+
+// productK is the pool's constant product, in big integers.
+//
+// It does not fit in an int64 and the first version of this check pretended it
+// did: reserves of ~1e13 each multiply to ~1e26, which wrapped negative and
+// made every economy fail with "k SHRANK: 0 -> -4305396175147829280". The
+// fuzzer caught the checker, which is the right order for that to happen in.
+func productK(s *MemStore) *big.Int {
+	lcRes, hbdRes := PoolReserves(s)
+	return new(big.Int).Mul(big.NewInt(int64(lcRes)), big.NewInt(int64(hbdRes)))
+}
+
+// mustNotShrinkK asserts the constant product did not fall across a swap.
+//
+// Every swap floors the output in the pool's favour, so k can only grow. A
+// shrinking k means a rounding error pointed the wrong way and value walked out
+// of the reserves a base unit at a time — the slow leak that nobody notices
+// until the last provider out is short.
+func mustNotShrinkK(t *testing.T, seed int64, what string, before, after *big.Int) {
+	t.Helper()
+	if after.Cmp(before) < 0 {
+		t.Fatalf("seed %d: k SHRANK across %s: %s -> %s", seed, what, before, after)
+	}
+}
