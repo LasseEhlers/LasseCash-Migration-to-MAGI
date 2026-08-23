@@ -319,7 +319,11 @@ func TestClaimAtMaturityPaysPrincipalPlusYield(t *testing.T) {
 		t.Fatalf("mint failed: %s", r.Msg)
 	}
 	mature := genesis + 365*engine.HeightsPerDay
-	if r := ClaimMint(s, at(ctx, "hive:alice", mature), id); !r.OK {
+	// Claim the day AFTER maturity, not on it: claiming exactly on the
+	// maturity day is refused until the walk closes that day, so every
+	// claim reads the same checkpoint regardless of when it is made.
+	afterClose := mature + engine.HeightsPerDay
+	if r := ClaimMint(s, at(ctx, "hive:alice", afterClose), id); !r.OK {
 		t.Fatalf("claim failed: %s", r.Msg)
 	}
 
@@ -372,10 +376,11 @@ func TestMintCannotBeClaimedTwice(t *testing.T) {
 	id, _ := CreateMint(s, a, lc(1_000), 30)
 
 	mature := genesis + 30*engine.HeightsPerDay
-	if r := ClaimMint(s, at(ctx, "hive:alice", mature), id); !r.OK {
+	afterClose := mature + engine.HeightsPerDay
+	if r := ClaimMint(s, at(ctx, "hive:alice", afterClose), id); !r.OK {
 		t.Fatalf("first claim failed: %s", r.Msg)
 	}
-	if r := ClaimMint(s, at(ctx, "hive:alice", mature), id); r.OK {
+	if r := ClaimMint(s, at(ctx, "hive:alice", afterClose), id); r.OK {
 		t.Fatal("DOUBLE CLAIM: second claim succeeded")
 	}
 	auditSupply(t, s)
@@ -603,10 +608,13 @@ func TestMigrationMintConvertsStakedPowerOneToOne(t *testing.T) {
 	}
 	auditSupply(t, s)
 
-	// It lives the ordinary lifecycle: claimable at maturity for full principal.
+	// It lives the ordinary lifecycle: claimable the day after maturity for
+	// full principal (claiming exactly on the maturity day is refused until
+	// the walk closes it — see the fix in ClaimMint/endMint).
 	mature := genesis + uint64(engine.MigrationMintDays)*engine.HeightsPerDay
-	Settle(s, Ctx{Height: mature})
-	if r := ClaimMint(s, at(ctx, "hive:staker", mature), 1); !r.OK {
+	afterClose := mature + engine.HeightsPerDay
+	Settle(s, Ctx{Height: afterClose})
+	if r := ClaimMint(s, at(ctx, "hive:staker", afterClose), 1); !r.OK {
 		t.Fatalf("mature claim failed: %s", r.Msg)
 	}
 	if got := Balance(s, "hive:staker"); got < lc(10_000) {

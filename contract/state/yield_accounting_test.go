@@ -42,18 +42,29 @@ func TestLateMinterDilutesAccruedYield(t *testing.T) {
 		maturity := genesis + days*day
 		w.warp(t, maturity)
 
+		// Claim the day AFTER maturity, once the walk has closed that day and
+		// written its accAt_<matDay> checkpoint — claiming exactly ON the
+		// maturity day is refused (see the ClaimMint fix, 2026-08-23), because
+		// day matDay's emission is genuinely still being divided among
+		// whoever is active THAT day: a mint created within the same day as
+		// Alice's maturity would fairly co-share that one day's pot (bounded,
+		// tiny, and consistent with day-granular accrual, not the bug this
+		// test exists to catch). Bob is created AFTER the checkpoint closes
+		// instead, which isolates the actual question: can a later minter
+		// reach back into an ALREADY-WRITTEN checkpoint and dilute it. He
+		// cannot — accAt_<matDay> is immutable once written.
+		afterClose := maturity + day
+
 		var bobID uint64
 		if bobJoins {
-			// Bob mints the same amount at the very moment alice matures,
-			// having been locked for exactly zero blocks.
-			bobID, r = CreateMint(w.s, at(w.ctx, "bob", maturity), lc(10_000), days)
+			bobID, r = CreateMint(w.s, at(w.ctx, "bob", afterClose), lc(10_000), days)
 			if !r.OK {
 				t.Fatal(r.Msg)
 			}
 		}
 
 		before := Balance(w.s, "alice")
-		if r := ClaimMint(w.s, at(w.ctx, "alice", maturity), aliceID); !r.OK {
+		if r := ClaimMint(w.s, at(w.ctx, "alice", afterClose), aliceID); !r.OK {
 			t.Fatal(r.Msg)
 		}
 		aliceGot = Balance(w.s, "alice") - before
@@ -166,4 +177,106 @@ func TestMintIsRefusedWhileAccrualIsBehind(t *testing.T) {
 	if _, r := CreateMint(s, at(ctx, "hive:alice", far), lc(10_000), 30); !r.OK {
 		t.Fatalf("mint still refused after accrual caught up: %s", r.Msg)
 	}
+}
+
+// TestSameDayClaimIsRefusedNotWrong pins the fix for the maturity-day
+// concentration bug found by review on 2026-08-23.
+//
+// The accumulator only checkpoints a day once the walk has fully closed it.
+// Claiming exactly ON the maturity day used to fall back to a LIVE reading
+// that excluded that day's own emission — while ALSO removing the claimant's
+// shares from shares_total immediately, so the day's remaining emission
+// divided across whoever was left. On a day where thousands of mints mature
+// together (the migration cliff), an unrelated mint that simply did not
+// claim that day could pick up the ENTIRE day's L-Share emission: measured,
+// 50 x 200,000 LC claiming together handed one unrelated 200 LC mint 100.0%
+// of that day's emission, 11x its own principal.
+//
+// The fix refuses a claim until the day has closed, so every claim reads the
+// SAME checkpoint no matter when it is made.
+func TestSameDayClaimIsRefusedNotWrong(t *testing.T) {
+	s, ctx := newChain(t)
+	creditLiquid(s, "hive:alice", lc(10_000))
+	id, r := CreateMint(s, at(ctx, "hive:alice", genesis), lc(10_000), 30)
+	if !r.OK {
+		t.Fatal(r.Msg)
+	}
+	mature := genesis + 30*day
+
+	// Refused exactly on the maturity day — never a silent wrong answer.
+	if r := ClaimMint(s, at(ctx, "hive:alice", mature), id); r.OK {
+		t.Fatal("claim on the maturity day itself should be refused, not silently accepted")
+	}
+	// One height before the day closes: still refused.
+	if r := ClaimMint(s, at(ctx, "hive:alice", mature+day-1), id); r.OK {
+		t.Fatal("claim one height before the day closes should still be refused")
+	}
+	// The moment the day closes: succeeds.
+	if r := ClaimMint(s, at(ctx, "hive:alice", mature+day), id); !r.OK {
+		t.Fatalf("claim once the day has closed should succeed: %s", r.Msg)
+	}
+}
+
+// TestMaturityCohortSharesTheDayEqually is the direct regression for the
+// concentration scenario: many mints maturing on the SAME day, one that does
+// not claim that day at all, must not be able to capture a disproportionate
+// share of that day's emission just because everyone else claimed promptly
+// (and promptness is no longer possible mid-day — see the test above — but
+// this pins the OUTCOME once the day closes and everyone claims in any order).
+func TestMaturityCohortSharesTheDayEqually(t *testing.T) {
+	s, ctx := newChain(t)
+
+	// Fifty equal mints maturing together — the migration-cliff shape.
+	var ids []uint64
+	for i := 0; i < 50; i++ {
+		acct := "hive:cohort" + fmtA(engine.Amount(i))
+		creditLiquid(s, acct, lc(200_000))
+		id, r := CreateMint(s, at(ctx, acct, genesis), lc(200_000), 30)
+		if !r.OK {
+			t.Fatalf("cohort mint %d: %s", i, r.Msg)
+		}
+		ids = append(ids, id)
+	}
+	// One small, unrelated mint on a DIFFERENT schedule, still active through
+	// the cohort's maturity day.
+	creditLiquid(s, "hive:bystander", lc(200))
+	if _, r := CreateMint(s, at(ctx, "hive:bystander", genesis), lc(200), 60); !r.OK {
+		t.Fatal(r.Msg)
+	}
+
+	mature := genesis + 30*day
+	afterClose := mature + day
+
+	cohortBefore := Balance(s, "hive:cohort0")
+	var cohortReceived engine.Amount
+	// The cohort claims first, in order, all AFTER the day has closed.
+	for i, id := range ids {
+		acct := "hive:cohort" + fmtA(engine.Amount(i))
+		before := Balance(s, acct)
+		if r := ClaimMint(s, at(ctx, acct, afterClose), id); !r.OK {
+			t.Fatalf("cohort claim %d: %s", i, r.Msg)
+		}
+		cohortReceived += Balance(s, acct) - before
+	}
+	// The bystander did not act at all that day, and never claims here —
+	// this checks what it would be OWED, not what it collects.
+	Accrue(s, afterClose+day)
+	bystanderEntitled := PendingYield(s, "hive:bystander", 1)
+
+	// The bug's signature: a ~0.002% shareholder (200 of 10,000,200 LC)
+	// capturing a share of emission wildly out of proportion to that weight —
+	// in the worst measured case, 100% of an entire day belonging to the
+	// cohort. A fair system pays the bystander roughly its share-weight
+	// fraction of what the cohort collectively earned; this asserts it is
+	// nowhere close to comparable, let alone larger.
+	shareRatio := float64(lc(200)) / float64(lc(200)+10_000_000_00000000)
+	maxFair := engine.Amount(float64(cohortReceived) * shareRatio * 20) // 20x slack
+	if bystanderEntitled > maxFair {
+		t.Fatalf("CONCENTRATION: a 200 LC bystander (share of pool ~%.4f%%) is "+
+			"entitled to %s while the 10,000,000 LC cohort collectively received "+
+			"%s. That is wildly disproportionate — the bystander should earn "+
+			"roughly its share-weight fraction, not something comparable to an "+
+			"entire cohort's day.", shareRatio*100, fmtA(bystanderEntitled), fmtA(cohortReceived))
+	}
+	_ = cohortBefore
 }

@@ -289,14 +289,31 @@ func endMint(s Store, ctx Ctx, owner string, id uint64, sweep bool) Result {
 	if matured {
 		cp, have := AccAtDay(s, matDay)
 		if !have {
-			if !caughtUp {
-				return fail("accrual is behind; call advance then claim again")
-			}
-			// Matured within the current day: nothing has accrued past it yet.
-			cp = accEnd
+			// ⚠️ The maturity day has not fully closed — no accAt_<matDay>
+			// checkpoint exists yet. This used to fall back to the LIVE
+			// accumulator here (which covers only days before matDay), while
+			// this claim ALSO pulled the mint's shares out of shares_total
+			// immediately — so a prompt claim forfeited its own maturity
+			// day's yield, AND that day's remaining emission then divided
+			// across a smaller pool for whoever was still active. On a day
+			// where thousands of mints share one maturity height (the
+			// migration cliff), an unrelated mint that simply did not claim
+			// that day could pick up the entire day's L-Share emission.
+			// Measured 2026-08-23: 50 x 200,000 LC claiming together handed
+			// one unrelated 200 LC mint 100.0% of that day's emission,
+			// 11x its own principal, in one day. Found by review, before
+			// genesis — fixed here rather than left for the 48h timelock.
+			//
+			// Refuse instead, with the SAME remedy as the ordinary "behind"
+			// case: call advance (or simply wait) until the day closes, then
+			// claim. Every claim on a matured mint now reads the SAME
+			// checkpoint no matter when within the day it is made — early
+			// and late claimers are treated identically.
+			return fail("mint matured today; the day has not closed yet — call advance, then claim again")
 		}
 		accEnd = cp
 	}
+	_ = caughtUp
 	accrued := engine.Entitlement(m.Shares, m.AccStart, accEnd)
 	pool := PoolLShare(s)
 	if accrued > pool {
