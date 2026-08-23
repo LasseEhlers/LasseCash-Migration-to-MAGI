@@ -3,11 +3,7 @@
 
 # LASSECASH migrates to MAGI — the snapshot rules, and your last week to act
 
-*Draft for Lasse to edit. Everything in `[SQUARE BRACKETS]` is a value we have
-not fixed yet. The tone is deliberately flat and technical — the cheeky line
-at the end is yours.*
 
----
 
 ## What is happening
 
@@ -241,9 +237,10 @@ falling-out; it is a token outgrowing their 'spreadsheet'.
 
 ## Verify everything yourself
 
-- The snapshot: every account and amount, published in full at **[LINK]**
-- The Merkle root, on-chain at **[LINK]** — proves the published list is the
-  one the contract uses
+- **The snapshot: every account and amount** — published in full the moment
+  the snapshot is taken, at the same time as the migration genesis post
+- **The Merkle root, committed on-chain** — proves the published list is the
+  one the contract actually uses, and it is published with the snapshot
 - The contract source at **https://github.com/LasseEhlers/LasseCash-Migration-to-MAGI**
 - The full rules at **https://lassecash.pages.dev/about** — the new site.
   ⚠️ Not the old About page on lassecash.com: that one describes the
