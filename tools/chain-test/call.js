@@ -17,7 +17,7 @@
 const { Client, PrivateKey } = require("/tmp/keycheck/node_modules/@hiveio/dhive");
 const fs = require("fs");
 
-const CONTRACT = "vsc1BYKrSivqTYcQBRo376aQiZ1JFNSdDAmsp9"; // throwaway #6: UserRetireBudget/MaxRetirePerWalk=50 + weight-0 unvote soak, TESTWINDOWS 240x
+const CONTRACT = "vsc1BmUAUR1JQ67HNqLqGzPnRYQ65SaxfZDJ82"; // throwaway #6 (deployed 2026-08-24, real one — this file's previous pin was stale, actually #2): same-day-claim, GA boundary/rounding, pool dust-lockup, governance board fixes; TESTWINDOWS 240x
 const cfgPath = `${__dirname}/../../deploy-data/config/identityConfig.json`;
 
 async function main() {
