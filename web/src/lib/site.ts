@@ -40,7 +40,7 @@ export const SITE_DESCRIPTION =
  * against. `absolute()` derives it from the same SITE_URL everything else
  * uses, so it never drifts when the site moves.
  */
-export const SITE_OG_IMAGE = absolute("/og-card.png");
+export const SITE_OG_IMAGE = absolute("/og-card-2.png");
 
 /**
  * Strip the chain's namespace for display and for URLs.
