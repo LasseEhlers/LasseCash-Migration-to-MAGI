@@ -290,10 +290,10 @@ export class LasseCashClient {
   /**
    * Plan the `advance` slices a mint/claim needs in front of it.
    *
-   * The contract lets an ordinary call retire only UserRetireBudget (50)
+   * The contract lets an ordinary call retire only UserRetireBudget (25)
    * matured accounts as a side effect; a heavier day — the migration
    * maturity day above all — must be crossed by `advance`, one
-   * MaxRetirePerWalk slice per call. This reads how far accrual lags
+   * MaxRetirePerWalk (50) slice per call. This reads how far accrual lags
    * (`acc_day` vs today) and how many accounts are queued on the days in
    * between (`explc_<day>` chunk counts × ExpiryChunkSize), and returns that
    * many slices, capped. The signer sends as many as the account can afford

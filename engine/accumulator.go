@@ -135,5 +135,15 @@ func Entitlement(shares Shares, accStart, accEnd int64) Amount {
 const (
 	ExpiryChunkSize  = 25
 	MaxRetirePerWalk = 50
-	UserRetireBudget = 2 * ExpiryChunkSize
+	// UserRetireBudget == MaxRetirePerWalk (50) on 2026-08-22 collapsed the
+	// intended two tiers into one: an ordinary transaction (a transfer, a
+	// vote) that happens to cross a day boundary with a backlog paid the
+	// SAME RC as a dedicated advance call — full migration-cliff cost on a
+	// plain transfer. One ExpiryChunkSize (25) restores the split: enough
+	// for a normal day's maturities, never the migration day's, which stays
+	// on advance — the site already bundles advance calls ahead of a real
+	// action via preCalls (see LasseCashClient.catchUp), so the heavy
+	// lifting was never actually resting on ordinary transactions anyway.
+	// Lasse's call, 2026-08-24.
+	UserRetireBudget = ExpiryChunkSize
 )

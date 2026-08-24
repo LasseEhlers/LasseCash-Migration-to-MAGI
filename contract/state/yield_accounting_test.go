@@ -304,6 +304,15 @@ func TestMaturityCohortSharesTheDayEqually(t *testing.T) {
 	mature := genesis + 30*day
 	afterClose := mature + day
 
+	// Closing a 50-mint day now legitimately takes more than one ordinary
+	// call: UserRetireBudget (25, since 2026-08-24) retires fewer per call
+	// than the cohort's size, on purpose — the heavy lifting on a migration-
+	// cliff-sized day belongs to the dedicated `advance` walk, exactly what
+	// the real site bundles ahead of a user's claim via catchUp(). Mirror
+	// that here rather than relying on the first claim's own side-effect
+	// retirement to close the day, which it no longer reliably can.
+	AccrueFully(s, afterClose)
+
 	cohortBefore := Balance(s, "hive:cohort0")
 	var cohortReceived engine.Amount
 	// The cohort claims first, in order, all AFTER the day has closed.
