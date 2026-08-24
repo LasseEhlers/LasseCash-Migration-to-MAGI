@@ -10,7 +10,7 @@
   import { blockSplit, constants, fromUnits, supplyLimits, toBaseUnitArg, toUnits } from "$api/index.js";
   import Seo from "$lib/Seo.svelte";
   import Immutability from "$lib/Immutability.svelte";
-  import { SITE_URL } from "$lib/site.js";
+  import { SITE_OG_IMAGE, SITE_URL } from "$lib/site.js";
 
   const info = $derived(chain.info);
   const C = $derived(chain.ready ? constants() : null);
@@ -56,6 +56,7 @@
   title="Chain"
   description="Live LASSECASH supply against the 51,000,000 hardcap, the per-block reward split, the consensus group and the protocol constants."
   canonical={`${SITE_URL}/chain`}
+  image={SITE_OG_IMAGE}
 />
 
 <div class="grid">

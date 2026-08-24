@@ -9,7 +9,7 @@
   import RateChart from "$lib/RateChart.svelte";
   import Hbd from "$lib/Hbd.svelte";
   import Seo from "$lib/Seo.svelte";
-  import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "$lib/site.js";
+  import { SITE_DESCRIPTION, SITE_NAME, SITE_OG_IMAGE, SITE_URL } from "$lib/site.js";
   import {
     constants, dailyRewards, estimateRewardShare, shareRate, shareRateHbd, toBaseUnitArg,
   } from "$api/index.js";
@@ -120,6 +120,7 @@
   title="LasseMint"
   description={SITE_DESCRIPTION}
   canonical={`${SITE_URL}/`}
+  image={SITE_OG_IMAGE}
   schema={{
     "@context": "https://schema.org",
     "@type": "WebSite",

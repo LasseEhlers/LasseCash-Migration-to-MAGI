@@ -20,7 +20,7 @@
   import Seo from "$lib/Seo.svelte";
   import { lc } from "$lib/format.js";
   import { cleanName, fetchLegacyQuote, fromUnits, selfSigned, shardOf, usdValue, type HeOp, type LegacyQuote } from "$api/index.js";
-  import { SITE_URL, SNAPSHOT_BLOCK, SNAPSHOT_WHEN } from "$lib/site.js";
+  import { SITE_OG_IMAGE, SITE_URL, SNAPSHOT_BLOCK, SNAPSHOT_WHEN } from "$lib/site.js";
   import { base } from "$app/paths";
 
   type Row = {
@@ -130,6 +130,7 @@
   title="Am I in the LASSECASH snapshot?"
   description="Check whether your Hive account qualifies for the LASSECASH migration to MAGI, and what to do before the snapshot block if it does not."
   canonical={`${SITE_URL}/check`}
+  image={SITE_OG_IMAGE}
 />
 
 <div class="wrap">

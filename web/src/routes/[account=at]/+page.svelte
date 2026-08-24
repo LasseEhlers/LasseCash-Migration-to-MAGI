@@ -19,7 +19,7 @@
   import { chain, client } from "$lib/chain.svelte.js";
   import { displayName, lc, lcShort, shortDate, durationWords } from "$lib/format.js";
   import Seo from "$lib/Seo.svelte";
-  import { SITE_NAME, SITE_URL, metaDescription, profileUrl } from "$lib/site.js";
+  import { SITE_NAME, SITE_OG_IMAGE, SITE_URL, metaDescription, profileUrl } from "$lib/site.js";
   import type { AccountView, PostView } from "$api/index.js";
   import type { PageData } from "./$types";
 
@@ -108,6 +108,7 @@
   {description}
   canonical={profileUrl(account)}
   type="profile"
+  image={SITE_OG_IMAGE}
   {schema}
 />
 

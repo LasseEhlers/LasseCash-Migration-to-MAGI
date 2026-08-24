@@ -16,7 +16,7 @@
   import Seo from "$lib/Seo.svelte";
   import Hbd from "$lib/Hbd.svelte";
   import TrancheHealth from "$lib/TrancheHealth.svelte";
-  import { SITE_URL } from "$lib/site.js";
+  import { SITE_OG_IMAGE, SITE_URL } from "$lib/site.js";
 
   let direction = $state<SwapDirection>("lc_hbd");
   let amountIn = $state("1000");
@@ -308,6 +308,7 @@
   title="LASSECASH:HBD Pool"
   description="Swap LASSECASH and HBD at zero fee, provide liquidity, and earn the loyalty bonus — up to +90% at 90 days."
   canonical={`${SITE_URL}/pool`}
+  image={SITE_OG_IMAGE}
 />
 
 <div class="grid">

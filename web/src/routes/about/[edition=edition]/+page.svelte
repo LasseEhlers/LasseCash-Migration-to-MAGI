@@ -10,7 +10,7 @@
   import AboutFigure from "$lib/AboutFigure.svelte";
   import DoorFigure from "$lib/DoorFigure.svelte";
   import Seo from "$lib/Seo.svelte";
-  import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "$lib/site.js";
+  import { SITE_DESCRIPTION, SITE_NAME, SITE_OG_IMAGE, SITE_URL } from "$lib/site.js";
   import type { PageData } from "./$types";
 
   let { data }: { data: PageData } = $props();
@@ -88,6 +88,7 @@
     ? "Three ways to earn LASSECASH — write, lock, provide — on a token nobody can change. The one-minute version."
     : SITE_DESCRIPTION}
   canonical={`${SITE_URL}/about/${data.edition}`}
+  image={SITE_OG_IMAGE}
   schema={{
     "@context": "https://schema.org",
     "@type": "AboutPage",

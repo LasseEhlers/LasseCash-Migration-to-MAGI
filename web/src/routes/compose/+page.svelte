@@ -19,7 +19,7 @@
   import { PayoutMode, Window, permlinkFor } from "$api/index.js";
   import { wallet } from "$lib/chain.svelte.js";
   import Seo from "$lib/Seo.svelte";
-  import { SITE_URL } from "$lib/site.js";
+  import { SITE_OG_IMAGE, SITE_URL } from "$lib/site.js";
 
   let title = $state("");
   let body = $state("");
@@ -196,6 +196,7 @@
   title="Write"
   description="Publish to LasseMedia. Your post's canonical home is LasseCash, on every Hive frontend."
   canonical={`${SITE_URL}/compose`}
+  image={SITE_OG_IMAGE}
 />
 
 <div class="grid wide">

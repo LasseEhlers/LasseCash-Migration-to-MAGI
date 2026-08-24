@@ -33,6 +33,16 @@ export const SITE_DESCRIPTION =
   "contracts on MAGI, 51,000,000 hardcap, no admin keys.";
 
 /**
+ * The default share-card image — 1200x630, the standard OpenGraph size.
+ *
+ * Absolute, not relative: Discord, Twitter and every other unfurler fetch
+ * `og:image` server-side, with no page context to resolve a relative URL
+ * against. `absolute()` derives it from the same SITE_URL everything else
+ * uses, so it never drifts when the site moves.
+ */
+export const SITE_OG_IMAGE = absolute("/og-card.png");
+
+/**
  * Strip the chain's namespace for display and for URLs.
  *
  * The chain addresses accounts as `hive:lasseehlers`; people, links and Hive

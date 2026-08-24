@@ -29,7 +29,7 @@
   import PromotedBadge from "$lib/PromotedBadge.svelte";
   import VoteSlider from "$lib/VoteSlider.svelte";
   import VoterList from "$lib/VoterList.svelte";
-  import { SITE_NAME, SITE_URL, absolute, metaDescription, profileUrl } from "$lib/site.js";
+  import { SITE_NAME, SITE_OG_IMAGE, SITE_URL, absolute, metaDescription, profileUrl } from "$lib/site.js";
   import { PayoutMode, type PostView } from "$api/index.js";
   import type { PageData } from "./$types";
 
@@ -59,7 +59,10 @@
   const description = $derived(
     metaDescription(a.summary || `${a.title} — by @${a.handle} on ${SITE_NAME}.`),
   );
-  const cover = $derived(a.cover ? absolute(a.cover) : null);
+  // Falls back to the site's default share card when the author gave the
+  // post no cover — a post with no thumbnail unfurled as a bare text box,
+  // which reads as broken next to every other page's branded card.
+  const cover = $derived(a.cover ? absolute(a.cover) : SITE_OG_IMAGE);
 
   /**
    * `Article` structured data.
@@ -79,7 +82,7 @@
       url: profileUrl(a.author),
     },
     ...(a.created ? { datePublished: a.created } : {}),
-    ...(cover ? { image: [cover] } : {}),
+    image: [cover],
     url: a.canonical,
     mainEntityOfPage: { "@type": "WebPage", "@id": a.canonical },
     publisher: {

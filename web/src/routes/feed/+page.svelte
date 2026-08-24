@@ -21,7 +21,7 @@
   import VoteSlider from "$lib/VoteSlider.svelte";
   import VoterList from "$lib/VoterList.svelte";
   import Seo from "$lib/Seo.svelte";
-  import { SITE_DESCRIPTION, SITE_NAME, SITE_URL, postPath } from "$lib/site.js";
+  import { SITE_DESCRIPTION, SITE_NAME, SITE_OG_IMAGE, SITE_URL, postPath } from "$lib/site.js";
   import { compare, isPositive, PayoutMode, type PostMeta, type PostView } from "$api/index.js";
   import type { PageData } from "./$types";
 
@@ -227,6 +227,7 @@
   title={`${SITE_NAME} — LasseMedia`}
   description={SITE_DESCRIPTION}
   canonical={`${SITE_URL}/feed`}
+  image={SITE_OG_IMAGE}
   schema={{
     "@context": "https://schema.org",
     "@type": "CollectionPage",

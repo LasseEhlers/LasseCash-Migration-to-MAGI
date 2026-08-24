@@ -24,7 +24,7 @@
   import { displayName, lc, lcShort } from "$lib/format.js";
   import { governableParams, readGovernance, type GovernanceView } from "$lib/governance.js";
   import Seo from "$lib/Seo.svelte";
-  import { SITE_NAME, SITE_URL } from "$lib/site.js";
+  import { SITE_NAME, SITE_OG_IMAGE, SITE_URL } from "$lib/site.js";
   import { compare, constants, fromUnits, toUnits, type EffectiveValue } from "$api/index.js";
 
   let view = $state<GovernanceView | null>(null);
@@ -119,6 +119,7 @@
   title="Governance"
   description="The ten seats, their standing preferences, and the median in force for every governable LasseCash parameter."
   canonical={`${SITE_URL}/governance`}
+  image={SITE_OG_IMAGE}
   schema={{
     "@context": "https://schema.org",
     "@type": "WebPage",
