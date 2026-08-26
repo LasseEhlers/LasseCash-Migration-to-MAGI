@@ -131,3 +131,33 @@ Alternative: accept the devnet measurement of the 25-budget
 
 Tooling: `cliff.js` gained `transfer <from> <to> <amount>` (vsc.transfer) and
 loads dhive from `tools/chain-test/node_modules` (was `/tmp`, wiped).
+
+## RUN 2 — 2026-08-26 21:02–22:35 UTC+2: BOTH TARGETS PROVEN ON MAINNET ✅
+
+Sequential orchestrator (`scratchpad/cliff2.sh`, `cliff2b.sh`): every step
+simulated, funded just-in-time from @lassecashmagi's MAGI HBD (`vsc.transfer`
+works at 0 RC; capacity rises the moment it lands), limit = 1.2–1.3× sim,
+confirmed on-chain before the next; each finished account's HBD pulled back
+into the pool so ~10 HBD in flight served 26 mints. Durations chosen per call
+(`T − today`) so mints created on days 8…19 all matured on **day 20**.
+
+| check | result |
+|---|---|
+| 26 entries on one day | `explc_20 = 2` (chunks of 25), board full at 20, @ancaptest (1095 d, 2,261.47 shares) the weakest LIVE seat, in the tail |
+| `transfer` as "ordinary tx" | does NOT walk (168 RC, `acc_day` unchanged) — **`settle` is the ordinary walk**; `mint`/`claim_mint` refuse while behind |
+| ONE `settle` after day 20 | `settled partially; call advance to catch up`, **3,747 RC**; `explp_20 = 1`; **25 positions → 0, exactly one left** (@acash's 2nd mint, entry #26, 499.99 shares); survivor untouched |
+| second `settle` | `settled`, 790 RC; list keys deleted; @acash → 0; `acc_day` 21 |
+| newcomer (@lassecashmagi, 500 LC × 30 d = 506.62 shares) | **seated automatically, position 0**, board 20 — above 19 zeroed seats, below the survivor: the exact shape the pre-fix board rejected |
+| `promote` half | not run (no 21st fresh account); optional: @lasseehlers mints 500 LC on #8 via the site, then anyone `promote hive:lasseehlers` |
+
+Cost curve, measured (full board, growing chunk): claim 600–1,500 RC; mint
+1,118 → 2,994 → 3,853 → … → **8,793 RC** as the board filled and the day's
+chunk grew. Launch-day implication: a claim/mint that lands while the board
+is being contested by many can cost ~3× the quiet figure; the site's
+3×-simulated limit is the right shape, its 30k cap has headroom.
+
+HBD: ~122 parked, swept back; @lassecashmagi reads 129.95 on MAGI vs 141.95
+at start — the ~11 HBD gap matches its outstanding rc_limits (rc_limit
+reserves HBD, see night-run notes) and should reappear as they thaw; the
+0.05 HBD left on each test account (20 × 0.05) and 0.019 dust are the only
+real spend. **Verify the 11 HBD is back on 2026-08-27.**

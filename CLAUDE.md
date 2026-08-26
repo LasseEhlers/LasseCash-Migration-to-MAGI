@@ -1677,8 +1677,14 @@ update to 6 and seven).
   dashboard. **Launch switch = change `VITE_CONTRACT_ID`, delete
   `VITE_TESTWINDOWS`.** Verified by curl: SSR feed/post pages with canonical,
   about, robots, sitemap, llms.txt, `.md` endpoints, engine WASM.
+- **Throwaway #8 (`vsc1BVAmFAEyzxxcC7Tko9h7LRqZFW7SYX6dMc`, 2026-08-26) PROVED
+  `UserRetireBudget=25` and the board regression on MAINNET** — one `settle`
+  on a 26-maturity day retired exactly 25 and parked the cursor, the next
+  drained it, a newcomer seated over 19 zeroed seats. `settle` is the
+  ordinary walk; `transfer` does not walk. Same-block mints cost up to 3× their
+  simulation. docs/THROWAWAY-8-CLIFF-PLAN.md.
 - **Contract is a production candidate**, but three changes landed AFTER
-  throwaway #5 and are unproven on mainnet: weight-0 unvote; ordinary calls
+  throwaway #5 and are unproven on mainnet (the retire budget now IS proven, see #8): weight-0 unvote; ordinary calls
   retire at most `UserRetireBudget=50` (advance carries the rest);
   `MaxRetirePerWalk=50` (DECIDED: a day-30 slice ≈ 6,500 RC fits any fresh
   account — the crowd crosses the migration day, ~32 calls). → **throwaway
