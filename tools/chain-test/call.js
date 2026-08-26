@@ -14,10 +14,10 @@
  *
  * The active key is read from deploy-data and NEVER printed.
  */
-const { Client, PrivateKey } = require("/tmp/keycheck/node_modules/@hiveio/dhive");
+const { Client, PrivateKey } = require("@hiveio/dhive");
 const fs = require("fs");
 
-const CONTRACT = "vsc1BmUAUR1JQ67HNqLqGzPnRYQ65SaxfZDJ82"; // throwaway #6 (deployed 2026-08-24, real one — this file's previous pin was stale, actually #2): same-day-claim, GA boundary/rounding, pool dust-lockup, governance board fixes; TESTWINDOWS 240x
+const CONTRACT = "vsc1BVAmFAEyzxxcC7Tko9h7LRqZFW7SYX6dMc"; // throwaway #8 (deployed 2026-08-26 18:10): TESTWINDOWS+push, UserRetireBudget=25 — the board-cliff soak (docs/THROWAWAY-8-CLIFF-PLAN.md)
 const cfgPath = `${__dirname}/../../deploy-data/config/identityConfig.json`;
 
 async function main() {
