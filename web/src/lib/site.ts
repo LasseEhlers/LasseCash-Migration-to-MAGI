@@ -166,4 +166,4 @@ export const SNAPSHOT_WHEN = "Monday 31 August 2026, 12:00 UTC";
  * throwaway, so every economic figure is 240x out and sign-in would let a
  * stranger put real HBD into a pool that gets abandoned at genesis.
  */
-export const PRELAUNCH = import.meta.env.VITE_PRELAUNCH === "1";
+export const PRELAUNCH = false; // PHONE-PREVIEW BRANCH ONLY — never merge: gate forced off so the full site can be checked on a phone against throwaway #8
