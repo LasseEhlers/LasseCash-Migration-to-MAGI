@@ -161,3 +161,22 @@ at start — the ~11 HBD gap matches its outstanding rc_limits (rc_limit
 reserves HBD, see night-run notes) and should reappear as they thaw; the
 0.05 HBD left on each test account (20 × 0.05) and 0.019 dust are the only
 real spend. **Verify the 11 HBD is back on 2026-08-27.**
+
+## RUN 3 — 2026-08-27: bleed and `sweep_mint` observed on mainnet ✅
+
+The cliff positions matured day 20, sat through 90 days of grace, bled from
+day 110. Dry-run claims tracked the curve exactly: day 167 → 36.7% left,
+day 175 → 27.8%, day 201 → **`claimed 0`**. `sweep_mint` was refused while
+any value remained ("mint still holds value; only the owner may end it").
+
+At day 201, `sweep_mint hive:lcthresh04|1` from @lassecashmagi (tx
+`14e46b11…`, 12,203 RC incl. a 25-day catch-up walk): CONFIRMED,
+*"swept 901589666356 to the reward pool"* = 9,015.89666356 LC (9,000
+principal + 15.90 yield earned before maturity). Caller's balance unchanged
+(4,499 LC — pays nothing), owner keeps its liquid 500 LC, `shr_` 0, the
+mint record retained with field 6 = 1 (closed). `pool_lshare` 172.40 →
+10,884.73 LC (the swept amount plus emission credited by the walk).
+
+With this, every lifecycle event a mint can have has now run on mainnet:
+create, accrue, mature, retire (cliff), claim at maturity, grace, bleed,
+sweep. Left for the calendar: the Sept 1 monthly PoB mint (#5).
