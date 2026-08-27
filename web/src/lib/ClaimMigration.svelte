@@ -258,6 +258,12 @@
       <button onclick={claim} disabled={chain.busy}>
         {chain.busy ? "Claiming…" : "Claim"}
       </button>
+      <!-- Mobile wallet paths are untested at launch (deferred 2026-08-27,
+           LAUNCH-RUNBOOK §8). Remove this line once they are. -->
+      <p class="deadline dim">
+        Claim from a <strong>desktop browser with Hive Keychain</strong> —
+        phone support follows in the first week.
+      </p>
     {:else}
       <p class="dim">Loading the engine…</p>
     {/if}

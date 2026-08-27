@@ -31,7 +31,7 @@
       Rebuild and re-record on the final commit before `./deploy.sh deploy`.
 - [ ] Spec `.odt` updated from `docs/Spec changes since v1.md`; `.md` regenerated.
 - [ ] Final announcement drafted (block X, the 3-month rule, how to stay
-      alive, how to claim, the 150-day window, Hive-Engine token is dead).
+      alive, how to claim, the 210-day window, Hive-Engine token is dead).
 - [ ] Hive-Engine token info text drafted.
 - [ ] **The contract OWNER is `@lassecashmagi`, never `@lasseehlers`.**
       §7 burns the owner ACCOUNT's keys (all four authorities → null key), so
@@ -62,8 +62,13 @@
 Post from **@lasseehlers** on lassecash.com/Hive. Must contain:
 block X (snapshot height), the 3-month rule with the exact qualifying
 operations, "voting/posting do NOT count", the one-week roll call, "claim on
-lassecash.com within 150 days of genesis", "unclaimed goes to the reward
-pool", "Hive-Engine LASSECASH is dead after block X — do not buy it".
+lassecash.com within 210 days of genesis", "unclaimed goes to the reward
+pool", "Hive-Engine LASSECASH is dead after block X — do not buy it",
+and **"claim from a desktop browser with Hive Keychain; phone support
+follows"** — the mobile paths (Keychain app browser, HiveAuth) are
+frontend-only and DELIBERATELY untested at launch (decided 2026-08-27):
+nothing on a phone touches the frozen contract, and the 210-day window
+makes a day of desktop-only claiming cost nobody anything.
 Pin it. Update the Hive-Engine token info tab to point at it.
 
 ## 2. T-0 — block X passes: take the snapshot
@@ -132,7 +137,7 @@ vsc-mainnet`, `VITE_CHAIN_URL=https://api.vsc.eco/api/v1/graphql`, and NO
 ## 4. 💸 Genesis — two owner transactions, in this order
 
 Genesis height = the Hive height at which you broadcast `init`. Emission,
-the 30-day migration mints, the 150-day claim window and the share-rate
+the 30-day migration mints, the 210-day claim window and the share-rate
 ratchet all count from it. Read it from `localNodeInfo.last_processed_block`
 right before broadcasting and use that exact number.
 
@@ -156,7 +161,7 @@ already holds 15 HBD on MAGI, enough for the seed and the claim on its own.
 ## 5. Ship the site and claim
 
 Deploy the frontend with the `migration/` static files. Then, as a normal
-user on lassecash.com: sign in with Keychain, **Claim** your migration.
+user on lassecash.com, on DESKTOP: sign in with Keychain, **Claim** your migration.
 Verify your mint card appears and `shr_hive:lasseehlers` reads your staked
 figure. Let a friend claim too before announcing "claims are open".
 
@@ -295,7 +300,14 @@ withdraw it the week after). The earlier "~200 HBD" was sized for the
 
 - Hive-Engine: update the token info tab; ask Hive-Engine to delist.
 - Run an `advance` bot so accrual never lags (permissionless; ~100 RC/day).
-- Day 150 + 1: anyone calls `sweep_unclaimed`. Announce the amount recycled.
+- Day 210 + 1: anyone calls `sweep_unclaimed`. Announce the amount recycled.
+- **Week after launch — mobile test** (deferred from pre-launch on
+  2026-08-27): (1) Hive Keychain app → built-in browser → lassecash.com →
+  sign in with Keychain → one posting-key action (vote) and one active-key
+  action (a small mint); (2) phone Chrome → sign in with HiveAuth → the same
+  two actions. Frontend fixes only; then drop the "desktop" caveat from the
+  announcement and the claim page. Until then the claim page should carry
+  the same one-line caveat.
 - Anyone may `record_burn` receipts for burned accounts over time.
 - Keep `tools/migrate.py` (push, `-tags push` build) only as historical
   fallback; it is not part of this runbook.

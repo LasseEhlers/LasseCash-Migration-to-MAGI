@@ -145,6 +145,11 @@ The claim window is **seven months** (210 days), and *when* you claim matters:
 Your **liquid** half is always credited in full, whenever you claim inside the
 window.
 
+**Claim from a desktop browser with Hive Keychain.** Phone support (the
+Keychain app's browser, HiveAuth) follows in the first week — it is site
+work only, nothing on-chain, and with a seven-month window a few days of
+desktop-only claiming costs nobody anything.
+
 Claim early. Claiming in the first 30 days is the only way to get the mint,
 the yield and the voting power.
 
