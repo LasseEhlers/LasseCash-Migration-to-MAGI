@@ -21,11 +21,14 @@
       (claim_migration, record_burn, advance across the migration maturity
       day). `npm test` pins the headroom.
 - [ ] `./build.sh` all green: engine, contract, simulator, API, typecheck.
-- [ ] `FUZZ_ROUNDS=100000 go test -run TestFuzzEconomy ./state/` clean on the
-      final contract code.
+- [x] `FUZZ_ROUNDS=100000 go test -run TestFuzzEconomy ./state/` clean on the
+      final contract code. **DONE 2026-08-27 on commit ab2baa9: 100,000
+      economies, zero failures, 1,840 s.** Re-run if any money path changes.
 - [ ] **Production WASM is the MAINNET build**: `./build.sh wasm` (NOT
-      `wasm-test`; NOT `-tags push`). `contract/artifacts/main.wasm` has 26
-      entrypoints. Record its size and sha256 here: ______
+      `wasm-test`; NOT `-tags push`). `contract/artifacts/main.wasm` has 30
+      entrypoints. As of commit ab2baa9 (2026-08-27): **95,163 bytes,
+      sha256 `ad6902054caa2bac55c40619ceaa0c77547be895935fd43077d0b93851ec9b2b`**.
+      Rebuild and re-record on the final commit before `./deploy.sh deploy`.
 - [ ] Spec `.odt` updated from `docs/Spec changes since v1.md`; `.md` regenerated.
 - [ ] Final announcement drafted (block X, the 3-month rule, how to stay
       alive, how to claim, the 150-day window, Hive-Engine token is dead).
