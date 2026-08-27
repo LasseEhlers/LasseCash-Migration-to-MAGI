@@ -1,6 +1,6 @@
 <script lang="ts">
   /**
-   * Governance — the standing-median board.
+   * Thresholds — the standing-median board.
    *
    * There are no proposals, no quorum, no voting rounds and nothing to time or
    * snipe. Each of the top ten L-Share holders keeps a standing preferred value
@@ -116,21 +116,21 @@
 </script>
 
 <Seo
-  title="Governance"
+  title="Thresholds"
   description="The ten seats, their standing preferences, and the median in force for every governable LasseCash parameter."
-  canonical={`${SITE_URL}/governance`}
+  canonical={`${SITE_URL}/thresholds`}
   image={SITE_OG_IMAGE}
   schema={{
     "@context": "https://schema.org",
     "@type": "WebPage",
-    name: `${SITE_NAME} — Governance`,
-    url: `${SITE_URL}/governance`,
+    name: `${SITE_NAME} — Thresholds`,
+    url: `${SITE_URL}/thresholds`,
   }}
 />
 
 <div class="grid">
   <section class="panel intro">
-    <h2>Median governance</h2>
+    <h2>Median thresholds</h2>
     <p>
       Each of the top ten L-Share holders keeps a <strong>standing preferred
       value</strong> for every governable parameter, changeable at any time, and
@@ -139,7 +139,7 @@
     </p>
     <p>
       Every parameter carries a <strong>hardcoded floor and ceiling that no vote
-      can leave</strong>: the committee can move a value inside its range and
+      can leave</strong>: the top ten can move a value inside its range and
       can never move the range, no matter who controls the seats.
     </p>
     <p class="fine dim">
@@ -157,7 +157,7 @@
   {#if !chain.ready || loading}
     <p class="empty"><strong>Reading the board…</strong></p>
   {:else if !view}
-    <p class="empty"><strong>Could not read governance from the chain.</strong></p>
+    <p class="empty"><strong>Could not read thresholds from the chain.</strong></p>
   {:else}
     <!-- Who holds the ten seats. Derived by the engine from live L-Share
          balances, which is the same derivation a foreign dApp contract makes
@@ -220,7 +220,7 @@
           </div>
           <p class="fine dim">
             Floor and ceiling are hardcoded in the contract. They are not
-            themselves governable — a bounds table a committee could widen would
+            themselves governable — a bounds table the ten could widen would
             be no bounds at all.
           </p>
 

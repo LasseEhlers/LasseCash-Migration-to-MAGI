@@ -75,7 +75,7 @@ export function governableParams(): ParamMeta[] {
     {
       key: c.paramPromoteMinBurn,
       label: "Promotion — minimum burn",
-      what: "The smallest burn that buys a promoted slot. The ceiling is on the MINIMUM, so a captured committee cannot price everyone else out of promoting.",
+      what: "The smallest burn that buys a promoted slot. The ceiling is on the MINIMUM, so captured seats cannot price everyone else out of promoting.",
       unit: "lassecash",
     },
   ];

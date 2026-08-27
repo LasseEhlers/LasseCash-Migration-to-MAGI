@@ -269,11 +269,11 @@ Instead, the **ten largest holders of live L-Shares** hold seats, each keeping a
 
 That list is closed and cannot grow: a parameter means something only if the deployed code reads that key, and after the key burn the code can never be taught to read a new one.
 
-**Why the ceilings exist.** The top ten hold the most shares by definition. Without a ceiling on the posting thresholds, six colluding seats could set the deep threshold above everyone's holdings but their own and farm 37.5% of all emission — capture pays a cartel more than the price damage costs it, so "they want the price up" is not a defence. At the ceiling, a captured committee can at worst squeeze deep posting to a few dozen accounts: painful, visible, reversible, never exclusive. **The floor is one L-Share**, so protection can never be switched off but nobody is locked out. The bounds are in L-Shares rather than dollars because a price-denominated threshold would need an on-chain oracle, and the only one available is LasseCash's own thin, manipulable pool.
+**Why the ceilings exist.** The top ten hold the most shares by definition. Without a ceiling on the posting thresholds, six colluding seats could set the deep threshold above everyone's holdings but their own and farm 37.5% of all emission — capture pays a cartel more than the price damage costs it, so "they want the price up" is not a defence. At the ceiling, ten captured seats can at worst squeeze deep posting to a few dozen accounts: painful, visible, reversible, never exclusive. **The floor is one L-Share**, so protection can never be switched off but nobody is locked out. The bounds are in L-Shares rather than dollars because a price-denominated threshold would need an on-chain oracle, and the only one available is LasseCash's own thin, manipulable pool.
 
 **The bounds are hardcoded because they must be un-negotiable** — a bounds table that was itself governable would be no bounds at all. **And parameter changes affect future mints only:** shares are computed at creation and frozen, so governance can never retroactively dilute a minter.
 
-What the median does not defend against is one entity holding several seats. That is accepted deliberately, and the bounds limit the damage: the top ten is a tweaking committee, not a check on the founder.
+What the median does not defend against is one entity holding several seats. That is accepted deliberately, and the bounds limit the damage: the top ten tune values inside fixed ranges; they are not a check on the founder, and nothing in the protocol is.
 
 ## 8. Immutability
 
