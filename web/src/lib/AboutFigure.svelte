@@ -74,12 +74,12 @@
       <text x="481" y="50" class="in bleedtxt" text-anchor="middle">bleeds to zero</text>
       {#each [{ x: 8, t: "day 0" }, { x: 94, t: "30" }, { x: 352, t: "120" }, { x: 610, t: "210" }] as m}
         <line x1={m.x} y1="24" x2={m.x} y2="66" class="tick" />
-        <text x={m.x} y="18" class="lbl axis" text-anchor="middle">{m.t}</text>
+        <text x={m.x} y="18" class="lbl axis" text-anchor={m.x < 20 ? "start" : m.x > 600 ? "end" : "middle"}>{m.t}</text>
       {/each}
-      <text x="51"  y="82" class="lbl axis" text-anchor="middle">earns and votes</text>
-      <text x="223" y="82" class="lbl axis" text-anchor="middle">no yield</text>
-      <text x="481" y="82" class="lbl axis" text-anchor="middle">what is left, shrinking every block</text>
-      <text x="610" y="100" class="lbl axis" text-anchor="end">after day 210 the claim is refused</text>
+      <text x="51"  y="82" class="lbl axis sub" text-anchor="middle">earns and votes</text>
+      <text x="223" y="82" class="lbl axis sub" text-anchor="middle">no yield</text>
+      <text x="481" y="82" class="lbl axis sub" text-anchor="middle">what is left, shrinking every block</text>
+      <text x="610" y="100" class="lbl axis sub" text-anchor="end">after day 210 the claim is refused</text>
     </svg>
     <figcaption>
       Claim in the first 30 days and the staked half becomes a mint that earns
@@ -99,12 +99,12 @@
       <text x="519" y="50" class="in bleedtxt" text-anchor="middle">90-day bleed</text>
       {#each [{ x: 8, t: "start" }, { x: 248, t: "maturity" }, { x: 428, t: "+90d" }, { x: 610, t: "+180d" }] as m}
         <line x1={m.x} y1="24" x2={m.x} y2="66" class="tick" />
-        <text x={m.x} y="18" class="lbl axis" text-anchor="middle">{m.t}</text>
+        <text x={m.x} y="18" class="lbl axis" text-anchor={m.x < 20 ? "start" : m.x > 600 ? "end" : "middle"}>{m.t}</text>
       {/each}
-      <text x="128" y="82" class="lbl axis" text-anchor="middle">1 to 1,095 days, your choice</text>
-      <text x="338" y="82" class="lbl axis" text-anchor="middle">nothing happens · yield has stopped</text>
-      <text x="519" y="82" class="lbl axis" text-anchor="middle">100% → 0%, linear per block</text>
-      <text x="610" y="100" class="lbl axis" text-anchor="end">worth nothing · sweepable by anyone</text>
+      <text x="128" y="82" class="lbl axis sub" text-anchor="middle">1 to 1,095 days, your choice</text>
+      <text x="338" y="82" class="lbl axis sub" text-anchor="middle">no yield · nothing lost</text>
+      <text x="519" y="82" class="lbl axis sub" text-anchor="middle">100% → 0%, per block</text>
+      <text x="610" y="100" class="lbl axis sub" text-anchor="end">worth nothing · sweepable by anyone</text>
     </svg>
     <figcaption>
       Not to scale: the lock can be twelve times the bleed, and drawing it
@@ -115,7 +115,7 @@
 
 <style>
   .fig { margin: 1.4rem 0; padding: 0; }
-  svg { width: 100%; height: auto; display: block; }
+  svg { width: 100%; max-width: 760px; height: auto; display: block; }
   figcaption {
     margin-top: 0.5rem; font-size: 0.82rem; color: var(--dim); line-height: 1.5;
   }
@@ -136,5 +136,8 @@
   .in { font-size: 11px; font-weight: 600; fill: #0d1117; }
   text.in { fill: var(--ink); }
   .in.bleedtxt { fill: var(--red); }
-  @media (max-width: 560px) { .lbl, .in { font-size: 9px; } }
+  /* A phone scales the 640-unit viewBox to ~330px, halving every label; the
+     old rule shrank them further. Enlarge instead and drop the sub-labels,
+     whose content the caption and the prose already carry. */
+  @media (max-width: 560px) { .lbl, .in { font-size: 14px; } .sub { display: none; } }
 </style>
