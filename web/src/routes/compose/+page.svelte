@@ -233,7 +233,7 @@
 
       <label class="field">
         <span>Title</span>
-        <input bind:value={title} placeholder="Say something worth 30 days" />
+        <input bind:value={title} placeholder={window_ === 1 ? "Say something worth 30 days" : "Say something worth 7 days"} />
       </label>
 
       <label class="field">
