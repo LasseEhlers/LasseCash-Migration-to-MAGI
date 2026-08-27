@@ -10,12 +10,13 @@
    * and a second implementation here would drift. A drift on this page tells
    * somebody they are safe when the snapshot will burn them.
    *
-   * WHAT THE PAGE DOES COMPUTE is nothing: the live Hive-Engine lookup below
-   * only LISTS an account's recent LASSECASH operations. It deliberately does
-   * not judge them. The shards are a photograph, so an account that acts today
-   * still reads "not in" until they are rebuilt; showing the raw operations
-   * lets a person see their own fresh transaction immediately without this page
-   * having to re-derive a rule it must not own.
+   * WHAT THE PAGE DOES COMPUTE is one thing: the shards are a photograph, so
+   * an account that acts today reads "not in" until they are rebuilt. The live
+   * Hive-Engine lookup lists the account's recent LASSECASH operations, and if
+   * one of them is self-signed (the shared `selfSigned` rule from $api, the
+   * same one the table column uses) and after the shards' own cutoff, the
+   * verdict flips to IN. That is a read of the same rule one row earlier, not
+   * a second implementation of it.
    */
   import Seo from "$lib/Seo.svelte";
   import { lc } from "$lib/format.js";
@@ -121,6 +122,18 @@
   }
 
   const cutoffDate = $derived(index ? index.cutoff.slice(0, 10) : "");
+  /**
+   * The live override. The shards are a photograph; a person who acted after
+   * it was taken must not stare at "NOT in" with the proof of the opposite
+   * listed underneath (@tibfox, 2026-08-27). This applies the same shared
+   * `selfSigned` rule the table uses, against the same cutoff the shards
+   * were built with — it re-derives nothing new, it reads one row earlier.
+   */
+  const liveOp = $derived.by(() => {
+    if (!ops || !index) return null;
+    const cutoff = Date.parse(index.cutoff);
+    return ops.find((o) => selfSigned(o, asked) && o.timestamp * 1000 >= cutoff) ?? null;
+  });
   function when(ts: number): string {
     return new Date(ts * 1000).toISOString().slice(0, 10);
   }
@@ -208,6 +221,24 @@
           {#if hiveExists}The account exists on Hive, but there{:else}There{/if}
           is no LASSECASH balance for it on Hive-Engine, so there is nothing to
           migrate. That is not a rejection — there is simply nothing there.
+        </p>
+      </div>
+    {:else if row && liveOp}
+      <div class="verdict in">
+        <h2>@{asked} — you are IN</h2>
+        <dl>
+          <dt>you hold</dt><dd class="mono">{lc(fromUnits(BigInt(row.liquid) + BigInt(row.staked)))}</dd>
+          {#if quote}
+            <dt class="est">≈ worth today</dt>
+            <dd class="mono est">${usd(BigInt(row.liquid) + BigInt(row.staked))}</dd>
+          {/if}
+          <dt>last LASSECASH action</dt>
+          <dd class="mono">{when(liveOp.timestamp)} ({liveOp.operation.replace("tokens_", "")})</dd>
+        </dl>
+        <p class="note">
+          Seen <b>live on Hive-Engine</b>: you signed this after our data was
+          last rebuilt, so it is not in the table below the fold yet — but the
+          chain has it, and the chain is what the snapshot reads.
         </p>
       </div>
     {:else if row}
