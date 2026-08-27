@@ -44,6 +44,7 @@ func main() {
 		"routePayout":        js.FuncOf(routePayout),
 		"blockSplit":         js.FuncOf(blockSplit),
 		"dailyRewards":       js.FuncOf(dailyRewards),
+		"poolApy":            js.FuncOf(poolApy),
 		"supplyLimits":       js.FuncOf(supplyLimits),
 
 		// governed values — exact for the state rows handed in, but chain state
@@ -375,6 +376,14 @@ func dailyRewards(_ js.Value, a []js.Value) any {
 		"viral":        amt(viral),
 		"deep":         amt(deep),
 	}
+}
+
+// poolApy(dailyLiquidity, lcReserve, totalShares, totalWeight) — day-one APY
+// of a fresh deposit, 1e8-scaled (Unit = 100%). ESTIMATE: reserves and
+// weight are live pool state. Forwards to engine.PoolAPY.
+func poolApy(_ js.Value, a []js.Value) any {
+	apy, ok := engine.PoolAPY(arg(a, 0), arg(a, 1), engine.Shares(arg(a, 2)), engine.Shares(arg(a, 3)))
+	return map[string]any{"ok": ok, "apy": amt(apy)}
 }
 
 // supplyLimits(snapshotTotal) — the hardcap picture: the committed snapshot

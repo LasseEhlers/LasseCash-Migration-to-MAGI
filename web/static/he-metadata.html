@@ -1,0 +1,102 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Hive-Engine token metadata — Keychain</title>
+<style>
+  body{background:#0a0a0a;color:#eee;font:16px/1.5 system-ui;max-width:720px;margin:40px auto;padding:0 16px}
+  input,textarea{width:100%;background:#111;color:#ffd54a;border:1px solid #444;font:14px monospace;padding:6px;box-sizing:border-box}
+  textarea{height:150px}
+  button{background:#ffd54a;color:#000;border:0;padding:12px 20px;font-weight:700;cursor:pointer;margin-right:8px}
+  pre{background:#111;padding:12px;white-space:pre-wrap;color:#7fe0ff}
+  label{display:block;margin-top:12px;color:#aaa}
+</style>
+<h1>Update a token's Hive-Engine metadata</h1>
+<p>Issuer-only <code>updateMetadata</code> on the <code>tokens</code> contract, signed by Keychain with
+<b>@lasseehlers</b> ACTIVE authority. Changes url/icon/desc only — never supply or balances.</p>
+<label>Symbol</label>
+<input id="sym" value="PUPPY">
+<p><button id="load">Load current</button></p>
+<label>URL</label><input id="url">
+<label>Icon</label><input id="icon">
+<label>Description (metadata JSON must stay ≤ 1000 chars)</label>
+<textarea id="desc"></textarea>
+<p><button id="go">Sign with Keychain</button> <span id="len"></span></p>
+<pre id="out">Keychain: <span id="kc">checking…</span></pre>
+<script>
+  const $ = (id) => document.getElementById(id), out = $("out");
+  const PRESET = {
+    PUPPY: "PUPPY was an experiment in pool dynamics (rewarding liquidity pools with a meme token). The experiment failed and the token is DISCARDED: no further use, no rewards, no value. The LASSECASH:PUPPY pool remains only because Diesel pools cannot be deleted. LasseCash itself has migrated to MAGI — see https://lassecash.com/about",
+  };
+  window.addEventListener("load", () => setTimeout(() => {
+    $("kc").textContent = window.hive_keychain ? "detected" : "NOT detected — open this page in the browser with the Keychain extension";
+  }, 500));
+  const meta = () => ({ url: $("url").value, icon: $("icon").value, desc: $("desc").value });
+  const updLen = () => { $("len").textContent = JSON.stringify(meta()).length + " / 1000"; };
+  ["url", "icon", "desc"].forEach((id) => $(id).oninput = updLen);
+  $("load").onclick = async () => {
+    const sym = $("sym").value.trim().toUpperCase();
+    out.textContent = "loading " + sym + "…";
+    const r = await fetch("https://api.hive-engine.com/rpc/contracts", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "findOne", params: { contract: "tokens", table: "tokens", query: { symbol: sym } } }) });
+    const t = (await r.json()).result;
+    if (!t) { out.textContent = "no such token"; return; }
+    let m = {}; try { m = JSON.parse(t.metadata || "{}"); } catch (_) {}
+    $("url").value = m.url || ""; $("icon").value = m.icon || ""; $("desc").value = PRESET[sym] || m.desc || "";
+    out.textContent = `loaded ${sym} (issuer @${t.issuer}, supply ${t.supply})\ncurrent desc: ${m.desc || "(none)"}`;
+    updLen();
+  };
+  $("go").onclick = () => {
+    const sym = $("sym").value.trim().toUpperCase(), metadata = meta();
+    if (JSON.stringify(metadata).length > 1000) { out.textContent = "too long: metadata must be ≤ 1000 chars"; return; }
+    if (!window.hive_keychain) { out.textContent = "Keychain not found"; return; }
+    const json = JSON.stringify({ contractName: "tokens", contractAction: "updateMetadata", contractPayload: { symbol: sym, metadata } });
+    out.textContent = "waiting for Keychain…";
+    window.hive_keychain.requestCustomJson("lasseehlers", "ssc-mainnet-hive", "Active", json, sym + ": update token metadata", (r) => {
+      out.textContent = r.success ? "BROADCAST OK\ntx id: " + (r.result && r.result.id) + "\n\nverify on https://tribaldex.com/tokens/" + sym + " in ~1 minute"
+                                  : "FAILED: " + (r.message || JSON.stringify(r));
+    });
+  };
+</script>
+<hr style="border-color:#333;margin:32px 0">
+<h2>Batch: retire the experiment tokens</h2>
+<p>Every token issued by @lasseehlers. Ticked = will get the short text below (its url/icon kept). One Keychain prompt per token, in sequence.</p>
+<p><button id="list">List my tokens</button></p>
+<div id="toks"></div>
+<label>Short description for all ticked</label>
+<textarea id="bdesc" style="height:90px">DISCARDED. This token was part of a failed LasseCash experiment (pool-reward / meme tokens) and has no use, no rewards and no value. LasseCash itself migrated to MAGI: https://lassecash.com/about</textarea>
+<label>Website (url) for all ticked — this is the one field Tribaldex's popup shows</label>
+<input id="burl" value="https://lassecash.com/about">
+<p><button id="goall">Sign all ticked with Keychain</button></p>
+<pre id="bout"></pre>
+<script>
+  const KEEP = new Set(["LASSECASH","ACASH","LCASH"]); // not part of the experiment — left unticked
+  const bout = $("bout");
+  const listTokens = async () => { try {
+    bout.textContent = "loading token list…";
+    const r = await fetch("https://api.hive-engine.com/rpc/contracts", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "find", params: { contract: "tokens", table: "tokens", query: { issuer: "lasseehlers" }, limit: 200 } }) });
+    const toks = (await r.json()).result;
+    $("toks").innerHTML = toks.map((t) => { let m = {}; try { m = JSON.parse(t.metadata || "{}"); } catch (_) {}
+      return `<label style="display:block;color:#eee"><input type="checkbox" data-sym="${t.symbol}" data-url="${(m.url||"").replace(/"/g,"&quot;")}" data-icon="${(m.icon||"").replace(/"/g,"&quot;")}" ${KEEP.has(t.symbol)?"":"checked"}> <b>${t.symbol}</b> — supply ${t.supply} — <span style="color:#888">${(m.desc||"(no desc)").slice(0,80)}</span></label>`; }).join("");
+    bout.textContent = toks.length + " tokens listed — untick any to keep, then Sign all";
+  } catch (e) { bout.textContent = "list failed: " + e.message; } };
+  $("list").onclick = listTokens;
+  window.addEventListener("load", () => setTimeout(listTokens, 800));
+  const askKc = (sym, metadata) => new Promise((res) => {
+    const json = JSON.stringify({ contractName: "tokens", contractAction: "updateMetadata", contractPayload: { symbol: sym, metadata } });
+    window.hive_keychain.requestCustomJson("lasseehlers", "ssc-mainnet-hive", "Active", json, sym + ": update token metadata", res);
+  });
+  $("goall").onclick = async () => {
+    if (!window.hive_keychain) { bout.textContent = "Keychain not found"; return; }
+    const boxes = [...document.querySelectorAll("#toks input:checked")];
+    if (!boxes.length) { bout.textContent = "nothing listed/ticked — press List my tokens first"; return; }
+    const desc = $("bdesc").value; bout.textContent = "";
+    for (const b of boxes) {
+      const sym = b.dataset.sym, metadata = { url: $("burl").value.trim() || b.dataset.url, icon: b.dataset.icon, desc };
+      bout.textContent += sym + ": waiting for Keychain…\n";
+      const r = await askKc(sym, metadata);
+      bout.textContent = bout.textContent.replace(sym + ": waiting for Keychain…", sym + ": " + (r.success ? "OK " + (r.result && r.result.id) : "FAILED " + (r.message || "")));
+      await new Promise((w) => setTimeout(w, 3500)); // one op per Hive block, keeps Keychain happy
+    }
+    bout.textContent += "done — verify on tribaldex in ~1 min";
+  };
+</script>

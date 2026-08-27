@@ -13,15 +13,20 @@
   // Keep in sync with the same literal in routes/admin/+page.svelte (the
   // soft page gate) — this constant is not worth centralizing for one string.
   const FOUNDER = "hive:lasseehlers";
-  // Governance is for EVERYONE: the top 10 is a public fact, and the value in
-  // force for every governable parameter is readable by anyone. The founder's
-  // private console is the MIGRATION console — named for what it does, so
-  // "Admin" never reads as a set of powers over the protocol that nobody has.
+  // Thresholds is for EVERYONE: the top 10 is a public fact, and the value in
+  // force for every governable parameter is readable by anyone. Named
+  // "Thresholds" rather than "Governance" deliberately — every value this
+  // page tunes is literally a bound (a minimum L-Shares to post, a minimum
+  // burn to promote, a ramp's start/end), and "governance" carries a state
+  // connotation this protocol has no reason to invite.
+  // The founder's private console is the MIGRATION console — named for what
+  // it does, so "Admin" never reads as a set of powers over the protocol
+  // that nobody has.
   // Pre-launch the nav is the two pages that are actually true today. See
   // +layout.ts — the rest redirect, so linking them would be a dead end.
   const navLinks = $derived(PRELAUNCH ? [["/check", "Snapshot"], ["/about", "About"]] : [
     ["/feed", "Feed"], ["/compose", "Write"], ["/", "Mint"], ["/pool", "Pool"],
-    ["/chain", "Chain"], ["/governance", "Governance"],
+    ["/chain", "Chain"], ["/thresholds", "Thresholds"],
     // The roll call: for one week before the snapshot this is the most
     // important page on the site, and it is useless to anyone who cannot find
     // it. It stays afterwards as the permanent public record of who migrated.

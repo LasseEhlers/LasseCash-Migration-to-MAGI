@@ -17,7 +17,7 @@
  *     submit swaps with a minOut.
  */
 import type { Amount } from "./amount.js";
-import { fromUnits, toUnits } from "./amount.js";
+import { fromUnits, toUnits, toBaseUnitArg } from "./amount.js";
 
 /** Raw bridge shape. All values cross as base-unit strings. */
 interface Bridge {
@@ -35,6 +35,9 @@ interface Bridge {
   dailyRewards(genesisHeight: string, height: string): {
     total: string; proofOfBrain: string; lshare: string;
     liquidity: string; viral: string; deep: string;
+  };
+  poolApy(dailyLiquidity: string, lcReserve: string, totalShares: string, totalWeight: string): {
+    ok: boolean; apy: string;
   };
   durationMultiplier(days: number): string;
   volumeMultiplier(principal: string, start: string, end: string): string;
@@ -385,6 +388,21 @@ export interface DailyRewards {
   total: Amount; proofOfBrain: Amount; lshare: Amount;
   liquidity: Amount; viral: Amount; deep: Amount;
 }
+/**
+ * ESTIMATE — day-one APY of a brand-new pool deposit, as a fraction
+ * ("18.25000000" = 1825%). The emission numerator is exact; reserves and
+ * total weight are live pool state and move as others deposit. Null when the
+ * pool is empty. Formula lives in engine.PoolAPY — never recompute it here.
+ */
+export function poolApy(
+  dailyLiquidity: Amount, lcReserve: Amount, totalShares: Amount, totalWeight: Amount,
+): Amount | null {
+  const r = must().poolApy(
+    toBaseUnitArg(dailyLiquidity), toBaseUnitArg(lcReserve),
+    toBaseUnitArg(totalShares), toBaseUnitArg(totalWeight));
+  return r.ok ? u(r.apy) : null;
+}
+
 export function dailyRewards(genesisHeight: number, height: number): DailyRewards {
   const r = must().dailyRewards(String(genesisHeight), String(height));
   return {

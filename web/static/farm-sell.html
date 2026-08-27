@@ -1,0 +1,53 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>FARM NFTs — list for sale via Keychain</title>
+<style>
+  body{background:#0a0a0a;color:#eee;font:16px/1.5 system-ui;max-width:860px;margin:40px auto;padding:0 16px}
+  table{width:100%;border-collapse:collapse}td,th{padding:8px;border-bottom:1px solid #333;text-align:left}
+  input{background:#111;color:#ffd54a;border:1px solid #444;font:14px monospace;padding:4px;width:90px}
+  button{background:#ffd54a;color:#000;border:0;padding:12px 20px;font-weight:700;cursor:pointer}
+  pre{background:#111;padding:12px;white-space:pre-wrap;color:#7fe0ff}
+</style>
+<h1>List my FarmFarmer (FARM) NFTs</h1>
+<p>Reads your FARM NFTs and the current SWAP.HIVE floor per type from Hive-Engine, proposes <b>7% under the current floor</b>, and lists them through the <code>nftmarket</code> contract's <code>sell</code> action — signed by Keychain with <b>@lasseehlers</b> ACTIVE authority, max 50 NFTs per prompt. Nothing moves until a buyer pays; you can cancel any listing later.</p>
+<table><thead><tr><th>Type</th><th>You hold</th><th>Listings</th><th>Floor</th><th>Your price</th><th>List?</th></tr></thead><tbody id="rows"></tbody></table>
+<p><button id="go">Sign listings with Keychain</button></p>
+<pre id="out">loading…</pre>
+<script>
+  const HE = (m, p) => fetch("https://api.hive-engine.com/rpc/contracts", { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: m, params: p }) }).then((r) => r.json()).then((j) => j.result);
+  const out = document.getElementById("out"); let groups = {};
+  (async () => {
+    const mine = await HE("find", { contract: "nft", table: "FARMinstances", query: { account: "lasseehlers" }, limit: 1000 });
+    const book = await HE("find", { contract: "nftmarket", table: "FARMsellBook", query: { priceSymbol: "SWAP.HIVE" }, limit: 1000 });
+    const floors = {}, counts = {};
+    for (const o of book) { const t = o.grouping.name; counts[t] = (counts[t] || 0) + 1; floors[t] = Math.min(floors[t] ?? 1e9, parseFloat(o.price)); }
+    for (const n of mine) { const t = n.properties.name; (groups[t] = groups[t] || []).push(String(n._id)); }
+    document.getElementById("rows").innerHTML = Object.entries(groups).sort((a, b) => b[1].length - a[1].length).map(([t, ids]) => {
+      const f = floors[t], p = f ? Math.round(f * 0.93 * 1000) / 1000 : 1;
+      return `<tr><td>${t}</td><td>${ids.length}</td><td>${counts[t] || 0}</td><td>${f ?? "—"}</td>
+        <td><input data-type="${t}" value="${p}"> SWAP.HIVE</td><td><input type="checkbox" data-type="${t}" checked style="width:auto"></td></tr>`;
+    }).join("");
+    out.textContent = `${mine.length} FARM NFTs held. Keychain: ${window.hive_keychain ? "detected" : "NOT detected"}`;
+  })().catch((e) => out.textContent = "load failed: " + e.message);
+  const ask = (json, msg) => new Promise((res) => window.hive_keychain.requestCustomJson("lasseehlers", "ssc-mainnet-hive", "Active", json, msg, res));
+  document.getElementById("go").onclick = async () => {
+    if (!window.hive_keychain) { out.textContent = "Keychain not found"; return; }
+    out.textContent = "";
+    for (const box of document.querySelectorAll('input[type=checkbox]:checked')) {
+      const t = box.dataset.type, price = document.querySelector(`input[data-type="${t}"]:not([type=checkbox])`).value.trim();
+      if (!(parseFloat(price) > 0)) { out.textContent += `${t}: bad price, skipped\n`; continue; }
+      const ids = groups[t];
+      for (let i = 0; i < ids.length; i += 50) {
+        const chunk = ids.slice(i, i + 50);
+        const json = JSON.stringify({ contractName: "nftmarket", contractAction: "sell",
+          contractPayload: { symbol: "FARM", nfts: chunk, price: String(price), priceSymbol: "SWAP.HIVE", fee: 1000 } });
+        out.textContent += `${t} × ${chunk.length} @ ${price}: waiting for Keychain…\n`;
+        const r = await ask(json, `FARM: list ${chunk.length} ${t} @ ${price} SWAP.HIVE`);
+        out.textContent = out.textContent.replace("waiting for Keychain…", r.success ? "OK " + (r.result && r.result.id) : "FAILED " + (r.message || ""));
+        await new Promise((w) => setTimeout(w, 3500));
+      }
+    }
+    out.textContent += "done — check farmfarmer.farm market in ~1 min";
+  };
+</script>

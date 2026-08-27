@@ -12,11 +12,12 @@ import {
   blockSplit, consensusGroup, constants, durationMultiplier, effectiveValue,
   engineReady, estimateLiquidity, estimateSwap, lcToHbd, loadEngine,
   loyaltyMultiplier, mintQuote, previewMintClose, routePayout, shareRate,
-  voteCost, volumeMultiplier,
+  voteCost, volumeMultiplier, poolApy, dailyRewards,
 } from "./engine.js";
 import { toBaseUnitArg, toUnits } from "./amount.js";
 import { DevBackend } from "./dev-backend.js";
 import { LasseCashClient } from "./client.js";
+import { Param } from "./types.js";
 
 // TinyGo's shim is a classic script; load it before instantiating.
 createRequire(import.meta.url)("./wasm/wasm_exec.cjs");
@@ -284,6 +285,20 @@ test("browser engine agrees with the chain EXACTLY", { skip: !up }, async () => 
   const client = new LasseCashClient({ backend });
   const info = await client.chain();
 
+  // Bigger-Pays-Better bounds are GOVERNED, so the browser must use the values
+  // in force on the chain — read the board and let the engine take the median,
+  // exactly as the site does. (This test used to hardcode the pre-2026-08-22
+  // defaults 10,000/100,000 and broke when the defaults moved to 1,000/50,000
+  // while both engines still agreed to the base unit.)
+  const bpbKeys = [Param.VolumeStart, Param.VolumeEnd];
+  const board = await client.governance(bpbKeys);
+  const inForce = (key: string) => effectiveValue(key, board.map((r) => ({
+    account: r.account, shares: r.shares, preference: r.preferences[key] ?? null,
+  })));
+  const volStart = inForce(Param.VolumeStart);
+  const volEnd = inForce(Param.VolumeEnd);
+  assert.ok(volStart.ok && volEnd.ok, "governed BPB bounds must resolve");
+
   for (const [amount, days] of [
     ["100000", 1095], ["10000", 365], ["1", 1], ["55000", 500], ["999.99999999", 90],
   ] as const) {
@@ -291,7 +306,7 @@ test("browser engine agrees with the chain EXACTLY", { skip: !up }, async () => 
     const localQuote = mintQuote(
       toBaseUnitArg(amount), days,
       toBaseUnitArg(chainQuote.share_rate),
-      toBaseUnitArg("10000"), toBaseUnitArg("100000"),
+      toBaseUnitArg(volStart.value), toBaseUnitArg(volEnd.value),
     );
     assert.equal(localQuote.shares, chainQuote.shares,
       `shares disagree for ${amount} LC / ${days}d`);
@@ -416,3 +431,31 @@ test("governance rows feed the engine and the median stays inside its bounds",
     assert.deepEqual(seats.map((s) => s.account), info.consensus_group,
       "the engine's ranking must match the one the chain publishes");
   });
+
+// ---------------------------------------------------------------------------
+// Pool APY: the WASM against arithmetic written independently in BigInt.
+// ---------------------------------------------------------------------------
+
+test("poolApy: hand case, independent BigInt cross-check, empty pool", () => {
+  // 365 * 1000 / (2 * 10000) = 18.25 = 1825% for a day-one deposit.
+  assert.equal(poolApy("1000", "10000", "10000", "10000"), "18.25000000");
+  // Loyal incumbents at 1.9x dilute a newcomer: 18.25 * 10/19.
+  assert.equal(poolApy("1000", "10000", "10000", "19000"), "9.60526315");
+  // Same emission, 100x deeper pool: 100x lower.
+  assert.equal(poolApy("1000", "1000000", "1000000", "1000000"), "0.18250000");
+  // Empty pool: no figure, never a crash.
+  assert.equal(poolApy("1000", "0", "0", "0"), null);
+  assert.equal(poolApy("1000", "10000", "10000", "0"), null);
+
+  // Independent check on realistic era-1 figures, floored exactly as the
+  // engine floors: perLC = 365*daily*1e8 / (2*reserve); apy = perLC*shares/weight.
+  const U = 100_000_000n;
+  const daily = BigInt(toBaseUnitArg(dailyRewards(109_200_000, 111_907_200).liquidity));
+  const reserve = 1_010_000n * U, shares = 1_010_000n * U, weight = 1_234_567n * U;
+  const perLC = (365n * daily * U) / (2n * reserve);
+  const expected = (perLC * shares) / weight;
+  const got = BigInt(toBaseUnitArg(poolApy(
+    dailyRewards(109_200_000, 111_907_200).liquidity,
+    "1010000", "1010000", "1234567") as string));
+  assert.equal(got, expected, "WASM poolApy must equal the independent BigInt arithmetic");
+});

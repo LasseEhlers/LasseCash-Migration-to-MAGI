@@ -184,6 +184,10 @@ func PoolReserves(s Store) (engine.Amount, engine.Amount) {
 // PoolShares returns the total LP shares outstanding.
 func PoolShares(s Store) engine.Shares { return getShares(s, keyPoolShares) }
 
+// PoolWeight returns the total loyalty-weighted shares across all open
+// tranches — the denominator every tranche's reward is split against.
+func PoolWeight(s Store) engine.Shares { return getShares(s, keyPoolWeight) }
+
 // --- liquidity ------------------------------------------------------------
 
 // AddLiquidity deposits into the pool and opens a new tranche.

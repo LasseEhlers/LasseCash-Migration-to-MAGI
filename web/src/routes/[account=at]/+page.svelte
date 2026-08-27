@@ -148,7 +148,7 @@
         <div class="sub">time-locked position{openMints === 1 ? "" : "s"}</div>
       </div>
       <div class="panel stat">
-        <div class="label">Governance</div>
+        <div class="label">Thresholds</div>
         <div class="value {onCouncil ? 'green' : 'dim'}">{onCouncil ? "Seated" : "—"}</div>
         <div class="sub">
           {onCouncil

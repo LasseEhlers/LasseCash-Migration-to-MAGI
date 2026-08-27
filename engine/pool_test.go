@@ -464,3 +464,36 @@ func TestAliveSupplyIsAMeasurementNotAMechanism(t *testing.T) {
 		t.Errorf("empty supply: %d, want 0", got)
 	}
 }
+
+func TestPoolAPYIsTheDayOneFigure(t *testing.T) {
+	daily := LC(1_000)           // 1,000 LC/day to the liquidity pool
+	reserve := LC(10_000)        // 10,000 LC in the pool
+	shares := Shares(LC(10_000)) // first deposit: shares == LC
+	weight := Shares(LC(10_000)) // everyone at 1.0x
+
+	// 365 * 1000 / (2 * 10000) = 18.25 = 1825%
+	apy, ok := PoolAPY(daily, reserve, shares, weight)
+	if !ok || apy != Amount(1825*Unit/100) {
+		t.Fatalf("apy = %d ok=%v, want %d", apy, ok, 1825*Unit/100)
+	}
+
+	// Loyal incumbents at 1.9x dilute a newcomer's day-one share.
+	loyal := Shares(LC(19_000))
+	apy2, ok := PoolAPY(daily, reserve, shares, loyal)
+	if !ok || apy2 != Amount(1825*Unit/100)*10/19 {
+		t.Fatalf("diluted apy = %d ok=%v, want %d", apy2, ok, Amount(1825*Unit/100)*10/19)
+	}
+
+	// The same emission on a 100x deeper pool pays a 100x lower APY.
+	apy3, ok := PoolAPY(daily, reserve*100, shares*100, weight*100)
+	if !ok || apy3 != apy/100 {
+		t.Fatalf("depth-scaled apy = %d, want %d", apy3, apy/100)
+	}
+
+	// Empty pool: no figure, never a division by zero.
+	for _, c := range [][4]int64{{1, 0, 1, 1}, {1, 1, 0, 1}, {1, 1, 1, 0}, {-1, 1, 1, 1}} {
+		if _, ok := PoolAPY(Amount(c[0]), Amount(c[1]), Shares(c[2]), Shares(c[3])); ok {
+			t.Fatalf("PoolAPY%v should refuse", c)
+		}
+	}
+}

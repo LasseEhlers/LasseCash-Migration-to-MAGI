@@ -399,6 +399,7 @@ type ChainInfo struct {
 	AmmLC          string   `json:"amm_lc"`
 	AmmHBD         string   `json:"amm_hbd"`
 	AmmShares      string   `json:"amm_shares"`
+	AmmWeight      string   `json:"amm_weight"`
 	ConsensusGroup []string `json:"consensus_group"`
 }
 
@@ -433,6 +434,7 @@ func (c *Chain) Info() ChainInfo {
 		AmmLC:          dec(lcRes),
 		AmmHBD:         dec(hbdRes),
 		AmmShares:      dec(engine.Amount(state.PoolShares(c.store))),
+		AmmWeight:      dec(engine.Amount(state.PoolWeight(c.store))),
 		ConsensusGroup: group,
 	}
 }

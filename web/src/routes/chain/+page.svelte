@@ -1,6 +1,6 @@
 <script lang="ts">
   /**
-   * Chain — supply, emission and governance.
+   * Chain — supply, emission and thresholds.
    *
    * The supply figures are the ones critics will check, so they are shown
    * plainly and sourced from chain state, not from anything computed here.

@@ -72,12 +72,29 @@ export class MagiBackend implements Backend {
   }
 
   /** Raw contract state by key — the primitive every read is built on. */
+  /**
+   * MAGI's `getStateByKeys` refuses a request outside 1..100 keys — found
+   * live 2026-08-25 once a real board grew past 14 members (16 candidates *
+   * 6 governable parameters + shares + gov_board comfortably clears 100).
+   * Batching here fixes every caller at once, since `state()` is the one
+   * chokepoint every read in this file goes through.
+   */
   async state(keys: string[]): Promise<Record<string, string>> {
-    const data = await this.query<{ getStateByKeys: Record<string, string> | null }>(
-      `query($id: String!, $keys: [String!]!) { getStateByKeys(contractId: $id, keys: $keys) }`,
-      { id: this.#contractId, keys },
+    if (keys.length === 0) return {};
+    const MAX_KEYS = 100;
+    const batches: string[][] = [];
+    for (let i = 0; i < keys.length; i += MAX_KEYS) {
+      batches.push(keys.slice(i, i + MAX_KEYS));
+    }
+    const results = await Promise.all(
+      batches.map((batch) =>
+        this.query<{ getStateByKeys: Record<string, string> | null }>(
+          `query($id: String!, $keys: [String!]!) { getStateByKeys(contractId: $id, keys: $keys) }`,
+          { id: this.#contractId, keys: batch },
+        ),
+      ),
     );
-    return data.getStateByKeys ?? {};
+    return Object.assign({}, ...results.map((r) => r.getStateByKeys ?? {}));
   }
 
   /**
@@ -221,7 +238,7 @@ export class MagiBackend implements Backend {
         "cfg_genesis", "cfg_settled", "sup_migrated", "sup_emitted",
         "cfg_migtotal", "cfg_migburn",
         "bal_hive:null", "shares_total", "pool_lshare", "pool_viral",
-        "pool_deep", "pool_liq", "amm_lc", "amm_hbd", "amm_shares",
+        "pool_deep", "pool_liq", "amm_lc", "amm_hbd", "amm_shares", "amm_weight",
         "gov_board",
       ]),
       this.height(),
@@ -253,6 +270,7 @@ export class MagiBackend implements Backend {
       amm_lc: units(st["amm_lc"]),
       amm_hbd: units(st["amm_hbd"]),
       amm_shares: units(st["amm_shares"]),
+      amm_weight: units(st["amm_weight"]),
       consensus_group: group,
     };
   }

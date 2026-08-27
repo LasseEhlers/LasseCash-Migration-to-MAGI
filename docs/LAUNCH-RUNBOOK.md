@@ -30,11 +30,29 @@
 - [ ] Final announcement drafted (block X, the 3-month rule, how to stay
       alive, how to claim, the 150-day window, Hive-Engine token is dead).
 - [ ] Hive-Engine token info text drafted.
-- [ ] `@lasseehlers` (the deployer/owner) holds: **≥ 12 HBD on Hive L1**
-      (deploy fee + margin), **≥ 15 HBD on MAGI** (RC for init, set_snapshot,
-      claim, pool seed ≈ 12k RC — 10k free + HBD), plus the **pool HBD** (100).
-- [ ] `deploy-data/config/identityConfig.json` holds the ACTIVE key of the
-      owner account; `./deploy.sh preflight` passes.
+- [ ] **The contract OWNER is `@lassecashmagi`, never `@lasseehlers`.**
+      §7 burns the owner ACCOUNT's keys (all four authorities → null key), so
+      the owner must be a dedicated account holding nothing else. Corrected
+      2026-08-26 — this line used to name @lasseehlers as deployer/owner.
+      `@lassecashmagi` holds: **≥ 12 HBD on Hive L1** (deploy fee + margin)
+      and **≥ 15 HBD on MAGI** (RC for init + set_snapshot ≈ 2k RC).
+      `@lasseehlers` holds the **pool HBD** (~10–15; see §6) and its own RC meter — the
+      pool seed and the founder's claim are signed by @lasseehlers, not by
+      the owner.
+- [ ] **Close the recovery loophole BEFORE genesis** (≥ 30 days before the
+      burn): `change_recovery_account` on `@lassecashmagi` → `null`. Its
+      recovery account is `ecency` today (it was created through Ecency);
+      Hive account recovery lets the recovery partner + any owner key valid
+      in the last 30 days RESTORE the authorities — i.e. un-burn the key. The
+      change takes 30 days to take effect, so it must be broadcast at or
+      before genesis to be in force by day 40. Verify `recovery_account ==
+      null` on the day of the burn.
+- [ ] **Rotate `@lassecashmagi`'s keys before the production deploy** (new
+      master password → `account_update` of all four authorities). Its master
+      password was pasted into a chat transcript on 2026-08-26; treat the old
+      keys as exposed. Then put the NEW active key in `identityConfig.json`.
+- [ ] `deploy-data/config/identityConfig.json` holds the ACTIVE key of
+      `@lassecashmagi`; `./deploy.sh preflight` passes.
 
 ## 1. T-7 days — the final announcement
 
@@ -123,7 +141,14 @@ Verify after each (read state, not the output's ok:true — see the RC-freeze
 trap in CLAUDE.md): `cfg_init="1"`, `cfg_genesis=<height>`, then
 `cfg_migroot=<root>` and `bal_hive:null=<burn_total>`.
 
-**Do NOT broadcast anything else from the owner account until §6.**
+**Do NOT broadcast anything else from the owner account until §6** — with
+ONE exception, decided 2026-08-27: once `set_snapshot` has landed, transfer
+**~100 HBD MAGI→MAGI from `@lassecashmagi` to `@lasseehlers`**, leaving ~15
+HBD on the owner for its RC until the burn. The owner's MAGI HBD is lost at
+§7 anyway; on @lasseehlers it is the pool seed (§6, ~5.5 HBD drawn by
+`add_liquidity`) plus the RC meter for the claim, day 30 and a month of
+normal use (~115 HBD ≈ 125k RC). No money comes from outside — @lasseehlers
+already holds 15 HBD on MAGI, enough for the seed and the claim on its own.
 
 ## 5. Ship the site and claim
 
@@ -134,9 +159,20 @@ figure. Let a friend claim too before announcing "claims are open".
 
 ## 6. 💸 Seed the pool
 
-Look up the Hive-Engine price of the day. On the Pool page: opening price,
-your HBD, LASSECASH derives. One click. Verify `amm_lc` / `amm_hbd` read
-back exactly what you entered.
+**Size DECIDED 2026-08-27: 10,000 LASSECASH + whatever that is worth in
+HBD at the old SWAP.HIVE:LASSECASH Diesel pool's price on migration day**
+(measured 2026-08-27: Diesel pool 0.01217950 SWAP.HIVE/LC × HIVE $0.0440
+= $0.000536/LC → 10,000 LC ≈ **5.5 HBD**; the 08-20 figure of 0.00103 was
+the order-book last price, not the pool — re-measure on the day; the 100 HBD
+figure from 08-21 is superseded). The opening RATIO is what matters, not the depth:
+arbitrage keeps a thin pool honest, and the 25% emission slice on a tiny pool
+is the magnet that pulls outside HBD in.
+
+Measure: Diesel pool `SWAP.HIVE:LASSECASH` `quotePrice` × HIVE/USD
+(HBD ≈ $1). On the Pool page: enter 10,000 LASSECASH, the HBD derives from
+the price you enter. One click, ACTIVE key, with its `transfer.allow` intent
+for exactly that HBD. Verify `amm_lc` / `amm_hbd` read back exactly what you
+entered.
 
 ## 7. 💸 Burn the owner keys — IRREVERSIBLE — at DAY 40
 
@@ -226,7 +262,10 @@ deposit size; a stated risk does not.
 > update can ever be proposed by anyone, including me. The burn transaction id
 > will be published.
 
-**Procedure.** Change the owner account's owner, active, posting and memo
+**Procedure.** First move every balance off `@lassecashmagi` — withdraw its
+MAGI HBD/HIVE to L1 and transfer L1 HIVE/HBD to @lasseehlers (after the burn
+they are gone forever). Confirm `recovery_account` is `null` (§0). Then
+change the owner account's owner, active, posting and memo
 authorities to the Hive null public key
 (`STM1111111111111111111111111111111114T1Anm`) via `account_update`, with the
 owner key, after a final `./deploy.sh preflight` confirms the contract's owner
@@ -238,10 +277,18 @@ signed. Announce the burn with the transaction id.
 **RC — keep HBD on MAGI on @lasseehlers, always.** RC capacity is
 `MAGI HBD × 1,000 + 10,000 free`, thawing over 5 days; the HBD is never spent,
 it is the meter. 85 HBD ≈ 95,000 RC ≈ 40 votes or 10 mints per 5-day window.
-**Day 30 after genesis** (the migration mints mature): the walk retires
-~1,600 accounts in `advance` slices of 50 (~6,500 RC each, ~32 calls). The
-site bundles slices ahead of every mint/claim, so the crowd normally clears
-it; to be able to clear it alone, hold ~200 HBD on MAGI that week.
+**Day 30 after genesis** (the migration mints mature): the walk retires one
+entry per CLAIMED staked account — unclaimed leaves are not mints — in
+`advance` slices of 50 (~6,500 RC each). **Users pay for their own slices by
+design**: the site bundles slices ahead of every mint/claim/settle, each
+signer's call carries `UserRetireBudget=25` of its own, and a fresh
+account's free 10,000 RC covers one slice. Nobody needs to park HBD for it;
+whoever presses when the day is still lagging pays one slice and is told to
+press again. Only if the founder insists on re-minting FIRST, before anyone
+else has moved, does he eat the whole day himself: ~250 claimants ≈ 5
+slices ≈ 35,000 RC ≈ **25–30 HBD on MAGI** (never spent — it is the meter;
+withdraw it the week after). The earlier "~200 HBD" was sized for the
+2,260-account set and is superseded (corrected 2026-08-27).
 
 - Hive-Engine: update the token info tab; ask Hive-Engine to delist.
 - Run an `advance` bot so accrual never lags (permissionless; ~100 RC/day).

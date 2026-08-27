@@ -34,6 +34,8 @@ export interface ChainInfo {
   amm_lc: Amount;
   amm_hbd: Amount;
   amm_shares: Amount;
+  /** Total loyalty-weighted shares across all open tranches. */
+  amm_weight: Amount;
   consensus_group: string[];
 }
 

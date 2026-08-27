@@ -343,13 +343,15 @@ So ~1,030 HBD alongside 1,000,000 LASSECASH. **Re-measure at launch** — this
 is a method, not a fixed number. The first `add_liquidity` call sets the price,
 so it should be Lasse's, at a deliberate ratio.
 
-**SIZE DECIDED 2026-08-21: 100 HBD + the equivalent LASSECASH (~97,087 LC at
-the 0.00103 ratio; recompute from the launch-day price).** Lasse: *"I dont
-have more to spare, since we run this migration soon."* A thin pool is fine —
-price impact per trade is high at first, which is exactly what attracts LPs
-to the 25% emission slice (~2,283 LC/day in era 1) and arbitrage keeps the
-price honest at any depth. The pool deepens as others add liquidity; the
-opening RATIO is what matters, not the size.
+**SIZE RE-DECIDED 2026-08-27: 10,000 LASSECASH + the HBD that equals it at
+the old Hive-Engine pool's price on migration day (≈ 10.3 HBD at 0.00103;
+re-measure).** Supersedes the 08-21 "100 HBD + ~97,087 LC". Lasse: *"we go
+with much less"*. Same reasoning as before, only smaller: the opening RATIO
+is what matters, arbitrage keeps any depth honest, and the 25% emission slice
+(~2,283 LC/day in era 1) on a ~$20 pool is exactly the bootstrap magnet. The
+first `add_liquidity` sets the price, so it is Lasse's, at a deliberate ratio.
+Consequence: the "~200 HBD parked on MAGI" note is RC insurance only (never
+spent, withdrawable); users pay for their own day-30 slices by design.
 
 ## CLAIM-BASED MIGRATION — DECIDED AND BUILT 2026-08-21 (supersedes push)
 
@@ -1701,7 +1703,8 @@ update to 6 and seven).
   snapshot pipeline rehearsal; Sept 1 monthly PoB mint on #5 (57 LC pending
   for @lasseehlers); Good Accounting arm / bleed / sweep_mint on the clock.
 - **Lasse's standing notes**: keep HBD on MAGI on @lasseehlers — it IS the RC
-  meter (never spent); ~200 HBD that week lets him clear day 30 alone.
+  meter (never spent); ~25–30 HBD that week lets him clear day 30 alone
+  (was "~200", sized for the old 2,260-account set — corrected 2026-08-27).
   Screenshots only when something looks wrong; text otherwise.
 - Background: a 500k fuzz started 08:20 on pre-change code
   (scratchpad/fuzz500k.log) — a regression run, not the final one.

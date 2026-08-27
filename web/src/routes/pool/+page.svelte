@@ -8,10 +8,10 @@
    * so a trade cannot be sandwiched into a far worse one.
    */
   import { chain, client } from "$lib/chain.svelte.js";
-  import { lc, lcShort, mult, pct } from "$lib/format.js";
+  import { fractionPct, lc, lcShort, mult, pct } from "$lib/format.js";
   import {
     estimateSwap, estimateLiquidity, toBaseUnitArg, toUnits, fromUnits, isZero,
-    trancheHealth, type SwapDirection, type TrancheView,
+    trancheHealth, dailyRewards, poolApy as poolApy_, type SwapDirection, type TrancheView,
   } from "$api/index.js";
   import Seo from "$lib/Seo.svelte";
   import Hbd from "$lib/Hbd.svelte";
@@ -67,6 +67,21 @@
       ? (Number(info.amm_hbd) / Number(info.amm_lc)).toFixed(8)
       : null,
   );
+
+  /**
+   * Pool APY for a brand-new depositor, day one, before any loyalty bonus —
+   * the honest number, not one inflated by blending in already-loyal
+   * tranches sharing the same pool at up to 1.9x weight.
+   *
+   * ESTIMATE, computed by `engine.PoolAPY` (the formula lives in Go, never
+   * here): exact emission numerator, live reserves/weight denominator — the
+   * same status every other figure on this page already carries.
+   */
+  const poolApy = $derived.by(() => {
+    if (!chain.ready || !info || !poolReady) return null;
+    const daily = dailyRewards(info.genesis_height, info.height).liquidity;
+    return poolApy_(daily, info.amm_lc, info.amm_shares, info.amm_weight);
+  });
 
   // --- Provide liquidity: two linked asset rows, Tribaldex-style -----------
   //
@@ -313,6 +328,11 @@
 
 <div class="grid">
   <section class="stats">
+    <div class="panel stat">
+      <div class="label">Pool APY</div>
+      <div class="value gold">{poolApy !== null ? fractionPct(poolApy) : "—"}</div>
+      <div class="sub">new deposit, day one — estimate, moves with the pool</div>
+    </div>
     <div class="panel stat">
       <div class="label">Pool reserves</div>
       <div class="value gold">{info ? lcShort(info.amm_lc) : "—"}</div>

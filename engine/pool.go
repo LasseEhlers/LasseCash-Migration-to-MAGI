@@ -405,3 +405,32 @@ func AlivePct(alive, total Amount) int64 {
 	}
 	return int64(v)
 }
+
+// PoolAPY is the yearly liquidity emission a BRAND-NEW deposit would earn on
+// day one, as a fraction of the deposit's value, 1e8-scaled (Unit = 100%).
+// It is the honest headline figure: a fresh tranche carries loyalty 1.0x, so
+// blending in already-loyal tranches (up to 1.9x weight) would overstate it.
+//
+// Derivation. A deposit of lcIn mints `totalShares * lcIn / lcReserve` LP
+// shares (LPSharesFor) and registers the same number as reward weight; its
+// yearly reward is `365 * dailyLiquidity * weight / totalWeight`; its value
+// is `2 * lcIn` because matching HBD accompanies the LASSECASH. The lcIn
+// cancels, so the figure is independent of deposit size:
+//
+//	apy = 365 * dailyLiquidity * totalShares / (2 * lcReserve * totalWeight)
+//
+// Marginal: totalWeight is taken BEFORE the deposit. EXACT numerator (the
+// schedule is closed-form); the reserves and weight are live pool state, so
+// as a preview it is an ESTIMATE like every other pool figure.
+func PoolAPY(dailyLiquidity, lcReserve Amount, totalShares, totalWeight Shares) (Amount, bool) {
+	if dailyLiquidity < 0 || lcReserve <= 0 || totalShares <= 0 || totalWeight <= 0 {
+		return 0, false
+	}
+	// 365 * daily * Unit / (2 * lcReserve), then * totalShares / totalWeight.
+	// Scaling by Unit first keeps precision on a deep pool.
+	perLC, ok := MulDiv(dailyLiquidity*365, Unit, 2*int64(lcReserve))
+	if !ok {
+		return 0, false
+	}
+	return MulDiv(perLC, int64(totalShares), int64(totalWeight))
+}
