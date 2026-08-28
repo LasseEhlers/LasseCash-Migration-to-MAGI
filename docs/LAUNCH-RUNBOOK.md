@@ -69,7 +69,10 @@ follows"** — the mobile paths (Keychain app browser, HiveAuth) are
 frontend-only and DELIBERATELY untested at launch (decided 2026-08-27):
 nothing on a phone touches the frozen contract, and the 210-day window
 makes a day of desktop-only claiming cost nobody anything.
-Pin it. Update the Hive-Engine token info tab to point at it.
+Pin it on Hive (PeakD → post menu → "Pin to profile", and pin in the
+hive-145209 community); link it from the About page as "the rules people
+migrated under" — lassecash.com itself has no pin, the feed is votes only.
+Update the Hive-Engine token info tab to point at it.
 
 ## 2. T-0 — block X passes: take the snapshot
 
