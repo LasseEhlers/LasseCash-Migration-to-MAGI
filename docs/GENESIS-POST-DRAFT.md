@@ -70,7 +70,6 @@ The old token still exists because nothing on a blockchain can be deleted. It is
 - Claim: https://lassecash.com (front page)
 - Verify your snapshot entry: https://lassecash.com/check
 - Everything else: https://lassecash.com/about
-- The daily talk, from the streets of Copenhagen: https://www.youtube.com/@LasseCashNews
 - The music: https://lassemusic.com
 
 Seven years of my word. From today, code.

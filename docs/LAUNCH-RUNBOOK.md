@@ -76,6 +76,18 @@ Update the Hive-Engine token info tab to point at it.
 
 ## 2. T-0 — block X passes: take the snapshot
 
+**Custom domain — DECIDED 2026-08-28: lassecash.com becomes the new site at
+14:00 CPH, right after the Snap.** Cloudflare dashboard → Pages → project
+`lassecash` → Custom domains → add `lassecash.com` and `www.lassecash.com`
+(the DNS is already on Cloudflare, so it is two clicks and a minute of
+propagation). The site is still PRELAUNCH-gated at that point, so visitors
+from the Snap land on the Snapshot checker and About — the right two pages.
+At genesis (§5) the gate drops on the same domain. Then: `PUBLIC_SITE_URL`
+stays `https://lassecash.com` (already the default), and the video pipeline's
+`~/video-pipeline/migration-facts.txt` + the lassemusic.com footer switch
+from lassecash.pages.dev to lassecash.com.
+
+
 Hive-Engine has no historical balance query, so the snapshot IS the moment
 you fetch. Do it promptly at X and record the Hive-Engine block you saw.
 
