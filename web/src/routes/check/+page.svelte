@@ -227,7 +227,8 @@
       <div class="verdict in">
         <h2>@{asked} — you are IN</h2>
         <dl>
-          <dt>you hold</dt><dd class="mono">{lc(fromUnits(BigInt(row.liquid) + BigInt(row.staked)))}</dd>
+          <dt>liquid</dt><dd class="mono">{lc(fromUnits(BigInt(row.liquid)))}</dd>
+          <dt>staked (becomes a 30-day mint)</dt><dd class="mono">{lc(fromUnits(BigInt(row.staked)))}</dd>
           {#if quote}
             <dt class="est">≈ worth today</dt>
             <dd class="mono est">${usd(BigInt(row.liquid) + BigInt(row.staked))}</dd>
@@ -236,9 +237,15 @@
           <dd class="mono">{when(liveOp.timestamp)} ({liveOp.operation.replace("tokens_", "")})</dd>
         </dl>
         <p class="note">
-          Seen <b>live on Hive-Engine</b>: you signed this after our data was
-          last rebuilt, so it is not in the table below the fold yet — but the
-          chain has it, and the chain is what the snapshot reads.
+          Seen <b>live on Hive-Engine</b> — the row marked "signed by you: yes"
+          in the table below. Our stored verdict was rebuilt before you signed
+          it; the chain has it, and the chain is what the snapshot reads.
+        </p>
+        <p>
+          Nothing is pushed to you. After launch you <b>claim</b> your own
+          tokens with a proof, paying your own Resource Credits. Claim inside
+          the first 30 days and the staked half becomes a real mint that earns
+          and votes.
         </p>
       </div>
     {:else if row}
