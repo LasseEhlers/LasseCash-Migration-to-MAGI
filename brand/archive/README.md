@@ -2,7 +2,7 @@
 
 Recovered 2026-08-28 from public sources, for the record. Nothing here is
 used by the site or the contract; it exists so the history of LasseCash
-(launched June 2019 on Steem, migrated to MAGI 31 Aug 2026) can be shown
+(launched June 2019 on Steem-Engine, moved to Hive-Engine April 2020, migrated to MAGI 31 Aug 2026) can be shown
 one day. Every file lists where it came from. Small files live in this
 folder; the full set (110 MB, including the original-resolution scans and
 every `NFTLC` series by @lasseehlers, @zaxan and @doze) is attached to the GitHub Release
