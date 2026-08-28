@@ -76,6 +76,13 @@ Update the Hive-Engine token info tab to point at it.
 
 ## 2. T-0 — block X passes: take the snapshot
 
+**08:00 CPH — read the seed price FIRST (decided 2026-08-29).** Record the
+SWAP.HIVE:LASSECASH Diesel-pool `quotePrice` × HIVE/USD at 08:00, before
+anything else; that figure is the §6 opening ratio. Lasse buys ~150,000
+LASSECASH from the Diesel pool after 08:00 and before the 14:00 block (liquid
+in his wallet at the block → migrates liquid; do NOT stake it). Reading the
+price before his own trade is simply the method applied cleanly.
+
 **Custom domain — DECIDED 2026-08-28: lassecash.com becomes the new site at
 14:00 CPH, right after the Snap.** Cloudflare dashboard → Pages → project
 `lassecash` → Custom domains → add `lassecash.com` and `www.lassecash.com`
