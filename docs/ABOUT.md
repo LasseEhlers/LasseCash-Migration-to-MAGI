@@ -87,7 +87,7 @@ That is the whole rule. Qualifying operations, signed by you:
 | a **delegation** or undelegation |
 | a **market order** — buy, sell, or cancel |
 
-**Being alive somewhere else on Hive does not count.** Proving a human exists is not the same as proving they ever used LasseCash, and thousands of accounts hold LASSECASH only because Lasse gave it away for seven years — at HiveFest, in comment threads, to people who never asked. Lasse: *"its better to have real users that are a small group than to have fake users that are a huge group, which is the opposite of what 99% of crypto does."* Your Hive activity is still read and recorded in the published snapshot, for the audit trail. It just does not make you eligible.
+**Being alive somewhere else on Hive doesn't count.** Proving a human exists is not the same as proving they ever used LasseCash, and thousands of accounts hold LASSECASH only because Lasse gave it away for seven years — at HiveFest, in comment threads, to people who never asked. Lasse: *"its better to have real users that are a small group than to have fake users that are a huge group, which is the opposite of what 99% of crypto does."* Your Hive activity is still read and recorded in the published snapshot, for the audit trail. It just does not make you eligible.
 
 **What does not count:** posting, commenting and voting, which use the posting key and which a bot can do; and anything that merely *involves* you — a transfer someone sent you, a third-party stake, a buyer filling an old sell order, an automatic distribution payout, the weekly instalment of a power-down you started years ago. The test is that *you* signed it, in the window.
 
