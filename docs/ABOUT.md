@@ -72,7 +72,7 @@ The two caps are not arbitrary and they are not independent. The 2019 design set
 
 ## 3. The migration
 
-LASSECASH launched in 2019 as a Hive-Engine token. The migration moves it to MAGI, and it is not automatic: there is a snapshot, then you claim.
+LASSECASH launched in June 2019 as a Steem-Engine token and moved to Hive-Engine in March 2020, when Hive forked from Steem. This migration moves it to MAGI, and it is not automatic: there is a snapshot, then you claim.
 
 ### Who qualifies
 
