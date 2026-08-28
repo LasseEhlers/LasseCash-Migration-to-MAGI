@@ -371,10 +371,13 @@ code {
 .rendered table td {
   padding: 0.45rem 0.7rem; border-bottom: 1px solid var(--line);
   vertical-align: top; font-variant-numeric: tabular-nums;
-  /* The table scrolls sideways, so its cells must NOT inherit the body's
-     overflow-wrap:anywhere — that broke `mint.volume_start` and LASSECASH
-     one letter per line on a 390px phone (seen on /about 2026-08-27). */
-  overflow-wrap: normal; white-space: nowrap;
+  /* Cells wrap between WORDS but never inside one: the body's
+     overflow-wrap:anywhere broke `mint.volume_start` and LASSECASH one
+     letter per line on a 390px phone (2026-08-27), and the nowrap that
+     replaced it forced desktop tables to scroll sideways and clip
+     (2026-08-28). Only code spans stay on one line; the table scrolls
+     just as far as the widest unbreakable token needs. */
+  overflow-wrap: normal; white-space: normal; min-width: 8rem;
 }
-.rendered table td:first-child { white-space: normal; min-width: 9rem; }
+.rendered table code { white-space: nowrap; }
 .rendered table tr:last-child td { border-bottom: none; }
