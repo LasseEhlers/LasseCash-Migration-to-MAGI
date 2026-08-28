@@ -21,6 +21,7 @@
  * silently lagged it twice.
  */
 import { test } from "node:test";
+import { readFileSync } from "node:fs";
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { blockSplit, constants, loadEngine, loyaltyMultiplier, supplyLimits } from "./engine.js";
@@ -126,8 +127,12 @@ test("rules that were SUPERSEDED must not reappear", () => {
     "C6 replaced the Hive active-key test with a signed LASSECASH operation on 2026-08-22.");
   neverSays("zero and negative are refused",
     "Weight 0 is the unvote, not a refusal — see state.Vote.");
-  neverSays("Uber",
-    "Names a product plan Lasse asked to keep private.");
-  for (const name of ["LasseDrive", "LasseEat", "LocalLasseCash"])
-    neverSays(name, "Private product plan.");
+  // Product plans Lasse keeps private are listed in a LOCAL, gitignored file
+  // (docs/private-names.txt, one name per line) — the names themselves must
+  // never sit in this public repository, not even inside a guard.
+  const privateNames = (() => {
+    try { return readFileSync(new URL("../../docs/private-names.txt", import.meta.url), "utf8"); }
+    catch { return ""; }
+  })().split("\n").map((l) => l.trim()).filter(Boolean);
+  for (const name of privateNames) neverSays(name, "Private product plan.");
 });
