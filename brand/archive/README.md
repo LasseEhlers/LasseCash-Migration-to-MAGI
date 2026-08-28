@@ -50,6 +50,14 @@ originals are on the Release:
 | `lasse-at-21_contact-sheet-2_5027x7284.jpg` | `ee3bf712d2b764a7ae46b078b0df70601698598292bfd1285222263ffed4245e` |
 | `lassecash-history-archive-2026-08-28.zip` (everything, 110 MB, with `manifest.md`) | `fbdd11dc7580409879e5e7e99cebbab21e42557191305608062deef473150ae0` |
 
+## Credits — the people behind the artwork
+
+| Who | What | Record |
+|---|---|---|
+| **@zaxan** (Carlos Serrano) | Designed the **2019 blue logo** (credited "Graphic Design: @zaxan" on the launch infographic) and the **gold L mark / wordmark** era, the 2021 official NFTs, and the 2025 "LasseCash Crypto NFTs" series. | Launch post 2019-06-28; NFTLC series `zaxan_lassecash-crypto-nfts_*` |
+| **@doze** | Made the **gold coin renders** — the coin on transparent background, the coin over gold coins, and the coin over the candlestick chart — the images that became the face of LasseCash for years, and a real lift for Lasse at the time. Minted them on the LasseCash NFT platform on **3 January 2022, 23:17 UTC** (three `nft_issueMultiple` by `nftlassecash` to @doze), listed at 10,000 LASSECASH each; Lasse bought all three eleven minutes later for 29,700 LASSECASH. @doze is also behind the "Hive Dolphin Factory" drop that started Lasse's dolphin NFTs. | NFTLC #28, #29, #30 (series `doze_lassecash_*`); Hive-Engine history for `doze`/`lasseehlers`, symbol NFTLC, 2022-01-03 |
+| **nftlassecash** | The issuer account of the `NFTLC` symbol — the old lassecash.com NFT platform (2021–2025). | Hive-Engine `nft` contract |
+
 ## How the NFTs were found
 
 Hive-Engine `nft` contract, symbol **`NFTLC`** (issuer `nftlassecash`) —
