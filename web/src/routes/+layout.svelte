@@ -108,6 +108,11 @@
 
   <footer>
     <span>What you see is what the chain pays — every figure comes from the contract itself.</span>
+    <span class="mono">
+      <a href="https://www.youtube.com/@LasseCashNews" target="_blank" rel="noopener">Crypto World News</a>
+      ·
+      <a href="https://lassemusic.com" target="_blank" rel="noopener">Lasse Music</a>
+    </span>
     <!-- LASSECASH is the unit of account here; the HBD line is a sanity check
          beside it. Some people want it and some find it noise, so it is a
          preference — on by default, remembered per browser. -->
