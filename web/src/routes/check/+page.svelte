@@ -252,7 +252,8 @@
       <div class="verdict out">
         <h2>@{asked} — you are NOT in, yet</h2>
         <dl>
-          <dt>you hold</dt><dd class="mono">{lc(fromUnits(BigInt(row.liquid) + BigInt(row.staked)))}</dd>
+          <dt>liquid</dt><dd class="mono">{lc(fromUnits(BigInt(row.liquid)))}</dd>
+          <dt>staked (becomes a 30-day mint if you are in)</dt><dd class="mono">{lc(fromUnits(BigInt(row.staked)))}</dd>
           {#if quote}
             <dt class="est">≈ worth today</dt>
             <dd class="mono est">${usd(BigInt(row.liquid) + BigInt(row.staked))}</dd>
