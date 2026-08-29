@@ -111,7 +111,7 @@ Everything you own, wherever the old chain kept it.
 | Stake you delegated out | staked — a delegation is still yours |
 | Stake delegated **to** you | nothing. It is not yours and is never counted |
 
-**Only the LASSECASH token migrates.** The small number of NFTs minted on Hive-Engine are not in the snapshot and are not carried across. They stay exactly where they are, on the chain that issued them, owned by whoever owns them now. Nothing about them changes and nothing about them is lost — they are simply not part of this contract, which is a token, a reward system and a pool.
+**Only the LASSECASH token migrates.** The handful of NFTs minted on the old lassecash.com are retired with the migration: they are not in the snapshot, not carried across, and not part of this contract, which is a token, a reward system and a pool. Nothing on a blockchain can be deleted, so the records still exist on Hive-Engine — but LasseCash does not support, display or trade them anymore.
 
 ### Liquid, staked, and the claim
 
