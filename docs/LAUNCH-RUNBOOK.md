@@ -101,6 +101,7 @@ you fetch. Do it promptly at X and record the Hive-Engine block you saw.
 cd tools/snapshot
 python3 fetch.py balances            # every LASSECASH holder, ~1 min
 python3 fetch.py activity            # signed-ops liveness, ~1 h, resumable
+python3 fetch.py resolve             # MUST print "0 remain truncated" — see below
 python3 apply_criteria.py --write    # 6-month C6 window → migration_set.json
 python3 check_snapshot.py            # INVARIANTS — must exit 0
 python3 build_status.py              # /check shards for the roll-call page
@@ -121,9 +122,14 @@ change to the checks (an assertion that has never failed is not known to work �
 the first version of these checks passed a 72,023 LASSECASH phantom balance
 because there was hardcap headroom to hide in).
 
-Re-run `fetch.py activity` once more if the first run reported any
-`search_truncated` accounts with no signal (see CLAUDE.md; retry resolves
-node failures).
+**`fetch.py resolve` is not optional (found 2026-08-30, the night before).**
+Under 12 parallel workers history.hive-engine.com fails transiently; the
+walk records that as `he_search_truncated` and the criteria fail OPEN on it
+— so two scans a day apart disagreed on ~300 accounts purely by API luck
+(599 vs 537 "in"; the honest count after resolving was 418). `resolve`
+re-walks only the truncated accounts, one at a time with backoff, until the
+flag is gone. Run it after `activity`, before `apply_criteria`, and do not
+proceed while it reports any remaining — those would migrate on a guess.
 
 ```bash
 cd ../.. && ./build.sh tree          # root.json, leaves.json, proofs/*.json
