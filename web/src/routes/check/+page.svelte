@@ -43,6 +43,14 @@
   let hiveExists = $state<boolean | null>(null);
   let index = $state<{ generated: string; window_months: number; cutoff: string } | null>(null);
   let ops = $state<HeOp[] | null>(null);
+  /** The live Hive-Engine read failed (rate limit, timeout) — say so instead of
+   *  silently showing "NOT in" with an empty table (airanmilian, 2026-08-30). */
+  let liveError = $state(false);
+  /** `/check?a=name` looks the name up on arrival — shareable in a message. */
+  $effect(() => {
+    const a = new URLSearchParams(window.location.search).get("a");
+    if (a && !asked) { query = a; void lookup(); }
+  });
 
   /**
    * A dollar figure next to the balance, from where LASSECASH trades TODAY —
@@ -111,13 +119,16 @@
   }
 
   async function recent(name: string) {
+    liveError = false;
     try {
       const r = await fetch(
         `https://history.hive-engine.com/accountHistory?account=${encodeURIComponent(name)}&symbol=LASSECASH&limit=10`,
       );
-      ops = r.ok ? await r.json() : [];
+      if (!r.ok) throw new Error(String(r.status));
+      ops = await r.json();
     } catch {
       ops = [];
+      liveError = true;
     }
   }
 
@@ -269,6 +280,13 @@
     {:else if row}
       <div class="verdict out">
         <h2>@{asked} — you are NOT in, yet</h2>
+        {#if liveError}
+          <p class="note">
+            <b>Could not reach Hive-Engine just now</b>, so anything you signed
+            after our last rebuild is not being checked live.
+            <button type="button" class="linkish" onclick={() => recent(asked)}>Try again</button>
+          </p>
+        {/if}
         <dl>
           <dt>liquid</dt><dd class="mono">{lc(fromUnits(BigInt(row.liquid)))}</dd>
           <dt>staked (becomes a 30-day mint if you are in)</dt><dd class="mono">{lc(fromUnits(BigInt(row.staked)))}</dd>
@@ -364,6 +382,7 @@
   .verdict.out { border-left-color: var(--gold); }
   .verdict.out h2 { color: var(--gold); }
   .verdict.none { border-left-color: var(--line); }
+  .linkish { background: none; border: 0; padding: 0; color: var(--gold); text-decoration: underline; cursor: pointer; font: inherit; }
   .verdict h2 { margin: 0 0 0.7rem; font-size: 1.15rem; }
   h3 { font-size: 0.95rem; margin: 1.1rem 0 0.5rem; }
   dl { display: grid; grid-template-columns: 1fr auto; gap: 0.35rem 1rem; margin: 0 0 0.9rem; }
