@@ -628,6 +628,50 @@ def fetch_activity():
               f"(pass complete — the next run is a fresh full scan)")
 
 
+def resolve_truncated(rounds=4):
+    """
+    Re-walk ONLY the accounts whose LASSECASH history walk came back
+    `he_search_truncated`, sequentially, until none are left.
+
+    Found 2026-08-30, the night before the snapshot: two full scans a day apart
+    disagreed on 300 accounts — 182 dropped, 113 added — and every one of them
+    was `truncated_unresolved`. Re-walking two of them by hand resolved in 0 s
+    with history exhausted: the "truncation" was not a long history but a
+    transient failure of history.hive-engine.com under 12 parallel workers,
+    which `last_token_activity` records as truncated=True and the criteria
+    then (correctly) fail OPEN on. Left alone, ~150 migrations would be
+    decided by API luck. This pass removes the luck: one worker, backoff,
+    repeated until the flag is gone or stops shrinking. Records keep the pass
+    id of the scan they belong to, so the pipeline's resumability is untouched.
+    """
+    acts = load(ACTIVITY, {})
+    for r in range(1, rounds + 1):
+        todo = [a for a, v in acts.items() if isinstance(v, dict) and v.get("he_search_truncated")]
+        if not todo:
+            print(f"resolve: no truncated LASSECASH walks remain"); return
+        print(f"resolve round {r}: {len(todo)} truncated walks to re-walk, sequentially")
+        before = len(todo)
+        for i, account in enumerate(todo, 1):
+            he_ts, he_op, he_trunc = last_token_activity(account)
+            if he_trunc:
+                time.sleep(3)  # let the history API breathe before the next one
+                he_ts, he_op, he_trunc = last_token_activity(account)
+            rec = acts[account]
+            rec["last_lassecash_ts"] = he_ts
+            rec["last_lassecash_op"] = he_op
+            rec["he_search_truncated"] = bool(he_trunc)
+            rec["search_truncated"] = bool(he_trunc or rec.get("last_active_op_ts") is None and rec.get("search_truncated"))
+            if i % 25 == 0:
+                save(ACTIVITY, acts); print(f"  {i}/{before}")
+        save(ACTIVITY, acts)
+        left = sum(1 for v in acts.values() if isinstance(v, dict) and v.get("he_search_truncated"))
+        print(f"  round {r}: {before} -> {left} still truncated")
+        if left == 0 or left >= before:
+            break
+    left = [a for a, v in acts.items() if isinstance(v, dict) and v.get("he_search_truncated")]
+    print(f"resolve: {len(left)} remain truncated (fail OPEN): {left[:20]}")
+
+
 def status():
     b = load(BALANCES, {})
     a = load(ACTIVITY, {})
@@ -647,6 +691,8 @@ if __name__ == "__main__":
         fetch_balances()
     elif cmd == "activity":
         fetch_activity()
+    elif cmd == "resolve":
+        resolve_truncated()
     elif cmd == "status":
         status()
     else:
