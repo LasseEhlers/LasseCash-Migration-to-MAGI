@@ -214,6 +214,24 @@
           lowercase, and the <span class="mono">@</span> is not part of them.
         </p>
       </div>
+    {:else if missing && liveOp}
+      <div class="verdict in">
+        <h2>@{asked} — you are IN</h2>
+        <dl>
+          <dt>last LASSECASH action</dt>
+          <dd class="mono">{when(liveOp.timestamp)} ({liveOp.operation.replace("tokens_", "")})</dd>
+        </dl>
+        <p class="note">
+          You had no LASSECASH when our data was last rebuilt, and you signed
+          this since — the "signed by you: yes" row below. The snapshot reads
+          the chain at the block, so whatever your wallet holds then migrates:
+          liquid as liquid, staked as a 30-day mint.
+        </p>
+        <p>
+          Nothing is pushed to you. After launch you <b>claim</b> your own
+          tokens with a proof, paying your own Resource Credits.
+        </p>
+      </div>
     {:else if missing}
       <div class="verdict none">
         <h2>@{asked} has never held LASSECASH</h2>

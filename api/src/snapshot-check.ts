@@ -27,7 +27,17 @@ export type HeOp = {
 };
 
 /** Operations only the token owner can start; they carry no from/to. */
-const SELF_INITIATED = new Set(["tokens_unstakeStart", "tokens_undelegateStart"]);
+// Owner-signed operations whose history row carries no `from`, or a `from`
+// that is NOT the owner (a Diesel-pool action shows from=contract_marketpools;
+// a market order shows nothing). Consulted BEFORE the `from` check, exactly as
+// fetch.py does. Drifted on 2026-08-30: the scanner had these since 08-23,
+// this mirror still listed only the two unstake ops, so @cashmap's signed
+// pool swap read "no — from @contract_marketpools" on the page.
+const SELF_INITIATED = new Set([
+  "tokens_unstakeStart", "tokens_undelegateStart", "tokens_cancelUnstake",
+  "market_placeOrder", "market_cancel",
+  "marketpools_swapTokens", "marketpools_addLiquidity", "marketpools_removeLiquidity",
+]);
 /** The automatic, unsigned completion of the above — fires on a timer. */
 const AUTOMATIC = new Set(["tokens_unstakeDone", "tokens_undelegateDone"]);
 
@@ -40,8 +50,9 @@ const AUTOMATIC = new Set(["tokens_unstakeDone", "tokens_undelegateDone"]);
  */
 export function selfSigned(o: HeOp, account: string): boolean {
   if (AUTOMATIC.has(o.operation)) return false;
+  if (SELF_INITIATED.has(o.operation)) return true;
   if (o.from != null) return o.from === account;
-  return SELF_INITIATED.has(o.operation);
+  return false;
 }
 
 const ALNUM = "abcdefghijklmnopqrstuvwxyz0123456789";

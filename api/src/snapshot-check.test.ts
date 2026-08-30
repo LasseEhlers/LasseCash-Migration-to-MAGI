@@ -46,6 +46,18 @@ test("an unstake the owner started counts; its automatic instalments never do", 
   assert.equal(selfSigned(op({ operation: "tokens_undelegateDone" }), "bob"), false);
 });
 
+test("market orders and Diesel-pool actions are the owner's signature", () => {
+  // @cashmap bought 831 LASSECASH from the pool on 2026-08-30; the row reads
+  // from=contract_marketpools, to=cashmap. The scanner has counted these
+  // since 2026-08-23 (HE_SELF_INITIATED_OPS); the page must agree.
+  assert.equal(selfSigned(op({ operation: "marketpools_swapTokens", from: "contract_marketpools", to: "cashmap" }), "cashmap"), true);
+  assert.equal(selfSigned(op({ operation: "marketpools_addLiquidity", from: "contract_marketpools" }), "bob"), true);
+  assert.equal(selfSigned(op({ operation: "marketpools_removeLiquidity", from: "contract_marketpools" }), "bob"), true);
+  assert.equal(selfSigned(op({ operation: "market_placeOrder" }), "bob"), true);
+  assert.equal(selfSigned(op({ operation: "market_cancel" }), "bob"), true);
+  assert.equal(selfSigned(op({ operation: "tokens_cancelUnstake" }), "bob"), true);
+});
+
 test("anything unrecognised fails CLOSED", () => {
   assert.equal(selfSigned(op({ operation: "tokens_somethingNew" }), "bob"), false);
 });
