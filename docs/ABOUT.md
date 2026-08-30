@@ -170,7 +170,7 @@ After the snapshot block, **Hive-Engine LASSECASH is dead** — it will not be r
 
 ## 4. Mint — LasseMint and L-Shares
 
-A **mint** is LASSECASH you lock for a period you choose, from 1 to 1,095 days. In exchange you get **L-Shares**, the protocol's unit of commitment: they earn yield, they are your vote weight on content, and a governance seat is measured in them.
+A **mint** is LASSECASH you lock for a period you choose, from 1 to 1,095 days. In exchange you get **L-Shares**, the protocol's unit of commitment: they earn yield, they are your vote weight on content, and a seat in the top ten is measured in them.
 
 **Shares are computed once, at creation, and frozen:**
 
@@ -191,7 +191,7 @@ The **share rate** is what one L-Share costs. It starts at 1.00000000 LASSECASH 
 
 **Yield.** A quarter of every reward funds the L-Share pool, and your claim on it is read from a running total that only ever rises: **you are paid only for the emission that arrived while your shares were live.** Someone minting today cannot claim last year's rewards, and someone who minted last year is not diluted by them. Two identical mints made at the same moment earn identically to the base unit, whoever claims first.
 
-**Yield ends at maturity**, and so does **all voting power**, governance and content weight alike. A matured, unclaimed mint votes with nothing, so no dormant account can haunt the top ten. Grace is a safety net for the ill or forgetful, not a bonus for leaving money sitting.
+**Yield ends at maturity**, and so does **all voting power**, the top-ten seat and content weight alike. A matured, unclaimed mint votes with nothing, so no dormant account can haunt the top ten. Grace is a safety net for the ill or forgetful, not a bonus for leaving money sitting.
 
 [figure: the life of a mint — lock, maturity, 90-day grace, 90-day bleed, zero]
 
@@ -252,7 +252,7 @@ Nothing is confiscated, and that distinction is the point. A minter is paid up t
 
 **The first deposit sets the price.** Nothing exists to arbitrage against at genesis, so the ratio of the first liquidity call becomes the opening price, seeded deliberately near the prevailing Hive-Engine price on the day. A thin pool is fine: price impact is high at first, which is what makes the 25% emission slice attractive to the providers who deepen it.
 
-## 7. Governance — the median of ten numbers
+## 7. Thresholds — the median of ten numbers
 
 **There are no proposals.** You cannot verify on-chain that a funded proposal was ever delivered, so an immutable protocol should not pretend otherwise. There is no inflation slice for proposals, marketing or onboarding either.
 
@@ -289,7 +289,7 @@ Lasse's reasoning: *"No, it's necessary to claim it's real blockchain immutable,
 | Add a parameter the code does not already read | **Impossible** |
 | Add an entrypoint | **Impossible** |
 | Change a bound | **Impossible** |
-| Move a governable value inside its bounds | Fine — median governance still runs |
+| Move a governable value inside its bounds | Fine — the median of the top ten still runs |
 
 The pre-launch test deployments were therefore the entire safety margin, and the economics were fuzz-tested across 500,000 randomised economies with a supply audit after every operation.
 
