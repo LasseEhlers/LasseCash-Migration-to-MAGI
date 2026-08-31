@@ -191,10 +191,18 @@
 <div class="wrap">
   <h1>Am I in the snapshot?</h1>
   <p class="lede">
-    LASSECASH is migrating to MAGI. To be included you must have <b>signed at
-    least one LASSECASH transaction</b> on Hive-Engine in the six months before
-    block <span class="mono">{SNAPSHOT_BLOCK.toLocaleString()}</span> —
-    {SNAPSHOT_WHEN}. Type your Hive account name.
+    {#if snapshotFinal}
+      <b class="gold">The snapshot has been taken</b> at block
+      <span class="mono">{SNAPSHOT_BLOCK.toLocaleString()}</span> and it is
+      final. The chain goes live today at ≈ 18:00 UTC (20:00 CET) — claims
+      open on the front page of lassecash.com. Type your Hive account name to
+      see what the snapshot holds for you.
+    {:else}
+      LASSECASH is migrating to MAGI. To be included you must have <b>signed at
+      least one LASSECASH transaction</b> on Hive-Engine in the six months before
+      block <span class="mono">{SNAPSHOT_BLOCK.toLocaleString()}</span> —
+      {SNAPSHOT_WHEN}. Type your Hive account name.
+    {/if}
   </p>
 
   <form onsubmit={(e) => { e.preventDefault(); lookup(); }}>
