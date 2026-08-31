@@ -205,7 +205,15 @@
             </dl>
           {/if}
           <small class="dim">
-            75% to the author, 25% split among curators by vote weight.
+            {#if post?.payout_mode === PayoutMode.Burn}
+              The author's 75% is <b>burned to @null</b> — the author chose to
+              take nothing. Curators still split 25% by vote weight.
+            {:else if post?.payout_mode === PayoutMode.PowerUp}
+              The author's 75% goes entirely into their monthly mint — nothing
+              liquid now. Curators split 25% by vote weight.
+            {:else}
+              75% to the author, 25% split among curators by vote weight.
+            {/if}
           </small>
         </div>
 
