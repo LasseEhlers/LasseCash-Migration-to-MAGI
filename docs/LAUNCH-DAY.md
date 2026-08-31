@@ -45,3 +45,25 @@
   init tx `cc0f1aa5e07f604ecd489ced952615b4b76f6a60` → cfg_init=1, cfg_genesis=109512118 (state-verified 40 s later)
   set_snapshot tx `9bf6488f0271697185dbc00ff6282356f15f2e01` → cfg_migroot=092f7b2e…, bal_hive:null=1868880972711925, sup_migrated=cfg_migburn exact.
   LasseCash is live on MAGI.
+
+## Evening verification (all exact on-chain) & watchlist
+
+Launch evening, all verified to the base unit: claim (receipt 21,000|7,005,065.73374918),
+pool seed 10,000+5.21, genesis post registered mode 2 (burn) + 100 LC promote,
+vote 10% → 70,050.657 rshares, mint 1,000, swap 1,000 LC → 0.473 HBD paid
+(milli-floored), @zaxan claimed independently (387k, seat 2).
+
+**Tomorrow's UI batch (frontend only):**
+1. After login: unclaimed → /mint, claimed → /feed.
+2. Day-0 hint on posts: "reward pools fill when the chain's first day closes".
+3. Vote panel: label the per-voter % as "share of this post", not vote weight.
+4. Refresh the HBD balance after pool actions (stale 86.14 after swap).
+5. Tool hygiene: he-update-metadata via Keychain flow, not env key.
+
+**Watchlist:**
+- Day 0 closes ~18:35 UTC 1 Sept → first pool figures; verify accrual walk.
+- 1 Sept: first monthly PoB epoch boundary on the real chain.
+- 7 Sept: genesis post payout — VERIFY burn mode routes author share to @null.
+- @cashmap claim pending (noganoo's test).
+- 25 Sept: recovery_account -> null takes effect. 10 Oct: KEY BURN (§7 — move
+  owner funds off first, undelegate the 100 HP, final preflight).
