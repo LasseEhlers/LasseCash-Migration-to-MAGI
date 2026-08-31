@@ -12,3 +12,9 @@
   · 18,688,809.72711925 LC to hive:null · snapshot supply 30,419,501.97458230.
 - **Tonight's owner call #2, verbatim:**
   `set_snapshot 092f7b2ed2e6a0ccd3dadb832e9829c6419096171bcae68edb883fb099e46803|1173069224746305|1868880972711925`
+
+- **PRODUCTION CONTRACT DEPLOYED 15:00 UTC:**
+  id `vsc1Be4TTjUiHgzhHAfqFn6s3PDAExH2X59fXV`
+  · tx `1933145e46f10bddfed18d698de783e5814865f3`
+  · code CID `bafkreifnnebaktfkfowflragdhhkuddxkr56rfmtl7kda56qxe4fd3e3fm`
+  · WASM sha256 `ad6902…9b2b`, 95,163 bytes, 30 entrypoints, MAINNET build.
