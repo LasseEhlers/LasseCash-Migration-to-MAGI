@@ -161,7 +161,6 @@
     void fetch(`${base}/migration/summary.json`).then((r) => (r.ok ? r.json() : null))
       .then((d) => { summary = d; }).catch(() => {});
   });
-  const total = (r: { l: string; s: string }) => lc(fromUnits(BigInt(r.l) + BigInt(r.s)));
   $effect(() => {
     void fetch("https://api.hive.blog", {
       method: "POST",
@@ -405,13 +404,12 @@
       <details class="panel roll">
         <summary><b>The {summary.in.length} accounts that made it</b> — {lc(fromUnits(summary.in.reduce((t, r) => t + BigInt(r.l) + BigInt(r.s), 0n)))} LASSECASH migrates</summary>
         <div class="scroll"><table>
-          <thead><tr><th>#</th><th>account</th><th class="num">liquid</th><th class="num">staked</th><th class="num">total</th></tr></thead>
+          <thead><tr><th>no</th><th>username</th><th class="num">LASSECASH</th><th class="num">L-Shares</th></tr></thead>
           <tbody>
             {#each summary.in as r, i (r.a)}
               <tr><td class="mono dim">{i + 1}</td><td>@{r.a}</td>
                 <td class="mono num">{lc(fromUnits(BigInt(r.l)))}</td>
-                <td class="mono num">{lc(fromUnits(BigInt(r.s)))}</td>
-                <td class="mono num">{total(r)}</td></tr>
+                <td class="mono num">{lc(fromUnits(BigInt(r.s)))}</td></tr>
             {/each}
           </tbody>
         </table></div>
@@ -419,10 +417,12 @@
       <details class="panel roll">
         <summary><b>Burned holding 10,000 or more</b> — {summary.burned10k.length} accounts that never signed one LASSECASH operation in six months, despite a one-week public roll call</summary>
         <div class="scroll"><table>
-          <thead><tr><th>#</th><th>account</th><th class="num">total lost to @null</th></tr></thead>
+          <thead><tr><th>no</th><th>username</th><th class="num">LASSECASH</th><th class="num">LASSECASH POWER</th></tr></thead>
           <tbody>
             {#each summary.burned10k as r, i (r.a)}
-              <tr><td class="mono dim">{i + 1}</td><td>@{r.a}</td><td class="mono num">{total(r)}</td></tr>
+              <tr><td class="mono dim">{i + 1}</td><td>@{r.a}</td>
+                <td class="mono num">{lc(fromUnits(BigInt(r.l)))}</td>
+                <td class="mono num">{lc(fromUnits(BigInt(r.s)))}</td></tr>
             {/each}
           </tbody>
         </table></div>
