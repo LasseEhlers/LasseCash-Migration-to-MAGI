@@ -152,6 +152,16 @@
    * opposite is not.
    */
   let headBlock = $state<number | null>(null);
+  /** The full public record, shown under the checker once the snapshot is
+   *  final. One 17 KB static file; the honest ledger of who made it and who
+   *  lost 10,000+ by sleeping through six months and a one-week roll call. */
+  let summary = $state<{ in: { a: string; l: string; s: string }[]; burned10k: { a: string; l: string; s: string }[] } | null>(null);
+  $effect(() => {
+    if (!snapshotFinal || summary) return;
+    void fetch(`${base}/migration/summary.json`).then((r) => (r.ok ? r.json() : null))
+      .then((d) => { summary = d; }).catch(() => {});
+  });
+  const total = (r: { l: string; s: string }) => lc(fromUnits(BigInt(r.l) + BigInt(r.s)));
   $effect(() => {
     void fetch("https://api.hive.blog", {
       method: "POST",
@@ -391,6 +401,34 @@
       </div>
     {/if}
 
+    {#if summary}
+      <details class="panel roll">
+        <summary><b>The {summary.in.length} accounts that made it</b> — {lc(fromUnits(summary.in.reduce((t, r) => t + BigInt(r.l) + BigInt(r.s), 0n)))} LASSECASH migrates</summary>
+        <div class="scroll"><table>
+          <thead><tr><th>#</th><th>account</th><th class="num">liquid</th><th class="num">staked</th><th class="num">total</th></tr></thead>
+          <tbody>
+            {#each summary.in as r, i (r.a)}
+              <tr><td class="mono dim">{i + 1}</td><td>@{r.a}</td>
+                <td class="mono num">{lc(fromUnits(BigInt(r.l)))}</td>
+                <td class="mono num">{lc(fromUnits(BigInt(r.s)))}</td>
+                <td class="mono num">{total(r)}</td></tr>
+            {/each}
+          </tbody>
+        </table></div>
+      </details>
+      <details class="panel roll">
+        <summary><b>Burned holding 10,000 or more</b> — {summary.burned10k.length} accounts that never signed one LASSECASH operation in six months, despite a one-week public roll call</summary>
+        <div class="scroll"><table>
+          <thead><tr><th>#</th><th>account</th><th class="num">total lost to @null</th></tr></thead>
+          <tbody>
+            {#each summary.burned10k as r, i (r.a)}
+              <tr><td class="mono dim">{i + 1}</td><td>@{r.a}</td><td class="mono num">{total(r)}</td></tr>
+            {/each}
+          </tbody>
+        </table></div>
+      </details>
+    {/if}
+
     {#if ops && ops.length > 0}
       <div class="panel ops">
         <h3>Recent LASSECASH activity on @{asked}</h3>
@@ -458,6 +496,10 @@
   .verdict.out { border-left-color: var(--gold); }
   .verdict.out h2 { color: var(--gold); }
   .verdict.none { border-left-color: var(--line); }
+  .roll { margin-top: 1.2rem; }
+  .roll summary { cursor: pointer; padding: 0.3rem 0; }
+  .roll .num { text-align: right; }
+  .roll table { width: 100%; }
   .linkish { background: none; border: 0; padding: 0; color: var(--gold); text-decoration: underline; cursor: pointer; font: inherit; }
   .verdict h2 { margin: 0 0 0.7rem; font-size: 1.15rem; }
   h3 { font-size: 0.95rem; margin: 1.1rem 0 0.5rem; }
