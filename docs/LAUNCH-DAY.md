@@ -22,3 +22,18 @@
   Settings → Variables: set `VITE_CONTRACT_ID=vsc1Be4TTjUiHgzhHAfqFn6s3PDAExH2X59fXV`,
   DELETE `VITE_TESTWINDOWS` and `VITE_PRELAUNCH`, keep net id/chain URL; then
   "Retry deployment" so the build picks the new env.
+
+- **§3 verification COMPLETE on-chain (simulateContractCalls, free):**
+  code CID matches our WASM byte-for-byte; owner resolves to
+  hive:lassecashmagi (init from lasseehlers refused "owner only"); the exact
+  init+set_snapshot pair simulates green — gas 40,063,737 (~401 RC) and
+  285,282,416 (~2,853 RC). rc_limit for set_snapshot raised 2000 → 4000.
+- **DECIDED: init passes the ANNOUNCED genesis height 109512118 verbatim**
+  (the runbook said "read the height at broadcast"; the announcement promised
+  the block, so the block is what cfg_genesis gets — broadcast right as it
+  passes, the same way the snapshot was handled).
+- **Tonight's two commands, verbatim (at block 109,512,118 ≈ 20:35 CPH):**
+  node tools/chain-test/launch-call.js init 109512118 1500
+  node tools/chain-test/launch-call.js set_snapshot "092f7b2ed2e6a0ccd3dadb832e9829c6419096171bcae68edb883fb099e46803|1173069224746305|1868880972711925" 4000
+  then verify by state read (cfg_init, cfg_genesis, cfg_migroot, bal_hive:null),
+  then: transfer ~85 HBD MAGI→MAGI owner → lasseehlers, then the site switch.

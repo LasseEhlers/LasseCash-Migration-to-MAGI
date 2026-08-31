@@ -170,7 +170,7 @@ right before broadcasting and use that exact number.
 
 ```
 init            <genesisHeight>                         rc_limit  1000
-set_snapshot    <root>|<qualifier_total>|<burn_total>   rc_limit  2000
+set_snapshot    <root>|<qualifier_total>|<burn_total>   rc_limit  4000
 ```
 Verify after each (read state, not the output's ok:true — see the RC-freeze
 trap in CLAUDE.md): `cfg_init="1"`, `cfg_genesis=<height>`, then
