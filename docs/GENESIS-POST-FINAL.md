@@ -63,7 +63,7 @@ If a defect can be fixed in code, it is fixed through the timelocked update and 
 
 ## Hive-Engine LASSECASH is dead
 
-The old token still exists because nothing on a blockchain can be deleted. It is worthless. The Hive-Engine team has already removed it from trading on hive-engine.com and tribaldex.com, and the old Outpost site is gone — my thanks to them for seven years and a clean ending. Do not buy it anywhere, do not send it; only the snapshot counts.
+The old token still exists because nothing on a blockchain can be deleted. It is worthless. The Hive-Engine team has already removed it from trading on hive-engine.com and tribaldex.com, and the old Outpost site is gone — my thanks to them for seven years and a clean ending. Do not buy it anywhere, do not send it; only the token on MAGI counts.
 
 ## Where to go
 
