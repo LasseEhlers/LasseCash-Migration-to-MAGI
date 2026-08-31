@@ -146,7 +146,16 @@ def main() -> None:
     #    find what moved. Re-baseline only with a written reason.
     DRIFT_BASELINE = 412922057726      # re-measured 2026-08-23 after the pendingUnstake fix
     DRIFT_TOLERANCE = 1000 * UNIT
-    UNDISTRIBUTED = 59878408873677       # tokens.contractsBalances, distribution
+    # ⚠️ RE-BASELINED AT THE SNAPSHOT BLOCK, 2026-08-31, written reason:
+    # "nothing issues or burns" was true of the TOKEN, but the tribe's
+    # `distribution` contract kept paying its daily drip out of its own
+    # already-issued holding until the very block — 598,784.09 on 23 Aug,
+    # 576,310.84 at the snapshot (payouts of 22,473.25 LC in between, which
+    # is exactly what captured wallets gained, residual dust moved 57.96 LC,
+    # well inside tolerance). Verified live before re-baselining:
+    #   31,000,000 − snapshot 30,419,501.97458230 − 576,310.84078164
+    #   = 4,187.18 ≈ the 23 Aug dust of 4,129.22.
+    UNDISTRIBUTED = 57631084078164       # tokens.contractsBalances, distribution, at block 109,504,918
     RECORDED = 31_000_000 * UNIT
     drift = RECORDED - snapshot - UNDISTRIBUTED
     moved = abs(drift - DRIFT_BASELINE)
@@ -158,7 +167,11 @@ def main() -> None:
     #    under the same failure: the total is recorded here and any change must
     #    be deliberate. Tokens move between accounts constantly; the SUM over
     #    all accounts does not move at all unless the scan changed.
-    TOTAL_BASELINE = 3039708669068597    # re-measured 2026-08-23 after the pendingUnstake fix
+    # Re-baselined 2026-08-31 to THE snapshot itself (block 109,504,918) —
+    # same written reason as UNDISTRIBUTED above: the distribution drip moved
+    # 22,415.28 into captured wallets between the 23 Aug baseline and the
+    # block. This is the final figure; it must never move again.
+    TOTAL_BASELINE = 3041950197458230
     total_moved = abs(snapshot - TOTAL_BASELINE)
     check(total_moved <= 1000 * UNIT,
           "snapshot total matches the recorded baseline",

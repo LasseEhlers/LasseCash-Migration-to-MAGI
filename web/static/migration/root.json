@@ -1,8 +1,8 @@
 {
- "root": "0a8248c8e866ee16df8527402cf94e3c07200760a12bcc54e1ec0f9fe76b839e",
- "qualifier_total": "1059561171404356",
- "burn_total": "1980147497664241",
- "leaf_count": 11241,
- "generated": "2026-08-23T21:28:28.960624+00:00",
+ "root": "092f7b2ed2e6a0ccd3dadb832e9829c6419096171bcae68edb883fb099e46803",
+ "qualifier_total": "1173069224746305",
+ "burn_total": "1868880972711925",
+ "leaf_count": 11238,
+ "generated": "2026-08-31T13:21:06.346340+00:00",
  "window_months": 6
 }
