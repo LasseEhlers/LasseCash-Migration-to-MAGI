@@ -5,3 +5,10 @@
   §6 seed: **10,000 LASSECASH + 5.207 HBD** (round to 5.21).
 - Snapshot block 109,504,918 ≈ 12:00 UTC; genesis block 109,512,118 ≈ 18:00 UTC.
 - Preflight: READY (key match, 12 HBD L1, RC 100%).
+
+- **THE SNAPSHOT (final, committed 5b97237):**
+  root `092f7b2ed2e6a0ccd3dadb832e9829c6419096171bcae68edb883fb099e46803`
+  · 11,238 leaves · 418 qualify with 11,730,692.24746305 LC
+  · 18,688,809.72711925 LC to hive:null · snapshot supply 30,419,501.97458230.
+- **Tonight's owner call #2, verbatim:**
+  `set_snapshot 092f7b2ed2e6a0ccd3dadb832e9829c6419096171bcae68edb883fb099e46803|1173069224746305|1868880972711925`
