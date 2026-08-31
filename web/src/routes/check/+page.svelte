@@ -163,6 +163,16 @@
                        : Date.now() >= SNAPSHOT_TS + 4 * 3600_000,
   );
   /**
+   * Between the block and the FINAL data landing (the scan takes about an
+   * hour), the shards still hold the last pre-block rebuild — so the verdict
+   * stands (the live check covers late signers) but the FIGURES may miss
+   * anything done in the final hours. Lasse's call, launch morning: show no
+   * number that might be wrong. index.generated says which side we are on.
+   */
+  const pendingFinalData = $derived(
+    snapshotFinal && (!index || Date.parse(index.generated) < SNAPSHOT_TS),
+  );
+  /**
    * The live override. The shards are a photograph; a person who acted after
    * it was taken must not stare at "NOT in" with the proof of the opposite
    * listed underneath (@tibfox, 2026-08-27). This applies the same shared
@@ -231,6 +241,13 @@
     {:else if row?.in}
       <div class="verdict in">
         <h2>@{asked} — you are IN</h2>
+{#if pendingFinalData}
+          <p class="note">
+            The snapshot is being read from the block right now. Your exact
+            final figures appear here within about two hours — the verdict
+            above is from the last pre-block scan.
+          </p>
+{:else}
         <dl>
           <dt>liquid</dt><dd class="mono">{lc(fromUnits(BigInt(row.liquid)))}</dd>
           <dt>staked (becomes a 30-day mint)</dt><dd class="mono">{lc(fromUnits(BigInt(row.staked)))}</dd>
@@ -242,6 +259,7 @@
             <dt>last LASSECASH action</dt><dd class="mono">{row.last_lassecash}</dd>
           {/if}
         </dl>
+{/if}
         {#if row.reason === "truncated_unresolved"}
           <p class="note">
             Your history was too long to walk to the end, so you are included
@@ -335,6 +353,13 @@
             <button type="button" class="linkish" onclick={() => recent(asked)}>Try again</button>
           </p>
         {/if}
+{#if pendingFinalData}
+          <p class="note">
+            The snapshot is being read from the block right now. Your exact
+            final figures appear here within about two hours — the verdict
+            above is from the last pre-block scan.
+          </p>
+{:else}
         <dl>
           <dt>liquid</dt><dd class="mono">{lc(fromUnits(BigInt(row.liquid)))}</dd>
           <dt>staked (becomes a 30-day mint if you are in)</dt><dd class="mono">{lc(fromUnits(BigInt(row.staked)))}</dd>
@@ -348,6 +373,7 @@
             <dt>needs to be after</dt><dd class="mono">{cutoffDate}</dd>
           {/if}
         </dl>
+{/if}
         {#if !snapshotFinal}
         <h3>What to do — it takes one minute</h3>
         <ol>
