@@ -152,35 +152,6 @@
    * opposite is not.
    */
   let headBlock = $state<number | null>(null);
-  /** The full public record, shown under the checker once the snapshot is
-   *  final. One 17 KB static file; the honest ledger of who made it and who
-   *  lost 10,000+ by sleeping through six months and a one-week roll call. */
-  let summary = $state<{ in: { a: string; l: string; s: string }[]; burned10k: { a: string; l: string; s: string }[] } | null>(null);
-  $effect(() => {
-    if (!snapshotFinal || summary) return;
-    void fetch(`${base}/migration/summary.json`).then((r) => (r.ok ? r.json() : null))
-      .then((d) => { summary = d; }).catch(() => {});
-  });
-  $effect(() => {
-    void fetch("https://api.hive.blog", {
-      method: "POST",
-      body: JSON.stringify({ jsonrpc: "2.0", method: "condenser_api.get_dynamic_global_properties", params: [], id: 1 }),
-    }).then((r) => r.json()).then((d) => { headBlock = d.result.head_block_number; }).catch(() => {});
-  });
-  const snapshotFinal = $derived(
-    headBlock !== null ? headBlock >= SNAPSHOT_BLOCK
-                       : Date.now() >= SNAPSHOT_TS + 4 * 3600_000,
-  );
-  /**
-   * Between the block and the FINAL data landing (the scan takes about an
-   * hour), the shards still hold the last pre-block rebuild — so the verdict
-   * stands (the live check covers late signers) but the FIGURES may miss
-   * anything done in the final hours. Lasse's call, launch morning: show no
-   * number that might be wrong. index.generated says which side we are on.
-   */
-  const pendingFinalData = $derived(
-    snapshotFinal && (!index || Date.parse(index.generated) < SNAPSHOT_TS),
-  );
   /**
    * The live override. The shards are a photograph; a person who acted after
    * it was taken must not stare at "NOT in" with the proof of the opposite
@@ -400,35 +371,6 @@
       </div>
     {/if}
 
-    {#if summary}
-      <details class="panel roll">
-        <summary><b>The {summary.in.length} accounts that made it</b> — {lc(fromUnits(summary.in.reduce((t, r) => t + BigInt(r.l) + BigInt(r.s), 0n)))} LASSECASH migrates</summary>
-        <div class="scroll"><table>
-          <thead><tr><th>no</th><th>username</th><th class="num">LASSECASH</th><th class="num">L-Shares</th></tr></thead>
-          <tbody>
-            {#each summary.in as r, i (r.a)}
-              <tr><td class="mono dim">{i + 1}</td><td>@{r.a}</td>
-                <td class="mono num">{lc(fromUnits(BigInt(r.l)))}</td>
-                <td class="mono num">{lc(fromUnits(BigInt(r.s)))}</td></tr>
-            {/each}
-          </tbody>
-        </table></div>
-      </details>
-      <details class="panel roll">
-        <summary><b>Burned holding 10,000 or more</b> — {summary.burned10k.length} accounts that never signed one LASSECASH operation in six months, despite a one-week public roll call</summary>
-        <div class="scroll"><table>
-          <thead><tr><th>no</th><th>username</th><th class="num">LASSECASH</th><th class="num">LASSECASH POWER</th></tr></thead>
-          <tbody>
-            {#each summary.burned10k as r, i (r.a)}
-              <tr><td class="mono dim">{i + 1}</td><td>@{r.a}</td>
-                <td class="mono num">{lc(fromUnits(BigInt(r.l)))}</td>
-                <td class="mono num">{lc(fromUnits(BigInt(r.s)))}</td></tr>
-            {/each}
-          </tbody>
-        </table></div>
-      </details>
-    {/if}
-
     {#if ops && ops.length > 0}
       <div class="panel ops">
         <h3>Recent LASSECASH activity on @{asked}</h3>
@@ -496,10 +438,7 @@
   .verdict.out { border-left-color: var(--gold); }
   .verdict.out h2 { color: var(--gold); }
   .verdict.none { border-left-color: var(--line); }
-  .roll { margin-top: 1.2rem; }
-  .roll summary { cursor: pointer; padding: 0.3rem 0; }
-  .roll .num { text-align: right; }
-  .roll table { width: 100%; }
+
   .linkish { background: none; border: 0; padding: 0; color: var(--gold); text-decoration: underline; cursor: pointer; font: inherit; }
   .verdict h2 { margin: 0 0 0.7rem; font-size: 1.15rem; }
   h3 { font-size: 0.95rem; margin: 1.1rem 0 0.5rem; }
