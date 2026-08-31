@@ -37,3 +37,6 @@
   node tools/chain-test/launch-call.js set_snapshot "092f7b2ed2e6a0ccd3dadb832e9829c6419096171bcae68edb883fb099e46803|1173069224746305|1868880972711925" 4000
   then verify by state read (cfg_init, cfg_genesis, cfg_migroot, bal_hive:null),
   then: transfer ~85 HBD MAGI→MAGI owner → lasseehlers, then the site switch.
+- 18:15 CPH: Hive-Engine team removed LASSECASH from trading on
+  hive-engine.com + tribaldex.com and took the old Outpost down (reazuliqbal,
+  after aggroed/eonwarped ping). The old chain is fully closed.
