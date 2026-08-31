@@ -60,6 +60,15 @@
     if (!quote?.ok) return "0";
     return (Number(quote.amountOut) * (1 - slippagePct / 100)).toFixed(8);
   });
+  /**
+   * HBD moves in 0.001 steps on MAGI (milli-units). A sell whose output is
+   * below one milli cannot be paid; the contract refuses it atomically with
+   * an opaque "HBD transfer failed". Say why BEFORE the wallet opens.
+   * (Found in the launch-morning rehearsal, 2026-08-31, on a dust pool.)
+   */
+  const outBelowHbdStep = $derived(
+    direction === "lc_hbd" && !!quote?.ok && Number(quote.amountOut) < 0.001,
+  );
 
   /** 1 LASSECASH = M HBD — the same figure the header "Price" tile shows. */
   const spot = $derived(
@@ -383,10 +392,18 @@
                   Price impact <b class="mono">{pct(quote.priceImpactPct)}</b>
                 </span>
               </div>
-              <p class="estimate">
-                Estimate. Reserves move before this broadcasts — you receive at
-                least <b class="mono">{lc(minOut, 6)}</b> {outSymbol} or the swap is rejected.
-              </p>
+              {#if outBelowHbdStep}
+                <p class="estimate red">
+                  Too small to pay out: HBD moves in 0.001 steps on MAGI and
+                  this swap would pay {lc(quote.amountOut, 6)}. Increase the
+                  amount.
+                </p>
+              {:else}
+                <p class="estimate">
+                  Estimate. Reserves move before this broadcasts — you receive at
+                  least <b class="mono">{lc(minOut, 6)}</b> {outSymbol} or the swap is rejected.
+                </p>
+              {/if}
             {:else}
               <p class="dim">Not possible at this size.</p>
             {/if}
@@ -401,7 +418,7 @@
       {/if}
 
       {#if swapError}<p class="err">{swapError}</p>{/if}
-      <button onclick={doSwap} disabled={!chain.account || !poolReady || !quote?.ok || chain.busy}>
+      <button onclick={doSwap} disabled={!chain.account || !poolReady || !quote?.ok || outBelowHbdStep || chain.busy}>
         {chain.account ? "Swap" : "Sign in to swap"}
       </button>
     </section>
