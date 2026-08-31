@@ -12,7 +12,8 @@
   import { chain, client } from "$lib/chain.svelte.js";
   import { toUnits } from "$api/index.js";
   import { lc, mult } from "$lib/format.js";
-  import { constants, mintQuote, toBaseUnitArg, type EngineMintQuote } from "$api/index.js";
+  import { constants, mintQuote, toBaseUnitArg, Param, type EngineMintQuote } from "$api/index.js";
+  import { readGovernance } from "$lib/governance.js";
 
   const C = $derived(chain.ready ? constants() : null);
 
@@ -21,9 +22,14 @@
   let error = $state<string | null>(null);
   let confirming = $state(false);
 
-  /** The governed Bigger-Pays-Better thresholds, read from chain state. */
-  let volumeStart = $state("10000");
-  let volumeEnd = $state("100000");
+  /** The governed Bigger-Pays-Better thresholds, read from chain state.
+   * The initial literals are only a pre-load placeholder; the effect below
+   * replaces them with the median in force. (Until 2026-08-31 the effect
+   * fetched only the share rate, so these stayed at the pre-08-22 defaults
+   * and every submit tripped the "rate moved" guard — found by Lasse in the
+   * launch-morning rehearsal.) */
+  let volumeStart = $state("1000");
+  let volumeEnd = $state("50000");
   /** Share rate at the current height, from the chain. */
   let shareRate = $state("1.00000000");
 
@@ -33,6 +39,11 @@
     const info = chain.info;
     if (!info) return;
     void client.quoteMint("1", 1).then((q) => { shareRate = q.share_rate; });
+    void readGovernance([Param.VolumeStart, Param.VolumeEnd]).then((g) => {
+      const vs = g.values.get(Param.VolumeStart), ve = g.values.get(Param.VolumeEnd);
+      if (vs?.ok) volumeStart = vs.value;
+      if (ve?.ok) volumeEnd = ve.value;
+    });
   });
 
   /** EXACT preview — pure function of the inputs above. */
