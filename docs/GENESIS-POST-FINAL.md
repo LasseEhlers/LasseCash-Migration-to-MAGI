@@ -1,10 +1,8 @@
 # LASSECASH is live on MAGI — claim your tokens
 
-<!-- Fill on launch day: 109,512,118 vsc1Be4TTjUiHgzhHAfqFn6s3PDAExH2X59fXV 092f7b2ed2e6a0ccd3dadb832e9829c6419096171bcae68edb883fb099e46803 418 10,885 11,730,692.24746305 18,688,809.72711925 110,664,118 5.21 31 August 2026, ≈ 18:35 UTC -->
-
 ## What happened
 
-At Hive block **109,504,918** (Monday 31 August 2026, 12:00 UTC) I took the snapshot I announced. It is final and it is public: **418 accounts** holding **11,730,692.24746305 LASSECASH** are in; **10,885 accounts** holding **18,688,809.72711925 LASSECASH** did not qualify and that amount now sits at @null, forever, listed account by account.
+At Hive block **109,504,918** (Monday 31 August 2026) I took the snapshot I announced. It is final and it is public: **418 accounts** holding **11,730,692.24746305 LASSECASH** are in; **10,885 accounts** holding **18,688,809.72711925 LASSECASH** did not qualify and that amount now sits at @null, forever, listed account by account.
 
 The whole snapshot is committed to the MAGI contract as one Merkle root:
 
