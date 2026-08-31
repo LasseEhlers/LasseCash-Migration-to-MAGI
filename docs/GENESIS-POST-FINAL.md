@@ -1,3 +1,5 @@
+![image.png](https://files.peakd.com/file/peakd-hive/lasseehlers/23w2esUkT4KdjScAGCQKSbyuj5yRvAa6GDEfuJaXyYT67X1sEu76CYRH4qdbv5rRX65yH.png)
+
 # LASSECASH is live on MAGI — claim your tokens
 
 ## What happened
@@ -41,9 +43,9 @@ Era 1 emits **9,132 LASSECASH a day** in total. The pool's share is **~2,283 a d
 
 ## The first month is a price, not price discovery
 
-I opened the pool with **10,000 LASSECASH and 5.21 HBD** — the same ratio as the old Hive-Engine pool on migration day. That is deliberately small: the opening *ratio* is what matters, and arbitrage keeps any depth honest.
+I opened the pool with **10,000 LASSECASH and 5.21 HBD** — the same ratio as the old Hive-Engine pool on migration day. That is deliberately small: the opening *ratio* is what matters.
 
-From day one the pool is live and every trade is real. But the tokens arrive only as people claim them, most of the staked half sits in 30-day mints, and the pool starts thin. With ~2,283 LASSECASH a day landing on a pool this size, the APR you see in the first days will look absurd — four digits. It is real, and it is exactly why it will not stay that way: it falls with every provider who joins.
+From day one the pool is live and every trade is real. But the tokens arrive only as people claim them, the staked half sits in 30-day mints, and the pool starts thin. With ~2,283 LASSECASH a day landing on a pool this size, the APR you see in the first days will look absurd — four digits. It is real, and it is exactly why it will not stay that way: it falls with every provider who joins.
 
 So: what you see in September is the price of a market that is still filling up. **Real price discovery begins after day 30**, when the migration mints mature and the liquid supply is actually out there. Be cautious with what you read into the early numbers — up or down. Judge it in October.
 
@@ -70,6 +72,6 @@ The old token still exists because nothing on a blockchain can be deleted. It is
 - Everything else: https://lassecash.com/about
 - The music: https://lassemusic.com
 
-Seven years of my word. From today, code.
+Seven years of my word. From today, CODE.
 
-— Lasse
+Lasse Ehlers
