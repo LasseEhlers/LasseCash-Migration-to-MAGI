@@ -134,6 +134,15 @@
 
   const cutoffDate = $derived(index ? index.cutoff.slice(0, 10) : "");
   /**
+   * The snapshot moment: block 109,504,918 ≈ 2026-08-31 12:00 UTC. After it
+   * the verdict is FINAL — no action can change who is in, and an operation
+   * signed after the block must never flip anyone (it exists only on the dead
+   * chain). Time-based rather than height-based deliberately: this page has
+   * no Hive client, and a minute of skew only delays the wording flip.
+   */
+  const SNAPSHOT_TS = Date.parse("2026-08-31T12:00:00Z");
+  const snapshotFinal = Date.now() >= SNAPSHOT_TS;
+  /**
    * The live override. The shards are a photograph; a person who acted after
    * it was taken must not stare at "NOT in" with the proof of the opposite
    * listed underneath (@tibfox, 2026-08-27). This applies the same shared
@@ -143,7 +152,9 @@
   const liveOp = $derived.by(() => {
     if (!ops || !index) return null;
     const cutoff = Date.parse(index.cutoff);
-    return ops.find((o) => selfSigned(o, asked) && o.timestamp * 1000 >= cutoff) ?? null;
+    return ops.find((o) =>
+      selfSigned(o, asked) && o.timestamp * 1000 >= cutoff &&
+      o.timestamp * 1000 < SNAPSHOT_TS) ?? null;
   });
   function when(ts: number): string {
     return new Date(ts * 1000).toISOString().slice(0, 10);
@@ -279,7 +290,16 @@
       </div>
     {:else if row}
       <div class="verdict out">
-        <h2>@{asked} — you are NOT in, yet</h2>
+        <h2>@{asked} — {snapshotFinal ? "not in the snapshot" : "you are NOT in, yet"}</h2>
+        {#if snapshotFinal}
+          <p class="note">
+            The snapshot was taken at block {SNAPSHOT_BLOCK.toLocaleString("en-US")} —
+            {SNAPSHOT_WHEN}. It is final and nothing can change it now. Under the
+            rule announced one week in advance, holdings of accounts that never
+            signed a LASSECASH operation in the six months before the block were
+            credited to @null, recorded account by account, visible forever.
+          </p>
+        {/if}
         {#if liveError}
           <p class="note">
             <b>Could not reach Hive-Engine just now</b>, so anything you signed
@@ -300,6 +320,7 @@
             <dt>needs to be after</dt><dd class="mono">{cutoffDate}</dd>
           {/if}
         </dl>
+        {#if !snapshotFinal}
         <h3>What to do — it takes one minute</h3>
         <ol>
           <li>Open <a href="https://hive-engine.com/wallet" rel="noopener">hive-engine.com/wallet</a> or Tribaldex.</li>
@@ -312,6 +333,7 @@
           voting — those use your posting key and a bot can do them. Only an
           operation <b>you signed</b> proves a person is there.
         </p>
+        {/if}
       </div>
     {/if}
 
