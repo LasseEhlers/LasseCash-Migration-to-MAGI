@@ -29,11 +29,11 @@ const metadata = {
   icon: "https://images.hive.blog/DQmVTNMH9QjFbGhDunq8XtEP6Ke1Zsu7KD9ztL2SCGo4Mm1/image.png",
   desc:
     "LasseCash: Anarchy. Crypto. Truth.\n\n" +
-    "THIS HIVE-ENGINE TOKEN IS BEING RETIRED. LasseCash migrates to the MAGI chain " +
-    "with a one-time snapshot (announced 2026-08-23); after the snapshot this token " +
-    "is dead and Hive-Engine LASSECASH is not honoured. Rules, dates and how to " +
-    "claim: https://peakd.com/@lasseehlers/lassecash-migrates-to-magi and " +
-    "https://lassecash.com/about",
+    "THIS TOKEN IS RETIRED. LasseCash migrated to the MAGI chain at Hive block " +
+    "109,504,918 (31 August 2026, snapshot final). This Hive-Engine token is dead " +
+    "and worthless — do not buy it, do not send it anywhere; only the snapshot " +
+    "counts. Qualifying holders claim on https://lassecash.com (210-day window). " +
+    "Check any account: https://lassecash.com/check — rules: https://lassecash.com/about",
 };
 
 const json = JSON.stringify({
