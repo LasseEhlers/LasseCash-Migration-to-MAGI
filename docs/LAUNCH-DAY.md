@@ -18,3 +18,7 @@
   · tx `1933145e46f10bddfed18d698de783e5814865f3`
   · code CID `bafkreifnnebaktfkfowflragdhhkuddxkr56rfmtl7kda56qxe4fd3e3fm`
   · WASM sha256 `ad6902…9b2b`, 95,163 bytes, 30 entrypoints, MAINNET build.
+- Site switch tonight (after set_snapshot): Cloudflare → Pages `lassecash` →
+  Settings → Variables: set `VITE_CONTRACT_ID=vsc1Be4TTjUiHgzhHAfqFn6s3PDAExH2X59fXV`,
+  DELETE `VITE_TESTWINDOWS` and `VITE_PRELAUNCH`, keep net id/chain URL; then
+  "Retry deployment" so the build picks the new env.
