@@ -21,7 +21,7 @@
  * database_api.find_change_recovery_account_requests -> the pending request
  * with its effective_on date.
  */
-const { Client, PrivateKey } = require("/tmp/keycheck/node_modules/@hiveio/dhive");
+const { Client, PrivateKey } = require(`${__dirname}/chain-test/node_modules/@hiveio/dhive`);
 
 const ACCOUNT = "lassecashmagi";
 const NEW_RECOVERY = "null";

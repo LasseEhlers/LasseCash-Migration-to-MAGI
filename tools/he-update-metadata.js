@@ -16,7 +16,7 @@
  *
  * The key is read from the environment and never printed or written.
  */
-const { Client, PrivateKey } = require("/tmp/keycheck/node_modules/@hiveio/dhive");
+const { Client, PrivateKey } = require(`${__dirname}/chain-test/node_modules/@hiveio/dhive`);
 
 const ISSUER = "lasseehlers";
 const SYMBOL = "LASSECASH";
