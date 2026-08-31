@@ -40,3 +40,8 @@
 - 18:15 CPH: Hive-Engine team removed LASSECASH from trading on
   hive-engine.com + tribaldex.com and took the old Outpost down (reazuliqbal,
   after aggroed/eonwarped ping). The old chain is fully closed.
+
+- **GENESIS EXECUTED, block 109,512,118 (≈18:35 UTC):**
+  init tx `cc0f1aa5e07f604ecd489ced952615b4b76f6a60` → cfg_init=1, cfg_genesis=109512118 (state-verified 40 s later)
+  set_snapshot tx `9bf6488f0271697185dbc00ff6282356f15f2e01` → cfg_migroot=092f7b2e…, bal_hive:null=1868880972711925, sup_migrated=cfg_migburn exact.
+  LasseCash is live on MAGI.
