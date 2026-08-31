@@ -152,6 +152,21 @@
    * opposite is not.
    */
   let headBlock = $state<number | null>(null);
+  $effect(() => {
+    void fetch("https://api.hive.blog", {
+      method: "POST",
+      body: JSON.stringify({ jsonrpc: "2.0", method: "condenser_api.get_dynamic_global_properties", params: [], id: 1 }),
+    }).then((r) => r.json()).then((d) => { headBlock = d.result.head_block_number; }).catch(() => {});
+  });
+  const snapshotFinal = $derived(
+    headBlock !== null ? headBlock >= SNAPSHOT_BLOCK
+                       : Date.now() >= SNAPSHOT_TS + 4 * 3600_000,
+  );
+  /** Between the block and the FINAL data landing, the shards still hold the
+   *  last pre-block rebuild — verdicts stand, figures are hidden. */
+  const pendingFinalData = $derived(
+    snapshotFinal && (!index || Date.parse(index.generated) < SNAPSHOT_TS),
+  );
   /**
    * The live override. The shards are a photograph; a person who acted after
    * it was taken must not stare at "NOT in" with the proof of the opposite
