@@ -141,7 +141,27 @@
    * no Hive client, and a minute of skew only delays the wording flip.
    */
   const SNAPSHOT_TS = Date.parse("2026-08-31T12:00:00Z");
-  const snapshotFinal = Date.now() >= SNAPSHOT_TS;
+  /**
+   * FINAL means the BLOCK has passed, not the clock: Hive drops blocks, and
+   * on launch morning 109,504,918 ran ~30 minutes behind its announced time.
+   * A page that said "final, nothing can change it" while one signed op could
+   * still save someone would be wrong in the worst possible direction — so we
+   * ask the chain for its head block and flip on that. If the head cannot be
+   * read, fail toward "not final yet" until well past any plausible drift
+   * (four hours), because showing "what to do" too long is harmless and the
+   * opposite is not.
+   */
+  let headBlock = $state<number | null>(null);
+  $effect(() => {
+    void fetch("https://api.hive.blog", {
+      method: "POST",
+      body: JSON.stringify({ jsonrpc: "2.0", method: "condenser_api.get_dynamic_global_properties", params: [], id: 1 }),
+    }).then((r) => r.json()).then((d) => { headBlock = d.result.head_block_number; }).catch(() => {});
+  });
+  const snapshotFinal = $derived(
+    headBlock !== null ? headBlock >= SNAPSHOT_BLOCK
+                       : Date.now() >= SNAPSHOT_TS + 4 * 3600_000,
+  );
   /**
    * The live override. The shards are a photograph; a person who acted after
    * it was taken must not stare at "NOT in" with the proof of the opposite
@@ -154,7 +174,7 @@
     const cutoff = Date.parse(index.cutoff);
     return ops.find((o) =>
       selfSigned(o, asked) && o.timestamp * 1000 >= cutoff &&
-      o.timestamp * 1000 < SNAPSHOT_TS) ?? null;
+      (!snapshotFinal || o.timestamp * 1000 < SNAPSHOT_TS + 40 * 60_000)) ?? null;
   });
   function when(ts: number): string {
     return new Date(ts * 1000).toISOString().slice(0, 10);
