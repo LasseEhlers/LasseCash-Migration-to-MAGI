@@ -82,6 +82,15 @@ export interface SubmitOptions {
 /** Upper bound on side calls per transaction. A product constant, not a tunable. */
 export const MaxSideCalls = 2;
 
+/** One pool-moving contract call, exactly as the chain recorded it. */
+export interface PoolOp {
+  /** ISO 8601, UTC — when the transaction was anchored. */
+  time: string;
+  action: "add_liquidity" | "remove_liquidity" | "swap_lc_hbd" | "swap_hbd_lc";
+  /** The pipe-delimited argument string, untouched. */
+  payload: string;
+}
+
 /** Read access to chain state. */
 export interface Backend {
   readonly name: string;
@@ -90,6 +99,16 @@ export interface Backend {
   state(keys: string[]): Promise<Record<string, string>>;
   /** Verdict on a broadcast transaction; the simulator answers CONFIRMED. */
   txStatus(txId: string): Promise<TxStatus>;
+  /**
+   * Pool-moving calls, oldest first: the raw material for a price chart.
+   *
+   * RAW, deliberately. This returns what the chain recorded — a time, an
+   * action and its payload — and computes nothing. Turning that into
+   * reserves and a price is a replay of the AMM, which belongs to the engine
+   * (see `LasseCashClient.poolTrades`), never to an indexer writing the
+   * constant-product formula a second time in TypeScript.
+   */
+  poolOps(limit?: number): Promise<PoolOp[]>;
   posts(limit?: number): Promise<PostView[]>;
   /**
    * The same list, CONTENT ONLY — no payout figures, and therefore no engine.

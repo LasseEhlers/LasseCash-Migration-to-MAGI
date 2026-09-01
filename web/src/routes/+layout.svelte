@@ -26,6 +26,9 @@
   // +layout.ts — the rest redirect, so linking them would be a dead end.
   const navLinks = $derived(PRELAUNCH ? [["/check", "Snapshot"], ["/about", "About"]] : [
     ["/", "Feed"], ["/compose", "Write"], ["/mint", "Mint"], ["/pool", "Pool"],
+    // Chart sits beside Pool: one is where you trade, the other is what
+    // trading has done to the price.
+    ["/chart", "Chart"],
     ["/chain", "Chain"], ["/thresholds", "Thresholds"],
     // The roll call: for one week before the snapshot this is the most
     // important page on the site, and it is useless to anyone who cannot find

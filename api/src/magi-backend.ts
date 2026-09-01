@@ -12,7 +12,7 @@
  *     quotes are produced without broadcasting
  *   - `localNodeInfo.last_processed_block` is the Hive height (3s per unit)
  */
-import { BackendError, type Backend, type Signer } from "./backend.js";
+import { BackendError, type PoolOp, type Backend, type Signer } from "./backend.js";
 import * as engine from "./engine.js";
 import { toUnits } from "./amount.js";
 import type { TxStatus } from "./types.js";
@@ -721,6 +721,51 @@ export class MagiBackend implements Backend {
     });
     const body = (await res.json()) as { result?: T };
     return body.result ?? null;
+  }
+
+  /**
+   * Pool-moving calls, oldest first.
+   *
+   * Paged with `offset` because the node caps a page at 100 and the whole
+   * point is that no trade is ever out of reach — the chain keeps every one
+   * of them, so a chart can always be complete back to the first deposit
+   * rather than to whatever fits in one response.
+   *
+   * FAILED transactions are dropped: a refused swap moved nothing, and
+   * charting it would draw a price that never existed.
+   */
+  async poolOps(limit = 500): Promise<PoolOp[]> {
+    const wanted = new Set(["add_liquidity", "remove_liquidity", "swap_lc_hbd", "swap_hbd_lc"]);
+    const out: PoolOp[] = [];
+    const PAGE = 100;
+    for (let offset = 0; offset < limit; offset += PAGE) {
+      const data = await this.query<{
+        findTransaction: {
+          anchr_ts: string; status: string;
+          ops: { type: string; data: { action?: string; payload?: string } }[];
+        }[];
+      }>(
+        `query($c: String!, $o: Int!, $l: Int!) { findTransaction(filterOptions: {byContract: $c, offset: $o, limit: $l}) {
+          anchr_ts status ops { type data } } }`,
+        { c: this.#contractId, o: offset, l: PAGE },
+      );
+      const page = data.findTransaction ?? [];
+      for (const tx of page) {
+        if (tx.status !== "CONFIRMED") continue;
+        for (const op of tx.ops ?? []) {
+          const action = op.data?.action;
+          if (op.type !== "call" || !action || !wanted.has(action)) continue;
+          out.push({
+            time: tx.anchr_ts,
+            action: action as PoolOp["action"],
+            payload: op.data?.payload ?? "",
+          });
+        }
+      }
+      if (page.length < PAGE) break; // reached the beginning of history
+    }
+    // The node answers newest-first; a replay needs the opposite.
+    return out.reverse();
   }
 
   /**

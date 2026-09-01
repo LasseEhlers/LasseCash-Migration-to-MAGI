@@ -6,7 +6,7 @@
  * signing, finality and a real clock — so this backend can also drive time,
  * which the MAGI backend cannot.
  */
-import { BackendError, type Backend, type Signer } from "./backend.js";
+import { BackendError, type Backend, type PoolOp, type Signer } from "./backend.js";
 import type { TxStatus } from "./types.js";
 import type {
   AccountView, ChainInfo, Content, GovernanceMember, LiquidityQuote, MintQuote,
@@ -67,6 +67,15 @@ export class DevBackend implements Backend {
   }
 
   /** The simulator executes synchronously: anything broadcast is settled. */
+  /**
+   * The simulator keeps no transaction log, so there is no trade history to
+   * report. An empty list is the honest answer: the chart then says it has
+   * no trades yet rather than inventing a series the dev chain never had.
+   */
+  async poolOps(): Promise<PoolOp[]> {
+    return [];
+  }
+
   async txStatus(_txId: string): Promise<TxStatus> {
     return { status: "CONFIRMED" };
   }

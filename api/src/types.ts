@@ -375,3 +375,22 @@ export const Param = {
   // No swap-fee key: the LASSECASH:HBD fee is hardcoded to zero, not governed.
 } as const;
 export type Param = (typeof Param)[keyof typeof Param];
+
+/**
+ * One event in the pool's history, with the price it left behind.
+ *
+ * Built by replaying the chain's own calls through the engine — see
+ * `LasseCashClient.poolTrades` for why it is a replay and not a reading.
+ */
+export interface PoolTrade {
+  /** ISO 8601, UTC. */
+  time: string;
+  /** `open` is the deposit that set the price; `liquidity` moves depth only. */
+  side: "open" | "liquidity" | "sell" | "buy";
+  amountIn: Amount;
+  amountOut: Amount;
+  lcReserve: Amount;
+  hbdReserve: Amount;
+  /** HBD per LASSECASH, after this event. */
+  price: Amount;
+}

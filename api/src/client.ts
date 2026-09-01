@@ -9,16 +9,17 @@
  * that no endpoint returns, add a backend quote — do not compute it here. See
  * CLAUDE.md, golden rule.
  */
-import { fromUnits, toBaseUnitArg } from "./amount.js";
+import { fromUnits, toBaseUnitArg, toUnits, type Amount } from "./amount.js";
 import type { Backend, Signer } from "./backend.js";
 import { BackendError, MaxSideCalls, type SubmitOptions } from "./backend.js";
 import type {
   AccountView, ChainInfo, Content, GovernanceMember, LiquidityQuote,
-  MigrationRecord, MintQuote, MintView, PostVote, PostView, PublishResult,
+  MigrationRecord, MintQuote, MintView, PoolTrade, PostVote, PostView, PublishResult,
   ResourceCredits, SwapDirection, SwapQuote, TrancheView, TxResult, Window,
 } from "./types.js";
 import { commentPermlink } from "./hive-metadata.js";
 import { constants } from "./engine.js";
+import * as engine from "./engine.js";
 import { Entrypoint } from "./types.js";
 
 export interface ClientOptions {
@@ -218,6 +219,84 @@ export class LasseCashClient {
   // --- quotes -------------------------------------------------------------
   //
   // Previews are ENGINE-computed. `amount` is what the user typed, e.g. "1000.5".
+
+  /**
+   * Every trade since the pool opened, with the price each one left behind.
+   *
+   * HOW IT IS BUILT. The chain records the CALL, not its effect: a swap's
+   * payload says what went in, never what came out. So the series is a
+   * REPLAY — start at the opening deposit, and for each swap ask the engine
+   * what the pool would have paid against the reserves standing at that
+   * moment. Every step is `engine.estimateSwap` and `engine.lcToHbd`: the
+   * same Go code the contract runs, so the replay cannot drift from what the
+   * chain actually did. Writing `(in * out) / (in + res)` here instead would
+   * be exactly the second implementation the golden rule forbids.
+   *
+   * The replay is CHECKED, not trusted: `reconciled` is true only when the
+   * final reserves land on the chain's live figures to the base unit. It did
+   * on the first run (2026-09-01, five events, zero difference in either
+   * asset). If it ever reads false the chart is telling you so rather than
+   * drawing a plausible line.
+   *
+   * Liquidity events move DEPTH but not PRICE — a proportional deposit is
+   * priced at the pool's own ratio, which is why the first one is the only
+   * one that sets a price.
+   */
+  async poolTrades(limit = 500): Promise<{ trades: PoolTrade[]; reconciled: boolean }> {
+    const [ops, info] = await Promise.all([this.backend.poolOps(limit), this.chain()]);
+    const trades: PoolTrade[] = [];
+    let lc = 0n;
+    let hbd = 0n;
+
+    const priceNow = (): Amount => {
+      if (lc <= 0n || hbd <= 0n) return "0.00000000";
+      // One LASSECASH, priced by the pool: the engine's own conversion.
+      try {
+        return engine.lcToHbd(toUnits("1").toString(), lc.toString(), hbd.toString()) ?? "0.00000000";
+      } catch { return "0.00000000"; }
+    };
+
+    for (const op of ops) {
+      const f = op.payload.split("|");
+      if (op.action === "add_liquidity" || op.action === "remove_liquidity") {
+        // The opening deposit IS the price. Later ones are proportional, so
+        // they change depth and leave the price where it stood.
+        const dLc = toUnits(fromUnits(BigInt(f[0] || "0")));
+        const dHbd = toUnits(fromUnits(BigInt(f[1] || "0")));
+        if (op.action === "add_liquidity") { lc += dLc; hbd += dHbd; }
+        else { lc -= dLc; hbd -= dHbd; }
+        trades.push({
+          time: op.time, side: lc === dLc ? "open" : "liquidity",
+          amountIn: fromUnits(dLc), amountOut: fromUnits(dHbd),
+          lcReserve: fromUnits(lc), hbdReserve: fromUnits(hbd), price: priceNow(),
+        });
+        continue;
+      }
+      const selling = op.action === "swap_lc_hbd";
+      const amountIn = BigInt(f[0] || "0");
+      if (amountIn <= 0n || lc <= 0n || hbd <= 0n) continue;
+      const q = engine.estimateSwap(
+        (selling ? lc : hbd).toString(),
+        (selling ? hbd : lc).toString(),
+        amountIn.toString(),
+      );
+      if (!q.ok) continue;
+      const outUnits = toUnits(q.amountOut);
+      if (selling) { lc += amountIn; hbd -= outUnits; }
+      else { hbd += amountIn; lc -= outUnits; }
+      trades.push({
+        time: op.time, side: selling ? "sell" : "buy",
+        amountIn: fromUnits(amountIn), amountOut: q.amountOut,
+        lcReserve: fromUnits(lc), hbdReserve: fromUnits(hbd), price: priceNow(),
+      });
+    }
+
+    const reconciled =
+      trades.length > 0 &&
+      lc === toUnits(info.amm_lc) &&
+      hbd === toUnits(info.amm_hbd);
+    return { trades, reconciled };
+  }
 
   async quoteSwap(direction: SwapDirection, amount: string): Promise<SwapQuote> {
     return this.backend.quoteSwap(direction, toBaseUnitArg(amount));
