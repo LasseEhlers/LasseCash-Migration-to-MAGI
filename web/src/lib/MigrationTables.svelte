@@ -366,12 +366,15 @@
           <div class="legend-title">Qualifying criterion — one rule, and it is about LasseCash</div>
           <div class="legend-row">
             <span class="badge b">signed</span>
-            The account SIGNED a LASSECASH operation on Hive-Engine within the
-            {raw.window_months}-month window — a transfer, a stake, an unstake, a delegation.
-            Holding the token was never enough and being active elsewhere on Hive was never
-            enough: <b>{migratedRows.length} of {migratedRows.length}</b> accounts qualified
-            this way. Hive active-key timestamps are collected and published for the audit
-            trail, but they qualify nobody.
+            <p>
+              The account SIGNED a LASSECASH operation on Hive-Engine within the
+              {raw.window_months}-month window — a transfer, a stake, an unstake, a
+              delegation. Holding the token was never enough, and being active elsewhere
+              on Hive was never enough:
+              <b>{migratedRows.length} of {migratedRows.length}</b> accounts qualified this
+              way. Hive active-key timestamps are collected and published for the audit
+              trail, but they qualify nobody.
+            </p>
           </div>
           <div class="legend-row plain">
             <!-- The fail-open rule bound for no one, so it gets no badge — a
@@ -380,10 +383,12 @@
                  the criterion without it makes the rule look harsher than it
                  was. The snapshot is committed and final, so "none" is not a
                  count that can change later. -->
-            Nobody was burned on missing data. An account whose history walk never
-            finished would have migrated <em>unproven</em> — a scan that ran out of pages
-            is not evidence of death. That safeguard was never needed here: every
-            qualifying account was resolved, and signed.
+            <p>
+              Nobody was burned on missing data. An account whose history walk never
+              finished would have migrated <em>unproven</em> — a scan that ran out of
+              pages is not evidence of death. That safeguard was never needed here: every
+              qualifying account was resolved, and signed.
+            </p>
           </div>
         </div>
         <small class="dim">
@@ -556,8 +561,13 @@
     font-family: var(--mono); font-size: var(--t-micro); font-weight: 700;
     letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim);
   }
-  .legend-row { display: flex; gap: 0.55rem; align-items: flex-start; font-size: var(--t-sm); color: var(--dim); }
-  .legend-row .badge { flex-shrink: 0; margin-top: 0.05rem; }
+  /* Badge and prose, and NOTHING else: a bare text node in a flex container
+     becomes its own flex item, so an inline <b> mid-sentence was breaking the
+     paragraph into three columns. The text lives in one <p>. */
+  .legend-row { display: flex; gap: 0.6rem; align-items: baseline; font-size: var(--t-sm); color: var(--dim); }
+  .legend-row .badge { flex-shrink: 0; }
+  .legend-row p { margin: 0; line-height: 1.6; max-width: 78ch; }
+  .legend-row b { color: var(--ink); font-weight: 600; }
   /* A stated rule rather than a key to a symbol: no swatch to align to. */
   .legend-row.plain { padding-left: 0.1rem; }
 
