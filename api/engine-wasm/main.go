@@ -58,6 +58,7 @@ func main() {
 		"rewardShare":    js.FuncOf(rewardShare),
 		"entitlement":    js.FuncOf(entitlement),
 		"liquidityQuote": js.FuncOf(liquidityQuote),
+		"withdrawQuote":  js.FuncOf(withdrawQuote),
 		"mintPreview":    js.FuncOf(mintPreview),
 
 		// constants, so the UI never hardcodes a bound the chain enforces
@@ -531,6 +532,23 @@ func liquidityQuote(_ js.Value, a []js.Value) any {
 		"ok": okN && okS, "isFirstDeposit": false,
 		"hbdNeeded": amt(need), "shares": amt(engine.Amount(shares)),
 	}
+}
+
+// withdrawQuote(shares, totalShares, lcReserve, hbdReserve) — ESTIMATE.
+//
+// What closing a tranche of this size pays out. The counterpart to
+// liquidityQuote, and it exists because the CHART needs it: a replay of the
+// pool's history has to subtract a `remove_liquidity` correctly, and the call
+// carries only a tranche id — the amounts are the tranche's proportional share
+// of the reserves AT THAT MOMENT, which is this formula and no other.
+func withdrawQuote(_ js.Value, a []js.Value) any {
+	shares, total := engine.Shares(arg(a, 0)), engine.Shares(arg(a, 1))
+	lcRes, hbdRes := arg(a, 2), arg(a, 3)
+	if total <= 0 || shares <= 0 {
+		return map[string]any{"ok": false, "lc": "0", "hbd": "0"}
+	}
+	lcOut, hbdOut, ok := engine.WithdrawAmounts(shares, total, lcRes, hbdRes)
+	return map[string]any{"ok": ok, "lc": amt(lcOut), "hbd": amt(hbdOut)}
 }
 
 // mintPreview(principal, shares, startHeight, days, goodAccounting, height, accruedYield)

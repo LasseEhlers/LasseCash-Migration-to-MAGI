@@ -72,6 +72,9 @@ interface Bridge {
   liquidityQuote(lcIn: string, lcReserve: string, hbdReserve: string, totalShares: string): {
     ok: boolean; isFirstDeposit: boolean; hbdNeeded: string; shares: string;
   };
+  withdrawQuote(shares: string, totalShares: string, lcReserve: string, hbdReserve: string): {
+    ok: boolean; lc: string; hbd: string;
+  };
   mintPreview(principal: string, shares: string, startHeight: string, days: number,
     goodAccounting: boolean, height: string, accruedYield: string): {
       toOwner: string; toRewardPool: string; early: boolean;
@@ -569,6 +572,23 @@ export function estimateLiquidity(
     ok: r.ok, isFirstDeposit: r.isFirstDeposit,
     hbdNeeded: u(r.hbdNeeded), shares: u(r.shares),
   };
+}
+
+/**
+ * What closing a tranche of this size pays — an **ESTIMATE**, because it is a
+ * function of reserves that move.
+ *
+ * The counterpart to `estimateLiquidity`, and the chart is why it exists: a
+ * `remove_liquidity` call carries only a tranche id, so replaying the pool's
+ * history means computing the tranche's proportional share of the reserves at
+ * that moment. That division is money math, so it lives in Go.
+ */
+export function estimateWithdraw(
+  sharesUnits: string, totalSharesUnits: string,
+  lcReserveUnits: string, hbdReserveUnits: string,
+): { ok: boolean; lc: string; hbd: string } {
+  const r = must().withdrawQuote(sharesUnits, totalSharesUnits, lcReserveUnits, hbdReserveUnits);
+  return { ok: r.ok, lc: u(r.lc), hbd: u(r.hbd) };
 }
 
 /**

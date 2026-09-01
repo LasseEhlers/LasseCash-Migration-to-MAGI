@@ -260,18 +260,74 @@ export class LasseCashClient {
       } catch { return "0.00000000"; }
     };
 
+    // The two liquidity calls have DIFFERENT payloads, and reading them as one
+    // shape was the bug this replay shipped with:
+    //
+    //   add_liquidity     <lcAmount>|<maxHbd>     maxHbd is a CEILING, and the
+    //                                            HBD actually taken is whatever
+    //                                            the pool's own ratio requires
+    //   remove_liquidity  <trancheId>            no amounts at all
+    //
+    // So a removal read as "<lc>|<hbd>" subtracted the tranche ID as base units
+    // — two whole positions closing showed as 0.0000 / 0.000000 against
+    // reserves that never moved (2026-09-01). And every deposit subtracted the
+    // ceiling rather than the real HBD, which is what kept `reconciled` false.
+    //
+    // Fixing it means the replay has to track SHARES, because a withdrawal pays
+    // a tranche's proportional slice of the reserves standing at that moment.
+    // Both figures come from the engine — `estimateLiquidity` for what a
+    // deposit takes and mints, `estimateWithdraw` for what a closure pays.
+    // Doing either division here would be the second implementation the golden
+    // rule forbids.
+    let totalShares = 0n;
+    const trancheShares = new Map<string, bigint>();
+    const nextId = new Map<string, number>();
+
     for (const op of ops) {
       const f = op.payload.split("|");
-      if (op.action === "add_liquidity" || op.action === "remove_liquidity") {
-        // The opening deposit IS the price. Later ones are proportional, so
-        // they change depth and leave the price where it stood.
+
+      if (op.action === "add_liquidity") {
         const dLc = toUnits(fromUnits(BigInt(f[0] || "0")));
-        const dHbd = toUnits(fromUnits(BigInt(f[1] || "0")));
-        if (op.action === "add_liquidity") { lc += dLc; hbd += dHbd; }
-        else { lc -= dLc; hbd -= dHbd; }
+        const q = engine.estimateLiquidity(
+          dLc.toString(), lc.toString(), hbd.toString(), totalShares.toString(),
+        );
+        // The FIRST deposit is the only one that sets a price, so it is also
+        // the only one where the caller's HBD figure is the real amount.
+        const dHbd = q.isFirstDeposit ? toUnits(fromUnits(BigInt(f[1] || "0"))) : toUnits(q.hbdNeeded);
+        const minted = q.isFirstDeposit ? dLc : toUnits(q.shares);
+
+        lc += dLc; hbd += dHbd; totalShares += minted;
+        const id = (nextId.get(op.signer) ?? 0) + 1;
+        nextId.set(op.signer, id);
+        trancheShares.set(`${op.signer}_${id}`, minted);
+
         trades.push({
-          time: op.time, side: lc === dLc ? "open" : "liquidity",
+          time: op.time, side: q.isFirstDeposit ? "open" : "liquidity",
           amountIn: fromUnits(dLc), amountOut: fromUnits(dHbd),
+          lcReserve: fromUnits(lc), hbdReserve: fromUnits(hbd), price: priceNow(),
+          trader: op.signer,
+        });
+        continue;
+      }
+
+      if (op.action === "remove_liquidity") {
+        const key = `${op.signer}_${(f[0] || "").trim()}`;
+        const held = trancheShares.get(key) ?? 0n;
+        // A tranche we never saw opened cannot be replayed — skip it rather
+        // than invent a withdrawal, and let `reconciled` report the gap.
+        if (held <= 0n) continue;
+        const w = engine.estimateWithdraw(
+          held.toString(), totalShares.toString(), lc.toString(), hbd.toString(),
+        );
+        const outLc = toUnits(w.lc);
+        const outHbd = toUnits(w.hbd);
+
+        lc -= outLc; hbd -= outHbd; totalShares -= held;
+        trancheShares.delete(key);
+
+        trades.push({
+          time: op.time, side: "liquidity",
+          amountIn: fromUnits(outLc), amountOut: fromUnits(outHbd),
           lcReserve: fromUnits(lc), hbdReserve: fromUnits(hbd), price: priceNow(),
           trader: op.signer,
         });
