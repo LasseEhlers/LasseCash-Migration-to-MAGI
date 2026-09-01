@@ -101,6 +101,13 @@
   const ranked = $derived.by(() => {
     const out = [...replies];
     out.sort((a, b) => {
+      // Registered replies rank above Hive-only ones, always. An unregistered
+      // comment has no reward to compare, so ranking them together would put
+      // a zero beside comments that are earning — the same rule the feed uses
+      // for tagged-but-unregistered posts.
+      const aOff = a.view.registered === false ? 1 : 0;
+      const bOff = b.view.registered === false ? 1 : 0;
+      if (aOff !== bOff) return aOff - bOff;
       const byReward = compare(b.view.pending_payout, a.view.pending_payout);
       if (byReward !== 0) return byReward;
       return a.view.created_height - b.view.created_height;
@@ -240,11 +247,19 @@
   {:else}
     <ul class="list">
       {#each ranked as { view, body } (view.author + "/" + view.permlink)}
-        <li class="comment" class:settled={view.paid_out}>
+        <li class="comment" class:settled={view.paid_out} class:offchain={view.registered === false}>
           <div class="cmeta">
             <a class="author" href="/{displayName(view.author)}">{displayName(view.author)}</a>
             <span class="dim">{shortDate(view.created_time)}</span>
-            {#if view.paid_out}
+            {#if view.registered === false}
+              <!-- Written from another Hive frontend by an author who clears
+                   the comment threshold. Shown because it is part of the
+                   conversation; marked because it earns nothing — only a
+                   registered reply does. -->
+              <span class="pill dimpill" title="Written on Hive, not registered with the contract — it earns nothing.">
+                from Hive
+              </span>
+            {:else if view.paid_out}
               <span class="pill ok">paid out</span>
             {:else}
               <span class="reward mono gold">{lc(view.pending_payout, 3)} LC</span>
@@ -321,6 +336,8 @@
 
   /* Deliberately LIGHTER than a post: no gradient, a hairline rule, a smaller
      type scale. A comment is part of a page, not a card competing with it. */
+  .comment.offchain { opacity: 0.85; }
+  .pill.dimpill { color: var(--dim); border: 1px solid var(--line); }
   .comment {
     border-top: 1px solid var(--line-soft);
     padding: 0.7rem 0 0.2rem;

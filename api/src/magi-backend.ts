@@ -1024,7 +1024,73 @@ export class MagiBackend implements Backend {
       const f = payload.split("|");
       return f[1] === author && f[2] === permlink;
     });
-    return this.#hydrate(await this.#viewsFor(found));
+    const registered = await this.#hydrate(await this.#viewsFor(found));
+    const unregistered = await this.#hiveReplies(author, permlink, registered);
+    return [...registered, ...unregistered];
+  }
+
+  /**
+   * Replies written on Hive that LasseCash shows but does not pay.
+   *
+   * THE DECIDED RULE (CLAUDE.md, 2026-08-22): a comment written from any other
+   * Hive frontend appears here if its author holds the comment threshold in
+   * L-Shares. It earns nothing — only a registered comment does — but it is
+   * part of the conversation and hiding it would make LasseCash a worse
+   * reader of its own posts than PeakD is.
+   *
+   * The threshold is what keeps this from becoming a tip-bot wall: it is the
+   * same `engine.canPost` comparison the contract makes, never a `>=` written
+   * here. Below-threshold replies still exist on Hive — nobody is censored —
+   * they are simply not part of LasseCash.
+   *
+   * Failure is silent and returns nothing: Hive being slow must never stop a
+   * post's own registered comments from rendering.
+   */
+  async #hiveReplies(
+    author: string, permlink: string, registered: PostView[],
+  ): Promise<PostView[]> {
+    try {
+      const rows = await this.#hiveRpc<{
+        author: string; permlink: string; body: string; created: string;
+        parent_author: string; parent_permlink: string;
+      }[]>("condenser_api.get_content_replies", [author.replace(/^hive:/, ""), permlink]);
+      if (!rows || rows.length === 0) return [];
+
+      const known = new Set(registered.map((c) => `${c.author}/${c.permlink}`));
+      const fresh = rows.filter((r) => !known.has(`${qualified(r.author)}/${r.permlink}`));
+      if (fresh.length === 0) return [];
+
+      const authors = [...new Set(fresh.map((r) => qualified(r.author)))];
+      const c = engine.constants();
+      const [shares, governed] = await Promise.all([
+        this.state(authors.map((a) => `shr_${a}`)),
+        this.#governed([c.paramPostThresholdComment]),
+      ]);
+      const threshold = governed[c.paramPostThresholdComment] ?? "0";
+
+      const out: PostView[] = [];
+      for (const r of fresh) {
+        const a = qualified(r.author);
+        if (!engine.canPost(shares[`shr_${a}`] || "0", threshold)) continue;
+        out.push({
+          author: a, permlink: r.permlink, title: "", body: r.body ?? "",
+          summary: "", image: null, tags: [],
+          created: r.created ? `${r.created}Z` : "",
+          created_time: r.created ? `${r.created}Z` : "",
+          payout_time: "", body_excerpt: (r.body ?? "").slice(0, 220),
+          curation_expires_at: 0,
+          created_height: 0, payout_height: 0, window: "viral",
+          payout_mode: 0, rshares: "0", votes: 0,
+          pending_payout: "0.00000000", curator_pot: "0.00000000",
+          paid_out: false, payable: false, promoted: "0.00000000",
+          parent_author: author, parent_permlink: permlink,
+          registered: false,
+        } as PostView);
+      }
+      return out;
+    } catch {
+      return [];
+    }
   }
 
   /**
