@@ -811,6 +811,68 @@ export class LasseCashClient {
     throw new BackendError(`cannot send ${asset}`);
   }
 
+  /**
+   * EVERY open tranche in the pool, not just the signed-in account's.
+   *
+   * The contract cannot enumerate accounts or tranches — that is the same
+   * bound that gives governance its 20-slot board — so the list is rebuilt the
+   * way the chart rebuilds price: from the calls themselves. Every tranche was
+   * opened by an `add_liquidity`, ids are sequential per account, so walking
+   * the transaction log names every (owner, id) that has ever existed. State
+   * then says which are still open.
+   *
+   * Closed tranches keep their record with the shares that were in it, so
+   * `weight = 0` is what marks one as gone — not the absence of a key.
+   *
+   * Public by the same reasoning as the snapshot: pool positions are on chain
+   * and an LP is choosing to be part of a shared pool. Someone deciding
+   * whether to put money in deserves to see who else already has.
+   */
+  async allTranches(): Promise<{
+    owner: string; id: number; shares: string; ageDays: number;
+    loyalty: string; valueLc: Amount; valueHbd: Amount; share: number;
+  }[]> {
+    const [ops, info] = await Promise.all([this.backend.poolOps(500), this.chain()]);
+
+    const seq = new Map<string, number>();
+    const wanted: { owner: string; id: number }[] = [];
+    for (const op of ops) {
+      if (op.action !== "add_liquidity" || !op.signer) continue;
+      const id = (seq.get(op.signer) ?? 0) + 1;
+      seq.set(op.signer, id);
+      wanted.push({ owner: op.signer, id });
+    }
+    if (!wanted.length) return [];
+
+    const st = await this.state(wanted.map((w) => `lp_${w.owner}_${w.id}`));
+    const total = toUnits(info.amm_shares ?? "0");
+    const out = [];
+    for (const w of wanted) {
+      const raw = st[`lp_${w.owner}_${w.id}`];
+      if (!raw) continue;
+      const f = raw.split("|");
+      // Tranche codec: shares | startHeight | weight | ? | accStart | lastTouch
+      const shares = BigInt(f[0] || "0");
+      const weight = BigInt(f[2] || "0");
+      if (weight <= 0n || shares <= 0n) continue; // closed
+      const v = engine.trancheView({
+        shares: f[0] ?? "0", startHeight: Number(f[1] ?? 0), weight: f[2] ?? "0",
+        accStart: f[4] ?? "0", height: info.height,
+        totalShares: toUnits(info.amm_shares ?? "0").toString(),
+        lcReserve: toUnits(info.amm_lc ?? "0").toString(),
+        hbdReserve: toUnits(info.amm_hbd ?? "0").toString(),
+        poolLiq: "0", accSeen: "0", accHeld: "0", acc: "0", totalWeight: "0",
+      });
+      out.push({
+        owner: w.owner.replace(/^hive:/, ""), id: w.id, shares: fromUnits(shares),
+        ageDays: v.age_days, loyalty: v.loyalty,
+        valueLc: v.value_lc, valueHbd: v.value_hbd,
+        share: total > 0n ? Number(shares) / Number(total) : 0,
+      });
+    }
+    return out.sort((a, b) => b.share - a.share);
+  }
+
   /** This account's BTC on MAGI, as a decimal string, or null if unreadable. */
   async btcBalance(account?: string): Promise<string | null> {
     const who = account ?? this.account;

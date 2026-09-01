@@ -274,6 +274,24 @@
    * rather than blocking a deposit on a meter we cannot read.
    */
   const RC_RESERVE_MILLI = 5_500;
+
+  /**
+   * EVERY tranche in the pool, not just this account's.
+   *
+   * Someone deciding whether to put money in deserves to see who else already
+   * has — and until now the page could show you your own position and nothing
+   * about the pool you were joining. Public by the same reasoning as the
+   * snapshot: these are on-chain positions in a SHARED pool, and the emission
+   * they divide is divided between exactly these rows.
+   *
+   * Rebuilt from the calls, because the contract cannot enumerate tranches any
+   * more than it can enumerate accounts. See client.allTranches().
+   */
+  let allTranches = $state<Awaited<ReturnType<typeof client.allTranches>>>([]);
+  $effect(() => {
+    if (!chain.ready) return;
+    void client.allTranches().then((t) => (allTranches = t)).catch(() => (allTranches = []));
+  });
   /** One milli-HBD in the engine's 8dp base units. */
   const MILLI = 100_000n;
 
@@ -718,10 +736,43 @@
         </table>
       </div>
     {/if}
+
+    {#if allTranches.length}
+      <h2 class="allt">Everyone in the pool <span class="dim">— {allTranches.length} tranches</span></h2>
+      <p class="allnote dim">
+        The 25% emission slice is split between exactly these rows, by share and
+        loyalty. Rebuilt from the chain's own calls — the contract cannot list
+        them any more than it can list accounts.
+      </p>
+      <div class="scroll">
+        <table>
+          <thead>
+            <tr><th>Account</th><th class="num">Pool shares</th><th class="num">Share</th>
+            <th class="num">Age</th><th class="num">Loyalty</th><th class="num">Worth</th></tr>
+          </thead>
+          <tbody>
+            {#each allTranches as t (t.owner + "_" + t.id)}
+              <tr class:mine={chain.account === "hive:" + t.owner}>
+                <td><a href="/@{t.owner}">@{t.owner}</a> <span class="dim mono">#{t.id}</span></td>
+                <td class="num">{lc(t.shares)}</td>
+                <td class="num mono">{(t.share * 100).toFixed(1)}%</td>
+                <td class="num">{t.ageDays}d</td>
+                <td class="num" class:green={t.ageDays >= 90}>{mult(t.loyalty)}</td>
+                <td class="num">{lc(t.valueLc)} LC <small class="dim">+ {lc(t.valueHbd, 6)} HBD</small></td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      </div>
+    {/if}
   </section>
 </div>
 
 <style>
+  .allt { margin-top: 2rem; padding-top: 1.25rem; border-top: 1px solid var(--rule); }
+  .allnote { font-size: .78rem; margin: 0 0 .75rem; }
+  /* Your own rows, findable without hunting for your name. */
+  tr.mine td { background: rgba(255, 200, 0, .04); }
   .rcnote { margin: 0 0 1rem; padding: .7rem .9rem; font-size: .82rem;
             border-left: 2px solid var(--gold-dim); color: var(--dim); }
   .rcnote b { color: var(--gold); }
