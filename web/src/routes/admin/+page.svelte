@@ -113,17 +113,29 @@
   // --- row shapes ----------------------------------------------------------
 
   /**
-   * The snapshot's "reason" is built from exactly two signals — see
-   * tools/snapshot/apply_criteria.py: "active_key" (an active-key op on Hive
-   * in the window) and "lassecash" (LASSECASH activity on Hive-Engine in the
-   * window). Either qualifies; this just relabels the raw string as a compact
-   * badge — presentation only, not a re-derivation of the criteria.
+   * WHY THERE IS NO LONGER AN "A / B / A+B" BADGE.
+   *
+   * This page used to show a two-criteria legend: an active-key op on Hive OR
+   * LASSECASH activity, either sufficient. That was the rule BEFORE C6
+   * (2026-08-22), and it survived here after the decision changed — so the
+   * console described a migration that did not happen. Every one of the 418
+   * rows carried a "B", which is what gave it away: a badge whose value never
+   * varies is not reporting anything.
+   *
+   * The rule that actually ran (tools/snapshot/apply_criteria.py) is single:
+   * an account migrates iff it SIGNED a LASSECASH operation on Hive-Engine
+   * inside the window. The Hive active-key timestamp is still collected and
+   * still published — `last_active_op`, marked "audit only" in that script —
+   * but it qualifies nobody.
+   *
+   * One exception is worth a badge because it genuinely differs: an account
+   * whose history walk never resolved FAILS OPEN and migrates unproven,
+   * because a scan that ran out of pages is not evidence of death. That is
+   * the only row a reader should look at twice.
    */
-  type Criteria = "A" | "B" | "A+B";
+  type Criteria = "signed" | "unresolved";
   function criteriaBadge(reason: string): Criteria {
-    const a = reason.includes("active_key");
-    const b = reason.includes("lassecash");
-    return a && b ? "A+B" : a ? "A" : "B";
+    return reason.includes("truncated") ? "unresolved" : "signed";
   }
 
   // POWER (staked) does not survive migration — it becomes L-Shares 1:1, so
@@ -307,9 +319,22 @@
         </small>
 
         <div class="legend-box">
-          <div class="legend-title">Qualifying criteria — either is sufficient; accounts with neither were burned</div>
-          <div class="legend-row"><span class="badge a">A</span> an active-key operation on Hive within the {raw.window_months}-month window (transfer, power-up/down, delegation, account update…) — proves a human holds the active key.</div>
-          <div class="legend-row"><span class="badge b">B</span> LASSECASH activity on Hive-Engine within the {raw.window_months}-month window (token transfers/stakes) — proves engagement with LasseCash specifically.</div>
+          <div class="legend-title">Qualifying criterion — one rule, and it is about LasseCash</div>
+          <div class="legend-row">
+            <span class="badge b">signed</span>
+            The account SIGNED a LASSECASH operation on Hive-Engine within the
+            {raw.window_months}-month window — a transfer, a stake, an unstake, a delegation.
+            Holding the token was never enough and being active elsewhere on Hive was never
+            enough: {migratedRows.length} of {migratedRows.length} accounts qualified this way.
+            Hive active-key timestamps are collected and published for the audit trail, but
+            they qualify nobody.
+          </div>
+          <div class="legend-row">
+            <span class="badge a">unresolved</span>
+            Fail-open: the history walk never finished, so the account migrated unproven.
+            A scan that ran out of pages is not evidence of death — nobody is burned on
+            missing data. None in this snapshot.
+          </div>
         </div>
         <small class="dim">
           POWER does not survive migration — it becomes L-Shares 1:1, so this table shows LasseCash balance, L-Shares
@@ -338,7 +363,7 @@
                   <td class="num">{row.lshares === null ? "—" : lc(fromUnits(row.lshares))}</td>
                   <td class="num">{row.principal === null ? "—" : lc(fromUnits(row.principal))}</td>
                   <td class="num">{row.total === null ? "—" : lc(fromUnits(row.total))}</td>
-                  <td><span class="badge {row.badge === 'A+B' ? 'ab' : row.badge.toLowerCase()}">{row.badge}</span></td>
+                  <td><span class="badge {row.badge === 'unresolved' ? 'a' : 'b'}">{row.badge}</span></td>
                 </tr>
               {/each}
             </tbody>
@@ -461,7 +486,7 @@
   .legend-row { display: flex; gap: 0.55rem; align-items: flex-start; font-size: var(--t-sm); color: var(--dim); }
   .legend-row .badge { flex-shrink: 0; margin-top: 0.05rem; }
 
-  /* Criteria badges: A (active key), B (LASSECASH activity), A+B (both). */
+  /* Row badges: `signed` (the rule) and `unresolved` (the fail-open case). */
   .badge {
     display: inline-block; min-width: 1.6rem; text-align: center;
     padding: 0.08rem 0.4rem; border-radius: var(--r-sm);
@@ -470,5 +495,4 @@
   }
   .badge.a { color: var(--cyan); background: rgba(46, 230, 214, 0.1); }
   .badge.b { color: var(--gold); background: rgba(255, 210, 63, 0.1); }
-  .badge.ab { color: var(--green); background: rgba(53, 208, 127, 0.1); }
 </style>
