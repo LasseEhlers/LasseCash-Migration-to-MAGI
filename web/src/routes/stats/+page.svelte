@@ -23,6 +23,8 @@
    */
   import { chain, client } from "$lib/chain.svelte.js";
   import { lc } from "$lib/format.js";
+  import { entitlement } from "$api/engine.js";
+  import { toUnits } from "$api/amount.js";
   import Seo from "$lib/Seo.svelte";
   import { SITE_URL } from "$lib/site.js";
 
@@ -56,6 +58,8 @@
     kinds: string[];
     calls: number;
     lastSeen: string;
+    /** Earned from the protocol and not yet spent into a balance. */
+    earned: bigint;
   };
 
   let rows = $state<Row[] | null>(null);
@@ -75,11 +79,62 @@
       // Two reads per account. `state()` batches internally — getStateByKeys
       // refuses a request outside 1..100 keys, and 418 accounts is well past it.
       const [st, activity] = await Promise.all([
-        client.state([...accounts.map((a) => `mig_${a}`), ...accounts.map((a) => `shr_${a}`)]),
+        client.state([
+          ...accounts.map((a) => `mig_${a}`),
+          ...accounts.map((a) => `shr_${a}`),
+          // Pending Proof-of-Brain: earned, waiting for the 1st of the month.
+          ...accounts.map((a) => `pend_${a}`),
+          // How many mints each account has ever opened, so the ids to read
+          // are known without guessing.
+          ...accounts.map((a) => `mseq_${a}`),
+        ]),
         client.activity(3000),
       ]);
 
       const acts = new Map(activity.map((a) => [a.account, a]));
+
+      // WHAT "EARNED" MEANS HERE, and it is deliberately narrow:
+      //
+      //   pending PoB   author and curation rewards awaiting the monthly mint
+      // + mint yield    the L-Share pool's emission, accrued since each mint
+      //                 started earning
+      //
+      // NOT included: anything already claimed into a balance. This column
+      // answers "what has the protocol paid you that you have not taken yet",
+      // which is the figure that says whether being here is worth anything —
+      // a balance cannot distinguish a reward from a migrated holding.
+      //
+      // The division is engine.entitlement, never arithmetic here: a mint's
+      // yield is shares x (acc_now - acc_at_start), and that is money math.
+      const acc = (await client.state(["acc_per"]))["acc_per"] || "0";
+
+      // Only accounts that have actually minted have records to read, so the
+      // second round is small — 12 accounts today, and it stays proportional
+      // to who turns up rather than to the whole snapshot.
+      const mintKeys: string[] = [];
+      for (const a of accounts) {
+        const n = Number(st[`mseq_${a}`] || "0");
+        for (let id = 1; id <= n; id++) mintKeys.push(`mint_${a}_${id}`);
+      }
+      const mints = mintKeys.length ? await client.state(mintKeys) : {};
+
+      function earnedFor(q: string): bigint {
+        let total = BigInt(st[`pend_${q}`] || "0");
+        const n = Number(st[`mseq_${q}`] || "0");
+        for (let id = 1; id <= n; id++) {
+          const raw = mints[`mint_${q}_${id}`];
+          if (!raw) continue;
+          const f = raw.split("|");
+          // Field 5 is Ended: a closed mint already paid out, so counting it
+          // would report money the account has spent as money it is owed.
+          if (f[5] === "1") continue;
+          const shares = f[1] || "0";
+          const accStart = f[6] || "0";
+          try { total += toUnits(entitlement(shares, accStart, acc)); }
+          catch { /* engine not loaded yet: a missing column beats a broken page */ }
+        }
+        return total;
+      }
 
       rows = file.migrated.map((m) => {
         const q = `hive:${m.account}`;
@@ -100,6 +155,7 @@
           kinds,
           calls: act?.calls ?? 0,
           lastSeen: act?.lastSeen ?? "",
+          earned: earnedFor(q),
         };
       });
     } catch (e) {
@@ -115,6 +171,7 @@
     .sort((a, b) => (b.entitledTotal > a.entitledTotal ? 1 : -1)));
 
   const sum = (xs: Row[]) => xs.reduce((t, r) => t + r.entitledTotal, 0n);
+  const earnedTotal = $derived(claimed.reduce((t, r) => t + r.earned, 0n));
   const amt = (v: bigint) => lc((Number(v) / Number(U)).toFixed(8), 2);
   const pct = (a: bigint, b: bigint) => b === 0n ? "0.0" : (Number(a) / Number(b) * 100).toFixed(1);
 </script>
@@ -141,6 +198,8 @@
       <dd class="dim">{unclaimed.length} accounts</dd></div>
     <div><dt>Have done something</dt><dd class="mono gold">{claimed.filter((r) => r.calls > 1).length}</dd>
       <dd class="dim">beyond claiming</dd></div>
+    <div><dt>Rewards owed</dt><dd class="mono gold">{amt(earnedTotal)}</dd>
+      <dd class="dim">earned, not yet taken</dd></div>
   </div>
 
   <p class="legend">
@@ -155,7 +214,7 @@
           <thead><tr>
             <th class="num">#</th><th>Account</th>
             <th class="num">LASSECASH</th><th class="num">L-Shares at claim</th>
-            <th class="num">L-Shares now</th><th>Did</th>
+            <th class="num">L-Shares now</th><th class="num">Earned</th><th>Did</th>
           </tr></thead>
           <tbody>
             {#each (showAllClaimed ? claimed : claimed.slice(0, 40)) as r, i}
@@ -165,6 +224,7 @@
                 <td class="num mono">{amt(r.entitledTotal)}</td>
                 <td class="num mono dim">{amt(r.entitledStaked)}</td>
                 <td class="num mono" class:zero={r.sharesNow === 0n}>{amt(r.sharesNow)}</td>
+                <td class="num mono" class:zero={r.earned === 0n} class:gold={r.earned > 0n}>{amt(r.earned)}</td>
                 <td class="kinds">
                   {#each r.kinds as k}<b>{k}</b>{/each}
                   {#if r.kinds.length <= 1}<span class="dim">— claim only</span>{/if}
@@ -228,6 +288,8 @@
   .mono { font-variant-numeric: tabular-nums; }
   /* Zero live weight is the day-30 cliff arriving, not an error — dim, never red. */
   .zero { color: var(--dim); }
+  /* Gold, not green: this is money the protocol owes, not a gain realised. */
+  td.gold { color: var(--gold); }
   .kinds b { display: inline-block; min-width: 1.1em; text-align: center; color: var(--gold);
              font-family: inherit; font-size: .75rem; }
   .legend { display: flex; flex-wrap: wrap; gap: .25rem 1rem; font-size: .7rem; color: var(--dim); margin: 1rem 0; }
