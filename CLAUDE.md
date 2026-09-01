@@ -706,6 +706,43 @@ vector otherwise. Never move an escape after a tag insertion.
 Feed cards derive a cover image from the body when the author supplied none,
 falling back to a YouTube thumbnail, so a video post is not a wall of text.
 
+## ⚠️ HBD AND RC ARE ONE POT — the deposit rule, MEASURED 2026-09-01
+
+@daneamanda held 3.443 HBD on MAGI, tried to add 1,000 LC of liquidity
+(needing 2.665 HBD) and the chain refused with `err: ledger_error`,
+`errMsg: insufficient balance`. 500 LC (1.333 HBD) went through moments later.
+
+**The rule, derived from those two attempts and confirmed to the milli:**
+
+```
+available RC  >=  HBD drawn (in milli)  +  the call's rc_limit
+```
+
+Her arithmetic:
+
+| | |
+|---|---|
+| before | HBD 3,443 milli, RC available 6,460 |
+| 1000 LC | 6,460 − 2,665 − 4,000 = **−205  REFUSED** |
+| 500 LC | 6,460 − 1,333 − 4,000 = +1,127  OK |
+| after | 6,460 − 1,333 (draw) − 1,634 (rc used) = 3,493 ✓ exact |
+
+`max_rcs − hbd_milli = 10,000` exactly, on every account checked — capacity IS
+the HBD balance plus the free allowance, so **drawing HBD spends RC one for
+one**, and `rc_limit` is reserved on top of the draw.
+
+**She missed by 205 milli — about 20 cents — while the page showed her 3.443
+HBD.** She had it; she could not spend all of it in one call.
+
+**Consequence for the UI, and it is not cosmetic:** `affordableDeposit()` caps
+by the LASSECASH and HBD BALANCES, which is the wrong ceiling. It must also cap
+the HBD side at `availableRC − rcLimit`, and `Max` must reflect that. Until it
+does, `Max` can produce a deposit the chain will refuse.
+
+This is the wall every new LP walks into — deposit HBD, claim, swap, then find
+the pool refuses the balance the page is showing. 53 LP letters went out the
+same night.
+
 ## ⚠️ A BARE NAME IN `transfer` STRANDED 1,030 LC — FIXED 2026-09-01
 
 Lasse sent 1,000 LC to his daughter's account and it never arrived. The call
