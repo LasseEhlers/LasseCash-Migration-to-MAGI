@@ -206,8 +206,29 @@
              actually pays; this is the same number at today's pool price, and
              the price is the part that moves. -->
         <div class="hbdline"><Hbd amount={yieldNow.perDay} /> <span class="dim">per day</span></div>
+        <!-- THE PERCENTAGE IS THE MOST MISREADABLE FIGURE ON THE PAGE, so it
+             carries its own caveat rather than borrowing the one below.
+             The L-Share slice is FIXED — 833,333 LC a year in era 1 — so the
+             rate is just that pool divided by the LASSECASH locked in mints.
+             It is high today because few have claimed, and it falls toward
+             about 7% as participation approaches the whole supply, halving
+             again each era. Multipliers redistribute between minters; they
+             cannot raise the aggregate.
+             Saying that here costs nothing. Not saying it means every minter
+             who locked for three years on today's number discovers it in year
+             two, which is the expensive version. -->
         <div class="subline">
-          <span class="dim">≈ {yieldNow.pctYear}% a year on what you lock, at today's share base</span>
+          <span class="dim">≈</span>
+          <b class="mono rate">{yieldNow.pctYear}%</b>
+          <span class="dim">a year at today's share base —</span>
+          <span class="falls">high because few have claimed yet</span>
+        </div>
+        <div class="subline">
+          <span class="dim">
+            The reward pool is fixed, so this rate <b>falls as more people mint</b> —
+            toward roughly 7% if the whole supply were locked, and it halves again
+            every era. It is paid in LASSECASH, not in dollars.
+          </span>
         </div>
         <div class="subline">
           <span class="dim">for</span>
@@ -281,6 +302,10 @@
      other page depends on staying small. */
   .hbdline :global(.hbd) { font-size: 1.15rem; color: var(--gold-hot); }
   .hbdline .dim { font-size: 0.78rem; }
+  .rate { color: var(--ink); font-size: 0.95rem; }
+  /* Not red: nothing is being lost. A rate that falls with success is the
+     design working, not a warning. */
+  .falls { color: var(--gold-dim); }
   .yield { display: flex; align-items: baseline; gap: 0.35rem; flex-wrap: wrap; margin: 0.5rem 0 0.3rem; font-size: 0.85rem; }
   .yield b { font-size: 1.05rem; }
   .est { display: block; line-height: 1.55; margin-bottom: 0.4rem; }

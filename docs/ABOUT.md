@@ -203,6 +203,27 @@ The **share rate** is what one L-Share costs. It starts at 1.00000000 LASSECASH 
 
 **Dead positions can be swept.** `sweep_mint` is permissionless, pays the caller nothing, and refuses unless the owner is owed exactly zero, so it can only touch a position already worth nothing. It releases the shares and returns the value to the pool; without it a lost key would strand principal and a seat forever.
 
+### What the yield actually is, and what it is not
+
+The L-Share pool is **25% of emission** — in era 1 that is **833,333 LASSECASH a year**, and it does not grow. Your rate is that pool divided by the LASSECASH locked in mints, so it falls as more people mint:
+
+| Share of supply locked | Rate |
+|---|---|
+| 10% | ~71% |
+| 25% | ~28% |
+| 50% | ~14% |
+| 100% | **~7.1%** |
+
+And it halves with each era: roughly 7.1% at full participation in years 1–3, 3.55% in years 4–6, 1.78% in years 7–9.
+
+**The multipliers cannot change this.** Longer Pays Better and Bigger Pays Better decide how the pool is split *between* minters; they cannot enlarge it. A 2.25x mint takes a larger slice of the same pie.
+
+So an early rate is high only because few have claimed, and any figure the interface shows is today's arithmetic, not a promise. Nobody can promise it, because it is a division whose denominator is everybody else.
+
+**It is also not a savings account.** HBD savings pays a fixed rate in a dollar-pegged asset you can unlock in three days. This pays in LASSECASH, and what it is worth depends on what LASSECASH is worth. Judged purely as fixed income against HBD, locking for three years does not obviously win — and anyone who mints for the rate alone has bought the wrong thing.
+
+What the mints are actually for: **L-Shares are voting power**, they are how Proof-of-Brain earnings compound, and they are a claim on a supply that cannot be diluted because the cap is hardcoded. A declining yield is what a fixed cap looks like from the inside. The alternative — a rate that stays high forever — requires issuing forever, which is the thing this whole design refuses.
+
 ## 5. Proof-of-Brain — LasseMedia
 
 Half of every reward goes to content, in two windows you choose between at publication.
