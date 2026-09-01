@@ -517,6 +517,9 @@
   td { padding: 0.3rem 0.5rem 0.3rem 0; border-bottom: 1px solid var(--line); }
   .small { font-size: 0.82rem; }
   .foot { display: block; margin-top: 1.5rem; }
+  /* The last footnote runs straight into the snapshot tables below it. A
+     little air marks where "your answer" ends and "everyone's data" begins. */
+  .foot:last-of-type { margin-bottom: 1.6rem; }
   dt.est, dd.est { color: var(--dim); font-style: italic; }
 
   @media (max-width: 560px) {
