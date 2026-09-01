@@ -43,7 +43,7 @@
     { key: "swap",  letter: "S", label: "Swapped", actions: ["swap_lc_hbd", "swap_hbd_lc"] },
     { key: "send",  letter: "T", label: "Transferred", actions: ["transfer"] },
     { key: "burn",  letter: "B", label: "Burned / promoted", actions: ["burn", "promote_post"] },
-    { key: "gov",   letter: "G", label: "Governance", actions: ["set_param", "promote"] },
+    { key: "gov",   letter: "G", label: "Thresholds", actions: ["set_param", "promote"] },
   ];
 
   type Row = {
