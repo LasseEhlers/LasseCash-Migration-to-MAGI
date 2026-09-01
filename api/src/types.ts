@@ -393,4 +393,6 @@ export interface PoolTrade {
   hbdReserve: Amount;
   /** HBD per LASSECASH, after this event. */
   price: Amount;
+  /** Who signed the trade, fully qualified. Public on-chain data. */
+  trader: string;
 }

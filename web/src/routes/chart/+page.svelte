@@ -14,7 +14,7 @@
    */
   import { onMount } from "svelte";
   import { chain, client } from "$lib/chain.svelte.js";
-  import { lc } from "$lib/format.js";
+  import { displayName, lc } from "$lib/format.js";
   import Seo from "$lib/Seo.svelte";
   import { SITE_OG_IMAGE, SITE_URL } from "$lib/site.js";
   import type { PoolTrade } from "$api/index.js";
@@ -192,7 +192,9 @@
       <h2>Every trade, from the first deposit</h2>
       <small class="dim">
         Replayed from the chain's own calls through the engine — the same Go code
-        the contract runs.
+        the contract runs. Every trade names its signer, because every trade
+        already does on the chain: hiding it here would make this page less
+        honest than the raw transaction it is built from.
         {#if reconciled}
           The replay lands on the live reserves <b class="green">exactly, in both
           assets</b>, which is the check that says it is right.
@@ -206,7 +208,7 @@
         <table>
           <thead>
             <tr>
-              <th>Time</th><th>Event</th><th class="num">In</th><th class="num">Out</th>
+              <th>Time</th><th>Event</th><th>Trader</th><th class="num">In</th><th class="num">Out</th>
               <th class="num">LC reserve</th><th class="num">HBD reserve</th><th class="num">Price after</th>
             </tr>
           </thead>
@@ -215,6 +217,11 @@
               <tr>
                 <td class="mono dim">{when(t.time)}</td>
                 <td><span class="pill {t.side}">{t.side}</span></td>
+                <td class="mono">
+                  {#if t.trader}
+                    <a href="/@{displayName(t.trader).replace('@','')}">{displayName(t.trader)}</a>
+                  {:else}<span class="dim">—</span>{/if}
+                </td>
                 <td class="num mono">{lc(t.amountIn, 4)}</td>
                 <td class="num mono">{lc(t.amountOut, 6)}</td>
                 <td class="num mono">{lc(t.lcReserve, 2)}</td>
@@ -255,6 +262,8 @@
   .scroll { overflow-x: auto; margin-top: 0.7rem; }
   table { border-collapse: collapse; width: 100%; min-width: 44rem; font-size: var(--t-tiny); }
   th { text-align: left; font-family: var(--mono); font-size: var(--t-micro); letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); padding: 0.5rem 0.7rem; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  td a { color: var(--ink); }
+  td a:hover { color: var(--gold); }
   td { padding: 0.45rem 0.7rem; border-bottom: 1px solid var(--line-soft); white-space: nowrap; font-variant-numeric: tabular-nums; }
   .num { text-align: right; }
   th.num { text-align: right; }

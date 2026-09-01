@@ -89,6 +89,14 @@ export interface PoolOp {
   action: "add_liquidity" | "remove_liquidity" | "swap_lc_hbd" | "swap_hbd_lc";
   /** The pipe-delimited argument string, untouched. */
   payload: string;
+  /**
+   * Who signed it, fully qualified (`hive:alice`), or "" if the node gave no
+   * signer. Swaps and liquidity calls move value, so they are ACTIVE-key ops
+   * and name their signer in `required_auths` — but read both lists anyway:
+   * assuming one of them is how discovery went blind to every real post and
+   * vote on 2026-08-22.
+   */
+  signer: string;
 }
 
 /** Read access to chain state. */

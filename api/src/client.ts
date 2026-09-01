@@ -269,6 +269,7 @@ export class LasseCashClient {
           time: op.time, side: lc === dLc ? "open" : "liquidity",
           amountIn: fromUnits(dLc), amountOut: fromUnits(dHbd),
           lcReserve: fromUnits(lc), hbdReserve: fromUnits(hbd), price: priceNow(),
+          trader: op.signer,
         });
         continue;
       }
@@ -288,6 +289,7 @@ export class LasseCashClient {
         time: op.time, side: selling ? "sell" : "buy",
         amountIn: fromUnits(amountIn), amountOut: q.amountOut,
         lcReserve: fromUnits(lc), hbdReserve: fromUnits(hbd), price: priceNow(),
+        trader: op.signer,
       });
     }
 
