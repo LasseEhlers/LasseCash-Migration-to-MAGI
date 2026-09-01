@@ -478,6 +478,17 @@
     up their own name still gets an instant answer.
   -->
   <MigrationTables />
+
+  <!-- WHAT HAPPENED NEXT.
+       This page is the snapshot: who was entitled to what, frozen at block
+       109,504,918. It cannot say who turned up. That is a live question and it
+       belongs on its own page — but anyone reading the migration data is
+       exactly the person who wants the follow-up, so the link lives here
+       rather than in a nav that is already ten items long. -->
+  <p class="next">
+    That is what was <em>promised</em>. <a href="/stats">See who has actually claimed →</a>
+    <span class="dim">— live from the chain, updated as people arrive.</span>
+  </p>
 </div>
 
 <style>
@@ -521,6 +532,9 @@
      little air marks where "your answer" ends and "everyone's data" begins. */
   .foot:last-of-type { margin-bottom: 1.6rem; }
   dt.est, dd.est { color: var(--dim); font-style: italic; }
+  .next { margin-top: 2rem; padding-top: 1.25rem; border-top: 1px solid var(--line);
+          font-size: 0.95rem; }
+  .next a { color: var(--gold); }
 
   @media (max-width: 560px) {
     /* The figures are long (7,001,275.990) and the labels are prose. Side by
