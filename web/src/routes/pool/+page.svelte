@@ -241,6 +241,60 @@
   const hbdBalance = $derived(fromUnits(hbdBalanceUnits));
 
   /**
+   * ON MAGI, HBD AND RC ARE ONE POT — so the balance is NOT the ceiling.
+   *
+   * `max_rcs - hbd_milli` is exactly 10,000 on every account: capacity IS the
+   * HBD balance plus the free allowance. Drawing HBD therefore spends RC one
+   * for one, and the call's own `rc_limit` is reserved ON TOP of the draw:
+   *
+   *     available RC  >=  HBD drawn (milli)  +  rc_limit
+   *
+   * MEASURED 2026-09-01 on @daneamanda, to the milli. Holding 3,443 milli with
+   * 6,460 RC available, a 1,000 LC deposit needing 2,665 was REFUSED by the
+   * node (`ledger_error: insufficient balance`) while 500 LC needing 1,333 went
+   * through moments later. Afterwards: 6,460 - 1,333 (draw) - 1,634 (rc used)
+   * = 3,493, matching the meter exactly.
+   *
+   * She missed by about twenty cents while the page showed her 3.443 HBD. She
+   * had it — she could not spend all of it in ONE call.
+   *
+   * The reserve is generous on purpose. The signer sizes each call at
+   * max(table, 3x SIMULATED gas), so the figure is not fixed — on her deposit
+   * it was about 4,902. Checked against her real meter:
+   *
+   *     reserve 4,000 -> offers 2,460 milli -> margin -902  REFUSED
+   *     reserve 5,000 -> offers 1,460 milli -> margin    98  barely
+   *     reserve 5,500 -> offers   960 milli -> margin   598  comfortable
+   *
+   * 5,500 it is. A tighter reserve buys a few hundred LC of headroom and
+   * risks handing someone a "Max" the chain then refuses, which is the exact
+   * failure this exists to prevent.
+   *
+   * If RC is unknown (dev chain, node down) this falls back to the balance
+   * rather than blocking a deposit on a meter we cannot read.
+   */
+  const RC_RESERVE_MILLI = 5_500;
+  /** One milli-HBD in the engine's 8dp base units. */
+  const MILLI = 100_000n;
+
+  let rcMeter = $state<{ amount: number; max: number } | null>(null);
+  $effect(() => {
+    const who = chain.account;
+    if (!who) { rcMeter = null; return; }
+    void client.resourceCredits().then((r) => (rcMeter = r)).catch(() => (rcMeter = null));
+  });
+
+  /** What the account can actually put into ONE deposit, balance and RC both. */
+  const hbdSpendableUnits = $derived.by(() => {
+    if (!rcMeter) return hbdBalanceUnits; // meter unreadable: do not block
+    const spendableMilli = BigInt(Math.max(0, Math.trunc(rcMeter.amount) - RC_RESERVE_MILLI));
+    const byRc = spendableMilli * MILLI;
+    return byRc < hbdBalanceUnits ? byRc : hbdBalanceUnits;
+  });
+  /** True when RC, not the HBD balance, is what limits the deposit. */
+  const rcIsBinding = $derived(hbdSpendableUnits < hbdBalanceUnits);
+
+  /**
    * Largest deposit the account can actually afford: capped by whichever of
    * LASSECASH balance / HBD balance binds first, found by asking the engine —
    * "Max" on either field converges on this exact same point. On a first
@@ -251,7 +305,7 @@
     if (!me || !activeReserveArgs) return null;
     const args = activeReserveArgs;
     const lcBalance = toUnits(me.balance);
-    const lcFromHbd = reverseLcForHbd(hbdBalanceUnits, args.lc, args.hbd, args.shares);
+    const lcFromHbd = reverseLcForHbd(hbdSpendableUnits, args.lc, args.hbd, args.shares);
     const lcFinal = lcBalance < lcFromHbd ? lcBalance : lcFromHbd;
     const q = estimateLiquidity(lcFinal.toString(), args.lc, args.hbd, args.shares);
     const hbdFinal = q.ok ? toUnits(q.hbdNeeded) : 0n;
@@ -339,7 +393,13 @@
     if (BigInt(lpQuote.lcBase) > toUnits(me.balance)) {
       return "Not enough LASSECASH — press Max for the most you can add";
     }
-    if (sendHbdUnits > hbdBalanceUnits) return "Not enough HBD on MAGI — deposit from Hive first";
+    if (sendHbdUnits > hbdSpendableUnits) {
+      // Naming the balance here would be a lie: they HAVE the HBD, they just
+      // cannot spend all of it in one call while it is also backing their RC.
+      return rcIsBinding
+        ? "Too much for one deposit — on MAGI your HBD is also your resource credits. Press Max, or add more HBD (it raises the meter)."
+        : "Not enough HBD on MAGI — deposit from Hive first";
+    }
     return null;
   });
 
