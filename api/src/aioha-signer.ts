@@ -668,6 +668,11 @@ export class AiohaSigner implements Signer {
     try {
       sim = await this.wallet.simulate(this.account, entrypoint, args, intents);
     } catch {
+      // The node could not simulate, so the table is the only estimate — but
+      // admission still checks rc_limit against AVAILABLE RC, so a broadcast
+      // the account cannot cover is known doomed even without a dry run.
+      const avail = await this.wallet.availableRc(this.account);
+      if (avail !== null && avail < tableLimit) return AiohaSigner.rcRefusal(tableLimit, avail);
       return tableLimit;
     }
     if (!sim.ok) {
@@ -681,19 +686,34 @@ export class AiohaSigner implements Signer {
     // Never ask for more than the account has: the limit is admission-checked
     // against AVAILABLE RC ("minimum RC requirement is not met"), so a fresh
     // account's 10,000 must be able to carry a claim. Headroom gives way
-    // first; below 1.3x the simulated need the call is not worth sending.
+    // first — but only down to a floor the call can actually survive.
+    //
+    // The floor CANNOT come from the simulation alone: settlement weighs
+    // state writes 19x and the simulator does not, so a write-heavy call
+    // simulates at a small fraction of its real cost. The first production
+    // casualty (2026-09-01): a comment simulated ~80 RC, squeaked past the
+    // old 1.3x-of-simulated floor with 82 RC available, broadcast at
+    // rc_limit 82, and died with "cost limit exceeded" — after publishing
+    // its Hive half, leaving an orphan. The TABLE is measured real cost
+    // plus ~60% headroom, so refusing below ~60% of it refuses only calls
+    // that measurement says cannot fit. `advance` is exempt: it is sized
+    // to affordable slices by design ("never above what they hold").
+    const tableFloor = entrypoint === "advance" ? 0 : Math.ceil(tableLimit * 0.6);
     const avail = await this.wallet.availableRc(this.account);
     if (avail !== null && sized > avail) {
-      const floor = Math.ceil(need * 1.3);
-      if (avail < floor) {
-        return {
-          ok: false, height: 0,
-          msg: `not enough resource credits: this call needs about ${floor.toLocaleString()} RC and the account has ${avail.toLocaleString()}. RC thaws over 5 days; staking HBD on MAGI raises the meter.`,
-        };
-      }
+      const floor = Math.max(Math.ceil(need * 1.3), tableFloor);
+      if (avail < floor) return AiohaSigner.rcRefusal(floor, avail);
       return avail;
     }
     return sized;
+  }
+
+  /** The one wording for "you are out of RC", so every path explains the meter. */
+  static rcRefusal(needed: number, avail: number): TxResult {
+    return {
+      ok: false, height: 0,
+      msg: `not enough resource credits: this call needs about ${needed.toLocaleString()} RC and the account has ${avail.toLocaleString()}. RC refills over 5 days — or instantly: HBD held on your MAGI account IS the meter (10 HBD ≈ 10,000 RC, never spent).`,
+    };
   }
 
   async submit(entrypoint: string, args: string, opts?: SubmitOptions): Promise<TxResult> {

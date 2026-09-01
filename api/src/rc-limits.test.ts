@@ -26,6 +26,53 @@ test("no entrypoint may request a limit that could lock an account out", () => {
   }
 });
 
+/**
+ * sizeRc with a stubbed wallet. The refusal floor cannot come from the
+ * simulation alone: settlement weighs writes 19x and the simulator does not,
+ * so a write-heavy call simulates at a small fraction of its real cost. The
+ * first production casualty (2026-09-01): @angeloextreme's comment simulated
+ * ~80 RC, cleared the old 1.3x-of-simulated floor with 82 RC available, and
+ * died on-chain with "cost limit exceeded" after publishing its Hive half.
+ */
+function signerWith(sim: { gas: number } | "throws", avail: number | null): AiohaSigner {
+  const wallet = {
+    simulate: async () => {
+      if (sim === "throws") throw new Error("network");
+      return { ok: true as const, gas: sim.gas };
+    },
+    availableRc: async () => avail,
+  };
+  // Only simulate/availableRc are exercised by sizeRc.
+  return new AiohaSigner(wallet as never, "hive:test", "vsc1test", 1_500);
+}
+
+test("a call the account cannot afford is refused before the wallet opens (the comment casualty)", async () => {
+  // 82 RC available, comment simulates at ~80 RC of gas (8M cycles).
+  const r = await signerWith({ gas: 8_000_000 }, 82).sizeRc("comment", "p|a|pp", [], AiohaSigner.RC_LIMITS["comment"]!);
+  assert.ok(typeof r !== "number", "the doomed comment must be refused, not sized");
+  assert.match(r.msg, /not enough resource credits/);
+  assert.match(r.msg, /HBD/); // the message must explain the meter
+});
+
+test("a fresh account's 10,000 free RC still carries a staked claim", async () => {
+  // Measured: staked claim simulates ~2,000 RC; table is 9,500.
+  const r = await signerWith({ gas: 200_000_000 }, 10_000).sizeRc(
+    "claim_migration", "1|2|proof", [], AiohaSigner.RC_LIMITS["claim_migration"]!);
+  assert.equal(r, 9_500);
+});
+
+test("advance keeps its slice-to-what-you-hold behaviour", async () => {
+  const r = await signerWith({ gas: 10_000_000 }, 3_000).sizeRc("advance", "50", [], AiohaSigner.RC_LIMITS["advance"]!);
+  assert.equal(r, 3_000);
+});
+
+test("when the dry run fails, the table is still checked against available RC", async () => {
+  const broke = await signerWith("throws", 82).sizeRc("comment", "p|a|pp", [], AiohaSigner.RC_LIMITS["comment"]!);
+  assert.ok(typeof broke !== "number", "unaffordable table limit must refuse");
+  const fine = await signerWith("throws", 10_000).sizeRc("comment", "p|a|pp", [], AiohaSigner.RC_LIMITS["comment"]!);
+  assert.equal(fine, AiohaSigner.RC_LIMITS["comment"]!);
+});
+
 test("every value-moving USER entrypoint is in the table", () => {
   // Genesis operations (init, migrate*, burn_batch) are owner-only and sent by
   // tools/migrate.py, which sizes its own limits from the batch contents.
