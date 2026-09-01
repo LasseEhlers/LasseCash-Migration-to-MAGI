@@ -232,6 +232,27 @@ func Burn(a *string) *string {
 	return finish(state.Burn(store{}, c, amount))
 }
 
+// fund <target>|<amount> — move LASSECASH from the caller into a reward pool.
+//
+// Permissionless and unprivileged: anyone may fund, nobody is paid for it, and
+// the value becomes indistinguishable from emission once it lands. This is the
+// only way value can ever enter a pool from outside the contract, which is why
+// it exists at all — emission ends, and recycling feeds only the L-Share pool.
+//
+//	args: <pob|liquidity|lshare|all>|<amount>
+//
+//go:wasmexport fund
+func Fund(a *string) *string {
+	c, _ := ctx()
+	args := state.ParseArgs(*a)
+	target := args.Str(0)
+	amount, ok := args.Amount(1)
+	if target == "" || !ok {
+		sdk.Abort("usage: <pob|liquidity|lshare|all>|<amount>")
+	}
+	return finish(state.FundPool(store{}, c, target, amount))
+}
+
 // settle credits block rewards up to the current height. Permissionless: an
 // idle chain must not be able to fall behind.
 //

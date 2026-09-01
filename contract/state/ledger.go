@@ -263,6 +263,85 @@ func Recycle(s Store, amt engine.Amount) {
 	RecycleThroughAccumulator(s, amt)
 }
 
+// FundPool moves LASSECASH from the caller's balance into a reward pool.
+//
+// WHY THIS EXISTS. Emission is finite and ends; recycling — penalties, bleed,
+// swept curation — feeds ONLY the L-Share pool. So Proof-of-Brain and the
+// liquidity pool have no funding source once emission runs out, and nothing
+// outside this contract could ever add one. After the owner key burns, that
+// becomes permanent: a thriving ecosystem built on top would have no way to
+// pay into the pools that make the thing work.
+//
+// It is deliberately the plainest possible mechanism. There is no privileged
+// caller, no schedule and no accounting of who funded what — value moves from
+// a balance to a pool and is then indistinguishable from emission. A sponsor
+// pays writers or liquidity providers by the protocol's own rules, not by
+// choosing recipients.
+//
+// EACH POOL IS CREDITED THE WAY EMISSION CREDITS IT, never by writing the key
+// directly:
+//   - PoB splits viral/deep through engine.SplitPoB, exactly as accrual does
+//   - liquidity is added to the pool; the LP accumulator folds it in on the
+//     next deposit, claim or withdrawal, as it does with emission
+//   - the L-Share pool goes through RecycleThroughAccumulator, because the
+//     pool balance alone grants nobody a claim — value added without raising
+//     the accumulator would sit there forever
+//
+// The supply audit is unaffected: pools are already counted, so moving value
+// from a balance into one conserves the total exactly.
+func FundPool(s Store, ctx Ctx, target string, amt engine.Amount) Result {
+	if !IsInit(s) {
+		return fail("not initialised")
+	}
+	if amt <= 0 {
+		return fail("amount must be positive")
+	}
+	if ctx.Sender == BurnAccount {
+		return fail("null cannot act")
+	}
+
+	switch target {
+	case "pob", "liquidity", "lshare", "all":
+	default:
+		return fail("target must be pob, liquidity, lshare or all")
+	}
+
+	if !debit(s, ctx.Sender, amt) {
+		return fail("insufficient balance")
+	}
+
+	switch target {
+	case "pob":
+		fundPoB(s, amt)
+	case "liquidity":
+		addPool(s, keyPoolLiquidity, amt)
+	case "lshare":
+		RecycleThroughAccumulator(s, amt)
+	case "all":
+		// The block split, so a general donation lands the way emission does.
+		// The L-Share remainder absorbs any rounding: it is the pool that can
+		// always accept value, and flooring elsewhere must never lose a unit.
+		sp := engine.Split(amt)
+		fundPoB(s, sp.ProofOfBrain)
+		addPool(s, keyPoolLiquidity, sp.Liquidity)
+		RecycleThroughAccumulator(s, amt-sp.ProofOfBrain-sp.Liquidity)
+	}
+	return ok("funded " + target)
+}
+
+// fundPoB splits into the viral and deep pools on the same rule emission uses.
+func fundPoB(s Store, amt engine.Amount) {
+	if amt <= 0 {
+		return
+	}
+	viral, _ := engine.SplitPoB(amt)
+	addPool(s, keyPoolViral, viral)
+	// Deep takes the REMAINDER rather than its own floored share, so the two
+	// always sum to exactly `amt`. Both flooring independently would drop a
+	// base unit, and the supply audit counts every one.
+	addPool(s, keyPoolDeep, amt-viral)
+}
+
 // --- emission -------------------------------------------------------------
 
 // Settle credits block rewards for every height between the settlement
