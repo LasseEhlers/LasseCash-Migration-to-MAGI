@@ -480,14 +480,19 @@
   <MigrationTables />
 
   <!-- WHAT HAPPENED NEXT.
-       This page is the snapshot: who was entitled to what, frozen at block
-       109,504,918. It cannot say who turned up. That is a live question and it
-       belongs on its own page — but anyone reading the migration data is
+       This page is the snapshot: what each account HELD at block 109,504,918
+       and could claim. It cannot say who turned up — that is a live question
+       and belongs on its own page, but anyone reading the migration data is
        exactly the person who wants the follow-up, so the link lives here
-       rather than in a nav that is already ten items long. -->
+       rather than in a nav that is already ten items long.
+
+       NOT "what was promised". Nothing was promised: the design is claim it
+       inside the window or watch it bleed away, and a page that says promised
+       hands a fair-sounding quote to anyone who misses the deadline. The
+       snapshot RECORDS; it does not undertake. -->
   <p class="next">
-    That is what was <em>promised</em>. <a href="/stats">See who has actually claimed →</a>
-    <span class="dim">— live from the chain, updated as people arrive.</span>
+    That is what the snapshot <em>recorded</em>. <a href="/stats">See who has turned up →</a>
+    <span class="dim">— live from the chain, updated as people claim.</span>
   </p>
 </div>
 
