@@ -723,6 +723,30 @@ export class MagiBackend implements Backend {
   }
 
   /**
+   * What this account holds on HIVE L1 — the other side of the bridge.
+   *
+   * A DEPOSIT SPENDS THIS, not the MAGI balance, and the two are easy to
+   * confuse because they are the same asset in two places. Found the hard way
+   * 2026-09-01: the wallet showed 74 HBD on MAGI, offered a Deposit button,
+   * and the wallet refused with "insufficient HBD" — correctly, because the
+   * Hive side was empty. A page that shows one balance and spends another is
+   * the page's bug, not the user's.
+   */
+  async hiveBalances(account: string): Promise<{ hbd: string; hive: string } | null> {
+    const bare = account.replace(/^hive:/, "");
+    try {
+      const r = await this.#hiveRpc<{ hbd_balance: string; balance: string }[]>(
+        "condenser_api.get_accounts", [[bare]]);
+      const a = r?.[0];
+      if (!a) return null;
+      // "1.234 HBD" -> "1.234"
+      return { hbd: (a.hbd_balance ?? "0").split(" ")[0] ?? "0", hive: (a.balance ?? "0").split(" ")[0] ?? "0" };
+    } catch {
+      return null;
+    }
+  }
+
+  /**
    * The account's RC on HIVE L1 — a different meter from MAGI's, and both
    * have to be alive for LasseCash to work.
    *

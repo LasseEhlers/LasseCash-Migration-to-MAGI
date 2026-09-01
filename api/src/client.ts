@@ -622,6 +622,13 @@ export class LasseCashClient {
    * call in one signed transaction, so either meter running dry stops the
    * same action — and the two are refilled in completely different ways.
    */
+  /** HIVE L1 balances. A deposit spends these, not the MAGI ones. */
+  hiveBalances(account?: string): Promise<{ hbd: string; hive: string } | null> {
+    const who = account ?? this.account;
+    if (!who || !this.backend.hiveBalances) return Promise.resolve(null);
+    return this.backend.hiveBalances(who);
+  }
+
   hiveResourceCredits(account?: string): Promise<ResourceCredits | null> {
     const who = account ?? this.account;
     if (!who || !this.backend.hiveResourceCredits) return Promise.resolve(null);

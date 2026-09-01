@@ -223,6 +223,8 @@ export interface Backend {
   resourceCredits?(account: string): Promise<ResourceCredits | null>;
   /** The same meter on HIVE L1. Both must be alive for a post or a vote. */
   hiveResourceCredits?(account: string): Promise<ResourceCredits | null>;
+  /** HIVE L1 balances — what a deposit to MAGI actually spends. */
+  hiveBalances?(account: string): Promise<{ hbd: string; hive: string } | null>;
 
   /** Dev chains can move their own clock. Real nodes cannot; returns null. */
   advanceDays?(days: number): Promise<number | null>;

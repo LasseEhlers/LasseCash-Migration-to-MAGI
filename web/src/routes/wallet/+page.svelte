@@ -33,6 +33,8 @@
   let hbdBusy = $state(false);
   let hbdMsg = $state<string | null>(null);
   let hbdErr = $state<string | null>(null);
+  /** What sits on the HIVE side. A deposit spends THIS, not the MAGI balance. */
+  let hiveHbd = $state<string | null>(null);
 
   async function moveHbd(dir: "in" | "out") {
     const n = Number(hbdAmount);
@@ -79,6 +81,7 @@
       client.hiveResourceCredits().catch(() => null),
     ]);
     magiRc = m; hiveRc = h; meters = true;
+    hiveHbd = (await client.hiveBalances().catch(() => null))?.hbd ?? null;
   }
   onMount(() => { void loadMeters(); void loadOps(); });
   // Signing in on this page should fill the meters without a reload.
@@ -92,6 +95,12 @@
 
   /** HBD on MAGI in milli-units, which IS the MAGI meter above the free 10,000. */
   const hbdOnMagi = $derived(me ? Number(me.hbd) / 100_000_000 : 0);
+  /**
+   * Which direction is actually possible. Each spends a different balance,
+   * and a button that cannot work should not look like it can.
+   */
+  const canDeposit = $derived(hiveHbd === null || Number(hiveHbd) > 0);
+  const canWithdraw = $derived(hbdOnMagi > 0);
 </script>
 
 <Seo
@@ -207,14 +216,39 @@
         meter, the pool's other side, and the only way to buy LASSECASH, which makes
         this the one move that unblocks everything else on the site.
       </p>
+      <!-- BOTH SIDES, ALWAYS. The two balances are the same asset in two
+           places, which is exactly why they get confused: a deposit spends
+           the Hive one and a withdrawal spends the MAGI one. Showing only
+           the MAGI figure is what let a Deposit button sit there looking
+           available while the Hive side was empty. -->
+      <div class="sides">
+        <div class="side">
+          <span class="slabel">on Hive</span>
+          <b class="mono">{hiveHbd === null ? "…" : lc(hiveHbd, 3)}</b>
+          <span class="sunit">HBD</span>
+        </div>
+        <span class="arrow">↔</span>
+        <div class="side">
+          <span class="slabel">on MAGI</span>
+          <b class="mono">{lc(fromUnits(BigInt(Math.trunc(Number(me.hbd)))), 3)}</b>
+          <span class="sunit">HBD</span>
+        </div>
+      </div>
+
       <div class="hbdform">
         <input
           inputmode="decimal" placeholder="0.000" bind:value={hbdAmount}
           disabled={hbdBusy} aria-label="HBD amount"
         />
-        <button onclick={() => moveHbd("in")} disabled={hbdBusy}>Deposit to MAGI</button>
-        <button class="ghost" onclick={() => moveHbd("out")} disabled={hbdBusy}>Withdraw to Hive</button>
+        <button onclick={() => moveHbd("in")} disabled={hbdBusy || !canDeposit}>Deposit to MAGI</button>
+        <button class="ghost" onclick={() => moveHbd("out")} disabled={hbdBusy || !canWithdraw}>Withdraw to Hive</button>
       </div>
+      {#if hiveHbd !== null && Number(hiveHbd) <= 0}
+        <p class="note hint">
+          Nothing to deposit: your <b>Hive</b> HBD balance is empty. Everything you hold is
+          already on MAGI, so the move available to you is <b>Withdraw</b>.
+        </p>
+      {/if}
       {#if hbdErr}<p class="err">{hbdErr}</p>{/if}
       {#if hbdMsg}<p class="ok">{hbdMsg}</p>{/if}
       <p class="note">
@@ -310,6 +344,14 @@
   .note { margin: 0; font-size: var(--t-micro); color: var(--dim); line-height: 1.6; }
   /* Gold, not red: an empty meter is a wait, not a loss. Red on this site
      means value actively being lost, and nothing here is being lost. */
+  .sides { display: flex; align-items: center; gap: 1rem; margin-bottom: 0.8rem; flex-wrap: wrap; }
+  .side { background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--r-sm); padding: 0.5rem 0.8rem; }
+  .slabel { display: block; font-family: var(--mono); font-size: var(--t-micro); letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); }
+  .side b { font-size: var(--t-lg); font-variant-numeric: tabular-nums; }
+  .sunit { font-size: var(--t-micro); color: var(--dimmer); margin-left: 0.25rem; }
+  .arrow { color: var(--dimmer); font-size: 1.2rem; }
+  .note.hint { color: var(--gold); margin-top: 0.5rem; }
+
   .hbdform { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-bottom: 0.5rem; }
   .hbdform input { flex: 1 1 10rem; min-width: 8rem; }
   .err { color: var(--red); font-size: var(--t-sm); margin: 0.4rem 0 0; }
