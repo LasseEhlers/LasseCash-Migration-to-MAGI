@@ -252,6 +252,20 @@ Nothing is confiscated, and that distinction is the point. A minter is paid up t
 
 **The first deposit sets the price.** Nothing exists to arbitrage against at genesis, so the ratio of the first liquidity call becomes the opening price, seeded deliberately near the prevailing Hive-Engine price on the day. A thin pool is fine: price impact is high at first, which is what makes the 25% emission slice attractive to the providers who deepen it.
 
+### What you are trusting, layer by layer
+
+The wallet lets you swap HBD, HIVE and BTC and move funds between Hive and MAGI. Those are not all the same kind of thing, and the differences are worth stating plainly rather than flattening into one word.
+
+**The LASSECASH:HBD pool is ours, and from 10 October nobody can change it.** No owner key, no upgrade path: the swap rule, the 0% fee and the reserves are frozen in code. LASSECASH is native to that contract, so nobody custodies it — there is no company holding it and no signature that could move it.
+
+**MAGI's own pools — HBD:HIVE and BTC:HBD — are not ours.** They are separate contracts that keep an owner and can be updated, and they charge 0.08% where ours charges nothing. Every swap there is still a trade you sign against a contract, with no account and nobody taking custody of the trade itself. What differs is that the code can change and we do not control it.
+
+**Bridging HBD or HIVE is the one step that is not trustless.** MAGI's HBD is real HBD held on Hive by `vsc.gateway`, an account whose active authority is an **18-key multisig requiring a two-thirds supermajority** (6,667 of 10,000 in weight; the largest single key is 24%). No individual can move it — not MAGI's developers, not us, not anyone holding one key — but a two-thirds collusion of that set could, and no contract prevents it. That is validator-secured custody, which is a strong thing and a different thing from trustless.
+
+**BTC carries one layer more.** Bitcoin on MAGI is *mapped*: real BTC is held off-chain by a mechanism we have not verified, so we make no claim about it. Withdrawing sends it to a Bitcoin address you control, which is the point at which it stops being anybody's IOU.
+
+So: everything inside the LasseCash contract is trustless from 10 October. Everything underneath it is as trustworthy as MAGI is, and bridging is where you rely on people rather than on code. Size that step deliberately.
+
 ## 7. Thresholds — the median of ten numbers
 
 **There are no proposals.** You cannot verify on-chain that a funded proposal was ever delivered, so an immutable protocol should not pretend otherwise. There is no inflation slice for proposals, marketing or onboarding either.

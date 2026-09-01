@@ -444,16 +444,9 @@
       </button>
 
       <p class="note out">
-        <b>Whose risk is whose.</b> Our LASSECASH:HBD pool has no owner key from
-        <b>10 October</b> and charges nothing. These two are <b>MAGI's</b>: their
-        contracts keep an owner and can be updated, and both sides of HBD:HIVE are
-        bridged from Hive by the two-thirds validator multisig described below.
-        <b>BTC is mapped</b> — real Bitcoin held off-chain by a mechanism we have not
-        verified — so it carries one more layer of trust than anything else here.
-        Every swap is still a trade you sign against a contract, with no account and
-        no company holding your funds, which is more than most of the market offers.
-        It is simply not the same as our own pool, and we will not print a word that
-        blurs the two.
+        <b>Ours becomes unchangeable on 10 October</b> — the LASSECASH:HBD pool above, no
+        owner key, no fee. These two are MAGI's own contracts and charge 0.08%.
+        <a href="/about#what-you-are-trusting-layer-by-layer">What you are trusting →</a>
       </p>
     </section>
 
@@ -567,17 +560,9 @@
         minutes to appear.
       </p>
       <p class="note">
-        <b>What secures it, precisely.</b> This is the one thing here that is <em>not</em>
-        trustless, and saying so is worth more than the word. Your HBD on MAGI is real HBD
-        held on Hive by <span class="mono">vsc.gateway</span>, an account whose active
-        authority is an <b>18-key multisig needing a two-thirds supermajority</b>
-        (6,667 of 10,000 in weight; the largest single key is 24%). No individual can move
-        it — not MAGI's developers, not us, not anyone holding one key — but a two-thirds
-        collusion of that set could, and no contract prevents that. It is
-        <b>validator-secured custody</b>, which is a strong thing and a different thing.
-        The <b>swaps</b> below and the LASSECASH pool above <em>are</em> trustless: those
-        execute against a contract, and nobody can decline them. Bridging is the step where
-        you rely on people, so it is the step to size deliberately.
+        <b>Not trustless, and worth knowing.</b> Your HBD and HIVE on MAGI are held on Hive
+        by an 18-key validator multisig — no individual can move them, but the set could.
+        <a href="/about#what-you-are-trusting-layer-by-layer">What you are trusting →</a>
       </p>
       {/if}
       <p class="note">
@@ -746,10 +731,6 @@
   .route strong { display: block; font-family: var(--mono); color: var(--gold); letter-spacing: 0.06em; }
   .route span { display: block; margin-top: 0.3rem; font-size: var(--t-micro); color: var(--dim); }
   .note.out { margin-top: 0.9rem; max-width: 76ch; }
-  .ranked { margin: 0.9rem 0 0; padding-left: 1.2rem; display: grid; gap: 0.65rem; }
-  .ranked li { font-size: var(--t-sm); color: var(--dim); line-height: 1.6; max-width: 78ch; }
-  .ranked b { color: var(--ink); }
-  .ranked li::marker { color: var(--gold-dim); font-family: var(--mono); }
 
 
   .warn { margin: 1rem 0 0; font-size: var(--t-sm); color: var(--gold); line-height: 1.6; }

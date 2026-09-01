@@ -124,6 +124,24 @@ export function renderMarkdown(md: string): string {
     },
   );
 
+/**
+ * A heading's anchor id.
+ *
+ * Lowercase, letters digits and hyphens ONLY — the heading text is
+ * attacker-controlled on a post, so the slug is built from a whitelist rather
+ * than by stripping a blacklist. Nothing that survives can close an attribute
+ * or open a tag.
+ */
+function slug(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/&[a-z]+;/g, " ")     // entities from the earlier escape pass
+    .replace(/<[^>]*>/g, " ")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60);
+}
+
   // A bare image URL on its own line.
   src = src.replace(
     /^[ \t]*(https?:\/\/\S+\.(?:png|jpe?g|gif|webp|avif)(?:\?\S*)?)[ \t]*$/gim,
@@ -137,8 +155,8 @@ export function renderMarkdown(md: string): string {
     .replace(/^###### (.*)$/gm, "<h6>$1</h6>")
     .replace(/^##### (.*)$/gm, "<h5>$1</h5>")
     .replace(/^#### (.*)$/gm, "<h4>$1</h4>")
-    .replace(/^### (.*)$/gm, "<h3>$1</h3>")
-    .replace(/^## (.*)$/gm, "<h2>$1</h2>")
+    .replace(/^### (.*)$/gm, (_m, t: string) => `<h3 id="${slug(t)}">${t}</h3>`)
+    .replace(/^## (.*)$/gm, (_m, t: string) => `<h2 id="${slug(t)}">${t}</h2>`)
     .replace(/^# (.*)$/gm, "<h1>$1</h1>")
     .replace(/^&gt; ?(.*)$/gm, "<blockquote>$1</blockquote>")
     .replace(/^---+$/gm, "<hr />")
