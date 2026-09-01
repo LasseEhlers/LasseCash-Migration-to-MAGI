@@ -98,7 +98,21 @@
       const locked = Number(amount);
       if (!locked) return null;
       const pctYear = ((Number(perDay) * 365) / locked * 100).toFixed(1);
-      return { perDay, pctYear };
+
+      // WHY the rate is what it is, from the chain rather than from a date.
+      // "few have claimed yet" was true this week and would have quietly
+      // stopped being true — most sharply on 30 September, when every
+      // migration mint matures at once and the denominator collapses before
+      // anyone re-mints. Participation is the thing that actually drives the
+      // number, so participation is what the sentence reads.
+      const claimable = Number(info.snapshot_total) - Number(info.snapshot_burned);
+      const lockedNet = Number(info.total_shares);
+      const share = claimable > 0 ? lockedNet / claimable : 0;
+      const why =
+        share < 0.25 ? "high because little of the supply is minted yet"
+        : share < 0.6 ? "as much of the supply is minted, this keeps falling"
+        : "most of the supply is minted, so this is near its floor";
+      return { perDay, pctYear, why };
     } catch { return null; }
   });
 
@@ -221,7 +235,7 @@
           <span class="dim">≈</span>
           <b class="mono rate">{yieldNow.pctYear}%</b>
           <span class="dim">a year at today's share base —</span>
-          <span class="falls">high because few have claimed yet</span>
+          <span class="falls">{yieldNow.why}</span>
         </div>
         <div class="subline">
           <span class="dim">
