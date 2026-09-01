@@ -378,10 +378,49 @@ export class AiohaWallet {
     );
     return {
       ok: !!res.success,
-      msg: res.success ? "submitted" : (res.error ?? "rejected"),
+      msg: res.success ? "submitted" : AiohaWallet.hiveReason(res.error),
       height: 0,
       txId: res.success && typeof res.result === "string" ? res.result : undefined,
     };
+  }
+
+  /**
+   * Hive's rejection, in words a user can act on.
+   *
+   * A LasseCash vote carries the Hive vote in the SAME transaction, so when
+   * Hive refuses, the contract call dies with it — nothing registers here.
+   * Hive's own text arrives wrapped in assert markup ("Your transaction
+   * returned an error <br/><br/>Error: ...") and names conditions in
+   * consensus terms, which reads as a site bug rather than as a thing the
+   * user can fix.
+   *
+   * Translated only where the fix is unambiguous; anything else is passed
+   * through, because a wrong explanation is worse than a raw one.
+   */
+  static hiveReason(raw: string | undefined): string {
+    const err = (raw ?? "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    if (!err) return "rejected";
+    // The single most common one: the first attempt's Hive half succeeded
+    // while its MAGI half failed (RC), so the retry is an identical re-vote.
+    // Hive refuses those, and the refusal kills the bundled contract call —
+    // which is precisely the vote the user is trying to land. Changing the
+    // weight is the whole fix. Seen in production 2026-09-01.
+    if (/identical to this vote|vote is the same/i.test(err)) {
+      return "you have already voted on this at that weight on Hive — move the slider to a different weight and cast again. A vote is replaced by re-voting, never removed.";
+    }
+    if (/only.*vote.*once|cannot vote again|vote_regeneration/i.test(err)) {
+      return "Hive is rate-limiting your votes — wait a few seconds and cast again.";
+    }
+    if (/exceeded.*bandwidth|resource credits|insufficient rc/i.test(err)) {
+      return "your Hive account is out of resource credits for now. Hive RC refills on its own over the next hours.";
+    }
+    if (/comment.*same as before|Comment already exists/i.test(err)) {
+      return "this text is identical to what you already published — change something and try again.";
+    }
+    if (/missing required (posting|active) authority/i.test(err)) {
+      return "your wallet did not grant the authority this needs. Sign in again, or unlock the wallet and retry.";
+    }
+    return err;
   }
 
   /** The Hive `comment` operation for an article, with our metadata. */
@@ -811,7 +850,7 @@ export class AiohaSigner implements Signer {
     // swallow — the user needs to know the chain refused and why.
     return {
       ok: !!res.success,
-      msg: res.success ? (res.result ?? "submitted") : (res.error ?? "rejected"),
+      msg: res.success ? (res.result ?? "submitted") : AiohaWallet.hiveReason(res.error),
       height: 0, // the node assigns this; read it back on the next refresh
       txId: res.success && typeof res.result === "string" ? res.result : undefined,
     };

@@ -88,7 +88,17 @@
     {:else if error}
       <p class="note amber">{error}</p>
     {:else if votes && votes.length > 0}
+      <!-- The two numbers were read as one figure and its percentage — i.e.
+           as "this voter used 64% of their vote". They are not: the second
+           column is this voter's SHARE OF THE POST. Labelling the columns
+           says so at the point of confusion, where a caption underneath the
+           list does not. -->
       <ul class="list">
+        <li class="head">
+          <span class="who dim">voter</span>
+          <span class="weight dim">weight</span>
+          <span class="share dim">share of this post</span>
+        </li>
         {#each votes as v (v.voter)}
           {@const s = share(v)}
           <li>
@@ -99,8 +109,8 @@
         {/each}
       </ul>
       <p class="note dim">
-        Vote weight, then its share of the post's total — the same proportion
-        the curator pot is split by. Weight is rshares, not LASSECASH.
+        Share of this post is the proportion of the curator pot this vote
+        takes. Weight is rshares, not LASSECASH.
       </p>
       {#if settledAway > 0}
         <p class="note dim">
@@ -149,6 +159,15 @@
     font-size: var(--t-tiny);
   }
   .list li:last-child { border-bottom: 0; }
+  /* Column labels: uppercase micro type, and it stays put while the list
+     scrolls — the labels are useless once they have scrolled away. */
+  .list li.head {
+    position: sticky; top: 0; z-index: 1;
+    background: #05070a;
+    font-family: var(--mono); font-size: var(--t-micro);
+    letter-spacing: 0.09em; text-transform: uppercase;
+  }
+  .list li.head .share { text-align: right; }
   .who { color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .who:hover { color: var(--gold); }
   .weight { font-variant-numeric: tabular-nums; }

@@ -30,7 +30,7 @@
   import VoteSlider from "$lib/VoteSlider.svelte";
   import VoterList from "$lib/VoterList.svelte";
   import { SITE_NAME, SITE_OG_IMAGE, SITE_URL, absolute, metaDescription, profileUrl } from "$lib/site.js";
-  import { PayoutMode, type PostView } from "$api/index.js";
+  import { PayoutMode, constants, type PostView } from "$api/index.js";
   import type { PageData } from "./$types";
 
   let { data }: { data: PageData } = $props();
@@ -55,6 +55,22 @@
   onMount(load);
 
   const height = $derived(chain.info?.height ?? 0);
+  /**
+   * Has the chain's very first day closed?
+   *
+   * Emission is settled per whole closed day, so until then every pool is
+   * empty and every pending figure is honestly zero. The day length comes
+   * from the engine (a TESTWINDOWS build has 6-minute days), never from a
+   * literal here — a hardcoded 28,800 would be wrong on the fast clock and
+   * would silently outlive the one week this line is for.
+   */
+  const firstDayOpen = $derived.by(() => {
+    const info = chain.info;
+    if (!chain.ready || !info) return false;
+    const perDay = Number(constants().heightsPerDay);
+    if (!perDay) return false;
+    return info.height - info.genesis_height < perDay;
+  });
   const rendered = $derived(a.body ? renderMarkdown(a.body) : "");
   const description = $derived(
     metaDescription(a.summary || `${a.title} — by @${a.handle} on ${SITE_NAME}.`),
@@ -197,6 +213,18 @@
                   {lc(post.pending_payout)}
                   <Hbd amount={post.pending_payout} block />
                 </dd>
+                {#if firstDayOpen && Number(post.pending_payout) === 0 && post.votes > 0}
+                  <!-- Launch week only. Emission is settled as whole closed
+                       DAYS, so before the chain's first day closes there is
+                       nothing in the pool to divide and a voted post honestly
+                       reads zero. Without this line that zero looks broken —
+                       it is the first thing anyone checks after voting. -->
+                  <dd class="hint">
+                    Zero because the chain's first day has not closed yet — the
+                    reward pools fill as each day settles, and this post's share
+                    is already recorded in its votes.
+                  </dd>
+                {/if}
                 <dt>Pays</dt>
                 <dd class="mono">
                   {post.payable ? "window closed" : durationWords(post.payout_height - height)}

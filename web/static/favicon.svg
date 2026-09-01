@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <!-- The header's brand mark, exactly: a gold L in a gold-bordered square on
+       near-black. Colours are app.css's --bg and --gold as literals — a
+       favicon is fetched without the stylesheet, so it cannot read a var. -->
+  <rect width="32" height="32" rx="6" fill="#07090d"/>
+  <rect x="2.5" y="2.5" width="27" height="27" rx="4.5" fill="none" stroke="#ffd23f" stroke-width="2.5"/>
+  <!-- Drawn as a path rather than <text>: a glyph would render in whatever
+       font the viewer's OS substitutes, and JetBrains Mono is not installed
+       on most of them. -->
+  <path d="M11.5 8.5 h4 v11.5 h6.5 v4 h-10.5 z" fill="#ffd23f"/>
+</svg>

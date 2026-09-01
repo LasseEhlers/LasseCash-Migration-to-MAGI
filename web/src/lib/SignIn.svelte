@@ -13,7 +13,9 @@
    * a "use fake login" switch that could be flipped against a real chain is a
    * footgun waiting for a bad day.
    */
-  import { chain, WALLET_MODE, wallet } from "$lib/chain.svelte.js";
+  import { goto } from "$app/navigation";
+  import { page } from "$app/state";
+  import { chain, client, WALLET_MODE, wallet } from "$lib/chain.svelte.js";
   import type { Providers } from "$api/index.js";
 
   let username = $state("");
@@ -34,11 +36,40 @@
     try {
       await chain.signInWithWallet(provider, name);
       open = false;
+      await landAfterSignIn();
     } catch (e) {
       error = e instanceof Error ? e.message : String(e);
     } finally {
       busy = false;
     }
+  }
+
+  /**
+   * Where signing in puts you.
+   *
+   * Nearly everyone arriving this month has ONE thing to do — claim — and the
+   * claim panel lives on Mint. Sending them to the page that answers their
+   * question beats leaving them wherever they happened to sign in.
+   *
+   * Two deliberate exceptions, both about not being rude:
+   *   - a deep link (a post, a profile, the snapshot check) is where the user
+   *     asked to be; signing in from there must not throw the page away.
+   *   - an account that has already claimed has no errand on Mint, so it goes
+   *     to the feed — the thing the site is actually for.
+   *
+   * Failure is silent: this is a convenience, and a redirect that throws must
+   * never look like a failed sign-in.
+   */
+  async function landAfterSignIn() {
+    const here = page.url.pathname;
+    // Only redirect off the two "I just arrived" pages. Anywhere else is a
+    // destination the user chose.
+    if (here !== "/" && here !== "/about") return;
+    try {
+      const claimed = await client.migrationRecord(chain.account!);
+      const to = claimed ? "/feed" : "/";
+      if (to !== here) await goto(to);
+    } catch { /* a convenience, never an error */ }
   }
 
   async function signInDev(e: Event) {

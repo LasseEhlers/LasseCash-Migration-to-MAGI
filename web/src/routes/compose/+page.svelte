@@ -274,7 +274,7 @@
         ondrop={onDrop}
         ondragover={(e) => e.preventDefault()}
         rows="18"
-        placeholder="Write in markdown.&#10;&#10;Paste an image or YouTube URL on its own line and it embeds."
+        placeholder="Write in markdown.&#10;&#10;Paste an image or a YouTube link and it embeds."
       ></textarea>
 
       <p class="note">

@@ -161,10 +161,24 @@ class ChainStore {
    * mean our view of the chain was stale, and showing the user a fresh state is
    * more useful than preserving the one that led to the rejection.
    */
-  async submit(fn: () => Promise<{ ok: boolean; msg: string; txId?: string }>): Promise<string | null> {
+  async submit(
+    fn: () => Promise<{ ok: boolean; msg: string; txId?: string }>,
+    /**
+     * Set for calls that move real HBD (every pool action).
+     *
+     * The node keeps HBD in its own LEDGER, indexed separately from contract
+     * state, and it lands a beat later. So a swap's LASSECASH side updates,
+     * the generic "did anything change?" wait is satisfied, and the HBD
+     * balance on screen is still the pre-swap figure — 86.14 after the launch
+     * swap, 2026-08-31. Waiting on the HBD figure itself is the only honest
+     * way to know the ledger caught up.
+     */
+    opts?: { movesHbd?: boolean },
+  ): Promise<string | null> {
     this.busy = true;
     try {
       const before = JSON.stringify(this.me);
+      const hbdBefore = this.me?.hbd;
       const res = await fn();
       if (!res.ok) {
         await this.refresh();
@@ -176,7 +190,9 @@ class ChainStore {
         // On a real chain "ok" only means Hive accepted the transaction. The
         // contract's verdict arrives 30–90 s later; wait for it so a refusal
         // is SHOWN, not silently swallowed.
-        return await this.awaitVerdict(res.txId, before);
+        const verdict = await this.awaitVerdict(res.txId, before);
+        if (verdict === null && opts?.movesHbd) await this.#awaitHbd(hbdBefore);
+        return verdict;
       }
       await this.refresh();
       return null;
@@ -222,6 +238,23 @@ class ChainStore {
       return null;
     } finally {
       this.confirming = false;
+    }
+  }
+
+  /**
+   * Keep refreshing until the HBD ledger catches up, or give up quietly.
+   *
+   * The contract's verdict does not mean the node's balance index has been
+   * written; those are different stores and HBD lands a beat later. Giving up
+   * silently is deliberate — the figure is right the next time anything
+   * refreshes, and an error dialog about a number that is merely late would
+   * be worse than the lateness.
+   */
+  async #awaitHbd(before: number | undefined) {
+    for (let i = 0; i < 6; i++) {
+      if (this.me?.hbd !== before) return;
+      await new Promise((r) => setTimeout(r, 5_000));
+      await this.refresh();
     }
   }
 

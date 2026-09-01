@@ -6,6 +6,13 @@
     <!-- NO <title> HERE. Every route sets its own through <svelte:head>, and a
          static one would be emitted FIRST — which is the one a crawler reads.
          See src/lib/Seo.svelte. -->
+    <!-- The brand mark. SVG first for every modern browser; the PNG is the
+         fallback Safari and older engines take, and the one Apple's home
+         screen uses. -->
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="alternate icon" href="/favicon.png" type="image/png" />
+    <link rel="apple-touch-icon" href="/favicon.png" />
+    <meta name="theme-color" content="#07090d" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700;800&display=swap" rel="stylesheet" />

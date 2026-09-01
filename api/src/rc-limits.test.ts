@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { AiohaSigner } from "./aioha-signer.js";
+import { AiohaSigner, AiohaWallet } from "./aioha-signer.js";
 
 /**
  * The rc_limit table is a production safety net: too low and a call dies with
@@ -81,4 +81,26 @@ test("every value-moving USER entrypoint is in the table", () => {
     if (genesisOps.has(op)) continue;
     assert.ok(op in AiohaSigner.RC_LIMITS, `${op} moves value but has no measured limit`);
   }
+});
+
+/**
+ * Hive's rejections, translated.
+ *
+ * A LasseCash vote carries the Hive vote in the SAME transaction, so a Hive
+ * refusal kills the contract call with it. The identical-vote case is the one
+ * every user meets: their first attempt's Hive half landed while its MAGI half
+ * failed on RC, so the retry is a re-vote at the same weight and Hive refuses
+ * it. Seen in production 2026-09-01.
+ */
+test("Hive's identical-vote refusal names the fix, not the assert", () => {
+  const raw = "Your transaction returned an error <br/><br/>Error: Your current vote on this comment is identical to this vote.";
+  const msg = AiohaWallet.hiveReason(raw);
+  assert.match(msg, /different weight/);
+  assert.doesNotMatch(msg, /<br\/>/, "assert markup must not reach the user");
+});
+
+test("an unrecognised Hive error is passed through, never invented", () => {
+  // A wrong explanation is worse than a raw one.
+  assert.equal(AiohaWallet.hiveReason("some novel consensus failure"), "some novel consensus failure");
+  assert.equal(AiohaWallet.hiveReason(undefined), "rejected");
 });

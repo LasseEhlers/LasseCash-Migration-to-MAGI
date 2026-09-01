@@ -303,9 +303,12 @@
     !poolReady && !!lpQuote?.ok && BigInt(lpQuote.lcBase) > 0n && sendHbdUnits > 0n,
   );
 
+  // Every action on this page settles real HBD through the node's ledger,
+  // which is indexed a beat behind contract state — so each one waits for the
+  // HBD figure itself rather than for "something changed".
   async function doSwap() {
     swapError = null;
-    swapError = await chain.submit(() => client.swap(direction, amountIn, minOut));
+    swapError = await chain.submit(() => client.swap(direction, amountIn, minOut), { movesHbd: true });
   }
   async function addLiquidity() {
     lpError = null;
@@ -317,13 +320,14 @@
       // First deposit: send exactly what the HBD field shows. There is no
       // chain-side quote to recompute from — this number IS the price.
       : hbdInput;
-    lpError = await chain.submit(() => client.addLiquidity(lcAmount, hbdArg));
+    lpError = await chain.submit(() => client.addLiquidity(lcAmount, hbdArg), { movesHbd: true });
   }
   async function claim(id: number) {
+    // Rewards are LASSECASH, not HBD — nothing to wait on in the ledger.
     lpError = await chain.submit(() => client.claimPoolRewards(id));
   }
   async function exit(id: number) {
-    lpError = await chain.submit(() => client.removeLiquidity(id));
+    lpError = await chain.submit(() => client.removeLiquidity(id), { movesHbd: true });
   }
 
 </script>

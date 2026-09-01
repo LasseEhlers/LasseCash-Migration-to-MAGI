@@ -48,6 +48,10 @@ export default {
           "/engine-testwindows.wasm",
           "/wasm_exec.js",
           "/admin-data.json",
+          // The tab icon is requested on every cold page load, by crawlers and
+          // by link unfurlers. Waking a function to hand back a 1 KB constant
+          // is pure waste.
+          "/favicon.*",
         ],
       },
     }),
