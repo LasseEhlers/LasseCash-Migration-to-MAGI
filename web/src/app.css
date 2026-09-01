@@ -282,6 +282,11 @@ th {
 }
 td { padding: 0.65rem 0.55rem; border-bottom: 1px solid var(--line-soft); }
 td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; text-align: right; }
+/* A NUMERIC HEADER BELONGS OVER ITS NUMBERS. `td.num` right-aligned the data
+   while `th` stayed left, so every figures column on the site had its label
+   floating off to the left of the column it names — worst where the numbers
+   are long, which is everywhere money appears. One rule fixes every table. */
+th.num { text-align: right; }
 tr:last-child td { border-bottom: 0; }
 .scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 
