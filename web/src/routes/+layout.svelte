@@ -80,6 +80,26 @@
       {/each}
     </nav>
 
+    <!-- LASSECASH IS THE UNIT OF ACCOUNT HERE, and this switch is what makes
+         that a choice rather than an assertion. Pricing everything in dollars
+         quietly says the dollar is the money and this is a thing that
+         converts to it — so the HBD line is a translation for people who
+         still need one, and anybody who would rather think in LASSECASH can
+         turn it off for good.
+         It lived in the footer, where a preference nobody finds is a
+         preference nobody has. -->
+    <button
+      class="unit"
+      onclick={() => hbdPref.toggle()}
+      aria-pressed={hbdPref.show}
+      title={hbdPref.show
+        ? "Showing an approximate HBD value beside LASSECASH figures. Click to price in LASSECASH only."
+        : "Pricing in LASSECASH only. Click to show an approximate HBD value beside each figure."}
+    >
+      <span class="unitlabel">prices in</span>
+      <span class="unitval">{hbdPref.show ? "LC + HBD" : "LC only"}</span>
+    </button>
+
     <div class="session">
       {#if chain.account}
         <span class="who">{displayName(chain.account)}</span>
@@ -115,15 +135,6 @@
       ·
       <a href="https://lassemusic.com" target="_blank" rel="noopener">Lasse Music</a>
     </span>
-    <!-- LASSECASH is the unit of account here; the HBD line is a sanity check
-         beside it. Some people want it and some find it noise, so it is a
-         preference — on by default, remembered per browser. -->
-    <button
-      class="ghost small hbdtoggle"
-      onclick={() => hbdPref.toggle()}
-      aria-pressed={hbdPref.show}
-      title="Show an approximate HBD value beside LASSECASH figures, at the pool's current price"
-    >{hbdPref.show ? "≈ HBD on" : "≈ HBD off"}</button>
     {#if chain.info}
       <span class="mono">height {chain.info.height.toLocaleString()}</span>
     {/if}
@@ -131,6 +142,19 @@
 </div>
 
 <style>
+  /* A display preference, in the chrome where display preferences live. */
+  .unit {
+    display: inline-flex; align-items: baseline; gap: 0.35rem;
+    background: none; border: 1px solid var(--line); border-radius: var(--r-sm);
+    padding: 0.25rem 0.5rem; cursor: pointer; color: var(--dim);
+    font-family: var(--mono); font-size: var(--t-micro);
+  }
+  .unit:hover { border-color: var(--gold-dim); color: var(--ink); }
+  .unitlabel { letter-spacing: 0.08em; text-transform: uppercase; }
+  .unitval { color: var(--gold); font-weight: 700; }
+  @media (max-width: 640px) { .unitlabel { display: none; } }
+
+
   /* Pinned to the viewport: a status the user cannot see is no status, and
      the Publish button sits at the bottom of a long page. */
   .confirming {
@@ -149,8 +173,4 @@
 
   /* The footer is a space-between row; the toggle sits between the note and
      the height rather than pushing either off the line. */
-  .hbdtoggle {
-    font-size: var(--t-micro); padding: 0.12rem 0.45rem; letter-spacing: 0.06em;
-  }
-  .hbdtoggle[aria-pressed="true"] { color: var(--cyan); border-color: var(--line-hot); }
 </style>
