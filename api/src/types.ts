@@ -98,6 +98,16 @@ export interface AccountView {
   pending_curation: number;
   mint_duration_days: number;
   hbd: number;
+  /**
+   * HIVE held on MAGI, in the same 1e8 base units as `hbd`.
+   *
+   * MAGI's balance record carries hbd, hive, hbd_savings and hive_consensus —
+   * and NOTHING ELSE. Mapped assets like BTC are held by their own mapping
+   * contracts and are not reported here, which is why the wallet shows a dash
+   * for BTC rather than a zero: we do not know it, and a zero would be a
+   * claim we cannot support.
+   */
+  hive: number;
   vote_power: { viral: Amount; deep: Amount };
   mints: MintView[];
   tranches: TrancheView[];

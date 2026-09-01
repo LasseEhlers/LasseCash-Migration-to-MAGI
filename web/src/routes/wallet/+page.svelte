@@ -197,26 +197,59 @@
   {:else if !me}
     <section class="panel"><p class="empty">Reading the chain…</p></section>
   {:else}
-    <section class="stats">
-      <div class="panel stat">
-        <div class="label">LASSECASH</div>
-        <div class="value gold">{lc(me.balance)}</div>
-        <div class="sub">liquid — spendable now<Hbd amount={me.balance} block /></div>
+    <!-- TWO GROUPS, because they answer different questions: what you hold
+         OF LASSECASH, and what you hold ON MAGI to trade it with. Mixing them
+         in one row made HBD read like part of the LasseCash position. -->
+    <section class="holdings">
+      <div class="group">
+        <div class="ghead">LasseCash</div>
+        <div class="tiles">
+          <div class="panel stat">
+            <div class="label">LASSECASH</div>
+            <div class="value gold">{lc(me.balance)}</div>
+            <div class="sub">liquid — spendable now<Hbd amount={me.balance} block /></div>
+          </div>
+          <div class="panel stat">
+            <div class="label">L-Shares</div>
+            <div class="value">{lc(me.shares)}</div>
+            <div class="sub">voting power &amp; yield weight — held in mints</div>
+          </div>
+          <div class="panel stat">
+            <div class="label">Pending rewards</div>
+            <div class="value">{lc(me.pending)}</div>
+            <div class="sub">mints into one position on the 1st</div>
+          </div>
+        </div>
       </div>
-      <div class="panel stat">
-        <div class="label">HBD on MAGI</div>
-        <div class="value">{lc(fromUnits(BigInt(Math.trunc(Number(me.hbd)))), 3)}</div>
-        <div class="sub">the pool's other side — and your MAGI meter</div>
-      </div>
-      <div class="panel stat">
-        <div class="label">L-Shares</div>
-        <div class="value">{lc(me.shares)}</div>
-        <div class="sub">voting power &amp; yield weight — held in mints</div>
-      </div>
-      <div class="panel stat">
-        <div class="label">Pending rewards</div>
-        <div class="value">{lc(me.pending)}</div>
-        <div class="sub">mints into one position on the 1st</div>
+
+      <div class="group">
+        <div class="ghead">On MAGI</div>
+        <div class="tiles">
+          <div class="panel stat">
+            <div class="label">BTC</div>
+            <div class="value dim">—</div>
+            <!-- Not a zero. MAGI's balance record reports hbd, hive,
+                 hbd_savings and hive_consensus only; a mapped asset lives in
+                 its own contract and is not readable from here yet. A zero
+                 would be a claim we cannot support — the dash is the truth. -->
+            <div class="sub">not reported by the node yet · swappable above</div>
+          </div>
+          <div class="panel stat">
+            <div class="label">HBD</div>
+            <div class="value">{lc(fromUnits(BigInt(Math.trunc(Number(me.hbd)))), 3)}</div>
+            <div class="sub">your resource meter, and the pool's other side</div>
+          </div>
+          <div class="panel stat">
+            <div class="label">HIVE</div>
+            <div class="value">{lc(fromUnits(BigInt(Math.trunc(Number(me.hive ?? 0)))), 3)}</div>
+            <div class="sub">bridged from Hive, like HBD</div>
+          </div>
+          <div class="panel stat">
+            <div class="label">ETH <span class="soon">soon</span></div>
+            <div class="value dim">—</div>
+            <div class="sub">MAGI maps it; no pool for it yet</div>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -475,6 +508,20 @@
 </div>
 
 <style>
+  .holdings { display: grid; gap: 1.1rem; }
+  .ghead {
+    font-family: var(--mono); font-size: var(--t-micro); font-weight: 700;
+    letter-spacing: 0.18em; text-transform: uppercase; color: var(--gold-dim);
+    margin-bottom: 0.5rem;
+  }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: 0.8rem; }
+  .soon {
+    font-size: var(--t-micro); letter-spacing: 0.08em; text-transform: none;
+    color: var(--dimmer); border: 1px solid var(--line); border-radius: 2px;
+    padding: 0 0.28rem; margin-left: 0.35rem;
+  }
+  @media (min-width: 62rem) { .holdings { grid-template-columns: 3fr 4fr; } }
+
   .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 1rem; }
   @media (max-width: 720px) { .stats { grid-template-columns: 1fr 1fr; gap: 0.6rem; } }
   .stat .label { font-family: var(--mono); font-size: var(--t-micro); letter-spacing: 0.12em; text-transform: uppercase; color: var(--dim); }
