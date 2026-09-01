@@ -20,7 +20,8 @@
    */
   import Seo from "$lib/Seo.svelte";
   import { lc } from "$lib/format.js";
-  import { cleanName, fetchLegacyQuote, fromUnits, selfSigned, shardOf, usdValue, type HeOp, type LegacyQuote } from "$api/index.js";
+  import { chain } from "$lib/chain.svelte.js";
+  import { cleanName, fromUnits, isZero, lcToHbd, selfSigned, shardOf, toBaseUnitArg, type HeOp } from "$api/index.js";
   import { SITE_OG_IMAGE, SITE_URL, SNAPSHOT_BLOCK, SNAPSHOT_WHEN } from "$lib/site.js";
   import { base } from "$app/paths";
 
@@ -53,18 +54,33 @@
   });
 
   /**
-   * A dollar figure next to the balance, from where LASSECASH trades TODAY —
-   * the Hive-Engine Diesel pool via HIVE/USD. Fetched once per page load, in
-   * the browser, never rendered server-side: it is two third-party spot prices
-   * multiplied together and is labelled as exactly that. If either API is
-   * down the row simply does not appear; a missing estimate is honest, a
-   * stale or made-up one is not.
+   * What a holding is worth, priced by the LASSECASH:HBD pool ON MAGI.
+   *
+   * This used to price from the SWAP.HIVE:LASSECASH Diesel pool on
+   * Hive-Engine, and that became wrong the moment the chain went live. The
+   * genesis post says of the old token, in a Hive transaction nobody can
+   * edit: "It is worthless. I am asking Hive-Engine to delist it." They did,
+   * on launch day — trading removed from hive-engine.com and tribaldex.com.
+   * So the old figure was the price of a token the founder had publicly
+   * called worthless, on a venue that no longer trades it.
+   *
+   * The MAGI pool is where LASSECASH trades now, and it is on the chain this
+   * site reads anyway — which also puts this page back inside the footer's
+   * promise that every figure comes from the contract itself.
+   *
+   * The conversion is `engine.lcToHbd` against live reserves: the same Go
+   * code the chain runs, never a ratio written in TypeScript. Null until the
+   * chain has loaded, and null if the pool is unseeded — no price is honest,
+   * a made-up one is not.
    */
-  let quote = $state<LegacyQuote | null>(null);
-  $effect(() => {
-    fetchLegacyQuote().then((q) => { quote = q; }).catch(() => { quote = null; });
-  });
-  const usd = (units: bigint) => (quote ? usdValue(units, quote.usdPerLc) : null);
+  const poolHbd = (units: bigint): string | null => {
+    const info = chain.info;
+    if (!chain.ready || !info) return null;
+    try {
+      const hbd = lcToHbd(units.toString(), toBaseUnitArg(info.amm_lc), toBaseUnitArg(info.amm_hbd));
+      return isZero(hbd) ? null : hbd;
+    } catch { return null; }
+  };
 
 
 
@@ -199,9 +215,9 @@
     {#if snapshotFinal}
       <b class="gold">The snapshot has been taken</b> at block
       <span class="mono">{SNAPSHOT_BLOCK.toLocaleString()}</span> and it is
-      final. The chain goes live today at ≈ 18:00 UTC (20:00 CET) — claims
-      open on the front page of lassecash.com. Type your Hive account name to
-      see what the snapshot holds for you.
+      final, and <b class="gold">the chain is live</b> — claims are open now, on
+      the front page of lassecash.com. Type your Hive account name to see what
+      the snapshot holds for you.
     {:else}
       LASSECASH is migrating to MAGI. To be included you must have <b>signed at
       least one LASSECASH transaction</b> on Hive-Engine in the six months before
@@ -246,9 +262,12 @@
         <dl>
           <dt>liquid</dt><dd class="mono">{lc(fromUnits(BigInt(row.liquid)))}</dd>
           <dt>staked (becomes a 30-day mint)</dt><dd class="mono">{lc(fromUnits(BigInt(row.staked)))}</dd>
-          {#if quote}
-            <dt class="est">≈ worth today</dt>
-            <dd class="mono est">${usd(BigInt(row.liquid) + BigInt(row.staked))}</dd>
+          {#if chain.ready}
+            {@const worth = poolHbd(BigInt(row.liquid) + BigInt(row.staked))}
+            {#if worth}
+              <dt class="est">≈ worth today</dt>
+              <dd class="mono est">{lc(worth, 3)} HBD</dd>
+            {/if}
           {/if}
           {#if row.last_lassecash}
             <dt>last LASSECASH action</dt><dd class="mono">{row.last_lassecash}</dd>
@@ -310,9 +329,12 @@
         <dl>
           <dt>liquid</dt><dd class="mono">{lc(fromUnits(BigInt(row.liquid)))}</dd>
           <dt>staked (becomes a 30-day mint)</dt><dd class="mono">{lc(fromUnits(BigInt(row.staked)))}</dd>
-          {#if quote}
-            <dt class="est">≈ worth today</dt>
-            <dd class="mono est">${usd(BigInt(row.liquid) + BigInt(row.staked))}</dd>
+          {#if chain.ready}
+            {@const worth = poolHbd(BigInt(row.liquid) + BigInt(row.staked))}
+            {#if worth}
+              <dt class="est">≈ worth today</dt>
+              <dd class="mono est">{lc(worth, 3)} HBD</dd>
+            {/if}
           {/if}
           <dt>last LASSECASH action</dt>
           <dd class="mono">{when(liveOp.timestamp)} ({liveOp.operation.replace("tokens_", "")})</dd>
@@ -358,9 +380,12 @@
         <dl>
           <dt>liquid</dt><dd class="mono">{lc(fromUnits(BigInt(row.liquid)))}</dd>
           <dt>staked (becomes a 30-day mint if you are in)</dt><dd class="mono">{lc(fromUnits(BigInt(row.staked)))}</dd>
-          {#if quote}
-            <dt class="est">≈ worth today</dt>
-            <dd class="mono est">${usd(BigInt(row.liquid) + BigInt(row.staked))}</dd>
+          {#if chain.ready}
+            {@const worth = poolHbd(BigInt(row.liquid) + BigInt(row.staked))}
+            {#if worth}
+              <dt class="est">≈ worth today</dt>
+              <dd class="mono est">{lc(worth, 3)} HBD</dd>
+            {/if}
           {/if}
           <dt>last LASSECASH action</dt>
           <dd class="mono">{row.last_lassecash ?? "no record"}</dd>
@@ -417,13 +442,15 @@
     {/if}
   {/if}
 
-  {#if quote}
+  {#if chain.info}
     <small class="dim foot">
-      Dollar figures are an <b>estimate</b>: the SWAP.HIVE:LASSECASH Diesel pool
-      on Hive-Engine (<span class="mono">{quote.hivePerLc}</span> HIVE per LASSECASH)
-      times HIVE/USD (<span class="mono">{Number(quote.usdPerHive).toFixed(4)}</span>),
-      read just now. That pool is thin and the price moves a lot; the LASSECASH
-      amount is exact, the dollar value is not.
+      The value is an <b>estimate</b>, priced by the LASSECASH:HBD pool on MAGI —
+      the only place LASSECASH trades. HBD is Hive's dollar, so 1 HBD ≈ $1.
+      <b>The LASSECASH amount is exact; the value is not.</b> The pool is young
+      and thin, so the price moves a great deal on small trades, and a large
+      holding could not be sold at this price — selling into a small pool moves
+      it against you the whole way down. The old Hive-Engine market is not used
+      here: it was delisted at launch and that token is worthless by design.
     </small>
   {/if}
   {#if index}

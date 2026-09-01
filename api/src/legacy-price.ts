@@ -1,4 +1,17 @@
 /**
+ * ⚠️ NOT USED FOR LIVE PRICING. Kept as the record of how the pre-migration
+ * price was measured (it is what set the pool's opening ratio, see
+ * docs/LAUNCH-DAY.md) — do not wire it back into a page.
+ *
+ * The reasoning below was true during the roll call and became false at
+ * launch: on 2026-08-31 Hive-Engine removed LASSECASH from trading, and the
+ * genesis post says of the old token "It is worthless." Quoting a delisted
+ * venue's price for a token the founder publicly called worthless is not an
+ * estimate, it is a wrong number. Everything user-facing now prices from the
+ * LASSECASH:HBD pool on MAGI, through `engine.lcToHbd` against live reserves.
+ *
+ * ---- original note, superseded ----
+ *
  * The dollar value of a LASSECASH holding, from where the token trades TODAY.
  *
  * WHY HIVE-ENGINE AND NOT THE MAGI POOL. During the roll call there is no MAGI
