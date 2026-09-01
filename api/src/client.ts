@@ -19,8 +19,8 @@ import type {
 } from "./types.js";
 import { commentPermlink } from "./hive-metadata.js";
 import {
-  ASSET_SCALE, decimalToUnits, poolFor, quoteMagiSwap, swapIntent, swapPayload,
-  type MagiPool, type MagiQuote,
+  ASSET_SCALE, decimalToUnits, poolFor, qualifyAddress, quoteMagiSwap, swapIntent,
+  swapPayload, type MagiPool, type MagiQuote,
 } from "./magi-pools.js";
 import { constants } from "./engine.js";
 import * as engine from "./engine.js";
@@ -652,7 +652,12 @@ export class LasseCashClient {
         assetIn, assetOut,
         amountInUnits: q.amountInUnits,
         minOutUnits: minOut,
-        recipient: this.account ?? "",
+        // QUALIFIED, always. MAGI addresses carry their chain — a bare
+        // "lasseehlers" is refused with "recipient address invalid", which
+        // is exactly how the first live swap died (2026-09-01). The signer's
+        // own `account` is the BARE Hive name, so it can never be passed
+        // through to a MAGI payload unchanged.
+        recipient: qualifyAddress(this.account ?? ""),
       }),
       intents: [swapIntent(assetIn, q.amountInUnits)],
       // Their pool, their gas: measured ~94 RC for a swap on this router.

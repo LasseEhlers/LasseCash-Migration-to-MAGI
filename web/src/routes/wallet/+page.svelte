@@ -69,7 +69,6 @@
   let swapTo = $state("BTC");
   let swapAmount = $state("");
   let swapSlip = $state(1);
-  let swapBusy = $state(false);
   let swapErr = $state<string | null>(null);
   let swapMsg = $state<string | null>(null);
   let quote = $state<Awaited<ReturnType<typeof client.quoteMagi>>>(null);
@@ -111,21 +110,28 @@
     swapBalance !== null && Number(swapAmount || "0") > swapBalance,
   );
 
+  /** Flip the pair, keeping it one the pools actually trade. */
+  function flipSwap() {
+    const [f, t] = [swapFrom, swapTo];
+    if (!counterparts(t).includes(f)) return;
+    swapFrom = t; swapTo = f; swapAmount = "";
+  }
+
   async function doMagiSwap() {
     if (!quote) return;
-    swapBusy = true; swapErr = null; swapMsg = null;
-    try {
-      const res = await client.magiSwap(swapFrom, swapTo, swapAmount, swapSlip);
-      if (!res.ok) { swapErr = res.msg; return; }
-      swapMsg = `Sent. ${swapFrom} → ${swapTo} settles on MAGI within a few minutes.`;
-      swapAmount = "";
-      await chain.refresh();
-      await loadOps();
-    } catch (e) {
-      swapErr = e instanceof Error ? e.message : String(e);
-    } finally {
-      swapBusy = false;
-    }
+    swapErr = null; swapMsg = null;
+    const paid = `${swapAmount} ${swapFrom}`;
+    // chain.submit follows the call to the CONTRACT's verdict, not just to
+    // Hive accepting the broadcast. Without it a refusal reads as success:
+    // the first live swap was refused for a bad recipient and the page said
+    // "Sent."
+    const refusal = await chain.submit(
+      () => client.magiSwap(swapFrom, swapTo, swapAmount, swapSlip),
+    );
+    if (refusal) { swapErr = refusal; return; }
+    swapMsg = `Swapped ${paid} for ${swapTo}.`;
+    swapAmount = "";
+    await loadOps();
   }
 
   // --- recent activity ------------------------------------------------------
@@ -289,55 +295,60 @@
         what that does and does not mean.
       </p>
 
-      <div class="swaprow">
-        <label class="pick">
-          <span>From</span>
-          <select bind:value={swapFrom} disabled={swapBusy}>
-            {#each ["HBD", "HIVE", "BTC"] as a (a)}<option value={a}>{a}</option>{/each}
-          </select>
-        </label>
-        <span class="arrow">→</span>
-        <label class="pick">
-          <span>To</span>
-          <select bind:value={swapTo} disabled={swapBusy}>
-            {#each swapTargets as a (a)}<option value={a}>{a}</option>{/each}
-          </select>
-        </label>
-      </div>
+      <!-- The shape every trader already knows: two stacked cards, pay on
+           top, receive below, and a button between them that flips the pair.
+           Familiarity is the whole point — a swap screen that needs reading
+           is a swap screen people abandon. -->
+      <div class="swapcard">
+        <div class="leg">
+          <div class="leghead">
+            <span>You pay</span>
+            {#if swapBalance !== null}
+              <button class="maxbtn" onclick={() => (swapAmount = String(swapBalance))}>
+                {swapBalance.toFixed(3)} {swapFrom} · max
+              </button>
+            {/if}
+          </div>
+          <div class="legrow">
+            <input inputmode="decimal" placeholder="0.000" bind:value={swapAmount} disabled={chain.busy} />
+            <select bind:value={swapFrom} disabled={chain.busy}>
+              {#each ["HBD", "HIVE", "BTC"] as a (a)}<option value={a}>{a}</option>{/each}
+            </select>
+          </div>
+        </div>
 
-      <label class="field">
-        <span>You pay — {swapFrom}</span>
-        <input inputmode="decimal" placeholder="0.000" bind:value={swapAmount} disabled={swapBusy} />
-      </label>
-      {#if swapBalance !== null}
-        <small class="dim">Balance {swapBalance.toFixed(3)} {swapFrom} on MAGI</small>
-      {/if}
+        <button class="flip" onclick={flipSwap} disabled={chain.busy} aria-label="Swap direction">↓</button>
+
+        <div class="leg">
+          <div class="leghead"><span>You receive — estimate</span></div>
+          <div class="legrow">
+            <div class="out mono" class:dim={!quote}>
+              {quote ? quote.amountOut : quoting ? "…" : "0.000"}
+            </div>
+            <select bind:value={swapTo} disabled={chain.busy}>
+              {#each swapTargets as a (a)}<option value={a}>{a}</option>{/each}
+            </select>
+          </div>
+        </div>
+      </div>
 
       {#if quote}
         <div class="quote">
-          <div class="line">
-            <span class="dim">You receive about</span>
-            <b class="gold mono">{quote.amountOut}</b>
-            <span class="dim">{swapTo}</span>
-          </div>
           <div class="line small">
             <span class="dim">Price impact</span>
             <b class="mono" class:warn={quote.priceImpact > 0.05}>{(quote.priceImpact * 100).toFixed(2)}%</b>
             <span class="dim">· their fee {(quote.feeBps / 100).toFixed(2)}%</span>
           </div>
           <p class="fine">
-            Estimate, from their reserves read just now. You receive at least
-            <b class="mono">{swapFloor}</b> {swapTo} or <b>the swap is rejected</b> — the
-            chain enforces that floor, not this page.
+            You receive at least <b class="mono">{swapFloor}</b> {swapTo} or
+            <b>the swap is rejected</b> — the chain enforces that floor, not this page.
           </p>
         </div>
         <label class="field">
           <span>Slippage tolerance — {swapSlip}%</span>
-          <input type="range" min="0.1" max="5" step="0.1" bind:value={swapSlip} disabled={swapBusy} />
+          <input type="range" min="0.1" max="5" step="0.1" bind:value={swapSlip} disabled={chain.busy} />
         </label>
-      {:else if quoting}
-        <p class="fine dim">Reading their pool…</p>
-      {:else if Number(swapAmount)}
+      {:else if Number(swapAmount) && !quoting}
         <p class="fine dim">No quote — that pool could not be read.</p>
       {/if}
 
@@ -345,9 +356,9 @@
       {#if swapMsg}<p class="ok">{swapMsg}</p>{/if}
       <button
         onclick={doMagiSwap}
-        disabled={swapBusy || !quote || swapOverBalance}
+        disabled={chain.busy || !quote || swapOverBalance}
       >
-        {swapOverBalance ? `Not enough ${swapFrom}` : swapBusy ? "Signing…" : `Swap ${swapFrom} → ${swapTo}`}
+        {swapOverBalance ? `Not enough ${swapFrom}` : chain.busy ? "Signing…" : `Swap ${swapFrom} → ${swapTo}`}
       </button>
 
       <p class="note out">
@@ -482,6 +493,26 @@
   .note { margin: 0; font-size: var(--t-micro); color: var(--dim); line-height: 1.6; }
   /* Gold, not red: an empty meter is a wait, not a loss. Red on this site
      means value actively being lost, and nothing here is being lost. */
+  /* Two stacked cards with a flip between them — the shape a trader expects. */
+  .swapcard { display: grid; gap: 0.35rem; margin: 0.8rem 0 0.2rem; position: relative; }
+  .leg { background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--r-sm); padding: 0.7rem 0.85rem; }
+  .leghead { display: flex; justify-content: space-between; align-items: baseline; font-family: var(--mono); font-size: var(--t-micro); letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); margin-bottom: 0.45rem; }
+  .maxbtn { background: none; border: 0; padding: 0; color: var(--gold-dim); font-family: var(--mono); font-size: var(--t-micro); letter-spacing: 0.06em; cursor: pointer; text-transform: none; }
+  .maxbtn:hover { color: var(--gold); }
+  .legrow { display: flex; align-items: center; gap: 0.6rem; }
+  .legrow input { flex: 1; background: none; border: 0; padding: 0; color: var(--ink); font-family: var(--mono); font-size: var(--t-xl); font-variant-numeric: tabular-nums; min-width: 0; }
+  .legrow input:focus { outline: none; }
+  .legrow select { background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: var(--r-sm); padding: 0.4rem 0.55rem; font-family: var(--mono); font-weight: 700; }
+  .out { flex: 1; font-size: var(--t-xl); color: var(--gold); font-variant-numeric: tabular-nums; }
+  .out.dim { color: var(--dimmer); }
+  .flip {
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    width: 2rem; height: 2rem; padding: 0; border-radius: 50%;
+    background: var(--panel); border: 1px solid var(--line-hot); color: var(--gold);
+    font-size: 0.95rem; line-height: 1; cursor: pointer; z-index: 2;
+  }
+  .flip:hover { border-color: var(--gold); }
+
   .swaprow { display: flex; align-items: flex-end; gap: 0.8rem; flex-wrap: wrap; margin-bottom: 0.7rem; }
   .pick { display: grid; gap: 0.3rem; }
   .pick span { font-family: var(--mono); font-size: var(--t-micro); letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); }

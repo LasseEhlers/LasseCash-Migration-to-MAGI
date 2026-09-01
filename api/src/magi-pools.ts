@@ -180,3 +180,17 @@ export function swapPayload(input: {
     recipient: input.recipient,
   });
 }
+
+/**
+ * A MAGI address, always chain-qualified.
+ *
+ * MAGI addresses name their chain — `hive:alice`, `did:pkh:…` — and a bare
+ * Hive name is refused outright: the first live swap died with "recipient
+ * address [lasseehlers] invalid". Aioha hands us bare names, so anything
+ * heading into a MAGI payload passes through here.
+ */
+export function qualifyAddress(account: string): string {
+  const a = account.trim();
+  if (!a) return a;
+  return a.includes(":") ? a : `hive:${a}`;
+}
