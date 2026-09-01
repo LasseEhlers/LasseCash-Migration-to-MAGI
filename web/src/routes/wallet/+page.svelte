@@ -259,6 +259,19 @@
         minutes to appear.
       </p>
       <p class="note">
+        <b>What secures it, precisely.</b> This is the one thing here that is <em>not</em>
+        trustless, and saying so is worth more than the word. Your HBD on MAGI is real HBD
+        held on Hive by <span class="mono">vsc.gateway</span>, an account whose active
+        authority is an <b>18-key multisig needing a two-thirds supermajority</b>
+        (6,667 of 10,000 in weight; the largest single key is 24%). No individual can move
+        it — not MAGI's developers, not us, not anyone holding one key — but a two-thirds
+        collusion of that set could, and no contract prevents that. It is
+        <b>validator-secured custody</b>, which is a strong thing and a different thing.
+        The <b>swaps</b> below and the LASSECASH pool above <em>are</em> trustless: those
+        execute against a contract, and nobody can decline them. Bridging is the step where
+        you rely on people, so it is the step to size deliberately.
+      </p>
+      <p class="note">
         <b>Want BTC?</b> Sell LASSECASH for HBD here, then swap HBD for BTC on
         <a href="https://altera.magi.eco/swap" target="_blank" rel="noopener">Altera</a>.
         Both legs are on-chain swaps you sign yourself — nobody takes custody of your funds
