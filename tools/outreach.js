@@ -66,6 +66,20 @@ Fair warning — the site is updated most days for the first forty days while th
 
 This account is mine; the transfer history shows it. — Lasse`;
 
+// THE LP LETTER — deliberately no APY and no pool size.
+//
+// The pool pays a number that reads as a scam when you state it and reads as
+// an opportunity when you find it. These people compare yields for a living;
+// they will see it in ten seconds. What they cannot see from outside is that
+// the reward comes from the token's own emission rather than from trading
+// fees, and that nobody can ever change it — so that is what the letter says.
+//
+// The line about the published record is there for the ones who used to hold
+// LASSECASH and were burned at the snapshot. It points them at the truth
+// without a per-person calculation, and without a marketing letter being the
+// thing that quietly omits it.
+const LP_MEMO = `LasseCash has moved from Hive-Engine to MAGI — the first substantial contract on that chain. As someone who provides liquidity you may find it interesting: the pool is funded by 25% of every block reward, not by trading fees, and the swap fee is zero and can never be changed. The keys burn on 10 October — after that nobody can alter the contract, including me. Every account that ever held LASSECASH is published at lassecash.com/check. Have a look: lassecash.com/pool — Lasse (this account is mine)`;
+
 const MEMO = `LasseCash migrated to MAGI — your tokens are claimable at lassecash.com. Claim before 30 Sept while the position still earns. Details: ${POST} — this account is mine, Lasse.`;
 
 // ---------------------------------------------------------------- progress
@@ -108,9 +122,9 @@ async function sendComment(account) {
   return `${parent.author}/${parent.permlink}`;
 }
 
-async function sendMemo(account) {
+async function sendMemo(account, memo = MEMO) {
   await client.broadcast.transfer({
-    from: ACCOUNT, to: account, amount: "0.001 HBD", memo: MEMO,
+    from: ACCOUNT, to: account, amount: "0.001 HBD", memo,
   }, ACTIVE);
   return "0.001 HBD";
 }
@@ -119,21 +133,25 @@ async function sendMemo(account) {
 
 async function main() {
   const mode = process.argv[2];
-  if (mode !== "comment" && mode !== "memo") {
-    console.error("usage: node tools/outreach.js <comment|memo> [--limit N] [--dry]");
+  if (mode !== "comment" && mode !== "memo" && mode !== "lp") {
+    console.error("usage: node tools/outreach.js <comment|memo|lp> [--limit N] [--dry]");
     process.exit(1);
   }
   const dry = process.argv.includes("--dry");
   const li = process.argv.indexOf("--limit");
   const limit = li > -1 ? parseInt(process.argv[li + 1], 10) : Infinity;
 
-  const split = JSON.parse(fs.readFileSync(`${ROOT}/tools/outreach-list.json`, "utf8"));
+  const listFile = mode === "lp" ? "lp-outreach-list.json" : "outreach-list.json";
+  const split = JSON.parse(fs.readFileSync(`${ROOT}/tools/${listFile}`, "utf8"));
   const progress = loadProgress();
+  // A mode added after the file was first written has no bucket in it yet.
+  if (!progress[mode]) progress[mode] = {};
   const todo = split[mode].filter((a) => !progress[mode][a]);
 
   console.log(`${mode}: ${split[mode].length} on the list, ${todo.length} still to send`);
   if (dry) {
-    console.log(`\n--- body ---\n${mode === "memo" ? MEMO : COMMENT_BODY}\n---`);
+    const body = mode === "memo" ? MEMO : mode === "lp" ? LP_MEMO : COMMENT_BODY;
+    console.log(`\n--- body ---\n${body}\n---`);
     console.log(`\nwould send to: ${todo.slice(0, limit).join(", ")}`);
     return;
   }
@@ -148,7 +166,8 @@ async function main() {
     if (tried >= limit) break;
     tried++;
     try {
-      const where = mode === "comment" ? await sendComment(account) : await sendMemo(account);
+      const where = mode === "comment" ? await sendComment(account)
+        : await sendMemo(account, mode === "lp" ? LP_MEMO : MEMO);
       progress[mode][account] = { at: new Date().toISOString(), where };
       saveProgress(progress);
       sent++;
