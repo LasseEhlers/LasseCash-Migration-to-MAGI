@@ -11,13 +11,30 @@
  * UNKNOWN CALLS FALL BACK TO THE RAW PAYLOAD rather than to a guess. A wrong
  * description of what someone signed is worse than an unfriendly one.
  */
-import { fromUnits } from "$api/index.js";
+import { ASSET_SCALE, fromUnits, unitsToDecimal } from "$api/index.js";
 import { displayName, lc } from "./format.js";
 
 /** Base-unit string -> "1,234.567". Empty for anything unparseable. */
 function amt(raw: string | undefined, dp = 3): string {
   if (!raw) return "";
   try { return lc(fromUnits(BigInt(raw)), dp); } catch { return raw ?? ""; }
+}
+
+/**
+ * One of MAGI's own amounts, formatted at that asset's scale.
+ *
+ * Their pools speak base units per asset: HBD and HIVE in milli, BTC in
+ * satoshis. Ours speak 1e8. The two must never be formatted by the same
+ * helper, which is why this one exists beside `amt` rather than replacing it.
+ */
+function magiAmount(raw: string | undefined, asset: string): string {
+  if (!raw) return "";
+  try {
+    const scale = ASSET_SCALE[asset] ?? 1_000n;
+    return unitsToDecimal(BigInt(raw), scale);
+  } catch {
+    return raw;
+  }
 }
 
 /** `hive:alice` -> `@alice`, and a bare name is left alone. */
@@ -77,7 +94,17 @@ export function describeCall(action: string, payload: string): string {
     try {
       const j = JSON.parse(payload) as Record<string, string>;
       if (j.type === "swap" && j.asset_in && j.asset_out) {
-        return `swapped ${j.amount_in ?? ""} ${j.asset_in} for ${j.asset_out}`.trim();
+        // MAGI's amounts are BASE UNITS in each asset's own scale — HBD and
+        // HIVE in milli, BTC in satoshis — so "1000" is one HBD, not a
+        // thousand. Printing it raw read as a 1000x overstatement of what the
+        // user had just signed.
+        const inAmt = magiAmount(j.amount_in, j.asset_in);
+        const floor = magiAmount(j.min_amount_out, j.asset_out);
+        const tail = floor ? ` · at least ${floor} ${j.asset_out}` : ` for ${j.asset_out}`;
+        return `swapped ${inAmt} ${j.asset_in}${tail}`;
+      }
+      if (j.type === "deposit" && j.asset0 && j.asset1) {
+        return `added ${magiAmount(j.amount0, j.asset0)} ${j.asset0} + ${magiAmount(j.amount1, j.asset1)} ${j.asset1}`;
       }
       if (j.type) return String(j.type);
     } catch { /* not JSON after all: fall through */ }
