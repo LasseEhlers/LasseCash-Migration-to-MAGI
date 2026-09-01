@@ -64,6 +64,28 @@
     earned: bigint;
   };
 
+  /**
+   * SHOWED UP — active on the chain with nothing in the snapshot.
+   *
+   * The most important number on this page, and until now it was invisible.
+   * Everyone in the tables above was GIVEN something: they had a balance on
+   * Hive-Engine and came to collect it. These people had nothing to collect
+   * and used it anyway — @condeas bought LASSECASH with HBD and put it
+   * straight into the pool, ninety minutes after a letter he had never asked
+   * for.
+   *
+   * That is the difference between a migration and a product, so it gets its
+   * own list rather than being folded into a total.
+   */
+  type Newcomer = {
+    account: string;
+    balance: bigint;
+    shares: bigint;
+    kinds: string[];
+    calls: number;
+  };
+  let newcomers = $state<Newcomer[]>([]);
+
   let rows = $state<Row[] | null>(null);
   let error = $state<string | null>(null);
   let showAllClaimed = $state(false);
@@ -136,6 +158,34 @@
           catch { /* engine not loaded yet: a missing column beats a broken page */ }
         }
         return total;
+      }
+
+      // Anyone who has signed a call and is NOT in the snapshot. The owner is
+      // excluded: init and set_snapshot are the genesis transactions, not
+      // someone turning up.
+      const known = new Set(file.migrated.map((m) => `hive:${m.account}`));
+      const strangers = activity
+        .map((a) => a.account)
+        .filter((a) => !known.has(a) && a !== "hive:lassecashmagi");
+      if (strangers.length) {
+        const st2 = await client.state([
+          ...strangers.map((a) => `bal_${a}`),
+          ...strangers.map((a) => `shr_${a}`),
+        ]);
+        newcomers = strangers
+          .map((a) => {
+            const act = acts.get(a);
+            return {
+              account: a.replace(/^hive:/, ""),
+              balance: BigInt(st2[`bal_${a}`] || "0"),
+              shares: BigInt(st2[`shr_${a}`] || "0"),
+              kinds: act
+                ? KINDS.filter((k) => k.actions.some((x) => (act.actions[x] ?? 0) > 0)).map((k) => k.letter)
+                : [],
+              calls: act?.calls ?? 0,
+            };
+          })
+          .sort((a, b) => (b.balance > a.balance ? 1 : -1));
       }
 
       rows = file.migrated.map((m) => {
@@ -261,6 +311,33 @@
           {showAllClaimed ? "Show fewer" : `Show all ${claimed.length}`}
         </button>
       {/if}
+
+      {#if newcomers.length}
+        <h2 class="showed">Showed up <span class="dim">— {newcomers.length}</span></h2>
+        <p class="note dim">
+          Nothing in the snapshot, nothing to claim. They arrived anyway and
+          bought in — the only people here who were never given anything.
+        </p>
+        <div class="scroll">
+          <table>
+            <thead><tr>
+              <th class="num">#</th><th>Account</th>
+              <th class="num">LASSECASH</th><th class="num">L-Shares</th><th>Did</th>
+            </tr></thead>
+            <tbody>
+              {#each newcomers as n, i}
+                <tr>
+                  <td class="num dim">{i + 1}</td>
+                  <td><a href="/@{n.account}">@{n.account}</a></td>
+                  <td class="num mono gold">{amt(n.balance)}</td>
+                  <td class="num mono" class:zero={n.shares === 0n}>{amt(n.shares)}</td>
+                  <td class="kinds">{#each n.kinds as k}<b>{k}</b>{/each}</td>
+                </tr>
+              {/each}
+            </tbody>
+          </table>
+        </div>
+      {/if}
     </section>
 
     <section class="panel">
@@ -328,6 +405,7 @@
   .legend b { color: var(--gold); margin-right: .25rem; }
   button { margin-top: .75rem; }
   .note { font-size: .75rem; margin: 0 0 .75rem; }
+  .showed { margin-top: 2rem; padding-top: 1.25rem; border-top: 1px solid var(--rule); }
   button.link { margin: 0; background: none; border: 0; padding: 0; font: inherit;
                 color: var(--gold); text-decoration: underline; cursor: pointer; }
   .red { color: var(--red); }
