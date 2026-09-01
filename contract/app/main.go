@@ -239,7 +239,7 @@ func Burn(a *string) *string {
 // only way value can ever enter a pool from outside the contract, which is why
 // it exists at all — emission ends, and recycling feeds only the L-Share pool.
 //
-//	args: <pob|liquidity|lshare|all>|<amount>
+//	args: <pob|viral|deep|liquidity|lshare|all>|<amount>
 //
 //go:wasmexport fund
 func Fund(a *string) *string {
@@ -248,7 +248,7 @@ func Fund(a *string) *string {
 	target := args.Str(0)
 	amount, ok := args.Amount(1)
 	if target == "" || !ok {
-		sdk.Abort("usage: <pob|liquidity|lshare|all>|<amount>")
+		sdk.Abort("usage: <pob|viral|deep|liquidity|lshare|all>|<amount>")
 	}
 	return finish(state.FundPool(store{}, c, target, amount))
 }

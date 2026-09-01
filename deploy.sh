@@ -160,7 +160,13 @@ EOF
       echo "Hive broadcast was rejected. Fix the cause and re-run."
       exit 1
     fi
-    echo "Save the contract id above. Put it in web/.env as VITE_CONTRACT_ID=..."
+    echo "Save the contract id above."
+    echo
+    echo "  THROWAWAY  -> web/.env.magi, then: npm run dev -- --mode magi"
+    echo "  PRODUCTION -> the Cloudflare Pages environment, never a file here"
+    echo
+    echo "NOT web/.env: that is what the default build reads, so an id there"
+    echo "turns every local build into a throwaway build without saying so."
     ;;
 
   update)

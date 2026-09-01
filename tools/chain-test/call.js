@@ -17,7 +17,7 @@
 const { Client, PrivateKey } = require("@hiveio/dhive");
 const fs = require("fs");
 
-const CONTRACT = "vsc1BVAmFAEyzxxcC7Tko9h7LRqZFW7SYX6dMc"; // throwaway #8 (deployed 2026-08-26 18:10): TESTWINDOWS+push, UserRetireBudget=25 — the board-cliff soak (docs/THROWAWAY-8-CLIFF-PLAN.md)
+const CONTRACT = "vsc1BV7EjeGGNCkA1yJ1iv2gzGkDjFGFwXv9Hi"; // throwaway #9 (deployed 2026-09-01 15:33): TESTWINDOWS, PRE-FUND build — the contract-update rehearsal (does an update preserve state?)
 const cfgPath = `${__dirname}/../../deploy-data/config/identityConfig.json`;
 
 async function main() {

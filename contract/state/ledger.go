@@ -301,9 +301,9 @@ func FundPool(s Store, ctx Ctx, target string, amt engine.Amount) Result {
 	}
 
 	switch target {
-	case "pob", "liquidity", "lshare", "all":
+	case "pob", "viral", "deep", "liquidity", "lshare", "all":
 	default:
-		return fail("target must be pob, liquidity, lshare or all")
+		return fail("target must be pob, viral, deep, liquidity, lshare or all")
 	}
 
 	if !debit(s, ctx.Sender, amt) {
@@ -313,6 +313,14 @@ func FundPool(s Store, ctx Ctx, target string, amt engine.Amount) Result {
 	switch target {
 	case "pob":
 		fundPoB(s, amt)
+	// EVERY POOL SEPARATELY ADDRESSABLE, because after the key burn no new
+	// target can ever be added. A sponsor of long-form writing wants `deep`,
+	// not "PoB and hope"; splitting only at the pob/liquidity level would
+	// have made that impossible forever for the sake of two case labels.
+	case "viral":
+		addPool(s, keyPoolViral, amt)
+	case "deep":
+		addPool(s, keyPoolDeep, amt)
 	case "liquidity":
 		addPool(s, keyPoolLiquidity, amt)
 	case "lshare":

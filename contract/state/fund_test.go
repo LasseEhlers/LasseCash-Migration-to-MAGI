@@ -92,6 +92,36 @@ func TestFundPoolReachesEveryPool(t *testing.T) {
 	auditSupply(t, s)
 }
 
+// Every pool must be addressable on its own. After the key burn no target can
+// ever be added, so a sponsor who wants to fund long-form writing specifically
+// must be able to say `deep` today or never.
+func TestFundPoolTargetsEachPoolIndividually(t *testing.T) {
+	s, ctx := newChain(t)
+	if r := creditLiquid(s, "hive:sponsor", lc(4_000)); !r.OK {
+		t.Fatalf("setup: %s", r.Msg)
+	}
+	c := ctx
+	c.Sender = "hive:sponsor"
+
+	for _, tc := range []struct {
+		target string
+		key    string
+	}{
+		{"viral", keyPoolViral},
+		{"deep", keyPoolDeep},
+		{"liquidity", keyPoolLiquidity},
+	} {
+		before := getAmount(s, tc.key)
+		if r := FundPool(s, c, tc.target, lc(100)); !r.OK {
+			t.Fatalf("fund %s: %s", tc.target, r.Msg)
+		}
+		if got := getAmount(s, tc.key) - before; got != lc(100) {
+			t.Fatalf("%s received %d, want %d", tc.target, got, lc(100))
+		}
+		auditSupply(t, s)
+	}
+}
+
 func TestFundPoolRefusesWhatItShould(t *testing.T) {
 	s, ctx := newChain(t)
 	if r := creditLiquid(s, "hive:sponsor", lc(10)); !r.OK {
