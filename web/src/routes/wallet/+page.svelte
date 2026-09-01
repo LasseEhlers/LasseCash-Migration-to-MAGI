@@ -44,7 +44,19 @@
   /** BTC on MAGI, from the mapping contract. */
   let btcBal = $state<string | null>(null);
   /** Which asset the bridge is moving. BTC is not offered — see the note. */
-  let bridgeAsset = $state<"HBD" | "HIVE">("HBD");
+  let bridgeAsset = $state<"HBD" | "HIVE" | "BTC">("HBD");
+  /** BTC leaves to a real Bitcoin address, so it needs one. */
+  let btcAddress = $state("");
+
+  async function withdrawBtc() {
+    hbdErr = null; hbdMsg = null;
+    const sent = `${hbdAmount} BTC`;
+    const refusal = await chain.submit(() => client.withdrawBtc(hbdAmount, btcAddress));
+    if (refusal) { hbdErr = refusal; return; }
+    hbdMsg = `Sent ${sent} to ${btcAddress.slice(0, 10)}… — Bitcoin confirmation takes its own time.`;
+    hbdAmount = ""; btcAddress = "";
+    await loadOps();
+  }
 
   async function moveHbd(dir: "in" | "out") {
     const n = Number(hbdAmount);
@@ -459,12 +471,74 @@
            available while the Hive side was empty. -->
       <AssetChips
         assets={["HBD", "HIVE", "BTC"]} selected={bridgeAsset}
-        balances={{ HBD: hiveHbd, HIVE: hiveHive, BTC: null }}
+        balances={{ HBD: hiveHbd, HIVE: hiveHive, BTC: btcBal }}
         disabled={chain.busy}
-        onpick={(a) => { if (a !== "BTC") { bridgeAsset = a as "HBD" | "HIVE"; hbdAmount = ""; hbdErr = null; hbdMsg = null; } else { hbdErr = "BTC does not cross here — see below."; } }}
+        onpick={(a) => { bridgeAsset = a as "HBD" | "HIVE" | "BTC"; hbdAmount = ""; hbdErr = null; hbdMsg = null; }}
       />
-      <small class="dim chipnote">Balances shown are what you hold ON HIVE, which is what a deposit spends.</small>
+      <small class="dim chipnote">
+        {bridgeAsset === "BTC"
+          ? "Your mapped BTC on MAGI. It leaves to a real Bitcoin address."
+          : "Balances shown are what you hold ON HIVE, which is what a deposit spends."}
+      </small>
 
+      {#if bridgeAsset === "BTC"}
+        <div class="btcbox">
+          <div class="sides">
+            <div class="side">
+              <span class="slabel">on MAGI</span>
+              <b class="mono">{btcBal ?? "—"}</b>
+              <span class="sunit">BTC</span>
+            </div>
+            <span class="arrow">→</span>
+            <div class="side">
+              <span class="slabel">to</span>
+              <b class="mono small">Bitcoin mainnet</b>
+            </div>
+          </div>
+          <label class="field">
+            <span>Bitcoin address</span>
+            <input placeholder="bc1…" bind:value={btcAddress} disabled={chain.busy} spellcheck="false" />
+          </label>
+          <div class="hbdform">
+            <input inputmode="decimal" placeholder="0.00000000" bind:value={hbdAmount} disabled={chain.busy} aria-label="BTC amount" />
+            <button onclick={withdrawBtc} disabled={chain.busy || !btcAddress.trim() || !Number(hbdAmount)}>
+              Withdraw BTC
+            </button>
+          </div>
+          {#if hbdErr}<p class="err">{hbdErr}</p>{/if}
+          {#if hbdMsg}<p class="ok">{hbdMsg}</p>{/if}
+          <p class="note">
+            <b>Check the address twice.</b> Bitcoin has no recall: a wrong address is gone,
+            and neither we nor MAGI can reverse it. The Bitcoin miner fee comes out of the
+            amount you send, so you receive slightly less than you type — that is the only
+            version that cannot fail for being a few satoshis short. The smallest
+            withdrawal is <span class="mono">0.00000546</span> BTC, Bitcoin's dust limit.
+          </p>
+
+          <!-- The two things we deliberately do not do. Naming them with a way
+               to get there beats a dead end, and beats half-building someone
+               else's integration: a deposit address is issued through a
+               service we do not run, and Lightning settles into a V4VApp
+               balance. Both are Altera's to own. -->
+          <div class="elsewhere">
+            <div class="ehead">Not here — use Altera</div>
+            <a class="eopt" href="https://altera.magi.eco/deposit" target="_blank" rel="noopener">
+              <CoinIcon asset="BTC" />
+              <span>
+                <strong>Deposit Bitcoin</strong>
+                <small>Needs a per-user address MAGI issues through a service we do not run.</small>
+              </span>
+            </a>
+            <a class="eopt" href="https://altera.magi.eco/withdraw" target="_blank" rel="noopener">
+              <CoinIcon asset="LIGHTNING" />
+              <span>
+                <strong>Lightning, either way</strong>
+                <small>Settles into a Keepsats balance at V4VApp — their service, not MAGI's chain.</small>
+              </span>
+            </a>
+          </div>
+        </div>
+      {:else}
       <div class="sides">
         <div class="side">
           <span class="slabel">on Hive</span>
@@ -515,6 +589,7 @@
         execute against a contract, and nobody can decline them. Bridging is the step where
         you rely on people, so it is the step to size deliberately.
       </p>
+      {/if}
       <p class="note">
         <b>Want BTC?</b> Sell LASSECASH for HBD here, then swap HBD for BTC on
         <a href="https://altera.magi.eco/swap" target="_blank" rel="noopener">Altera</a>.
@@ -629,6 +704,19 @@
   .quote .warn { color: var(--amber); }
   .fine { font-size: var(--t-micro); color: var(--dim); line-height: 1.55; margin: 0.5rem 0 0; }
 
+  .elsewhere { margin-top: 0.9rem; display: grid; gap: 0.4rem; }
+  .ehead { font-family: var(--mono); font-size: var(--t-micro); letter-spacing: 0.15em; text-transform: uppercase; color: var(--dim); }
+  .eopt {
+    display: flex; align-items: flex-start; gap: 0.6rem; text-decoration: none;
+    background: var(--panel-2); border: 1px solid var(--line);
+    border-radius: var(--r-sm); padding: 0.6rem 0.75rem;
+  }
+  .eopt:hover { border-color: var(--gold-dim); }
+  .eopt strong { display: block; font-size: var(--t-sm); color: var(--ink); }
+  .eopt small { display: block; font-size: var(--t-micro); color: var(--dim); margin-top: 0.15rem; line-height: 1.5; }
+
+  .btcbox { display: grid; gap: 0.2rem; }
+  .side b.small { font-size: var(--t-sm); }
   .chipnote { display: block; margin: 0.4rem 0 0.7rem; }
   .sides { display: flex; align-items: center; gap: 1rem; margin-bottom: 0.8rem; flex-wrap: wrap; }
   .side { background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--r-sm); padding: 0.5rem 0.8rem; }

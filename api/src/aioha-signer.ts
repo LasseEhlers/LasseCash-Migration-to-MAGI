@@ -203,6 +203,42 @@ export class AiohaWallet {
   }
 
   /**
+   * Withdraw mapped BTC to a real Bitcoin address.
+   *
+   * `unmap` on the mapping contract, whose interface is public in
+   * vsc-eco/utxo-mapping: {amount, to, deduct_fee?, max_fee?} with the amount
+   * in satoshis. The caller's DID goes in the json — that is the shape the
+   * contract expects, and it is why this call builds its own op rather than
+   * reusing the generic one.
+   *
+   * `deduct_fee` is sent ALWAYS. The Bitcoin miner fee has to come from
+   * somewhere, and taking it out of the amount is the only version a user can
+   * reason about: they get slightly less than they asked for, rather than a
+   * call that fails because their balance was exactly what they typed.
+   */
+  async withdrawBtc(sats: bigint, toAddress: string): Promise<TxResult> {
+    const user = this.aioha.getCurrentUser();
+    if (!user) throw new BackendError("not signed in");
+    const json = JSON.stringify({
+      net_id: this.#netId,
+      caller: `hive:${user}`,
+      contract_id: AiohaWallet.BTC_MAPPING_CONTRACT,
+      action: "unmap",
+      payload: { amount: sats.toString(), to: toAddress, deduct_fee: true },
+      rc_limit: 10_000,
+    });
+    return this.#broadcast(
+      [["custom_json", {
+        required_auths: [user],
+        required_posting_auths: [],
+        id: "vsc.call",
+        json,
+      }]],
+      KeyTypes.Active,
+    );
+  }
+
+  /**
    * Publish an article to Hive.
    *
    * Content lives on Hive; the LasseCash contract only tracks the money. So
@@ -386,6 +422,16 @@ export class AiohaWallet {
    * account rather than from anything a user typed.
    */
   static readonly HBD_GATEWAY = "vsc.gateway";
+
+  /** The contract that holds mapped BTC (vsc-eco/utxo-mapping). */
+  static readonly BTC_MAPPING_CONTRACT = "vsc1BdrQ6EtbQ64rq2PkPd21x4MaLnVRcJj85d";
+
+  /**
+   * Bitcoin's dust threshold, from the contract's own constant. An output
+   * below this cannot be spent, so the contract refuses it — better to say so
+   * before the wallet opens than to let the chain say it afterwards.
+   */
+  static readonly BTC_DUST_SATS = 546n;
 
   /** RC every hive: account has without staking anything on MAGI (rc-system/). */
   static readonly FREE_RC = 10_000;
@@ -739,6 +785,7 @@ export class AiohaSigner implements Signer {
 
   /** Bridging HBD is the wallet's job; the signer just exposes it. */
   depositHbd(amount: number, asset?: "HBD" | "HIVE"): Promise<TxResult> { return this.wallet.depositHbd(amount, asset); }
+  withdrawBtc(sats: bigint, to: string): Promise<TxResult> { return this.wallet.withdrawBtc(sats, to); }
   withdrawHbd(amount: number, to?: string, asset?: "HBD" | "HIVE"): Promise<TxResult> { return this.wallet.withdrawHbd(amount, to, asset); }
 
   /** 8dp base units -> the "1.234" HBD string an intent limit wants (3dp). */

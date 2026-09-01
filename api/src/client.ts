@@ -19,7 +19,7 @@ import type {
 } from "./types.js";
 import { commentPermlink } from "./hive-metadata.js";
 import {
-  ASSET_SCALE, BTC_MAPPING_CONTRACT, decimalToUnits, poolFor, qualifyAddress,
+  ASSET_SCALE, BTC_DUST_SATS, BTC_MAPPING_CONTRACT, decimalToUnits, poolFor, qualifyAddress,
   quoteMagiSwap, swapIntent, swapPayload, unitsToDecimal, type MagiPool, type MagiQuote,
 } from "./magi-pools.js";
 import { constants } from "./engine.js";
@@ -665,6 +665,26 @@ export class LasseCashClient {
       // refused call freezes the limit exactly as a successful one does.
       rcLimit: 3_000,
     });
+  }
+
+  /**
+   * Send mapped BTC to a real Bitcoin address.
+   *
+   * Refused below the contract's own dust threshold rather than letting the
+   * chain refuse it: an output under 546 satoshis cannot be spent, so there
+   * is nothing to learn from broadcasting it except the RC cost.
+   */
+  async withdrawBtc(amount: string, toAddress: string): Promise<TxResult> {
+    if (!this.#signer?.withdrawBtc) throw new BackendError("withdrawing BTC needs a wallet");
+    const addr = toAddress.trim();
+    if (!addr) throw new BackendError("enter a Bitcoin address");
+    const sats = decimalToUnits(amount || "0", ASSET_SCALE["BTC"]!);
+    if (sats < BTC_DUST_SATS) {
+      throw new BackendError(
+        `below Bitcoin's dust limit — ${BTC_DUST_SATS} satoshis (0.00000546 BTC) is the smallest spendable output`,
+      );
+    }
+    return this.#signer.withdrawBtc(sats, addr);
   }
 
   /** This account's BTC on MAGI, as a decimal string, or null if unreadable. */

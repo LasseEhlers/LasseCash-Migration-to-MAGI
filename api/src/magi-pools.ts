@@ -210,3 +210,9 @@ export function qualifyAddress(account: string): string {
  */
 export const BTC_MAPPING_CONTRACT = "vsc1BdrQ6EtbQ64rq2PkPd21x4MaLnVRcJj85d";
 export const MAPPED_BALANCE_PREFIX = "a-";
+
+/**
+ * Bitcoin's dust threshold in satoshis, from the mapping contract's own
+ * constant (`dustThreshold = 546`). An output below it cannot be spent.
+ */
+export const BTC_DUST_SATS = 546n;
