@@ -213,11 +213,8 @@
              the dollar value — writing "$" as well would be two units for one
              number. It respects the footer switch, so anyone who finds it
              noisy turns it off once and it stays off. -->
-        <!-- SIZED UP DELIBERATELY. This is the figure that turns "L-Shares"
-             and "1.63x" into something a person can feel, and it is the one
-             that makes the case for locking more and locking longer. It stays
-             a step below the LASSECASH figure — that one is what the contract
-             actually pays; this is the same number at today's pool price, and
+        <!-- The translation, not the figure. What the contract pays is the
+             LASSECASH above; this is that number at today's pool price, and
              the price is the part that moves. -->
         <div class="hbdline"><Hbd amount={yieldNow.perDay} /> <span class="dim">per day</span></div>
         <!-- THE PERCENTAGE IS THE MOST MISREADABLE FIGURE ON THE PAGE, so it
@@ -311,10 +308,10 @@
   }
   .subline { font-size: 0.8rem; margin-top: 0.2rem; }
   .hbdline { display: flex; align-items: baseline; gap: 0.35rem; margin-top: 0.25rem; }
-  /* The Hbd component ships at --t-micro for inline use; this is a headline
-     figure, so it is raised here rather than in the component, which every
-     other page depends on staying small. */
-  .hbdline :global(.hbd) { font-size: 1.15rem; color: var(--gold-hot); }
+  /* Left at the component's own size. It is a caption beside a LASSECASH
+     figure on every other page, and emphasis only means something while it is
+     scarce — a headline here would compete with the number it translates,
+     which is backwards when LASSECASH is the unit of account. */
   .hbdline .dim { font-size: 0.78rem; }
   .rate { color: var(--ink); font-size: 0.95rem; }
   /* Not red: nothing is being lost. A rate that falls with success is the
