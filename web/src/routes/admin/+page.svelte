@@ -147,7 +147,7 @@
     lshares: bigint | null; principal: bigint | null; reason: string; badge: Criteria;
   }
   interface AllRow { account: string; liquid: bigint; staked: bigint; }
-  interface BurnedRow { account: string; liquid: bigint; staked: bigint; group: "inactive" | "protocol"; }
+  interface BurnedRow { account: string; liquid: bigint; staked: bigint; total: bigint; group: "inactive" | "protocol"; }
 
   const migratedRows = $derived<MigratedRow[]>(
     (raw?.migrated ?? []).map((r) => {
@@ -184,7 +184,10 @@
     (raw?.all ?? []).map((r) => ({ account: r.account, liquid: BigInt(r.liquid), staked: BigInt(r.staked) })),
   );
   const burnedRows = $derived<BurnedRow[]>(
-    (raw?.burned ?? []).map((r) => ({ account: r.account, liquid: BigInt(r.liquid), staked: BigInt(r.staked), group: r.group })),
+    (raw?.burned ?? []).map((r) => ({
+      account: r.account, liquid: BigInt(r.liquid), staked: BigInt(r.staked),
+      total: BigInt(r.liquid) + BigInt(r.staked), group: r.group,
+    })),
   );
 
   // --- sorting: BigInt-safe (values exceed Number.MAX_SAFE_INTEGER once
@@ -205,7 +208,7 @@
 
   type MigratedKey = "account" | "liquid" | "total" | "lshares" | "principal" | "badge";
   type AllKey = "account" | "liquid" | "staked";
-  type BurnedKey = "account" | "liquid" | "staked" | "group";
+  type BurnedKey = "account" | "liquid" | "staked" | "total" | "group";
 
   const sortMigrated = makeSorter<MigratedRow, MigratedKey>((r, k) => r[k]);
   const sortAll = makeSorter<AllRow, AllKey>((r, k) => r[k]);
@@ -216,7 +219,7 @@
   // dump hasn't loaded yet) sort last regardless of direction.
   let migratedSort = $state<{ key: MigratedKey; dir: SortDir }>({ key: "total", dir: -1 });
   let allSort = $state<{ key: AllKey; dir: SortDir }>({ key: "liquid", dir: -1 });
-  let burnedSort = $state<{ key: BurnedKey; dir: SortDir }>({ key: "liquid", dir: -1 });
+  let burnedSort = $state<{ key: BurnedKey; dir: SortDir }>({ key: "total", dir: -1 });
 
   /** Toggles direction on a repeat click; a new column starts at its natural default. */
   function toggle<K extends string>(state: { key: K; dir: SortDir }, key: K, firstDir: SortDir) {
@@ -247,6 +250,41 @@
   // which would be null/incomplete before the dump loads or in wallet mode.
   const allTotal = $derived(sumBigint(allRows, (r) => r.liquid + r.staked));
   const burnedTotal = $derived(sumBigint(burnedRows, (r) => r.liquid + r.staked));
+
+  /**
+   * The burned list is 12,143 rows and almost all of it is dust, which hides
+   * the fact that a handful of large holders make up nearly all of it. This
+   * is the shape of the burn in one line: how many accounts held a real
+   * position and lost it, and what share of the total they were.
+   */
+  const BIG_BURN = 10_000n * 100_000_000n;
+  const bigBurned = $derived.by(() => {
+    const big = burnedRows.filter((r) => r.total > BIG_BURN);
+    const sum = sumBigint(big, (r) => r.total);
+    const total = burnedTotal;
+    return {
+      count: big.length,
+      sum,
+      pct: total > 0n ? (Number((sum * 1000n) / total) / 10).toFixed(1) : "0",
+    };
+  });
+
+  /**
+   * The root committed on-chain by `set_snapshot`, and the leaf count it
+   * commits to. The root is a CONSTANT because it is a fact about the chain,
+   * not about this file: it is what `cfg_migroot` holds, and if the published
+   * tree ever stopped matching it the claim page would already be refusing to
+   * offer a button (see ClaimMigration's rootMismatch).
+   *
+   * The leaf count is DERIVED — every account holding anything gets a leaf,
+   * qualified or burned, which is what makes the tree a permanent record of
+   * what everyone held rather than a list of winners.
+   */
+  const MIGRATION_ROOT =
+    "092f7b2ed2e6a0ccd3dadb832e9829c6419096171bcae68edb883fb099e46803";
+  const leafCount = $derived(
+    allRows.filter((r) => r.liquid + r.staked > 0n).length,
+  );
 
 </script>
 
@@ -310,6 +348,20 @@
           {dumpMap ? "live L-Shares and mint principal from the dev chain" : "figures as committed in the snapshot"}
         </small>
         {#if dumpError}<p class="empty red">/dev/dump: {dumpError}</p>{/if}
+
+        <!-- WHAT WAS ACTUALLY COMMITTED. The tables below are the working
+             data; these are the figures the contract will hold forever, and
+             they are the ones to quote publicly. Every one is derived from
+             the same file the tables use, so the page cannot drift from a
+             hardcoded copy of its own totals. -->
+        <dl class="facts">
+          <div><dt>Committed root</dt><dd class="root">{MIGRATION_ROOT}</dd></div>
+          <div><dt>Snapshot block</dt><dd>109,504,918 <span class="dim">· 31 Aug 2026, 12:00 UTC</span></dd></div>
+          <div><dt>Leaves in the tree</dt><dd>{leafCount.toLocaleString()} <span class="dim">· every account with a balance, qualified or burned</span></dd></div>
+          <div><dt>Qualified</dt><dd>{migratedRows.length.toLocaleString()} accounts · <b>{lc(fromUnits(BigInt(raw.stats.combined_total)))}</b> LC</dd></div>
+          <div><dt>Burned to @null</dt><dd>{burnedRows.length.toLocaleString()} accounts · <b>{lc(fromUnits(burnedTotal))}</b> LC</dd></div>
+          <div><dt>Snapshot supply</dt><dd><b>{lc(fromUnits(burnedTotal + BigInt(raw.stats.combined_total)))}</b> LC <span class="dim">· qualified + burned</span></dd></div>
+        </dl>
       </section>
 
       <section class="panel">
@@ -424,7 +476,10 @@
       <section class="panel">
         <h2>Did not make it (burned at migration)</h2>
         <small class="dim">
-          {burnedRows.length.toLocaleString()} accounts · {lc(fromUnits(burnedTotal))} LC total
+          {burnedRows.length.toLocaleString()} accounts · {lc(fromUnits(burnedTotal))} LC total ·
+          <b>{bigBurned.count.toLocaleString()}</b> of them held over 10,000 LC, together
+          <b>{lc(fromUnits(bigBurned.sum))}</b> LC — {bigBurned.pct}% of everything burned.
+          Their tokens sit at @null, unspendable, listed account by account forever.
         </small>
         <div class="scroll">
           <table>
@@ -434,6 +489,7 @@
                 <th class="sortable" onclick={() => toggle(burnedSort, "account", 1)}>Account {arrow(burnedSort, "account")}</th>
                 <th class="sortable num" onclick={() => toggle(burnedSort, "liquid", -1)}>LASSECASH {arrow(burnedSort, "liquid")}</th>
                 <th class="sortable num" onclick={() => toggle(burnedSort, "staked", -1)}>LASSECASH POWER {arrow(burnedSort, "staked")}</th>
+                <th class="sortable num" onclick={() => toggle(burnedSort, "total", -1)}>Total {arrow(burnedSort, "total")}</th>
               </tr>
             </thead>
             <tbody>
@@ -443,6 +499,7 @@
                   <td>{displayName(`hive:${row.account}`)}</td>
                   <td class="num">{lc(fromUnits(row.liquid))}</td>
                   <td class="num">{lc(fromUnits(row.staked))}</td>
+                  <td class="num gold">{lc(fromUnits(row.total))}</td>
                 </tr>
               {/each}
             </tbody>
@@ -485,6 +542,18 @@
   }
   .legend-row { display: flex; gap: 0.55rem; align-items: flex-start; font-size: var(--t-sm); color: var(--dim); }
   .legend-row .badge { flex-shrink: 0; margin-top: 0.05rem; }
+
+  /* The committed snapshot facts: label left, value right, one per row. */
+  .facts { margin: 0.9rem 0 0; display: grid; gap: 1px; background: var(--line-soft); border: 1px solid var(--line-soft); }
+  .facts > div {
+    background: var(--panel-2); padding: 0.5rem 0.7rem;
+    display: flex; flex-wrap: wrap; gap: 0.3rem 0.9rem; justify-content: space-between; align-items: baseline;
+  }
+  .facts dt { font-size: var(--t-micro); letter-spacing: 0.12em; text-transform: uppercase; color: var(--dim); font-family: var(--mono); }
+  .facts dd { margin: 0; font-family: var(--mono); font-size: var(--t-tiny); font-variant-numeric: tabular-nums; }
+  .facts dd b { color: var(--gold); }
+  /* The root is 64 hex characters: let it wrap rather than scroll the panel. */
+  .facts dd.root { word-break: break-all; color: var(--cyan); font-size: var(--t-micro); }
 
   /* Row badges: `signed` (the rule) and `unresolved` (the fail-open case). */
   .badge {
