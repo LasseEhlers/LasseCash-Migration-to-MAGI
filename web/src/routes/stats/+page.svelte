@@ -169,8 +169,20 @@
 
   const claimed = $derived((rows ?? []).filter((r) => r.claimed)
     .sort((a, b) => (b.entitledTotal > a.entitledTotal ? 1 : -1)));
-  const unclaimed = $derived((rows ?? []).filter((r) => !r.claimed)
+
+  // DUST IS NOT A MISSING PERSON. 65 accounts qualified holding exactly
+  // nothing and another 110 hold 13.46 LC between them, so a raw "405 have
+  // not claimed" overstates the gap by about 40% — and the real picture is
+  // the opposite: 82 accounts hold 99.2% of everything outstanding. One LC is
+  // the line because it is also the contract's own: balances under 1 LC roll
+  // over rather than minting, so below it there is nothing to mint either.
+  const DUST = 100_000_000n;
+  const allUnclaimed = $derived((rows ?? []).filter((r) => !r.claimed)
     .sort((a, b) => (b.entitledTotal > a.entitledTotal ? 1 : -1)));
+  const unclaimed = $derived(allUnclaimed.filter((r) => r.entitledTotal >= DUST));
+  const dustCount = $derived(allUnclaimed.length - unclaimed.length);
+  let showDust = $state(false);
+  const unclaimedShown = $derived(showDust ? allUnclaimed : unclaimed);
 
   const sum = (xs: Row[]) => xs.reduce((t, r) => t + r.entitledTotal, 0n);
   const earnedTotal = $derived(claimed.reduce((t, r) => t + r.earned, 0n));
@@ -205,7 +217,7 @@
     <div><dt>Supply claimed</dt><dd class="mono gold">{amt(sum(claimed))}</dd>
       <dd class="dim">{pct(sum(claimed), sum(rows))}% of entitled</dd></div>
     <div><dt>Still unclaimed</dt><dd class="mono">{amt(sum(unclaimed))}</dd>
-      <dd class="dim">{unclaimed.length} accounts</dd></div>
+      <dd class="dim">{unclaimed.length} accounts holding 1 LC or more</dd></div>
     <div><dt>Have done something</dt><dd class="mono gold">{claimed.filter((r) => r.calls > 1).length}</dd>
       <dd class="dim">beyond claiming</dd></div>
     <div><dt>Rewards owed</dt><dd class="mono gold">{amt(earnedTotal)}</dd>
@@ -253,6 +265,13 @@
 
     <section class="panel">
       <h2>Not claimed <span class="dim">— {unclaimed.length}</span></h2>
+      <p class="note dim">
+        {dustCount} more qualified with less than 1 LC between them, dust the
+        contract would not even mint.
+        <button class="link" onclick={() => showDust = !showDust}>
+          {showDust ? "hide them" : "show them anyway"}
+        </button>
+      </p>
       <div class="scroll">
         <table>
           <thead><tr>
@@ -260,7 +279,7 @@
             <th class="num">LASSECASH</th><th class="num">L-Shares waiting</th>
           </tr></thead>
           <tbody>
-            {#each (showAllUnclaimed ? unclaimed : unclaimed.slice(0, 40)) as r, i}
+            {#each (showAllUnclaimed ? unclaimedShown : unclaimedShown.slice(0, 40)) as r, i}
               <tr>
                 <td class="num dim">{i + 1}</td>
                 <td><a href="/@{r.account}">@{r.account}</a></td>
@@ -271,9 +290,9 @@
           </tbody>
         </table>
       </div>
-      {#if unclaimed.length > 40}
+      {#if unclaimedShown.length > 40}
         <button onclick={() => showAllUnclaimed = !showAllUnclaimed}>
-          {showAllUnclaimed ? "Show fewer" : `Show all ${unclaimed.length}`}
+          {showAllUnclaimed ? "Show fewer" : `Show all ${unclaimedShown.length}`}
         </button>
       {/if}
     </section>
@@ -308,5 +327,8 @@
   .legend { display: flex; flex-wrap: wrap; gap: .25rem 1rem; font-size: .7rem; color: var(--dim); margin: 1rem 0; }
   .legend b { color: var(--gold); margin-right: .25rem; }
   button { margin-top: .75rem; }
+  .note { font-size: .75rem; margin: 0 0 .75rem; }
+  button.link { margin: 0; background: none; border: 0; padding: 0; font: inherit;
+                color: var(--gold); text-decoration: underline; cursor: pointer; }
   .red { color: var(--red); }
 </style>
