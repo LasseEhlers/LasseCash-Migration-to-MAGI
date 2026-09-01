@@ -146,7 +146,7 @@
     account: string; liquid: bigint; total: bigint | null;
     lshares: bigint | null; principal: bigint | null; reason: string; badge: Criteria;
   }
-  interface AllRow { account: string; liquid: bigint; staked: bigint; }
+  interface AllRow { account: string; liquid: bigint; staked: bigint; total: bigint; }
   interface BurnedRow { account: string; liquid: bigint; staked: bigint; total: bigint; group: "inactive" | "protocol"; }
 
   const migratedRows = $derived<MigratedRow[]>(
@@ -181,7 +181,10 @@
     }),
   );
   const allRows = $derived<AllRow[]>(
-    (raw?.all ?? []).map((r) => ({ account: r.account, liquid: BigInt(r.liquid), staked: BigInt(r.staked) })),
+    (raw?.all ?? []).map((r) => ({
+      account: r.account, liquid: BigInt(r.liquid), staked: BigInt(r.staked),
+      total: BigInt(r.liquid) + BigInt(r.staked),
+    })),
   );
   const burnedRows = $derived<BurnedRow[]>(
     (raw?.burned ?? []).map((r) => ({
@@ -207,7 +210,7 @@
   }
 
   type MigratedKey = "account" | "liquid" | "total" | "lshares" | "principal" | "badge";
-  type AllKey = "account" | "liquid" | "staked";
+  type AllKey = "account" | "liquid" | "staked" | "total";
   type BurnedKey = "account" | "liquid" | "staked" | "total" | "group";
 
   const sortMigrated = makeSorter<MigratedRow, MigratedKey>((r, k) => r[k]);
@@ -218,7 +221,7 @@
   // accounts by overall size. Nulls (unknown L-Shares — wallet mode, or the
   // dump hasn't loaded yet) sort last regardless of direction.
   let migratedSort = $state<{ key: MigratedKey; dir: SortDir }>({ key: "total", dir: -1 });
-  let allSort = $state<{ key: AllKey; dir: SortDir }>({ key: "liquid", dir: -1 });
+  let allSort = $state<{ key: AllKey; dir: SortDir }>({ key: "total", dir: -1 });
   let burnedSort = $state<{ key: BurnedKey; dir: SortDir }>({ key: "total", dir: -1 });
 
   /** Toggles direction on a repeat click; a new column starts at its natural default. */
@@ -449,6 +452,11 @@
       <section class="panel">
         <h2>All Hive-Engine accounts that ever touched LasseCash</h2>
         <small class="dim">
+          Everyone, qualified or not, as the snapshot found them. Here TOTAL is a
+          straight sum — both columns are pre-migration LASSECASH, the same unit —
+          unlike the migrated table above, where it adds tokens to L-Shares.
+        </small>
+        <small class="dim">
           {allRows.length.toLocaleString()} accounts · {lc(fromUnits(allTotal))} LC total
         </small>
         <div class="scroll">
@@ -459,6 +467,7 @@
                 <th class="sortable" onclick={() => toggle(allSort, "account", 1)}>Account {arrow(allSort, "account")}</th>
                 <th class="sortable num" onclick={() => toggle(allSort, "liquid", -1)}>LASSECASH (liquid) {arrow(allSort, "liquid")}</th>
                 <th class="sortable num" onclick={() => toggle(allSort, "staked", -1)}>LASSECASH POWER (staked) {arrow(allSort, "staked")}</th>
+                <th class="sortable num" onclick={() => toggle(allSort, "total", -1)}>Total {arrow(allSort, "total")}</th>
               </tr>
             </thead>
             <tbody>
@@ -468,6 +477,7 @@
                   <td>{displayName(`hive:${row.account}`)}</td>
                   <td class="num">{lc(fromUnits(row.liquid))}</td>
                   <td class="num">{lc(fromUnits(row.staked))}</td>
+                  <td class="num gold">{lc(fromUnits(row.total))}</td>
                 </tr>
               {/each}
             </tbody>
