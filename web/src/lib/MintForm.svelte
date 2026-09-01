@@ -12,6 +12,7 @@
   import { chain, client } from "$lib/chain.svelte.js";
   import { toUnits } from "$api/index.js";
   import { lc, mult } from "$lib/format.js";
+  import Hbd from "$lib/Hbd.svelte";
   import {
     constants, dailyRewards, estimateRewardShare, mintQuote, toBaseUnitArg, Param,
     type EngineMintQuote,
@@ -193,6 +194,12 @@
           <span class="dim">LC / day</span>
           <span class="chip">estimate</span>
         </div>
+        <!-- The HBD line, through the SAME component and the same toggle as
+             every other figure on this page. HBD is Hive's dollar, so this is
+             the dollar value — writing "$" as well would be two units for one
+             number. It respects the footer switch, so anyone who finds it
+             noisy turns it off once and it stays off. -->
+        <div class="subline hbdline"><Hbd amount={yieldNow.perDay} /> <span class="dim">per day</span></div>
         <div class="subline">
           <span class="dim">≈ {yieldNow.pctYear}% a year on what you lock, at today's share base</span>
         </div>
@@ -251,6 +258,7 @@
     border: 1px solid var(--line); border-radius: 2px; padding: 0.05rem 0.3rem;
   }
   .subline { font-size: 0.8rem; margin-top: 0.2rem; }
+  .hbdline { display: flex; align-items: baseline; gap: 0.3rem; }
   .yield { display: flex; align-items: baseline; gap: 0.35rem; flex-wrap: wrap; margin: 0.5rem 0 0.3rem; font-size: 0.85rem; }
   .yield b { font-size: 1.05rem; }
   .est { display: block; line-height: 1.55; margin-bottom: 0.4rem; }
