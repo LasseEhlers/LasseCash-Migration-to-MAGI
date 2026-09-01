@@ -687,6 +687,32 @@ export class LasseCashClient {
     return this.#signer.withdrawBtc(sats, addr);
   }
 
+  /**
+   * Send any asset this account holds ON MAGI to another MAGI account.
+   *
+   * Three different rails behind one call, which is the point: LASSECASH is
+   * our contract, HBD and HIVE are MAGI's native assets, and BTC lives in the
+   * mapping contract. A wallet that shows four balances and can move one is
+   * half a wallet.
+   */
+  async sendAsset(asset: string, to: string, amount: string, memo = ""): Promise<TxResult> {
+    const dest = to.trim().replace(/^@/, "");
+    if (!dest) throw new BackendError("enter an account name");
+    const A = asset.toUpperCase();
+    if (A === "LASSECASH" || A === "LC") return this.transfer(dest, amount);
+    if (A === "HBD" || A === "HIVE") {
+      if (!this.#signer?.sendNative) throw new BackendError("sending needs a wallet");
+      return this.#signer.sendNative(qualifyAddress(dest), Number(amount), A as "HBD" | "HIVE", memo);
+    }
+    if (A === "BTC") {
+      if (!this.#signer?.sendBtc) throw new BackendError("sending needs a wallet");
+      const sats = decimalToUnits(amount || "0", ASSET_SCALE["BTC"]!);
+      if (sats <= 0n) throw new BackendError("enter an amount");
+      return this.#signer.sendBtc(qualifyAddress(dest), sats);
+    }
+    throw new BackendError(`cannot send ${asset}`);
+  }
+
   /** This account's BTC on MAGI, as a decimal string, or null if unreadable. */
   async btcBalance(account?: string): Promise<string | null> {
     const who = account ?? this.account;

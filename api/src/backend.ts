@@ -31,6 +31,9 @@ export interface Signer {
   withdrawHbd?(amount: number, to?: string, asset?: "HBD" | "HIVE"): Promise<TxResult>;
   /** Withdraw mapped BTC to a real Bitcoin address, in satoshis. */
   withdrawBtc?(sats: bigint, to: string): Promise<TxResult>;
+  /** Send HBD/HIVE or mapped BTC to another MAGI account. */
+  sendNative?(to: string, amount: number, asset: "HBD" | "HIVE", memo?: string): Promise<TxResult>;
+  sendBtc?(to: string, sats: bigint): Promise<TxResult>;
   /**
    * A swap on one of MAGI's own pools. Optional: it is a call to a FOREIGN
    * contract, so only a real wallet can make it.

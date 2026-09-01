@@ -239,6 +239,51 @@ export class AiohaWallet {
   }
 
   /**
+   * Send HBD or HIVE to another MAGI account.
+   *
+   * Aioha's own `vscTransfer` — MAGI's native asset move, not our contract's.
+   * Nothing crosses to Hive here: this is MAGI-side, like handing someone a
+   * note in the same room.
+   */
+  async sendNative(to: string, amount: number, asset: "HBD" | "HIVE", memo = ""): Promise<TxResult> {
+    if (!this.aioha.getCurrentUser()) throw new BackendError("not signed in");
+    const res = await this.aioha.vscTransfer(
+      to, amount, asset === "HIVE" ? HiveAsset.HIVE : HiveAsset.HBD, memo,
+    );
+    return {
+      ok: !!res.success,
+      msg: res.success ? "submitted" : AiohaWallet.hiveReason(res.error),
+      height: 0,
+      txId: res.success && typeof res.result === "string" ? res.result : undefined,
+    };
+  }
+
+  /**
+   * Send mapped BTC to another MAGI account.
+   *
+   * The mapping contract's own `transfer` — {amount, to} in satoshis, to a
+   * MAGI address. NOT `unmap`: this stays on MAGI, where `unmap` leaves for
+   * Bitcoin. Sending to a Bitcoin address here would simply fail, which is
+   * the safe direction for that mistake.
+   */
+  async sendBtc(toDid: string, sats: bigint): Promise<TxResult> {
+    const user = this.aioha.getCurrentUser();
+    if (!user) throw new BackendError("not signed in");
+    const json = JSON.stringify({
+      net_id: this.#netId,
+      caller: `hive:${user}`,
+      contract_id: AiohaWallet.BTC_MAPPING_CONTRACT,
+      action: "transfer",
+      payload: { amount: sats.toString(), to: toDid },
+      rc_limit: 2_000,
+    });
+    return this.#broadcast(
+      [["custom_json", { required_auths: [user], required_posting_auths: [], id: "vsc.call", json }]],
+      KeyTypes.Active,
+    );
+  }
+
+  /**
    * Publish an article to Hive.
    *
    * Content lives on Hive; the LasseCash contract only tracks the money. So
@@ -786,6 +831,8 @@ export class AiohaSigner implements Signer {
   /** Bridging HBD is the wallet's job; the signer just exposes it. */
   depositHbd(amount: number, asset?: "HBD" | "HIVE"): Promise<TxResult> { return this.wallet.depositHbd(amount, asset); }
   withdrawBtc(sats: bigint, to: string): Promise<TxResult> { return this.wallet.withdrawBtc(sats, to); }
+  sendNative(to: string, amount: number, asset: "HBD" | "HIVE", memo?: string): Promise<TxResult> { return this.wallet.sendNative(to, amount, asset, memo); }
+  sendBtc(to: string, sats: bigint): Promise<TxResult> { return this.wallet.sendBtc(to, sats); }
   withdrawHbd(amount: number, to?: string, asset?: "HBD" | "HIVE"): Promise<TxResult> { return this.wallet.withdrawHbd(amount, to, asset); }
 
   /** 8dp base units -> the "1.234" HBD string an intent limit wants (3dp). */

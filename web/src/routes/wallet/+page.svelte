@@ -18,7 +18,6 @@
   import { chain, client } from "$lib/chain.svelte.js";
   import { lc } from "$lib/format.js";
   import Hbd from "$lib/Hbd.svelte";
-  import SendForm from "$lib/SendForm.svelte";
   import { describeCall } from "$lib/callSummary.js";
   import AssetChips from "$lib/AssetChips.svelte";
   import CoinIcon from "$lib/CoinIcon.svelte";
@@ -157,6 +156,32 @@
     if (refusal) { swapErr = refusal; return; }
     swapMsg = `Swapped ${paid} for ${swapTo}.`;
     swapAmount = "";
+    await loadOps();
+  }
+
+  // --- sending, any asset this account holds on MAGI --------------------
+  let sendAsset = $state("LASSECASH");
+  let sendTo = $state("");
+  let sendAmount = $state("");
+  let sendErr = $state<string | null>(null);
+  let sendMsg = $state<string | null>(null);
+
+  /** What is on MAGI — the only balances this form can spend. */
+  const sendBalances = $derived.by((): Record<string, string | null> => ({
+    LASSECASH: me ? lc(me.balance, 3) : null,
+    HBD: me ? (Number(me.hbd) / 100_000_000).toFixed(3) : null,
+    HIVE: me ? (Number(me.hive ?? 0) / 100_000_000).toFixed(3) : null,
+    BTC: btcBal,
+  }));
+
+  async function doSend() {
+    sendErr = null; sendMsg = null;
+    const what = `${sendAmount} ${sendAsset}`;
+    const to = sendTo.trim().replace(/^@/, "");
+    const refusal = await chain.submit(() => client.sendAsset(sendAsset, to, sendAmount));
+    if (refusal) { sendErr = refusal; return; }
+    sendMsg = `Sent ${what} to @${to}.`;
+    sendAmount = "";
     await loadOps();
   }
 
@@ -574,8 +599,39 @@
     </section>
 
     <section class="panel">
-      <h2>Send LASSECASH</h2>
-      <SendForm />
+      <h2>Send</h2>
+      <p class="lede">
+        To another MAGI account — LASSECASH through our contract, HBD and HIVE as MAGI's
+        own assets, BTC through its mapping contract. All three rails, one form.
+        <b>This stays on MAGI</b>: to reach Hive or Bitcoin, use the sections above.
+      </p>
+
+      <AssetChips
+        assets={["LASSECASH", "HBD", "HIVE", "BTC"]} selected={sendAsset}
+        balances={sendBalances} disabled={chain.busy}
+        onpick={(a) => { sendAsset = a; sendAmount = ""; sendErr = null; sendMsg = null; }}
+      />
+
+      <label class="field">
+        <span>To</span>
+        <input placeholder="account name" bind:value={sendTo} disabled={chain.busy} spellcheck="false" />
+      </label>
+      <label class="field">
+        <span>Amount — {sendAsset}</span>
+        <input inputmode="decimal" placeholder="0.000" bind:value={sendAmount} disabled={chain.busy} />
+      </label>
+      {#if sendBalances[sendAsset]}
+        <small class="dim">
+          Balance {sendBalances[sendAsset]} {sendAsset}
+          <button class="maxbtn" onclick={() => (sendAmount = sendBalances[sendAsset] ?? "")}>use max</button>
+        </small>
+      {/if}
+
+      {#if sendErr}<p class="err">{sendErr}</p>{/if}
+      {#if sendMsg}<p class="ok">{sendMsg}</p>{/if}
+      <button onclick={doSend} disabled={chain.busy || !sendTo.trim() || !Number(sendAmount)}>
+        Send {sendAsset}
+      </button>
     </section>
 
     <section class="panel">
