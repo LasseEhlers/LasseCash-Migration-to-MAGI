@@ -21,6 +21,7 @@
   import VoteSlider from "$lib/VoteSlider.svelte";
   import VoterList from "$lib/VoterList.svelte";
   import Seo from "$lib/Seo.svelte";
+  import ClaimMigration from "$lib/ClaimMigration.svelte";
   import { SITE_DESCRIPTION, SITE_NAME, SITE_OG_IMAGE, SITE_URL, postPath } from "$lib/site.js";
   import { compare, isPositive, PayoutMode, type PostMeta, type PostView } from "$api/index.js";
   import type { PageData } from "./$types";
@@ -246,6 +247,23 @@
 />
 
 <div class="grid">
+  <!--
+    THE CLAIM PANEL IS ON THE FRONT PAGE, because the genesis post promised
+    exactly that, in a Hive transaction nobody can edit:
+
+      "https://lassecash.com — the claim panel is on the front page: log in
+       with your Hive account, press Claim."
+
+    418 people were told that. The feed became the front page for good
+    reasons, and this is what keeps the promise true anyway.
+
+    It costs a claimed reader nothing: ClaimMigration renders NOTHING once
+    `mig_<account>` exists, and nothing at all when signed out or when the
+    account has no leaf in the tree. So the panel is visible to precisely the
+    people it was written for, on precisely the page they were sent to.
+  -->
+  <ClaimMigration />
+
   <div class="bar">
     <div class="filters">
       <button class="ghost" class:active={filter === "all"} onclick={() => (filter = "all")}>All</button>
