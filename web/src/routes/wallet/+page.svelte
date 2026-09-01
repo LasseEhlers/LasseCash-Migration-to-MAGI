@@ -136,10 +136,23 @@
 
   // --- recent activity ------------------------------------------------------
   let ops = $state<AccountOp[]>([]);
+  let opsLoaded = $state(false);
   async function loadOps() {
     if (!chain.account) return;
     try { ops = await client.accountOps(30); } catch { ops = []; }
+    opsLoaded = true;
   }
+  /**
+   * Retry once the account arrives.
+   *
+   * onMount fires BEFORE the layout restores the session, so on a cold load
+   * `chain.account` is still null and the first attempt bails. The meters
+   * already had this retry; the activity list did not, so it silently stayed
+   * empty on exactly the case that matters — someone opening the page fresh.
+   */
+  $effect(() => {
+    if (chain.account && !opsLoaded) void loadOps();
+  });
   const when = (iso: string) =>
     new Date(iso + "Z").toLocaleString(undefined, {
       month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
@@ -479,9 +492,13 @@
       <SendForm />
     </section>
 
-    {#if ops.length}
-      <section class="panel">
-        <h2>Recent activity</h2>
+    <section class="panel">
+      <h2>Recent activity</h2>
+      {#if !ops.length}
+        <p class="empty">
+          {opsLoaded ? "No contract calls yet." : "Reading your history…"}
+        </p>
+      {:else}
         <small class="dim">
           Your last {ops.length} contract calls, newest first — including the ones the chain
           refused, which are the rows worth having.
@@ -501,8 +518,8 @@
             </tbody>
           </table>
         </div>
-      </section>
-    {/if}
+            {/if}
+    </section>
 
   {/if}
 </div>
