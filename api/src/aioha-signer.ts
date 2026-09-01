@@ -301,18 +301,26 @@ export class AiohaWallet {
    * allowance, so report that rather than nothing.
    */
   async availableRc(account: string): Promise<number | null> {
+    // MAGI addresses are qualified; Aioha hands us a bare Hive name.
+    const addr = account.includes(":") ? account : `hive:${account}`;
     try {
       const res = await fetch(this.#chainUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           query: `query($a: String!) { getAccountRC(account: $a) { amount max_rcs } }`,
-          variables: { a: account },
+          variables: { a: addr },
         }),
       });
-      const body = (await res.json()) as { data?: { getAccountRC?: { amount: number } | null } };
+      const body = (await res.json()) as {
+        data?: { getAccountRC?: { amount: number; max_rcs: number } | null };
+      };
       const rc = body.data?.getAccountRC;
-      if (rc && typeof rc.amount === "number") return rc.amount;
+      // A 0/0 answer means the node did not recognise the address, NOT that
+      // the account is broke — see MagiBackend.resourceCredits. Treating it
+      // as a real reading would make the preflight refuse every call the
+      // account ever tries.
+      if (rc && typeof rc.amount === "number" && rc.max_rcs) return rc.amount;
       return AiohaWallet.FREE_RC;
     } catch {
       return null;

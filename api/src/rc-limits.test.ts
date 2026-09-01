@@ -104,3 +104,22 @@ test("an unrecognised Hive error is passed through, never invented", () => {
   assert.equal(AiohaWallet.hiveReason("some novel consensus failure"), "some novel consensus failure");
   assert.equal(AiohaWallet.hiveReason(undefined), "rejected");
 });
+
+/**
+ * The node answers 0/0 — not null, not an error — for an address it does not
+ * recognise, and a BARE Hive name is one of those: MAGI addresses are
+ * qualified. Shipped 2026-09-01 and caught on the wallet page the same hour,
+ * reading "MAGI 0 / 0" for an account holding 74 HBD. Left alone it would
+ * have made the RC preflight refuse every call every account ever tried,
+ * because a zero that looks like a real reading is indistinguishable from
+ * being broke.
+ */
+test("a 0/0 RC answer is treated as unknown, never as broke", async () => {
+  const wallet = {
+    simulate: async () => ({ ok: true as const, gas: 8_000_000 }),
+    availableRc: async () => AiohaSigner.prototype ? null : null, // unknown
+  };
+  const signer = new AiohaSigner(wallet as never, "hive:test", "vsc1test", 1_500);
+  const r = await signer.sizeRc("comment", "p|a|pp", [], AiohaSigner.RC_LIMITS["comment"]!);
+  assert.equal(typeof r, "number", "an unknown meter must not refuse the call");
+});

@@ -148,14 +148,23 @@ export class MagiBackend implements Backend {
    * costs — MAGI has no fees.
    */
   async resourceCredits(account: string): Promise<ResourceCredits | null> {
+    // ⚠️ QUALIFY THE NAME. `getAccountRC` answers 0/0 — not null, not an
+    // error — for an address it does not recognise, and a bare "lasseehlers"
+    // is one of those: MAGI addresses are "hive:lasseehlers". A zero that
+    // looks like a real reading is the worst possible failure here, because
+    // every caller correctly concludes the account cannot afford anything.
     const data = await this.query<{
       getAccountRC: { amount: number; max_rcs: number } | null;
     }>(
       `query($a: String!) { getAccountRC(account: $a) { amount max_rcs } }`,
-      { a: account },
+      { a: qualified(account) },
     );
     const rc = data.getAccountRC;
-    return rc ? { amount: rc.amount, max: rc.max_rcs } : null;
+    if (!rc) return null;
+    // A meter with no ceiling is not a meter: report "unknown" instead of a
+    // zero the caller would act on.
+    if (!rc.max_rcs) return null;
+    return { amount: rc.amount, max: rc.max_rcs };
   }
 
   /**
