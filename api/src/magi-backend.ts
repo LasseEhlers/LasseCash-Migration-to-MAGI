@@ -713,6 +713,44 @@ export class MagiBackend implements Backend {
     return lists.flat();
   }
 
+  /**
+   * The account's RC on HIVE L1 — a different meter from MAGI's, and both
+   * have to be alive for LasseCash to work.
+   *
+   * A post here is a Hive `comment` AND a MAGI contract call in ONE signed
+   * transaction, so an empty Hive meter and an empty MAGI meter fail the same
+   * action for completely different reasons and with completely different
+   * fixes: Hive RC regenerates from staked HIVE POWER over about five days
+   * and cannot be bought, while MAGI RC is HBD held on MAGI and is fixed the
+   * moment that HBD arrives. Showing one without the other tells half a story.
+   *
+   * `rc_manabar.current_mana` is a snapshot from `last_update_time`, not a
+   * live figure: Hive regenerates the whole bar over 5 days, so the reading
+   * is aged forward here rather than reported stale. Null on any failure —
+   * a missing meter is honest, a wrong one is not.
+   */
+  async hiveResourceCredits(account: string): Promise<ResourceCredits | null> {
+    const bare = account.replace(/^hive:/, "");
+    try {
+      const r = await this.#hiveRpc<{
+        rc_accounts: { max_rc: string; rc_manabar: { current_mana: string; last_update_time: number } }[];
+      }>("rc_api.find_rc_accounts", { accounts: [bare] });
+      const row = r?.rc_accounts?.[0];
+      if (!row) return null;
+      const max = Number(row.max_rc);
+      const stamp = Number(row.rc_manabar.last_update_time);
+      const elapsed = Math.max(0, Math.floor(Date.now() / 1000) - stamp);
+      // Hive regenerates a full bar in 5 days; cap at max.
+      const REGEN_SECONDS = 5 * 24 * 60 * 60;
+      const grown = Number(row.rc_manabar.current_mana) + (max * elapsed) / REGEN_SECONDS;
+      const amount = Math.min(max, grown);
+      if (!Number.isFinite(amount) || !Number.isFinite(max) || max <= 0) return null;
+      return { amount, max };
+    } catch {
+      return null;
+    }
+  }
+
   async #hiveRpc<T>(method: string, params: unknown): Promise<T | null> {
     const res = await this.#fetch("https://api.hive.blog", {
       method: "POST",

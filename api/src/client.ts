@@ -593,6 +593,19 @@ export class LasseCashClient {
   }
 
   /**
+   * The HIVE L1 meter, which is a different thing from the MAGI one.
+   *
+   * Both are needed to use LasseCash: publishing is a Hive comment AND a MAGI
+   * call in one signed transaction, so either meter running dry stops the
+   * same action — and the two are refilled in completely different ways.
+   */
+  hiveResourceCredits(account?: string): Promise<ResourceCredits | null> {
+    const who = account ?? this.account;
+    if (!who || !this.backend.hiveResourceCredits) return Promise.resolve(null);
+    return this.backend.hiveResourceCredits(who);
+  }
+
+  /**
    * Whether there is enough RC headroom to spend some on the user's behalf.
    *
    * Background housekeeping must never leave someone unable to post, vote or

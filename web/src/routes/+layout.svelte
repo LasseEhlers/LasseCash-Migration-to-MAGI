@@ -26,6 +26,9 @@
     // Chart sits beside Pool: one is where you trade, the other is what
     // trading has done to the price.
     ["/chart", "Chart"],
+    // Wallet sits after the places you DO things, because it is where you
+    // check what those things did — and whether you can afford the next one.
+    ["/wallet", "Wallet"],
     ["/chain", "Chain"], ["/thresholds", "Thresholds"],
     // The roll call: for one week before the snapshot this is the most
     // important page on the site, and it is useless to anyone who cannot find

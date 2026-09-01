@@ -203,6 +203,8 @@ export interface Backend {
    * behalf should treat it as "cannot verify" and stay conservative.
    */
   resourceCredits?(account: string): Promise<ResourceCredits | null>;
+  /** The same meter on HIVE L1. Both must be alive for a post or a vote. */
+  hiveResourceCredits?(account: string): Promise<ResourceCredits | null>;
 
   /** Dev chains can move their own clock. Real nodes cannot; returns null. */
   advanceDays?(days: number): Promise<number | null>;
