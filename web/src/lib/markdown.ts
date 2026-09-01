@@ -79,6 +79,89 @@ export function excerpt(body: string, max = 180): string {
  * lists, code, and YouTube embeds. Hive posts lean heavily on images and
  * embedded video, so those are first-class rather than an afterthought.
  */
+/**
+ * TAGS FROM THE POST BODY, RE-ADMITTED FROM AN ALLOWLIST.
+ *
+ * More than half of what real Hive users publish contains raw HTML — measured
+ * 2026-09-01 across the ten gov_board accounts: 51 of 90 posts, led by <img>
+ * (47), <a> (33), <br> (26), <div> (26), <center> (21) and <table> (17).
+ * Actifit, PeakD, ecency and 3Speak all emit it, and their authors never typed
+ * a tag. Escaping it all made those posts read as markup soup.
+ *
+ * THE ESCAPE-FIRST RULE IS INTACT. This runs LAST, on finished HTML: our own
+ * tags are already real, and anything from the body is still escaped, so the
+ * only thing this can turn back into markup is what the allowlist names. It
+ * never un-escapes text, only recognised tags.
+ *
+ * Attributes are DROPPED, not filtered — every one of them, on every tag,
+ * except `href` on <a> and `src` on <img>, which go through safeUrl() exactly
+ * as markdown links already do. That is what makes this cheap to reason about:
+ * there is no `style`, no `class`, no `on*`, no `srcset`, nothing to audit.
+ *
+ * Unknown tags are REMOVED rather than left escaped. <iframe> is the one that
+ * matters — the sample had one, and it is precisely the tag a lenient
+ * sanitiser gets wrong. Its content stays; only the tag goes.
+ */
+const ALLOWED = new Set([
+  "b", "strong", "i", "em", "u", "s", "sup", "sub", "small", "mark",
+  "p", "br", "hr", "div", "span", "center", "blockquote", "pre", "code",
+  "h1", "h2", "h3", "h4", "h5", "h6",
+  "ul", "ol", "li", "table", "thead", "tbody", "tfoot", "tr", "td", "th",
+  "a", "img",
+]);
+const VOID = new Set(["br", "hr", "img"]);
+
+/**
+ * One attribute value out of an ESCAPED attribute string.
+ *
+ * The value is matched to its CLOSING QUOTE, not to the first `&`. Escaped
+ * markup is full of ampersands — `&quot;` delimits the value and `&amp;`
+ * appears in any URL with two query parameters — so stopping at `&` truncated
+ * `?b=1&amp;c=2` into `?b=1` and broke ordinary links.
+ */
+function attr(raw: string, name: string): string | null {
+  const forms = [
+    new RegExp(`${name}\\s*=\\s*&quot;([\\s\\S]*?)&quot;`, "i"),
+    new RegExp(`${name}\\s*=\\s*'([^']*)'`, "i"),
+    new RegExp(`${name}\\s*=\\s*([^\\s]+)`, "i"), // unquoted, ends at whitespace
+  ];
+  for (const re of forms) {
+    const m = raw.match(re);
+    // TWO decodes, and both are needed. The first undoes OUR escape; the
+    // second interprets the author's own `&amp;`, which is how every HTML
+    // writer spells `&` inside an href. A URL with two query parameters
+    // arrives here as `&amp;amp;` and must reach safeUrl as a plain `&`.
+    // Everything safeUrl does not recognise as http(s) is rejected there.
+    if (m?.[1]) return m[1].replace(/&amp;/g, "&").replace(/&amp;/g, "&");
+  }
+  return null;
+}
+
+function admitHtml(html: string): string {
+  return html.replace(
+    /&lt;(\/?)\s*([a-zA-Z][a-zA-Z0-9]*)([\s\S]*?)&gt;/g,
+    (_m, close: string, rawName: string, rawAttrs: string) => {
+      const tag = rawName.toLowerCase();
+      if (!ALLOWED.has(tag)) return ""; // drop the tag, keep the text
+      if (close) return VOID.has(tag) ? "" : `</${tag}>`;
+
+      if (tag === "a") {
+        const href = attr(rawAttrs, "href");
+        const safe = href ? safeUrl(href) : null;
+        return safe
+          ? `<a href="${esc(safe)}" rel="nofollow noopener ugc" target="_blank">`
+          : "";
+      }
+      if (tag === "img") {
+        const src = attr(rawAttrs, "src");
+        const safe = src ? safeUrl(src) : null;
+        return safe ? `<img src="${esc(safe)}" alt="" loading="lazy" />` : "";
+      }
+      return VOID.has(tag) ? `<${tag} />` : `<${tag}>`;
+    },
+  );
+}
+
 export function renderMarkdown(md: string): string {
   if (!md.trim()) return "";
 
@@ -238,7 +321,10 @@ function slug(text: string): string {
     })
     .join("\n");
 
-  return html
+  // admitHtml runs LAST, and deliberately BEFORE the placeholders are put
+  // back: fenced code was escaped and set aside at the very start, so its
+  // contents must never be re-admitted as markup.
+  return admitHtml(html)
     .replace(/@@BLOCK(\d+)@@/g, (_m, i: string) => blocks[Number(i)] ?? "")
     .replace(/@@CODE(\d+)@@/g, (_m, i: string) => codeBlocks[Number(i)] ?? "");
 }
