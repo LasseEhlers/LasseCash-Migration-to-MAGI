@@ -608,7 +608,15 @@ export class MagiBackend implements Backend {
       this.#viewsFor(found).then((v) => this.#hydrate(v)),
       this.#tagged(found),
     ]);
-    return [...views, ...tagged];
+    // A REPLY IS NOT AN ARTICLE — the same rule postsMeta() applies, and it
+    // has to be applied HERE too or the feed disagrees with itself: the
+    // server renders without the reply, the browser hydrates it back in.
+    // @tibfox's "nice!" survived the first fix exactly that way.
+    //
+    // NOT inside #viewsFor, which is deliberate: comments() builds its list
+    // from the same helper, so filtering there would empty every comment
+    // section instead of tidying the feed.
+    return [...views.filter((v) => !v.parent_author), ...tagged];
   }
 
   /**
