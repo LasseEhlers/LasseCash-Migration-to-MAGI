@@ -211,7 +211,10 @@
       <div class="bonuses">
         <span>Longer pays better <b class="mono">{mult(preview.durationMultiplier)}</b></span>
         <span>Bigger pays better <b class="mono">{mult(preview.volumeMultiplier)}</b></span>
-        <span class="combined">Combined <b class="mono gold">{mult(preview.combinedMultiplier)}</b></span>
+        <span class="combined">
+          Combined <b class="mono gold">{mult(preview.combinedMultiplier)}</b>
+          <span class="on">on your L-Shares</span>
+        </span>
       </div>
       {#if yieldNow}
         <small class="dim est">
@@ -259,11 +262,14 @@
   .headline { display: flex; align-items: baseline; gap: 0.5rem; flex-wrap: wrap; }
   .headline strong { font-size: 1.55rem; }
   .bonuses {
-    display: flex; gap: 1rem; flex-wrap: wrap;
-    margin: 0.6rem 0 0.4rem; font-size: 0.82rem; color: var(--dim);
+    display: flex; gap: 1rem; flex-wrap: wrap; align-items: baseline;
+    margin: 0.5rem 0 0.4rem; font-size: 0.8rem; color: var(--dim);
   }
-  .bonuses b { color: var(--ink); }
+  .bonuses b { color: var(--ink); font-size: 1rem; }
+  .bonuses .combined b { font-size: 1.15rem; }
   .combined { margin-left: auto; }
+  /* The one label that stops "1.50x" being read as 50% on the money. */
+  .on { font-size: var(--t-micro); color: var(--dimmer); margin-left: 0.25rem; }
   .err { color: var(--red); font-size: 0.86rem; margin: 0 0 0.7rem; }
   button { width: 100%; }
 </style>
