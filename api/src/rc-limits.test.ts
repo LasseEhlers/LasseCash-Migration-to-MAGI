@@ -4,11 +4,20 @@ import { AiohaSigner, AiohaWallet } from "./aioha-signer.js";
 
 /**
  * The rc_limit table is a production safety net: too low and a call dies with
- * gas_limit_hit, too high and MAGI freezes the limit for five days. These pin
- * the table against the MEASURED costs (devnet, 2026-08-21) so a future edit
- * cannot quietly drop below them.
+ * gas_limit_hit, too high and MAGI freezes the limit for five days.
+ *
+ * ⚠️ THESE ARE MAINNET FIGURES, from simulateContractCalls against the
+ * production contract on 2026-09-01. The first version of this test used
+ * DEVNET numbers, which are roughly 3x too low — it passed while the live
+ * table could not pay for a transfer, and @tibfox found that the hard way.
+ * A devnet measurement is a floor, never an estimate: it does not weigh
+ * state writes the way settlement does.
  */
-const MEASURED_RC = { transfer: 285, mint: 2_401, advance: 100, claim_migration: 5_892, record_burn: 590 };
+const MEASURED_RC = {
+  transfer: 872, mint: 3_486, vote: 904, post: 1_098, comment: 1_974,
+  promote_post: 833, swap_lc_hbd: 206, claim_pool: 463, burn: 167,
+  claim_migration: 5_892, record_burn: 590,
+};
 
 test("every measured entrypoint has at least 40% headroom over its real cost", () => {
   for (const [op, rc] of Object.entries(MEASURED_RC)) {

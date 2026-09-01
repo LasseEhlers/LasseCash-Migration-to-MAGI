@@ -635,9 +635,24 @@ export class AiohaSigner implements Signer {
    * (it is contract-managed); only the HBD side does.
    */
   /**
-   * rc_limit PER ENTRYPOINT, from MEASURED gas (local MAGI devnet, 2026-08-21;
-   * 100,000 gas = 1 RC) with ~60% headroom. Two failure modes bracket this
-   * table, and both are silent in production:
+   * rc_limit PER ENTRYPOINT, RE-MEASURED ON MAINNET 2026-09-01 via
+   * simulateContractCalls (100,000 gas = 1 RC), carrying ~2.5x headroom.
+   *
+   * ⚠️ THE FIRST VERSION OF THIS TABLE WAS MEASURED ON THE LOCAL DEVNET AND
+   * WAS WRONG BY ~3x. A transfer costs 285 RC there and 872 here, so the old
+   * 600 could not pay for one: @tibfox's transfer died with "cost limit
+   * exceeded" on 2026-09-01 and he reported it. The devnet does not weigh
+   * state writes the way settlement does, so ANY number taken from it is a
+   * floor, not an estimate. Re-measure here, against this contract.
+   *
+   * These values are the FALLBACK: `sizeRc` normally dry-runs the exact call
+   * and takes max(table, 3x simulated), so the table only decides when the
+   * simulation cannot be reached. That is precisely when being wrong is
+   * least recoverable, which is why it now errs high — a refused call
+   * freezes its rc_limit for the same five days a successful one does, so
+   * under-sizing costs exactly as much as over-sizing and buys nothing.
+   *
+   * Two failure modes bracket this table, and both are silent in production:
    *   - too LOW and the call dies with gas_limit_hit (a mint at the old
    *     flat 1,500 default would have failed: it costs 2,401 RC);
    *   - too HIGH and MAGI freezes the whole limit for 5 days — six calls at
@@ -651,9 +666,9 @@ export class AiohaSigner implements Signer {
    * limit here never needs to cover a catch-up walk.
    */
   static readonly RC_LIMITS: Record<string, number> = {
-    transfer: 600,        // measured 285
-    burn: 600,
-    settle: 400,
+    transfer: 2_500,      // mainnet 872. The devnet said 285 and 600 was not enough: @tibfox, 2026-09-01.
+    burn: 600,            // mainnet 167
+    settle: 600,          // mainnet 38
     advance: 10_000,      // FLOOR only: a full MaxRetirePerWalk slice measured 20,903 RC on the devnet (2026-08-22); sizeRc raises it from a dry run for accounts that can afford it, never above what they hold
     mint: 7_000,          // measured 2,401 on the devnet, 3,142 simulated on mainnet — and a REAL mint hit gas_limit_hit at 4,000 when a day-step landed inside it (2026-08-22). Mainnet weighs writes 19x; keep ~2x headroom.
     claim_mint: 7_000,
@@ -663,23 +678,24 @@ export class AiohaSigner implements Signer {
     settle_pending: 6_000, // drains up to MaxCurationDrain queue entries
     promote: 1_200,
     set_param: 800,
-    post: 2_500,
-    // A reply is the same write set as a post: one record, one threshold read.
-    comment: 2_500,
+    post: 3_000,          // mainnet 1,098
+    // A reply is the same write set as a post plus the queue append, and it
+    // measures HIGHER than a post on mainnet: 1,974 against 1,098.
+    comment: 5_000,      // mainnet 1,974
     // Debit, burn to null, rewrite the post record. Unmeasured on a real
     // deploy — measure with simulateContractCalls before launch.
-    promote_post: 2_500,
-    vote: 4_000,          // includes PiggybackDrain curation settles
+    promote_post: 2_500,  // mainnet 833
+    vote: 4_000,          // mainnet 904, plus PiggybackDrain curation settles
     payout: 4_000,
     claim_curation: 1_200,
     sweep_curation: 1_200,
     add_liquidity: 4_000,
     remove_liquidity: 4_000,
-    claim_pool: 4_000,
+    claim_pool: 4_000,    // mainnet 463
     // Same shape as claim_pool (settles the owner's rewards first) plus the
     // bleed's share/weight rewrite — unmeasured, modeled on remove_liquidity.
     sweep_tranche: 4_000,
-    swap_lc_hbd: 3_000,
+    swap_lc_hbd: 3_000,   // mainnet 206
     swap_hbd_lc: 3_000,
     // A claim is a mint-sized write set (balance, mint record, share board,
     // accrual) plus ~14 Merkle hashes to walk the proof to the root.
