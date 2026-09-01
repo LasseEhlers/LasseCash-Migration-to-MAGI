@@ -706,6 +706,55 @@ vector otherwise. Never move an escape after a tag insertion.
 Feed cards derive a cover image from the body when the author supplied none,
 falling back to a YouTube thumbnail, so a video post is not a wall of text.
 
+## ⚠️ A BARE NAME IN `transfer` STRANDED 1,030 LC — FIXED 2026-09-01
+
+Lasse sent 1,000 LC to his daughter's account and it never arrived. The call
+was `transfer daneamanda|100000000000` and it was **CONFIRMED**: the sender was
+debited, the recipient credited, and the money landed at `bal_daneamanda`.
+
+Balances are keyed by the address exactly as the SDK renders a sender —
+`hive:alice`, never `alice` — and `ctx.Sender` always carries its namespace.
+So **no signer can ever match a bare key**. `state.Transfer` credited `to`
+verbatim without checking, and the balance is unspendable by anyone, forever.
+
+Three incidents in two hours before it was caught: 1,000 (daneamanda), 10
+(@barski to himself), 20 (a resend during the six minutes between the fix
+being pushed and Cloudflare finishing the build). **1,030 LC, unrecoverable.**
+
+**The fix is in both layers, and they do different jobs:**
+
+- **Contract REFUSES an unqualified recipient** (`strings.Contains(to, ":")`).
+  Not auto-prefixing `hive:` — prepending guesses intent, and a mistyped
+  `did:pkh:` address would be silently rewritten into a Hive name that may
+  belong to someone else. A refusal costs a failed transaction; a guess can
+  cost the balance. Pinned by `TestTransferRefusesUnqualifiedRecipient`.
+- **`client.transfer` qualifies** so nobody typing a username into a send box
+  has to know the chain's addressing rules. `sendNative`/`sendBtc` already did
+  this via `qualifyAddress`; LASSECASH was the one rail that did not.
+
+`transfer` was the ONLY path that could strand value this way — `claim_curation`
+looks up the curator's vote record, so an unqualified name finds nothing and
+fails cleanly.
+
+### ❌ A RECOVERY ENTRYPOINT — PROPOSED AND REJECTED, do not re-propose
+
+The stranded 1,030 LC (~$4.60) could be swept by an entrypoint added before
+the key burn. **Lasse's call: no.** *"that will provide attack vectors, dont
+do it."*
+
+That entrypoint is "move a balance that is not yours", added permanently to a
+contract nobody can ever correct, to recover under five dollars. The
+judgement about which keys are "ownerless" would be frozen forever alongside
+it. The stranded balances stay visible in state and still count in
+`auditSupply` — nothing leaked, the books balance, the money is simply frozen
+at keys with no owner.
+
+**The wider lesson, and it is the argument for using the chain rather than
+reading it:** this was found by an ordinary person doing an ordinary thing —
+typing a username into a send box. It had five weeks left before becoming
+permanent for every client, with no warning and no recovery. Spend the time
+before 10 October USING it, not only building on it.
+
 ## ⚠️ THERE IS ONLY ONE HIVE — testing publishes to production, 2026-09-01
 
 Lasse found a junk test post on the LIVE lassecash.com feed and reasonably
