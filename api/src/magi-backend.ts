@@ -901,9 +901,10 @@ export class MagiBackend implements Backend {
     try {
       const [incoming, ledger] = await Promise.all([
         this.query<{ findTransaction: { id: string; anchr_ts: string; status: string;
+          required_auths: string[]; required_posting_auths: string[];
           ops: { type: string; data: { action?: string; payload?: string } }[] }[] }>(
           `query($c: String!) { findTransaction(filterOptions: {byContract: $c, limit: 100}) {
-            id anchr_ts status ops { type data } } }`,
+            id anchr_ts status required_auths required_posting_auths ops { type data } } }`,
           { c: this.#contractId },
         ),
         this.query<{ findTransaction: { id: string; anchr_ts: string; status: string;
@@ -921,7 +922,15 @@ export class MagiBackend implements Backend {
           const payload = op.data.payload ?? "";
           if (!payload.startsWith(`${me}|`)) continue;      // not to us
           if (out.some((o) => o.id === tx.id)) continue;     // our own send
-          out.push({ id: tx.id, time: tx.anchr_ts, action: "+transfer", payload, status: "confirmed" });
+          // WHO SENT IT. The payload names only the recipient — the sender is
+          // the transaction's signer — so "1.000 LC from someone" was all the
+          // row could say without this. A receipt that cannot name the other
+          // party is barely a receipt.
+          const sender = (tx.required_auths ?? [])[0] ?? (tx.required_posting_auths ?? [])[0] ?? "";
+          out.push({
+            id: tx.id, time: tx.anchr_ts, action: "+transfer",
+            payload: `${payload}|${sender}`, status: "confirmed",
+          });
         }
       }
 
