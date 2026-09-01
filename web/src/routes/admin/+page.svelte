@@ -450,49 +450,6 @@
       </section>
 
       <section class="panel">
-        <h2>All Hive-Engine accounts that ever touched LasseCash</h2>
-        <small class="dim">
-          Everyone, qualified or not, as the snapshot found them. Here TOTAL is a
-          straight sum — both columns are pre-migration LASSECASH, the same unit —
-          unlike the migrated table above, where it adds tokens to L-Shares.
-        </small>
-        <small class="dim">
-          {allRows.length.toLocaleString()} accounts · {lc(fromUnits(allTotal))} LC total
-        </small>
-        <div class="scroll">
-          <table>
-            <thead>
-              <tr>
-                <th></th>
-                <th class="sortable" onclick={() => toggle(allSort, "account", 1)}>Account {arrow(allSort, "account")}</th>
-                <th class="sortable num" onclick={() => toggle(allSort, "liquid", -1)}>LASSECASH (liquid) {arrow(allSort, "liquid")}</th>
-                <th class="sortable num" onclick={() => toggle(allSort, "staked", -1)}>LASSECASH POWER (staked) {arrow(allSort, "staked")}</th>
-                <th class="sortable num" onclick={() => toggle(allSort, "total", -1)}>Total {arrow(allSort, "total")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {#each allShown as row, i (row.account)}
-                <tr>
-                  <td class="num dim">{i + 1}</td>
-                  <td>{displayName(`hive:${row.account}`)}</td>
-                  <td class="num">{lc(fromUnits(row.liquid))}</td>
-                  <td class="num">{lc(fromUnits(row.staked))}</td>
-                  <td class="num gold">{lc(fromUnits(row.total))}</td>
-                </tr>
-              {/each}
-            </tbody>
-          </table>
-        </div>
-        {#if allSorted.length > SHOW_LIMIT}
-          <div class="tablefoot">
-            <button class="ghost small" onclick={() => (allShowAll = !allShowAll)}>
-              {allShowAll ? `show top ${SHOW_LIMIT}` : `show all ${allSorted.length.toLocaleString()}`}
-            </button>
-          </div>
-        {/if}
-      </section>
-
-      <section class="panel">
         <h2>Did not make it (burned at migration)</h2>
         <small class="dim">
           {burnedRows.length.toLocaleString()} accounts · {lc(fromUnits(burnedTotal))} LC total ·
@@ -530,6 +487,50 @@
           <div class="tablefoot">
             <button class="ghost small" onclick={() => (burnedShowAll = !burnedShowAll)}>
               {burnedShowAll ? `show top ${SHOW_LIMIT}` : `show all ${burnedSorted.length.toLocaleString()}`}
+            </button>
+          </div>
+        {/if}
+      </section>
+
+      <section class="panel">
+        <h2>All Hive-Engine accounts that ever touched LasseCash</h2>
+        <small class="dim">
+          Everyone, qualified or not, as the snapshot found them — the reference list
+          the two tables above are drawn from. TOTAL here is a straight sum: both
+          columns are pre-migration LASSECASH, the same unit. (In "Migrated accounts"
+          it is notional, because there it adds tokens to L-Shares.)
+        </small>
+        <small class="dim">
+          {allRows.length.toLocaleString()} accounts · {lc(fromUnits(allTotal))} LC total
+        </small>
+        <div class="scroll">
+          <table>
+            <thead>
+              <tr>
+                <th></th>
+                <th class="sortable" onclick={() => toggle(allSort, "account", 1)}>Account {arrow(allSort, "account")}</th>
+                <th class="sortable num" onclick={() => toggle(allSort, "liquid", -1)}>LASSECASH (liquid) {arrow(allSort, "liquid")}</th>
+                <th class="sortable num" onclick={() => toggle(allSort, "staked", -1)}>LASSECASH POWER (staked) {arrow(allSort, "staked")}</th>
+                <th class="sortable num" onclick={() => toggle(allSort, "total", -1)}>Total {arrow(allSort, "total")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {#each allShown as row, i (row.account)}
+                <tr>
+                  <td class="num dim">{i + 1}</td>
+                  <td>{displayName(`hive:${row.account}`)}</td>
+                  <td class="num">{lc(fromUnits(row.liquid))}</td>
+                  <td class="num">{lc(fromUnits(row.staked))}</td>
+                  <td class="num gold">{lc(fromUnits(row.total))}</td>
+                </tr>
+              {/each}
+            </tbody>
+          </table>
+        </div>
+        {#if allSorted.length > SHOW_LIMIT}
+          <div class="tablefoot">
+            <button class="ghost small" onclick={() => (allShowAll = !allShowAll)}>
+              {allShowAll ? `show top ${SHOW_LIMIT}` : `show all ${allSorted.length.toLocaleString()}`}
             </button>
           </div>
         {/if}
