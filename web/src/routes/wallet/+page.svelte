@@ -281,10 +281,6 @@
       {/if}
     </section>
 
-    <section class="panel">
-      <h2>Send LASSECASH</h2>
-      <SendForm />
-    </section>
 
     <section class="panel">
       <h2>Swap on MAGI</h2>
@@ -443,6 +439,11 @@
         Both legs are on-chain swaps you sign yourself — nobody takes custody of your funds
         at any point, and no account or permission is granted to anyone.
       </p>
+    </section>
+
+    <section class="panel">
+      <h2>Send LASSECASH</h2>
+      <SendForm />
     </section>
 
     {#if ops.length}
