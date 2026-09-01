@@ -571,6 +571,16 @@ export class MagiBackend implements Backend {
       if (!raw) continue; // registered call failed, or record swept
       const f = raw.split("|");
       if (f.length < 6) continue;
+      // A REPLY IS NOT AN ARTICLE, whichever call created it.
+      //
+      // Discovery reads `vote` targets as well as `post` calls, because a
+      // first vote registers a post nobody published through us. It also
+      // registers a COMMENT that way — the record keeps its parent (fields
+      // 10-11), so the chain knows perfectly well what it is; the feed simply
+      // never asked. @tibfox's "nice!" turned up as a top-level article
+      // titled with its own permlink, 2026-09-01, minutes after Hive replies
+      // became votable here.
+      if (f[9]) continue;
       const created = Number(f[1] ?? 0) || 0;
       out.push({
         author,

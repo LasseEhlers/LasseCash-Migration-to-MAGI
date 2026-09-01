@@ -268,7 +268,19 @@
           </div>
           <div class="cbody rendered">{@html renderMarkdown(body)}</div>
           <div class="cactions">
-            {#if !view.paid_out && !view.payable}
+            {#if view.registered === false}
+              <!-- NO VOTE ON A HIVE-ONLY REPLY.
+                   A first vote registers whatever it lands on, and for a
+                   reply that means creating a record with ALWAYS-VIRAL
+                   economics and the default split — terms its author never
+                   chose, on a comment they wrote somewhere else. It also
+                   opens a 7-day window from the vote rather than from the
+                   comment. The author registers their own reply by writing it
+                   here; a reader should not do it for them by accident. -->
+              <span class="dim tiny">
+                written on Hive — its author can register it by replying here
+              </span>
+            {:else if !view.paid_out && !view.payable}
               <VoteSlider post={view} onvoted={load} />
             {:else if view.payable}
               <span class="dim tiny">window closed — settles with the post</span>
