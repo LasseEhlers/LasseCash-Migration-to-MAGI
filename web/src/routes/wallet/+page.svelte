@@ -19,6 +19,7 @@
   import { lc } from "$lib/format.js";
   import Hbd from "$lib/Hbd.svelte";
   import SendForm from "$lib/SendForm.svelte";
+  import { describeCall } from "$lib/callSummary.js";
   import Seo from "$lib/Seo.svelte";
   import { SITE_OG_IMAGE, SITE_URL } from "$lib/site.js";
   import { fromUnits, type AccountOp, type ResourceCredits } from "$api/index.js";
@@ -240,13 +241,13 @@
         </small>
         <div class="scroll">
           <table>
-            <thead><tr><th>When</th><th>Call</th><th>Details</th><th>Status</th></tr></thead>
+            <thead><tr><th>When</th><th>Call</th><th>What it did</th><th>Status</th></tr></thead>
             <tbody>
               {#each ops as o (o.id + o.action + o.time)}
                 <tr>
                   <td class="mono dim">{when(o.time)}</td>
-                  <td class="mono">{o.action}</td>
-                  <td class="mono dim clip">{o.payload}</td>
+                  <td class="mono dim">{o.action}</td>
+                  <td class="clip" title={o.payload}>{describeCall(o.action, o.payload)}</td>
                   <td><span class="pill {o.status}">{o.status}</span></td>
                 </tr>
               {/each}
