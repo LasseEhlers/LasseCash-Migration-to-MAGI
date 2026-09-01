@@ -45,30 +45,33 @@
   }
 
   /**
-   * Where signing in puts you.
+   * Where signing in puts you: unclaimed -> Mint, claimed -> the feed.
    *
-   * Nearly everyone arriving this month has ONE thing to do — claim — and the
-   * claim panel lives on Mint. Sending them to the page that answers their
-   * question beats leaving them wherever they happened to sign in.
-   *
-   * Two deliberate exceptions, both about not being rude:
-   *   - a deep link (a post, a profile, the snapshot check) is where the user
-   *     asked to be; signing in from there must not throw the page away.
-   *   - an account that has already claimed has no errand on Mint, so it goes
-   *     to the feed — the thing the site is actually for.
+   * The two halves are deliberately NOT symmetric, and the reason is what an
+   * account can actually do. See the branches below.
    *
    * Failure is silent: this is a convenience, and a redirect that throws must
    * never look like a failed sign-in.
    */
   async function landAfterSignIn() {
     const here = page.url.pathname;
-    // Only redirect off the two "I just arrived" pages. Anywhere else is a
-    // destination the user chose.
-    if (here !== "/" && here !== "/about") return;
     try {
       const claimed = await client.migrationRecord(chain.account!);
-      const to = claimed ? "/feed" : "/";
-      if (to !== here) await goto(to);
+      if (!claimed) {
+        // UNCLAIMED GOES TO MINT, from wherever they signed in — no exception.
+        // Not merely a nudge toward the month's one important errand: an
+        // unclaimed account holds no L-Shares, so there is nothing it can
+        // usefully do on any other page. Even the reader who followed a Hive
+        // link to vote on a post cannot vote until they claim, so leaving
+        // them there would be leaving them somewhere that does not work.
+        if (here !== "/") await goto("/");
+        return;
+      }
+      // A CLAIMED account can act anywhere, so it is only sent to the feed
+      // when it is not already somewhere specific — a post or a profile is a
+      // destination the user chose, and throwing it away would be rude.
+      const specific = page.route.id?.startsWith("/[account=at]") ?? false;
+      if (!specific && here !== "/feed") await goto("/feed");
     } catch { /* a convenience, never an error */ }
   }
 

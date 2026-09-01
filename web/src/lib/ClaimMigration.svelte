@@ -18,6 +18,7 @@
    * a leaf for this account in the published shard, and no receipt on-chain.
    */
   import { base } from "$app/paths";
+  import { goto } from "$app/navigation";
   import { chain, client } from "$lib/chain.svelte.js";
   import { durationWords, lc, shortDate } from "$lib/format.js";
   import { constants, fromUnits, previewMintClose, type MintPreview } from "$api/index.js";
@@ -162,7 +163,14 @@
       client.claimMigration(leaf!.liquid, leaf!.staked, leaf!.proof, { cheap }));
     // The receipt now exists on-chain, so the panel is done: the position is
     // in the mint list below, where every other mint lives.
-    if (!error) leaf = null;
+    if (!error) {
+      leaf = null;
+      // Claiming was the errand. What comes next is the site itself, so a
+      // successful claim lands on the feed rather than leaving the claimant
+      // staring at the page whose one job they just finished. The mint is on
+      // Mint whenever they want it; nothing here is hidden by moving on.
+      await goto("/feed");
+    }
   }
 </script>
 

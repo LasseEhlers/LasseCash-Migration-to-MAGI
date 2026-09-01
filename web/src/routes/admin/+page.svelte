@@ -140,15 +140,29 @@
   const migratedRows = $derived<MigratedRow[]>(
     (raw?.migrated ?? []).map((r) => {
       const live = dumpMap?.get(`hive:${r.account}`);
-      const known = !WALLET_MODE && dumpMap !== null;
       const liquid = BigInt(r.liquid);
-      const lshares = known ? (live?.shares ?? 0n) : null;
+      // WHERE THE L-SHARE FIGURE COMES FROM.
+      //
+      // Against the dev chain the live dump is the truth. Against a real MAGI
+      // node there is no /dev/dump, so `loadDump` returns immediately and this
+      // table printed an em-dash in every one of its three right-hand columns
+      // — which is what the production console showed all launch night.
+      //
+      // The snapshot itself is the honest answer there, and an exact one:
+      // staked POWER becomes L-Shares 1:1 and becomes the migration mint's
+      // principal (engine.NewMigrationMint), so both columns ARE `staked`.
+      // It is a statement about the migration, which is what this page is.
+      // Once an account claims, its live figures live on /chain and its
+      // profile; this console is the record of what the snapshot promised.
+      const snapshotStake = BigInt(r.staked);
+      const lshares = dumpMap !== null ? (live?.shares ?? 0n) : snapshotStake;
+      const principal = dumpMap !== null ? (live?.principal ?? 0n) : snapshotStake;
       return {
         account: r.account,
         liquid,
         lshares,
-        principal: known ? (live?.principal ?? 0n) : null,
-        total: lshares === null ? null : liquid + lshares,
+        principal,
+        total: liquid + lshares,
         reason: r.reason,
         badge: criteriaBadge(r.reason),
       };
@@ -263,7 +277,7 @@
         <div class="panel stat">
           <div class="label">Total staked power</div>
           <div class="value">{lc(fromUnits(BigInt(raw.stats.total_staked_power)))}</div>
-          <div class="sub">becomes a 182-day migration mint</div>
+          <div class="sub">becomes a 30-day migration mint, L-Shares 1:1</div>
         </div>
         <div class="panel stat">
           <div class="label">Combined total</div>
@@ -281,7 +295,7 @@
         <h2>Migration snapshot</h2>
         <small class="dim">
           Generated {shortDate(raw.generated)} · {raw.window_months}-month liveness window ·
-          {WALLET_MODE ? "connected to a real MAGI node" : dumpMap ? "live L-Shares and mint principal from the dev chain" : "loading live chain state…"}
+          {dumpMap ? "live L-Shares and mint principal from the dev chain" : "figures as committed in the snapshot"}
         </small>
         {#if dumpError}<p class="empty red">/dev/dump: {dumpError}</p>{/if}
       </section>
@@ -336,9 +350,11 @@
               {migratedShowAll ? `show top ${SHOW_LIMIT}` : `show all ${migratedSorted.length.toLocaleString()}`}
             </button>
           {/if}
-          {#if WALLET_MODE}
+          {#if !dumpMap}
             <small class="dim">
-              L-Shares and mint principal are live dev-chain reads; unavailable here against a real MAGI node.
+              L-Shares and mint principal are the SNAPSHOT's figures — staked POWER
+              becomes L-Shares 1:1 and is the migration mint's principal. What an
+              account holds today, after claiming and acting, is on its profile.
             </small>
           {/if}
         </div>
