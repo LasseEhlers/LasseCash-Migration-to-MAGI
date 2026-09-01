@@ -45,33 +45,27 @@
   }
 
   /**
-   * Where signing in puts you: unclaimed -> Mint, claimed -> the feed.
+   * Signing in moves you in exactly one case: you have not claimed yet.
    *
-   * The two halves are deliberately NOT symmetric, and the reason is what an
-   * account can actually do. See the branches below.
+   * UNCLAIMED GOES TO MINT, from wherever they signed in, no exception. Not
+   * merely a nudge toward the month's one errand — an unclaimed account holds
+   * no L-Shares, so there is nothing it can usefully do on any other page.
+   * Even the reader who followed a Hive link to vote on a post cannot vote
+   * until they claim, so leaving them there would leave them somewhere that
+   * does not work.
+   *
+   * A CLAIMED account is left exactly where it stands. It can act on any page
+   * here, so the page it chose is the right one — signing in is something you
+   * do IN ORDER TO use the page you are on, and throwing it away to show a
+   * feed nobody asked for is the kind of helpfulness that reads as a bug.
    *
    * Failure is silent: this is a convenience, and a redirect that throws must
    * never look like a failed sign-in.
    */
   async function landAfterSignIn() {
-    const here = page.url.pathname;
     try {
-      const claimed = await client.migrationRecord(chain.account!);
-      if (!claimed) {
-        // UNCLAIMED GOES TO MINT, from wherever they signed in — no exception.
-        // Not merely a nudge toward the month's one important errand: an
-        // unclaimed account holds no L-Shares, so there is nothing it can
-        // usefully do on any other page. Even the reader who followed a Hive
-        // link to vote on a post cannot vote until they claim, so leaving
-        // them there would be leaving them somewhere that does not work.
-        if (here !== "/mint") await goto("/mint");
-        return;
-      }
-      // A CLAIMED account can act anywhere, so it is only sent to the feed
-      // when it is not already somewhere specific — a post or a profile is a
-      // destination the user chose, and throwing it away would be rude.
-      const specific = page.route.id?.startsWith("/[account=at]") ?? false;
-      if (!specific && here !== "/") await goto("/");
+      if (await client.migrationRecord(chain.account!)) return; // claimed: stay put
+      if (page.url.pathname !== "/mint") await goto("/mint");
     } catch { /* a convenience, never an error */ }
   }
 
