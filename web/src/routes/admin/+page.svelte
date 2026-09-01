@@ -389,8 +389,9 @@
           </div>
         </div>
         <small class="dim">
-          POWER does not survive migration — it becomes L-Shares 1:1, so this table shows LasseCash balance, L-Shares
-          and a combined TOTAL rather than the pre-migration balance/power split kept in the other two tables.
+          POWER does not survive migration: it becomes L-SHARES 1:1 and is the principal of a 30-day
+          migration mint. So this table shows liquid LASSECASH, the POWER that becomes L-Shares, and a
+          combined TOTAL — the other two tables keep the pre-migration balance/power split.
         </small>
 
         <div class="scroll">
@@ -399,9 +400,11 @@
               <tr>
                 <th></th>
                 <th class="sortable" onclick={() => toggle(migratedSort, "account", 1)}>Account {arrow(migratedSort, "account")}</th>
-                <th class="sortable num" onclick={() => toggle(migratedSort, "liquid", -1)}>LasseCash balance {arrow(migratedSort, "liquid")}</th>
-                <th class="sortable num" onclick={() => toggle(migratedSort, "lshares", -1)}>L-Shares {arrow(migratedSort, "lshares")}</th>
-                <th class="sortable num" onclick={() => toggle(migratedSort, "principal", -1)}>Mint principal (LASSECASH) {arrow(migratedSort, "principal")}</th>
+                <th class="sortable num" onclick={() => toggle(migratedSort, "liquid", -1)}>LASSECASH {arrow(migratedSort, "liquid")}</th>
+                <th class="sortable num" onclick={() => toggle(migratedSort, "lshares", -1)}>LASSECASH POWER → L-Shares {arrow(migratedSort, "lshares")}</th>
+                {#if dumpMap}
+                  <th class="sortable num" onclick={() => toggle(migratedSort, "principal", -1)}>Mint principal {arrow(migratedSort, "principal")}</th>
+                {/if}
                 <th class="sortable num" onclick={() => toggle(migratedSort, "total", -1)}>Total {arrow(migratedSort, "total")}</th>
                 <th class="sortable" onclick={() => toggle(migratedSort, "badge", 1)}>Criteria {arrow(migratedSort, "badge")}</th>
               </tr>
@@ -412,9 +415,9 @@
                   <td class="num dim">{i + 1}</td>
                   <td>{displayName(`hive:${row.account}`)}</td>
                   <td class="num">{lc(fromUnits(row.liquid))}</td>
-                  <td class="num">{row.lshares === null ? "—" : lc(fromUnits(row.lshares))}</td>
-                  <td class="num">{row.principal === null ? "—" : lc(fromUnits(row.principal))}</td>
-                  <td class="num">{row.total === null ? "—" : lc(fromUnits(row.total))}</td>
+                  <td class="num">{lc(fromUnits(row.lshares))}</td>
+                  {#if dumpMap}<td class="num">{lc(fromUnits(row.principal))}</td>{/if}
+                  <td class="num gold">{lc(fromUnits(row.total))}</td>
                   <td><span class="badge {row.badge === 'unresolved' ? 'a' : 'b'}">{row.badge}</span></td>
                 </tr>
               {/each}
@@ -490,6 +493,7 @@
                 <th class="sortable num" onclick={() => toggle(burnedSort, "liquid", -1)}>LASSECASH {arrow(burnedSort, "liquid")}</th>
                 <th class="sortable num" onclick={() => toggle(burnedSort, "staked", -1)}>LASSECASH POWER {arrow(burnedSort, "staked")}</th>
                 <th class="sortable num" onclick={() => toggle(burnedSort, "total", -1)}>Total {arrow(burnedSort, "total")}</th>
+                <th class="sortable" onclick={() => toggle(burnedSort, "group", 1)}>Burned {arrow(burnedSort, "group")}</th>
               </tr>
             </thead>
             <tbody>
@@ -500,6 +504,7 @@
                   <td class="num">{lc(fromUnits(row.liquid))}</td>
                   <td class="num">{lc(fromUnits(row.staked))}</td>
                   <td class="num gold">{lc(fromUnits(row.total))}</td>
+                  <td><span class="badge {row.group === 'protocol' ? 'a' : 'burn'}">{row.group === 'protocol' ? 'protocol' : 'burned'}</span></td>
                 </tr>
               {/each}
             </tbody>
@@ -564,4 +569,8 @@
   }
   .badge.a { color: var(--cyan); background: rgba(46, 230, 214, 0.1); }
   .badge.b { color: var(--gold); background: rgba(255, 210, 63, 0.1); }
+  /* Burned is a fact, not an alarm: these tokens sit at @null, they were not
+     taken from anyone who was using them. Dim, not red — red on this site
+     means value actively being lost right now. */
+  .badge.burn { color: var(--dim); background: rgba(132, 146, 165, 0.12); }
 </style>
