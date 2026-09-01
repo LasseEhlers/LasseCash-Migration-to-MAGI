@@ -10,9 +10,6 @@
 
   let { children } = $props();
 
-  // Keep in sync with the same literal in routes/admin/+page.svelte (the
-  // soft page gate) — this constant is not worth centralizing for one string.
-  const FOUNDER = "hive:lasseehlers";
   // Thresholds is for EVERYONE: the top 10 is a public fact, and the value in
   // force for every governable parameter is readable by anyone. Named
   // "Thresholds" rather than "Governance" deliberately — every value this
@@ -34,7 +31,6 @@
     // important page on the site, and it is useless to anyone who cannot find
     // it. It stays afterwards as the permanent public record of who migrated.
     ["/check", "Snapshot"], ["/about", "About"],
-    ...(chain.account === FOUNDER ? [["/admin", "Migration"]] : []),
   ]);
 
   /**

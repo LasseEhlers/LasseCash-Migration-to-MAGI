@@ -21,6 +21,7 @@
   import Seo from "$lib/Seo.svelte";
   import { lc } from "$lib/format.js";
   import { chain } from "$lib/chain.svelte.js";
+  import MigrationTables from "$lib/MigrationTables.svelte";
   import { cleanName, fromUnits, isZero, lcToHbd, selfSigned, shardOf, toBaseUnitArg, type HeOp } from "$api/index.js";
   import { SITE_OG_IMAGE, SITE_URL, SNAPSHOT_BLOCK, SNAPSHOT_WHEN } from "$lib/site.js";
   import { base } from "$app/paths";
@@ -462,6 +463,21 @@
       same code that takes the snapshot.
     </small>
   {/if}
+
+  <!--
+    THE WHOLE SNAPSHOT, PUBLIC.
+
+    The checker above answers one question for one person. This answers every
+    question for everyone: what was committed, who qualified, who was burned,
+    and every account that ever held LASSECASH. It lived behind a soft founder
+    gate, which never protected anything — the root is on-chain and the leaves
+    are published in the repo — and the only effect of hiding it was that the
+    number people most want to check had to be dug for.
+
+    It loads after the card and never blocks it, so someone who came to look
+    up their own name still gets an instant answer.
+  -->
+  <MigrationTables />
 </div>
 
 <style>

@@ -1,13 +1,15 @@
 /**
- * Client-only, deliberately.
+ * /admin is now /check.
  *
- * Everything on this page is per-user and engine-driven: the figures come out
- * of the engine WASM in the BROWSER, against the signed-in account. There is
- * nothing here a crawler should index and nothing a server could usefully
- * render — server-rendering it would produce a shell of empty values, then
- * immediately replace them.
- *
- * Content pages (posts, profiles, the feed) do the opposite. See
- * svelte.config.js.
+ * The migration console was never secret — its own gate said so — and the
+ * figure people most want to check is the founder's share, which is exactly
+ * the figure that should be easiest to find rather than hardest. So the whole
+ * console moved under the public Snapshot page, and this address forwards
+ * there so a bookmark, a link in a post, or a habit still lands on it.
  */
-export const ssr = false;
+import { redirect } from "@sveltejs/kit";
+import type { PageLoad } from "./$types";
+
+export const load: PageLoad = () => {
+  redirect(301, "/check");
+};

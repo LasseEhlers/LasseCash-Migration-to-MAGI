@@ -1,31 +1,40 @@
 <script lang="ts">
   /**
-   * Admin — the founder's migration console.
+   * The migration snapshot, in full: what was committed, who qualified, who
+   * was burned, and every account that ever touched LASSECASH.
    *
+   * PUBLIC ON PURPOSE. This was the founder's console behind a soft gate, and
+   * the gate never protected anything — every figure comes from the published
+   * snapshot, the root is on-chain and the leaves are in the repo. Keeping it
+   * tucked away only meant that the one number people would want to check —
+   * how much the founder holds — had to be dug for rather than read. A figure
+   * volunteered is a disclosure; the same figure discovered is an exposé.
+   *
+   * Extracted as a component so the Snapshot page and anything after it show
+   * the SAME tables from the SAME file. Two copies of a table like this drift,
+   * and the first anyone would notice is when two pages disagree about the
+   * migration.
+   */
+  /**
    * Reads two things:
-   *   1. web/static/admin-data.json — a static snapshot built by
-   *      tools/snapshot/make_admin_data.py from the migration set. Who
-   *      migrates, who is burned, and everyone who ever touched LasseCash.
-   *   2. GET /dev/dump on the dev chain — the LIVE shr_/mint_ state, which the
-   *      static snapshot cannot know because it was generated before any
-   *      migrated account ever minted. Only available against the dev
-   *      simulator; a real MAGI node has no such endpoint, so those two
-   *      columns show "—" in wallet mode. See CLAUDE.md, "Dev chain".
-   *
-   * Soft gate only: the account name check is a UI convenience, not security —
-   * the data is public snapshot data regardless of who is looking at it.
+   *   1. web/static/admin-data.json — the static snapshot built by
+   *      tools/snapshot/make_admin_data.py. Who qualified, who was burned,
+   *      and everyone who ever touched LASSECASH.
+   *   2. GET /dev/dump on the dev chain — LIVE shr_/mint_ state, which the
+   *      static file cannot know. Only the simulator has that endpoint; a
+   *      real MAGI node does not, and against one the table falls back to the
+   *      snapshot's own figures, which are exact for what they describe:
+   *      staked POWER becomes L-Shares 1:1 at migration.
    */
   import { onMount } from "svelte";
   import { chain, WALLET_MODE } from "$lib/chain.svelte.js";
   import { displayName, lc, shortDate } from "$lib/format.js";
   import { fromUnits } from "$api/index.js";
-  import Seo from "$lib/Seo.svelte";
-  import { SITE_URL } from "$lib/site.js";
+
 
   // Keep in sync with the same literal in +layout.svelte (the nav gate) —
   // chain.svelte.ts is shared app state and out of scope for this page.
   const FOUNDER = "hive:lasseehlers";
-  const isFounder = $derived(chain.account === FOUNDER);
 
   const DEV_URL = import.meta.env.VITE_CHAIN_URL ?? "http://localhost:8080";
   const SHOW_LIMIT = 100;
@@ -291,27 +300,7 @@
 
 </script>
 
-<Seo
-  title="Admin"
-  description="Migration console."
-  canonical={`${SITE_URL}/admin`} noindex
-/>
-
-{#if !isFounder}
-  <section class="panel">
-    <h2>Admin</h2>
-    <p class="empty">
-      <strong>This page is the founder's migration console.</strong>
-      Sign in as the founder account to use it.
-    </p>
-    <small class="dim">
-      Nothing here is secret — every figure comes from the public migration
-      snapshot, so this gate is a convenience that keeps the page out of
-      everyone else's way, not a security boundary.
-    </small>
-  </section>
-{:else}
-  <div class="grid">
+<div class="grid">
     {#if dataError}
       <div class="panel"><p class="empty red"><strong>Could not load admin-data.json.</strong> {dataError}</p></div>
     {:else if !raw}
@@ -537,7 +526,6 @@
       </section>
     {/if}
   </div>
-{/if}
 
 <style>
   /* Same top-of-page tile grid as /chain. */
