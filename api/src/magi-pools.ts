@@ -194,3 +194,19 @@ export function qualifyAddress(account: string): string {
   if (!a) return a;
   return a.includes(":") ? a : `hive:${a}`;
 }
+
+/**
+ * The contract that holds mapped BTC, and the key its balances live under.
+ *
+ * FROM THE SOURCE, not from guesswork: vsc-eco/utxo-mapping declares
+ * `BalancePrefix = "a" + DirPathDelimiter` with `DirPathDelimiter = "-"`, so
+ * an account's satoshi balance is at `a-<qualified account>`, stored as raw
+ * bytes and therefore read with hex encoding.
+ *
+ * Verified 2026-09-01: a-hive:lasseehlers reads 0c17 = 3,095 sats =
+ * 0.00003095 BTC, which is exactly what Altera's dashboard displays. Six key
+ * shapes were guessed before this and every one returned null — the answer
+ * was in a public repository the whole time. Read the contract.
+ */
+export const BTC_MAPPING_CONTRACT = "vsc1BdrQ6EtbQ64rq2PkPd21x4MaLnVRcJj85d";
+export const MAPPED_BALANCE_PREFIX = "a-";

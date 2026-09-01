@@ -19,8 +19,8 @@ import type {
 } from "./types.js";
 import { commentPermlink } from "./hive-metadata.js";
 import {
-  ASSET_SCALE, decimalToUnits, poolFor, qualifyAddress, quoteMagiSwap, swapIntent,
-  swapPayload, type MagiPool, type MagiQuote,
+  ASSET_SCALE, BTC_MAPPING_CONTRACT, decimalToUnits, poolFor, qualifyAddress,
+  quoteMagiSwap, swapIntent, swapPayload, unitsToDecimal, type MagiPool, type MagiQuote,
 } from "./magi-pools.js";
 import { constants } from "./engine.js";
 import * as engine from "./engine.js";
@@ -665,6 +665,14 @@ export class LasseCashClient {
       // refused call freezes the limit exactly as a successful one does.
       rcLimit: 3_000,
     });
+  }
+
+  /** This account's BTC on MAGI, as a decimal string, or null if unreadable. */
+  async btcBalance(account?: string): Promise<string | null> {
+    const who = account ?? this.account;
+    if (!who || !this.backend.mappedBalance) return null;
+    const sats = await this.backend.mappedBalance(BTC_MAPPING_CONTRACT, who);
+    return sats === null ? null : unitsToDecimal(sats, ASSET_SCALE["BTC"]!);
   }
 
   /** Recent contract calls by this account, newest first. */

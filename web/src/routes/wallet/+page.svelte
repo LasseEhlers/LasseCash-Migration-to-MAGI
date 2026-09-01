@@ -41,6 +41,8 @@
   /** What sits on the HIVE side. A deposit spends THIS, not the MAGI balance. */
   let hiveHbd = $state<string | null>(null);
   let hiveHive = $state<string | null>(null);
+  /** BTC on MAGI, from the mapping contract. */
+  let btcBal = $state<string | null>(null);
   /** Which asset the bridge is moving. BTC is not offered — see the note. */
   let bridgeAsset = $state<"HBD" | "HIVE">("HBD");
 
@@ -109,7 +111,7 @@
   const magiBalances = $derived.by((): Record<string, string | null> => ({
     HBD: me ? (Number(me.hbd) / 100_000_000).toFixed(3) : null,
     HIVE: me ? (Number(me.hive ?? 0) / 100_000_000).toFixed(3) : null,
-    BTC: null,
+    BTC: btcBal,
   }));
 
   /** Balances we can actually check. BTC is not in the account view. */
@@ -186,6 +188,7 @@
     const hb = await client.hiveBalances().catch(() => null);
     hiveHbd = hb?.hbd ?? null;
     hiveHive = hb?.hive ?? null;
+    btcBal = await client.btcBalance().catch(() => null);
   }
   onMount(() => { void loadMeters(); void loadOps(); });
   // Signing in on this page should fill the meters without a reload.
@@ -259,12 +262,12 @@
         <div class="tiles">
           <div class="panel stat">
             <div class="label">BTC</div>
-            <div class="value dim">—</div>
+            <div class="value" class:dim={btcBal === null}>{btcBal ?? "—"}</div>
             <!-- Not a zero. MAGI's balance record reports hbd, hive,
                  hbd_savings and hive_consensus only; a mapped asset lives in
                  its own contract and is not readable from here yet. A zero
                  would be a claim we cannot support — the dash is the truth. -->
-            <div class="sub">not reported by the node yet · swappable below</div>
+            <div class="sub">mapped Bitcoin, held on MAGI · swappable below</div>
           </div>
           <div class="panel stat">
             <div class="label">HBD</div>

@@ -234,6 +234,8 @@ export interface Backend {
   hiveBalances?(account: string): Promise<{ hbd: string; hive: string } | null>;
   /** Live reserves of one of MAGI's own pools (not ours). */
   magiPoolReserves?(contractId: string): Promise<{ r0: bigint; r1: bigint } | null>;
+  /** A mapped-asset balance (BTC) in its own base units. */
+  mappedBalance?(contractId: string, account: string): Promise<bigint | null>;
 
   /** Dev chains can move their own clock. Real nodes cannot; returns null. */
   advanceDays?(days: number): Promise<number | null>;

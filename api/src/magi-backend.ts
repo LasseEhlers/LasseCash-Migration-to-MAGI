@@ -12,6 +12,7 @@
  *     quotes are produced without broadcasting
  *   - `localNodeInfo.last_processed_block` is the Hive height (3s per unit)
  */
+import { MAPPED_BALANCE_PREFIX } from "./magi-pools.js";
 import { BackendError, type AccountOp, type PoolOp, type Backend, type Signer } from "./backend.js";
 import * as engine from "./engine.js";
 import { toUnits } from "./amount.js";
@@ -723,6 +724,31 @@ export class MagiBackend implements Backend {
       });
     }));
     return lists.flat();
+  }
+
+  /**
+   * A mapped-asset balance — BTC today — in that asset's own base units.
+   *
+   * Mapped assets are NOT in `getAccountBalance`, which reports only
+   * hbd/hive/hbd_savings/hive_consensus. They live in the mapping contract's
+   * own state under `a-<account>`, as raw bytes: see vsc-eco/utxo-mapping.
+   */
+  async mappedBalance(contractId: string, account: string): Promise<bigint | null> {
+    try {
+      const key = `${MAPPED_BALANCE_PREFIX}${qualified(account)}`;
+      const data = await this.query<{ getStateByKeys: Record<string, string | null> }>(
+        `query($c: String!, $k: [String!]!) { getStateByKeys(contractId: $c, keys: $k, encoding: "hex") }`,
+        { c: contractId, k: [key] },
+      );
+      const hex = data.getStateByKeys?.[key];
+      // An absent key is a real zero here: the contract writes a balance only
+      // once an account has one.
+      if (hex === null || hex === undefined) return 0n;
+      if (hex === "") return 0n;
+      return BigInt("0x" + hex);
+    } catch {
+      return null;
+    }
   }
 
   /**
