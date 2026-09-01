@@ -188,7 +188,7 @@
     {/if}
     <small class="dim">
       There are no proposals. Each member keeps a standing preferred value for
-      each governable parameter, and the <strong>median</strong> is what applies —
+      each of the few values they can tune, and the <strong>median</strong> applies —
       continuously, with nothing to time or tally. Every parameter carries
       hardcoded bounds the group cannot leave, so even total capture of all ten
       seats cannot push a value out of range.

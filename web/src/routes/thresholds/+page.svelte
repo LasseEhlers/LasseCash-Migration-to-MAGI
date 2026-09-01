@@ -117,7 +117,7 @@
 
 <Seo
   title="Thresholds"
-  description="The ten seats, their standing preferences, and the median in force for every governable LasseCash parameter."
+  description="The ten seats, their standing preferences, and the median in force for every LasseCash value they can tune."
   canonical={`${SITE_URL}/thresholds`}
   image={SITE_OG_IMAGE}
   schema={{
@@ -133,7 +133,7 @@
     <h2>Median thresholds</h2>
     <p>
       Each of the top ten L-Share holders keeps a <strong>standing preferred
-      value</strong> for every governable parameter, changeable at any time, and
+      value</strong> for every value on this page, changeable at any time, and
       the <strong class="gold">median of those ten numbers is what is in
       force</strong> — no proposals, no quorum, no voting rounds.
     </p>
@@ -219,9 +219,9 @@
             </dl>
           </div>
           <p class="fine dim">
-            Floor and ceiling are hardcoded in the contract. They are not
-            themselves governable — a bounds table the ten could widen would
-            be no bounds at all.
+            Floor and ceiling are written into the contract, and the ten
+            cannot move them — a limit they could widen would be no limit
+            at all.
           </p>
 
           <!-- The ten standing preferences that produce the median above. -->
