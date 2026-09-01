@@ -324,8 +324,22 @@
     if (!lpQuote?.ok || BigInt(lpQuote.lcBase) <= 0n || sendHbdUnits <= 0n) {
       return "Enter an amount";
     }
+    // LASSECASH IS CHECKED FIRST, and the order is the whole point.
+    //
+    // When both sides are short, whichever check runs first is the message the
+    // user acts on — and "deposit HBD from Hive" sends them off-site to solve
+    // a problem they do not have. 2026-09-01: @daneamanda typed 10,000 LC
+    // holding 1,000 LC and 3.443 HBD. She had ample HBD for what she could
+    // actually afford (1,000 LC needs 2.66); the binding side was her own
+    // token, and the interface told her to go and buy the other one.
+    //
+    // You cannot fix "not enough LASSECASH" by depositing HBD, so it is named
+    // first and points at Max, which already caps the deposit at whichever
+    // side binds.
+    if (BigInt(lpQuote.lcBase) > toUnits(me.balance)) {
+      return "Not enough LASSECASH — press Max for the most you can add";
+    }
     if (sendHbdUnits > hbdBalanceUnits) return "Not enough HBD on MAGI — deposit from Hive first";
-    if (BigInt(lpQuote.lcBase) > toUnits(me.balance)) return "Not enough LASSECASH";
     return null;
   });
 
