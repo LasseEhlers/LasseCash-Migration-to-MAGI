@@ -404,10 +404,23 @@ export class LasseCashClient {
    * Hive account, and should not have to know the chain's addressing rules to
    * avoid losing their balance.
    */
-  async transfer(to: string, amount: string): Promise<TxResult> {
+  async transfer(to: string, amount: string, memo = ""): Promise<TxResult> {
     const t = to.trim().replace(/^@/, "");
+    const dest = t.includes(":") ? t : `hive:${t}`;
+    // THE MEMO COSTS THE CONTRACT NOTHING. `transfer` reads argument 0 and 1
+    // and ParseArgs simply splits on `|`, so a third field is ignored on
+    // chain — no state written, no entrypoint changed, no update needed. It
+    // still lives forever in the call payload, on Hive L1 as the custom_json
+    // and on MAGI as the transaction, which is exactly what a memo is.
+    //
+    // `|` is STRIPPED, not escaped: it is the argument separator, so a memo
+    // containing one would split into fields the contract never expects.
+    // Newlines go too — a memo is a line, not a document.
+    const clean = memo.replace(/[|\r\n]+/g, " ").trim().slice(0, 200);
     return this.#send(Entrypoint.Transfer,
-      args(t.includes(":") ? t : `hive:${t}`, toBaseUnitArg(amount)));
+      clean
+        ? args(dest, toBaseUnitArg(amount), clean)
+        : args(dest, toBaseUnitArg(amount)));
   }
 
   async burn(amount: string): Promise<TxResult> {
@@ -784,7 +797,7 @@ export class LasseCashClient {
     const dest = to.trim().replace(/^@/, "");
     if (!dest) throw new BackendError("enter an account name");
     const A = asset.toUpperCase();
-    if (A === "LASSECASH" || A === "LC") return this.transfer(dest, amount);
+    if (A === "LASSECASH" || A === "LC") return this.transfer(dest, amount, memo);
     if (A === "HBD" || A === "HIVE") {
       if (!this.#signer?.sendNative) throw new BackendError("sending needs a wallet");
       return this.#signer.sendNative(qualifyAddress(dest), Number(amount), A as "HBD" | "HIVE", memo);

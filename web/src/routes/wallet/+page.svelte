@@ -163,6 +163,7 @@
   let sendAsset = $state("LASSECASH");
   let sendTo = $state("");
   let sendAmount = $state("");
+  let sendMemo = $state("");
   let sendErr = $state<string | null>(null);
   let sendMsg = $state<string | null>(null);
 
@@ -178,10 +179,11 @@
     sendErr = null; sendMsg = null;
     const what = `${sendAmount} ${sendAsset}`;
     const to = sendTo.trim().replace(/^@/, "");
-    const refusal = await chain.submit(() => client.sendAsset(sendAsset, to, sendAmount));
+    const refusal = await chain.submit(() => client.sendAsset(sendAsset, to, sendAmount, sendMemo));
     if (refusal) { sendErr = refusal; return; }
     sendMsg = `Sent ${what} to @${to}.`;
     sendAmount = "";
+    sendMemo = "";
     await loadOps();
   }
 
@@ -630,6 +632,27 @@
           Balance {sendBalances[sendAsset]} {sendAsset}
           <button class="maxbtn" onclick={() => (sendAmount = sendBalances[sendAsset] ?? "")}>use max</button>
         </small>
+      {/if}
+
+      <!-- Not for BTC: a mapped-asset withdrawal carries no memo field, so
+           offering one would silently discard what the user typed. -->
+      {#if sendAsset !== "BTC"}
+      <label class="field">
+        <span>Memo <span class="dim">— optional</span></span>
+        <input
+          placeholder="what it is for" bind:value={sendMemo}
+          disabled={chain.busy} maxlength="200" spellcheck="false"
+        />
+      </label>
+      <!-- PUBLIC, and said plainly. Hive users are used to memos they can
+           encrypt with a leading #; this one cannot be. It rides in the call
+           payload, which is on Hive L1 and on MAGI forever and readable by
+           anyone. Someone who assumes otherwise puts something private in it
+           exactly once. -->
+      <small class="dim">
+        Memos are public and permanent — they live in the transaction itself, and
+        unlike a Hive memo they cannot be encrypted.
+      </small>
       {/if}
 
       {#if sendErr}<p class="err">{sendErr}</p>{/if}

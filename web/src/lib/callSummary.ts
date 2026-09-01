@@ -68,7 +68,9 @@ export function describeCall(action: string, payload: string): string {
   }
 
   switch (action) {
-    case "transfer":     return `${amt(f[1])} LC to ${who(f[0])}`;
+    // Field 2 is the memo — ignored by the contract, permanent in the payload.
+    case "transfer":     return `${amt(f[1])} LC to ${who(f[0])}`
+                                + (f[2] ? ` — "${f[2]}"` : "");
     case "burn":         return `${amt(f[0])} LC burned`;
     case "mint":         return `${amt(f[0])} LC locked for ${f[1]} days`;
     case "claim_mint":   return `closed mint #${f[0]}`;
