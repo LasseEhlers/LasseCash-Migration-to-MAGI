@@ -390,8 +390,14 @@
         </div>
         <small class="dim">
           POWER does not survive migration: it becomes L-SHARES 1:1 and is the principal of a 30-day
-          migration mint. So this table shows liquid LASSECASH, the POWER that becomes L-Shares, and a
-          combined TOTAL — the other two tables keep the pre-migration balance/power split.
+          migration mint. So this table shows liquid LASSECASH and the POWER that becomes L-Shares —
+          the other two tables keep the pre-migration balance/power split.
+          <br />
+          <b>TOTAL is notional, not a balance.</b> It adds LASSECASH to L-Shares, and those are not the
+          same thing: one is money you can send, the other is voting weight and a claim on the yield
+          pool. They line up only because POWER converts 1:1 at this one moment. Read it as "what this
+          account held on Hive-Engine, restated" — it is the right number for ranking who arrived with
+          what, and the wrong number to call anyone's balance.
         </small>
 
         <div class="scroll">
@@ -405,7 +411,7 @@
                 {#if dumpMap}
                   <th class="sortable num" onclick={() => toggle(migratedSort, "principal", -1)}>Mint principal {arrow(migratedSort, "principal")}</th>
                 {/if}
-                <th class="sortable num" onclick={() => toggle(migratedSort, "total", -1)}>Total {arrow(migratedSort, "total")}</th>
+                <th class="sortable num" onclick={() => toggle(migratedSort, "total", -1)} title="LASSECASH + L-Shares. Two different units added together — see the note above the table.">Total <span class="hint">notional</span> {arrow(migratedSort, "total")}</th>
                 <th class="sortable" onclick={() => toggle(migratedSort, "badge", 1)}>Criteria {arrow(migratedSort, "badge")}</th>
               </tr>
             </thead>
@@ -568,6 +574,12 @@
     border: 1px solid currentColor;
   }
   .badge.a { color: var(--cyan); background: rgba(46, 230, 214, 0.1); }
+  /* A column whose name needs a qualifier gets one, in the header where the
+     number is read — not only in a note above the table. */
+  th .hint {
+    font-size: var(--t-micro); letter-spacing: 0.06em; text-transform: none;
+    color: var(--dimmer); font-weight: 400;
+  }
   .badge.b { color: var(--gold); background: rgba(255, 210, 63, 0.1); }
   /* Burned is a fact, not an alarm: these tokens sit at @null, they were not
      taken from anyone who was using them. Dim, not red — red on this site
