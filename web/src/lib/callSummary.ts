@@ -54,6 +54,19 @@ const MODE = ["split 20/80", "all minted", "burned"];
 export function describeCall(action: string, payload: string): string {
   const f = payload.split("|");
 
+  // Rows the account did NOT sign — money arriving. Marked with a leading "+"
+  // by the backend, because "you received" and "you sent" are the same call
+  // seen from opposite ends and the list is useless if it cannot tell them
+  // apart.
+  if (action === "+transfer") return `${amt(f[1])} LC from someone`;
+  if (action === "+ledger" || action === "ledger") {
+    const [from, to, amount, asset] = f;
+    const unit = (asset ?? "").toUpperCase();
+    return action === "+ledger"
+      ? `${amount} ${unit} from ${who(from)}`
+      : `${amount} ${unit} to ${who(to)}`;
+  }
+
   switch (action) {
     case "transfer":     return `${amt(f[1])} LC to ${who(f[0])}`;
     case "burn":         return `${amt(f[0])} LC burned`;

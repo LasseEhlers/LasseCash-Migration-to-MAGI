@@ -19,7 +19,6 @@
     A === "BTC" ? "/coins/btc.svg" :
     A === "HIVE" ? "/coins/hive.svg" :
     A === "HBD" ? "/coins/hbd.svg" :
-    A === "LIGHTNING" ? "/coins/lightning.svg" :
     null,
   );
 </script>

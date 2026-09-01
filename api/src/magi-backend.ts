@@ -885,7 +885,67 @@ export class MagiBackend implements Backend {
         });
       }
     }
-    return out;
+
+    // MONEY ARRIVING IS NOT SOMETHING YOU SIGNED.
+    //
+    // `byAccount` returns transactions this account signed, so a LASSECASH
+    // transfer INTO it — signed by the sender — appears nowhere: the balance
+    // simply changes with no row to explain it. Found 2026-09-01, when 1 LC
+    // landed correctly and looked lost.
+    //
+    // So the contract's recent calls are scanned for transfers naming this
+    // account, and the HBD/HIVE ledger is read the same way. Incoming rows
+    // are marked with a leading "+" on the action, which is all the UI needs
+    // to tell the two apart.
+    const me = qualified(account);
+    try {
+      const [incoming, ledger] = await Promise.all([
+        this.query<{ findTransaction: { id: string; anchr_ts: string; status: string;
+          ops: { type: string; data: { action?: string; payload?: string } }[] }[] }>(
+          `query($c: String!) { findTransaction(filterOptions: {byContract: $c, limit: 100}) {
+            id anchr_ts status ops { type data } } }`,
+          { c: this.#contractId },
+        ),
+        this.query<{ findTransaction: { id: string; anchr_ts: string; status: string;
+          ops: { type: string; data: Record<string, string> }[] }[] }>(
+          `query($a: String!) { findTransaction(filterOptions: {byLedgerToFrom: $a, limit: 30}) {
+            id anchr_ts status ops { type data } } }`,
+          { a: me },
+        ),
+      ]);
+
+      for (const tx of incoming.findTransaction ?? []) {
+        if (tx.status !== "CONFIRMED") continue;
+        for (const op of tx.ops ?? []) {
+          if (op.type !== "call" || op.data?.action !== "transfer") continue;
+          const payload = op.data.payload ?? "";
+          if (!payload.startsWith(`${me}|`)) continue;      // not to us
+          if (out.some((o) => o.id === tx.id)) continue;     // our own send
+          out.push({ id: tx.id, time: tx.anchr_ts, action: "+transfer", payload, status: "confirmed" });
+        }
+      }
+
+      for (const tx of ledger.findTransaction ?? []) {
+        for (const op of tx.ops ?? []) {
+          if (op.type !== "transfer") continue;
+          const incomingToUs = op.data?.["to"] === me;
+          out.push({
+            id: tx.id, time: tx.anchr_ts,
+            action: incomingToUs ? "+ledger" : "ledger",
+            payload: `${op.data?.["from"] ?? ""}|${op.data?.["to"] ?? ""}|${op.data?.["amount"] ?? ""}|${op.data?.["asset"] ?? ""}`,
+            status: tx.status === "CONFIRMED" ? "confirmed" : tx.status === "FAILED" ? "failed" : "pending",
+          });
+        }
+      }
+    } catch { /* the account's own calls are still worth showing */ }
+
+    // Newest first, and de-duplicated: a self-transfer would otherwise appear
+    // once as sent and once as received.
+    const seen = new Set<string>();
+    return out
+      .filter((o) => { const k = `${o.id}:${o.action}`; if (seen.has(k)) return false; seen.add(k); return true; })
+      .sort((a, b) => b.time.localeCompare(a.time))
+      .slice(0, limit);
   }
 
   /**

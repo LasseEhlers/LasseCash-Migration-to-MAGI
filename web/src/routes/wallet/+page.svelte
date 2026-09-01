@@ -515,28 +515,18 @@
             withdrawal is <span class="mono">0.00000546</span> BTC, Bitcoin's dust limit.
           </p>
 
-          <!-- The two things we deliberately do not do. Naming them with a way
-               to get there beats a dead end, and beats half-building someone
-               else's integration: a deposit address is issued through a
-               service we do not run, and Lightning settles into a V4VApp
-               balance. Both are Altera's to own. -->
-          <div class="elsewhere">
-            <div class="ehead">Not here — use Altera</div>
-            <a class="eopt" href="https://altera.magi.eco/deposit" target="_blank" rel="noopener">
-              <CoinIcon asset="BTC" />
-              <span>
-                <strong>Deposit Bitcoin</strong>
-                <small>Needs a per-user address MAGI issues through a service we do not run.</small>
-              </span>
-            </a>
-            <a class="eopt" href="https://altera.magi.eco/withdraw" target="_blank" rel="noopener">
-              <CoinIcon asset="LIGHTNING" />
-              <span>
-                <strong>Lightning, either way</strong>
-                <small>Settles into a Keepsats balance at V4VApp — their service, not MAGI's chain.</small>
-              </span>
-            </a>
-          </div>
+          <!-- ONE LINE, NOT A MENU. Bitcoin deposits need an address issued
+               through a service we do not run, so we name where to get one and
+               stop. Lightning and card onramps are deliberately NOT featured:
+               a Keepsats balance is custodial and a CEX takes your identity,
+               and neither belongs on a page whose whole argument is that
+               nobody holds your funds. Altera offers them; that is Altera's
+               call to make, not ours to advertise. -->
+          <p class="note">
+            <b>Getting BTC in</b> needs a deposit address MAGI issues through a service we
+            do not run — <a href="https://altera.magi.eco/deposit" target="_blank" rel="noopener">Altera handles that</a>.
+            Once it is on MAGI, everything here works on it.
+          </p>
         </div>
       {:else}
       <div class="sides">
@@ -621,7 +611,10 @@
               {#each ops as o (o.id + o.action + o.time)}
                 <tr>
                   <td class="mono dim">{when(o.time)}</td>
-                  <td class="mono dim">{o.action}</td>
+                  <td class="mono dim">
+                    {#if o.action.startsWith("+")}<span class="in">in</span>{/if}
+                    {o.action.replace(/^\+/, "")}
+                  </td>
                   <td class="clip" title={o.payload}>{describeCall(o.action, o.payload)}</td>
                   <td><span class="pill {o.status}">{o.status}</span></td>
                 </tr>
@@ -737,6 +730,7 @@
   td { padding: 0.45rem 0.7rem; border-bottom: 1px solid var(--line-soft); }
   tbody tr:last-child td { border-bottom: 0; }
   .clip { max-width: 22rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .in { color: var(--green); font-weight: 700; margin-right: 0.25rem; }
   .pill { font-family: var(--mono); font-size: var(--t-micro); padding: 0.08rem 0.4rem; border-radius: 2px; }
   .pill.confirmed { color: var(--green); border: 1px solid rgba(53, 208, 127, 0.45); }
   .pill.failed { color: var(--red); border: 1px solid rgba(255, 77, 77, 0.45); }
