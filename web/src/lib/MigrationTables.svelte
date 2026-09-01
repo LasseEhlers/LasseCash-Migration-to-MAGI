@@ -269,6 +269,23 @@
    * is the shape of the burn in one line: how many accounts held a real
    * position and lost it, and what share of the total they were.
    */
+  /**
+   * How many of the qualified accounts hold anything worth counting.
+   *
+   * Passing the liveness rule and holding tokens are different things, and
+   * the gap is wide: 175 of the 418 hold 1 LC or less, and between them they
+   * hold about 13 LC — roughly a millionth of the migration. Reporting only
+   * the 418 makes the community sound 72% larger than it is; reporting only
+   * the 243 would look like accounts had been dropped, when none were. Both
+   * numbers, with the rule that separates them, is the only honest pair.
+   *
+   * The 418 is also what the genesis post published, and what the tree was
+   * built from — the accounts holding nothing have no leaf at all, so there
+   * is literally nothing for them to claim.
+   */
+  const ONE_LC = 100_000_000n;
+  const withBalance = $derived(migratedRows.filter((r) => r.liquid + r.lshares > ONE_LC).length);
+
   const BIG_BURN = 10_000n * 100_000_000n;
   const bigBurned = $derived.by(() => {
     const big = burnedRows.filter((r) => r.total > BIG_BURN);
@@ -310,6 +327,9 @@
         <div class="panel stat">
           <div class="label">Migrated accounts</div>
           <div class="value dim">{raw.stats.migrated_accounts.toLocaleString()}</div>
+          <div class="sub">
+            met the rule · <b>{withBalance.toLocaleString()}</b> hold more than 1 LC
+          </div>
         </div>
         <div class="panel stat">
           <div class="label">Total LasseCash</div>
