@@ -489,14 +489,19 @@
            available while the Hive side was empty. -->
       <AssetChips
         assets={["HBD", "HIVE", "BTC"]} selected={bridgeAsset}
-        balances={{ HBD: hiveHbd, HIVE: hiveHive, BTC: btcBal }}
+        balances={magiBalances}
         disabled={chain.busy}
         onpick={(a) => { bridgeAsset = a as "HBD" | "HIVE" | "BTC"; hbdAmount = ""; hbdErr = null; hbdMsg = null; }}
       />
+      <!-- The chips show what is ON MAGI, like every other chip row here. They
+           used to show the Hive side, so the same green HBD mark read 3.000 in
+           this panel and 39.211 in Send — one asset, one logo, two numbers, a
+           few centimetres apart. Which side a move spends is the job of the
+           two boxes below, where the direction is actually visible. -->
       <small class="dim chipnote">
         {bridgeAsset === "BTC"
           ? "Your mapped BTC on MAGI. It leaves to a real Bitcoin address."
-          : "Balances shown are what you hold ON HIVE, which is what a deposit spends."}
+          : "Your balance on MAGI. A deposit spends the Hive side, shown below."}
       </small>
 
       {#if bridgeAsset === "BTC"}
@@ -549,14 +554,14 @@
       {:else}
       <div class="sides">
         <div class="side">
-          <span class="slabel">on Hive</span>
-          <b class="mono">{(bridgeAsset === "HBD" ? hiveHbd : hiveHive) === null ? "…" : lc((bridgeAsset === "HBD" ? hiveHbd : hiveHive)!, 3)}</b>
+          <span class="slabel">on MAGI</span>
+          <b class="mono">{lc(fromUnits(BigInt(Math.trunc(Number(bridgeAsset === "HBD" ? me.hbd : (me.hive ?? 0))))), 3)}</b>
           <span class="sunit">{bridgeAsset}</span>
         </div>
         <span class="arrow">↔</span>
         <div class="side">
-          <span class="slabel">on MAGI</span>
-          <b class="mono">{lc(fromUnits(BigInt(Math.trunc(Number(bridgeAsset === "HBD" ? me.hbd : (me.hive ?? 0))))), 3)}</b>
+          <span class="slabel">on Hive</span>
+          <b class="mono">{(bridgeAsset === "HBD" ? hiveHbd : hiveHive) === null ? "…" : lc((bridgeAsset === "HBD" ? hiveHbd : hiveHive)!, 3)}</b>
           <span class="sunit">{bridgeAsset}</span>
         </div>
       </div>
