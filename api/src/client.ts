@@ -18,6 +18,10 @@ import type {
   ResourceCredits, SwapDirection, SwapQuote, TrancheView, TxResult, Window,
 } from "./types.js";
 import { commentPermlink } from "./hive-metadata.js";
+import {
+  ASSET_SCALE, decimalToUnits, poolFor, quoteMagiSwap, swapIntent, swapPayload,
+  type MagiPool, type MagiQuote,
+} from "./magi-pools.js";
 import { constants } from "./engine.js";
 import * as engine from "./engine.js";
 import { Entrypoint } from "./types.js";
@@ -599,6 +603,63 @@ export class LasseCashClient {
   async withdrawHbd(amount: string, to?: string): Promise<TxResult> {
     if (!this.#signer?.withdrawHbd) throw new BackendError("moving HBD needs a wallet");
     return this.#signer.withdrawHbd(Number(amount), to);
+  }
+
+  /**
+   * Quote a swap on one of MAGI's own pools, from its live reserves.
+   *
+   * An ESTIMATE of somebody else's pool: our arithmetic over their published
+   * reserves and their published fee, not their code. Which is exactly why
+   * the call we build carries a `min_amount_out` the CHAIN enforces — if
+   * this number is ever wrong, the swap is refused rather than filled badly.
+   */
+  async quoteMagi(assetIn: string, assetOut: string, amountIn: string): Promise<
+    (MagiQuote & { pool: MagiPool; reserveIn: bigint; reserveOut: bigint }) | null
+  > {
+    const pool = poolFor(assetIn, assetOut);
+    if (!pool || !this.backend.magiPoolReserves) return null;
+    const res = await this.backend.magiPoolReserves(pool.contractId);
+    if (!res) return null;
+    // r0 belongs to asset0 — the pool's own init says which that is.
+    const inIsAsset0 = pool.asset0 === assetIn;
+    const reserveIn = inIsAsset0 ? res.r0 : res.r1;
+    const reserveOut = inIsAsset0 ? res.r1 : res.r0;
+    const units = decimalToUnits(amountIn || "0", ASSET_SCALE[assetIn] ?? 1_000n);
+    const q = quoteMagiSwap(reserveIn, reserveOut, units, pool.feeBps,
+      ASSET_SCALE[assetOut] ?? 1_000n);
+    return q ? { ...q, pool, reserveIn, reserveOut } : null;
+  }
+
+  /**
+   * Swap on one of MAGI's pools, with a floor the chain enforces.
+   *
+   * `slippagePct` is the user's own tolerance, applied to our estimate. The
+   * result is `min_amount_out`: the pool must pay at least that or the swap
+   * does not happen. It is never omitted and never zero.
+   */
+  async magiSwap(
+    assetIn: string, assetOut: string, amountIn: string, slippagePct: number,
+  ): Promise<TxResult> {
+    if (!this.#signer?.magiSwap) throw new BackendError("swapping needs a wallet");
+    const q = await this.quoteMagi(assetIn, assetOut, amountIn);
+    if (!q) throw new BackendError("no quote — the pool could not be read");
+    const bps = BigInt(Math.round(Math.max(0.1, Math.min(50, slippagePct)) * 100));
+    const minOut = (q.amountOutUnits * (10_000n - bps)) / 10_000n;
+    if (minOut <= 0n) throw new BackendError("amount too small to swap");
+    return this.#signer.magiSwap({
+      router: q.pool.router,
+      payload: swapPayload({
+        assetIn, assetOut,
+        amountInUnits: q.amountInUnits,
+        minOutUnits: minOut,
+        recipient: this.account ?? "",
+      }),
+      intents: [swapIntent(assetIn, q.amountInUnits)],
+      // Their pool, their gas: measured ~94 RC for a swap on this router.
+      // 3,000 is the same order as our own swap limit and errs high, since a
+      // refused call freezes the limit exactly as a successful one does.
+      rcLimit: 3_000,
+    });
   }
 
   /** Recent contract calls by this account, newest first. */

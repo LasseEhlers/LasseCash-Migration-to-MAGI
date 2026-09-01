@@ -723,6 +723,34 @@ export class MagiBackend implements Backend {
   }
 
   /**
+   * Live reserves of one of MAGI's own pools.
+   *
+   * `r0`/`r1` are read with HEX encoding — that is how the pool stores them
+   * and how Altera reads them; asking for the default encoding returns null
+   * and would look exactly like an empty pool. Verified against Altera's own
+   * Pools tab, to the unit, 2026-09-01.
+   */
+  async magiPoolReserves(contractId: string): Promise<{ r0: bigint; r1: bigint } | null> {
+    try {
+      const data = await this.query<{ getStateByKeys: Record<string, string | null> }>(
+        `query($c: String!) { getStateByKeys(contractId: $c, keys: ["r0","r1"], encoding: "hex") }`,
+        { c: contractId },
+      );
+      const r0 = data.getStateByKeys?.["r0"];
+      const r1 = data.getStateByKeys?.["r1"];
+      if (!r0 || !r1) return null;
+      const a = BigInt("0x" + r0);
+      const b = BigInt("0x" + r1);
+      // A pool with an empty side cannot be quoted; say nothing rather than
+      // divide by it.
+      if (a <= 0n || b <= 0n) return null;
+      return { r0: a, r1: b };
+    } catch {
+      return null;
+    }
+  }
+
+  /**
    * What this account holds on HIVE L1 — the other side of the bridge.
    *
    * A DEPOSIT SPENDS THIS, not the MAGI balance, and the two are easy to

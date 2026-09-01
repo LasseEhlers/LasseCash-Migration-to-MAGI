@@ -709,6 +709,28 @@ export class AiohaSigner implements Signer {
     swap_hbd_lc: 0, //   <hbdIn>|<minOut>
   };
 
+  /**
+   * A swap on one of MAGI's own pools.
+   *
+   * Same machinery as our own calls — a `vsc.call` custom_json with an
+   * ACTIVE key — pointed at a DIFFERENT contract. That is the whole
+   * difference, and it is why this is a frontend feature rather than a new
+   * trust assumption: the transaction is identical to the one Altera sends,
+   * and if MAGI ever changes the interface the call is REFUSED rather than
+   * mis-executed.
+   */
+  async magiSwap(input: {
+    router: string; payload: string; intents: unknown[]; rcLimit: number;
+  }): Promise<TxResult> {
+    const user = this.wallet.aioha.getCurrentUser();
+    if (!user) throw new BackendError("not signed in");
+    return this.wallet.broadcastCalls(
+      [{ action: "execute", payload: input.payload, rcLimit: input.rcLimit, intents: input.intents }],
+      input.router,
+      KeyTypes.Active,
+    );
+  }
+
   /** Bridging HBD is the wallet's job; the signer just exposes it. */
   depositHbd(amount: number): Promise<TxResult> { return this.wallet.depositHbd(amount); }
   withdrawHbd(amount: number, to?: string): Promise<TxResult> { return this.wallet.withdrawHbd(amount, to); }

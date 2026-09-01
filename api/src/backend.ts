@@ -30,6 +30,13 @@ export interface Signer {
   depositHbd?(amount: number): Promise<TxResult>;
   withdrawHbd?(amount: number, to?: string): Promise<TxResult>;
   /**
+   * A swap on one of MAGI's own pools. Optional: it is a call to a FOREIGN
+   * contract, so only a real wallet can make it.
+   */
+  magiSwap?(input: {
+    router: string; payload: string; intents: unknown[]; rcLimit: number;
+  }): Promise<TxResult>;
+  /**
    * Content-layer writes. Present on wallet signers only: the simulator keeps
    * its own content store, so the dev signer has no Hive to write to. A
    * backend that needs these and finds them absent must refuse, never skip —
@@ -225,6 +232,8 @@ export interface Backend {
   hiveResourceCredits?(account: string): Promise<ResourceCredits | null>;
   /** HIVE L1 balances — what a deposit to MAGI actually spends. */
   hiveBalances?(account: string): Promise<{ hbd: string; hive: string } | null>;
+  /** Live reserves of one of MAGI's own pools (not ours). */
+  magiPoolReserves?(contractId: string): Promise<{ r0: bigint; r1: bigint } | null>;
 
   /** Dev chains can move their own clock. Real nodes cannot; returns null. */
   advanceDays?(days: number): Promise<number | null>;

@@ -22,7 +22,10 @@
   import { describeCall } from "$lib/callSummary.js";
   import Seo from "$lib/Seo.svelte";
   import { SITE_OG_IMAGE, SITE_URL } from "$lib/site.js";
-  import { fromUnits, type AccountOp, type ResourceCredits } from "$api/index.js";
+  import {
+    ASSET_DP, ASSET_SCALE, counterparts, fromUnits, unitsToDecimal,
+    type AccountOp, type ResourceCredits,
+  } from "$api/index.js";
 
   // --- HBD across the bridge ------------------------------------------------
   //
@@ -54,6 +57,74 @@
       hbdErr = e instanceof Error ? e.message : String(e);
     } finally {
       hbdBusy = false;
+    }
+  }
+
+  // --- swapping on MAGI's own pools ----------------------------------------
+  //
+  // NOT OUR POOL. Their contracts, their 0.08% fee, their reserves. What we
+  // add is the quote and a floor the chain enforces; what we must never do is
+  // let any of that read as if it were ours.
+  let swapFrom = $state("HBD");
+  let swapTo = $state("BTC");
+  let swapAmount = $state("");
+  let swapSlip = $state(1);
+  let swapBusy = $state(false);
+  let swapErr = $state<string | null>(null);
+  let swapMsg = $state<string | null>(null);
+  let quote = $state<Awaited<ReturnType<typeof client.quoteMagi>>>(null);
+  let quoting = $state(false);
+
+  const swapTargets = $derived(counterparts(swapFrom));
+
+  // Keep the pair valid when the user changes the left side.
+  $effect(() => {
+    if (!swapTargets.includes(swapTo)) swapTo = swapTargets[0] ?? "HBD";
+  });
+
+  /** Re-quote whenever the pair or the amount changes. Their reserves move. */
+  $effect(() => {
+    const [f, t, a] = [swapFrom, swapTo, swapAmount];
+    if (!Number(a)) { quote = null; return; }
+    quoting = true;
+    client.quoteMagi(f, t, a)
+      .then((q) => { quote = q; })
+      .catch(() => { quote = null; })
+      .finally(() => { quoting = false; });
+  });
+
+  /** What the chain will be told to guarantee. Never omitted, never zero. */
+  const swapFloor = $derived.by(() => {
+    if (!quote) return null;
+    const bps = BigInt(Math.round(Math.max(0.1, Math.min(50, swapSlip)) * 100));
+    const units = (quote.amountOutUnits * (10_000n - bps)) / 10_000n;
+    return unitsToDecimal(units, ASSET_SCALE[swapTo] ?? 1_000n);
+  });
+
+  /** Balances we can actually check. BTC is not in the account view. */
+  const swapBalance = $derived.by(() => {
+    if (!me) return null;
+    if (swapFrom === "HBD") return Number(me.hbd) / 100_000_000;
+    return null;
+  });
+  const swapOverBalance = $derived(
+    swapBalance !== null && Number(swapAmount || "0") > swapBalance,
+  );
+
+  async function doMagiSwap() {
+    if (!quote) return;
+    swapBusy = true; swapErr = null; swapMsg = null;
+    try {
+      const res = await client.magiSwap(swapFrom, swapTo, swapAmount, swapSlip);
+      if (!res.ok) { swapErr = res.msg; return; }
+      swapMsg = `Sent. ${swapFrom} → ${swapTo} settles on MAGI within a few minutes.`;
+      swapAmount = "";
+      await chain.refresh();
+      await loadOps();
+    } catch (e) {
+      swapErr = e instanceof Error ? e.message : String(e);
+    } finally {
+      swapBusy = false;
     }
   }
 
@@ -210,6 +281,90 @@
     </section>
 
     <section class="panel">
+      <h2>Swap on MAGI</h2>
+      <p class="lede">
+        HBD, HIVE and BTC, traded on <b>MAGI's own pools</b> — their contracts, not
+        ours, and they charge <b>0.08%</b> where our LASSECASH pool charges nothing. You
+        sign each swap yourself and nobody takes custody, but read the note below for
+        what that does and does not mean.
+      </p>
+
+      <div class="swaprow">
+        <label class="pick">
+          <span>From</span>
+          <select bind:value={swapFrom} disabled={swapBusy}>
+            {#each ["HBD", "HIVE", "BTC"] as a (a)}<option value={a}>{a}</option>{/each}
+          </select>
+        </label>
+        <span class="arrow">→</span>
+        <label class="pick">
+          <span>To</span>
+          <select bind:value={swapTo} disabled={swapBusy}>
+            {#each swapTargets as a (a)}<option value={a}>{a}</option>{/each}
+          </select>
+        </label>
+      </div>
+
+      <label class="field">
+        <span>You pay — {swapFrom}</span>
+        <input inputmode="decimal" placeholder="0.000" bind:value={swapAmount} disabled={swapBusy} />
+      </label>
+      {#if swapBalance !== null}
+        <small class="dim">Balance {swapBalance.toFixed(3)} {swapFrom} on MAGI</small>
+      {/if}
+
+      {#if quote}
+        <div class="quote">
+          <div class="line">
+            <span class="dim">You receive about</span>
+            <b class="gold mono">{quote.amountOut}</b>
+            <span class="dim">{swapTo}</span>
+          </div>
+          <div class="line small">
+            <span class="dim">Price impact</span>
+            <b class="mono" class:warn={quote.priceImpact > 0.05}>{(quote.priceImpact * 100).toFixed(2)}%</b>
+            <span class="dim">· their fee {(quote.feeBps / 100).toFixed(2)}%</span>
+          </div>
+          <p class="fine">
+            Estimate, from their reserves read just now. You receive at least
+            <b class="mono">{swapFloor}</b> {swapTo} or <b>the swap is rejected</b> — the
+            chain enforces that floor, not this page.
+          </p>
+        </div>
+        <label class="field">
+          <span>Slippage tolerance — {swapSlip}%</span>
+          <input type="range" min="0.1" max="5" step="0.1" bind:value={swapSlip} disabled={swapBusy} />
+        </label>
+      {:else if quoting}
+        <p class="fine dim">Reading their pool…</p>
+      {:else if Number(swapAmount)}
+        <p class="fine dim">No quote — that pool could not be read.</p>
+      {/if}
+
+      {#if swapErr}<p class="err">{swapErr}</p>{/if}
+      {#if swapMsg}<p class="ok">{swapMsg}</p>{/if}
+      <button
+        onclick={doMagiSwap}
+        disabled={swapBusy || !quote || swapOverBalance}
+      >
+        {swapOverBalance ? `Not enough ${swapFrom}` : swapBusy ? "Signing…" : `Swap ${swapFrom} → ${swapTo}`}
+      </button>
+
+      <p class="note out">
+        <b>Whose risk is whose.</b> Our LASSECASH:HBD pool has no owner key from
+        <b>10 October</b> and charges nothing. These two are <b>MAGI's</b>: their
+        contracts keep an owner and can be updated, and both sides of HBD:HIVE are
+        bridged from Hive by the two-thirds validator multisig described below.
+        <b>BTC is mapped</b> — real Bitcoin held off-chain by a mechanism we have not
+        verified — so it carries one more layer of trust than anything else here.
+        Every swap is still a trade you sign against a contract, with no account and
+        no company holding your funds, which is more than most of the market offers.
+        It is simply not the same as our own pool, and we will not print a word that
+        blurs the two.
+      </p>
+    </section>
+
+    <section class="panel">
       <h2>HBD between Hive and MAGI</h2>
       <p class="lede">
         It is the <b>same HBD</b> — bridged, not wrapped. On MAGI it is your resource
@@ -304,56 +459,6 @@
       </section>
     {/if}
 
-    <section class="panel">
-      <h2>Beyond LASSECASH</h2>
-      <p class="lede">
-        Our pool is <b>LASSECASH:HBD</b> — that is the pair this contract owns and the
-        only one it can price. HBD then reaches everything else through MAGI's own
-        cross-chain pools, which are separate contracts run by MAGI, not by us.
-      </p>
-      <div class="routes">
-        <a class="route" href="https://altera.magi.eco/swap" target="_blank" rel="noopener">
-          <strong>HBD : HIVE</strong>
-          <span>Move between Hive's dollar and HIVE.</span>
-        </a>
-        <a class="route" href="https://altera.magi.eco/swap" target="_blank" rel="noopener">
-          <strong>BTC : HBD</strong>
-          <span>Bitcoin, on MAGI, against HBD.</span>
-        </a>
-      </div>
-      <p class="note out">
-        These open <b>Altera</b>, MAGI's own swap interface. Every swap is an on-chain
-        trade against a contract that you sign yourself — no account, no deposit with a
-        company, no permission granted to any person. But the three pools do not carry the
-        same risk, and it is worth knowing which is which before a large trade. Both of
-        MAGI's are small, a few thousand dollars each, so check price impact there exactly
-        as you would here.
-      </p>
-      <ol class="ranked">
-        <li>
-          <b>LASSECASH : HBD</b> — ours. From <b>10 October</b> the contract has no owner
-          key at all: the swap rule, the 0% fee and the reserves are frozen in code nobody
-          can replace. LASSECASH is native to that contract, so no one custodies it. The
-          HBD side is real HBD, which reaches MAGI across the bridge above.
-        </li>
-        <li>
-          <b>HBD : HIVE</b> — MAGI's contract, which <em>does</em> keep an owner and can be
-          updated. Both assets are bridged from Hive by the same two-thirds validator
-          multisig, so you rely on that set for both sides.
-        </li>
-        <li>
-          <b>BTC : HBD</b> — MAGI's contract, plus the HBD bridge, plus <b>BTC custody</b>:
-          Bitcoin on MAGI is <em>mapped</em>, meaning real BTC is held off-chain by
-          somebody. That is one more layer of trust than either pool above, and we do not
-          publish a claim about a mechanism we have not verified.
-        </li>
-      </ol>
-      <p class="note out">
-        We link rather than rebuild: putting our own front end on contracts we do not
-        control would break when theirs change, and would blur exactly the distinction
-        above — that ours is the only one of the three that becomes unchangeable.
-      </p>
-    </section>
   {/if}
 </div>
 
@@ -377,6 +482,20 @@
   .note { margin: 0; font-size: var(--t-micro); color: var(--dim); line-height: 1.6; }
   /* Gold, not red: an empty meter is a wait, not a loss. Red on this site
      means value actively being lost, and nothing here is being lost. */
+  .swaprow { display: flex; align-items: flex-end; gap: 0.8rem; flex-wrap: wrap; margin-bottom: 0.7rem; }
+  .pick { display: grid; gap: 0.3rem; }
+  .pick span { font-family: var(--mono); font-size: var(--t-micro); letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); }
+  .pick select { background: var(--panel-2); color: var(--ink); border: 1px solid var(--line); border-radius: var(--r-sm); padding: 0.45rem 0.6rem; font-family: var(--mono); }
+  .swaprow .arrow { padding-bottom: 0.5rem; }
+  .field { display: grid; gap: 0.3rem; margin: 0.6rem 0 0.2rem; }
+  .field span { font-family: var(--mono); font-size: var(--t-micro); letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); }
+  .quote { background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--r-sm); padding: 0.7rem 0.85rem; margin: 0.7rem 0; }
+  .quote .line { display: flex; align-items: baseline; gap: 0.4rem; flex-wrap: wrap; font-size: var(--t-sm); }
+  .quote .line.small { font-size: var(--t-tiny); margin-top: 0.3rem; }
+  .quote .line b.gold { font-size: var(--t-lg); }
+  .quote .warn { color: var(--amber); }
+  .fine { font-size: var(--t-micro); color: var(--dim); line-height: 1.55; margin: 0.5rem 0 0; }
+
   .sides { display: flex; align-items: center; gap: 1rem; margin-bottom: 0.8rem; flex-wrap: wrap; }
   .side { background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--r-sm); padding: 0.5rem 0.8rem; }
   .slabel { display: block; font-family: var(--mono); font-size: var(--t-micro); letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); }
