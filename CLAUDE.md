@@ -706,6 +706,35 @@ vector otherwise. Never move an escape after a tag insertion.
 Feed cards derive a cover image from the body when the author supplied none,
 falling back to a YouTube thumbnail, so a video post is not a wall of text.
 
+## ⚠️ THERE IS ONLY ONE HIVE — testing publishes to production, 2026-09-01
+
+Lasse found a junk test post on the LIVE lassecash.com feed and reasonably
+asked whether anything had leaked. **Nothing had**: the `vsc.call` went to the
+throwaway, production contract state never held the post, and the card's
+"earns from the first vote" line was the UI correctly reporting it as
+unregistered. Verified by reading `post_hive:<author>_<permlink>` on both
+contracts.
+
+**But the Hive half is shared and permanent.** A throwaway only redirects the
+CONTRACT call; the `comment` op is mainnet Hive either way. Worse, Hive sets a
+root post's category from its FIRST tag at creation, as `parent_permlink`, and
+**a category can never be edited**. The Write page puts `lassecash` first on
+every post — so every post ever made from it is permanently in the lassecash
+tag listing, and `bridge.get_ranked_posts{tag}` matches the category.
+
+Two discovery paths, only one of them recoverable:
+
+| Path | Matches | Fixable after the fact |
+|---|---|---|
+| `#boardPosts` | `json_metadata.tags` | YES — edit the post's tags |
+| `get_ranked_posts` | category (immutable) | NO — but ages out of the created-window |
+
+**Rule: never publish throwaway content from the Write page while signed in as
+a `gov_board` account.** Test the publish path with content that is harmless
+if it survives forever, or from an account below the posting threshold. The
+same applies to comments. This is not a bug to fix in code — it is what
+"tagged posts from any Hive frontend count" necessarily means.
+
 ## Comments — DECIDED 2026-08-22
 
 Lasse did not want to lose comment rewards ("a monster good valuable comment
