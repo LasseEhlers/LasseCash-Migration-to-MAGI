@@ -477,23 +477,23 @@
     It loads after the card and never blocks it, so someone who came to look
     up their own name still gets an instant answer.
   -->
-  <MigrationTables />
-
-  <!-- WHAT HAPPENED NEXT.
-       This page is the snapshot: what each account HELD at block 109,504,918
-       and could claim. It cannot say who turned up — that is a live question
-       and belongs on its own page, but anyone reading the migration data is
-       exactly the person who wants the follow-up, so the link lives here
-       rather than in a nav that is already ten items long.
+  <!-- WHAT HAPPENED NEXT — ABOVE the tables, not below them.
+       Below, it was unfindable: the tables are hundreds of rows and nobody
+       scrolls past their own answer to the very bottom. Here it sits exactly
+       where the page turns from "your answer" to "everyone's data", which is
+       the moment the question changes from what you hold to what happened.
 
        NOT "what was promised". Nothing was promised: the design is claim it
        inside the window or watch it bleed away, and a page that says promised
        hands a fair-sounding quote to anyone who misses the deadline. The
        snapshot RECORDS; it does not undertake. -->
   <p class="next">
-    That is what the snapshot <em>recorded</em>. <a href="/stats">See who has turned up →</a>
+    That is what the snapshot <em>recorded</em>, on 31 August.
+    <a href="/stats">See who has turned up since →</a>
     <span class="dim">— live from the chain, updated as people claim.</span>
   </p>
+
+  <MigrationTables />
 </div>
 
 <style>
@@ -537,9 +537,11 @@
      little air marks where "your answer" ends and "everyone's data" begins. */
   .foot:last-of-type { margin-bottom: 1.6rem; }
   dt.est, dd.est { color: var(--dim); font-style: italic; }
-  .next { margin-top: 2rem; padding-top: 1.25rem; border-top: 1px solid var(--line);
-          font-size: 0.95rem; }
-  .next a { color: var(--gold); }
+  /* A section header, not a footnote: it introduces everyone's data, so it
+     gets the rule ABOVE it and room to breathe below. */
+  .next { margin: 2rem 0 1.75rem; padding-top: 1.25rem;
+          border-top: 1px solid var(--line); font-size: 0.95rem; }
+  .next a { color: var(--gold); font-weight: 600; }
 
   @media (max-width: 560px) {
     /* The figures are long (7,001,275.990) and the labels are prose. Side by
