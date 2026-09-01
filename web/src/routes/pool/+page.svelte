@@ -542,6 +542,21 @@
       <div class="panel">
         <h2>Provide liquidity</h2>
 
+        <!-- SAID BEFORE IT BITES, not after. On MAGI a deposit spends the same
+             HBD that backs your resource credits, so an account can hold HBD it
+             cannot put in the pool in one call. That reads as a broken site
+             unless someone told you first — and it is the wall every new LP
+             walks into after depositing, claiming and swapping in one sitting.
+             Only shown when RC is actually the binding constraint, so it is
+             information rather than noise. -->
+        {#if rcIsBinding}
+          <p class="rcnote">
+            On MAGI your HBD is also your resource credits, so not all of it can
+            go in at once. <b>Max</b> knows the difference. Holding more HBD on
+            MAGI raises the meter — it is collateral, never spent.
+          </p>
+        {/if}
+
         {#if !poolReady}
           <div class="asset-field">
             <div class="asset-head">
@@ -707,6 +722,9 @@
 </div>
 
 <style>
+  .rcnote { margin: 0 0 1rem; padding: .7rem .9rem; font-size: .82rem;
+            border-left: 2px solid var(--gold-dim); color: var(--dim); }
+  .rcnote b { color: var(--gold); }
   .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 1rem; }
   @media (max-width: 720px) {
     /* Two-up rather than one tall column per figure. */
