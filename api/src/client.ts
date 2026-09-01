@@ -11,7 +11,7 @@
  */
 import { fromUnits, toBaseUnitArg, toUnits, type Amount } from "./amount.js";
 import type { Backend, Signer } from "./backend.js";
-import { BackendError, MaxSideCalls, type AccountOp, type SubmitOptions } from "./backend.js";
+import { type AccountActivity, BackendError, MaxSideCalls, type AccountOp, type SubmitOptions } from "./backend.js";
 import type {
   AccountView, ChainInfo, Content, GovernanceMember, LiquidityQuote,
   MigrationRecord, MintQuote, MintView, PoolTrade, PostVote, PostView, PublishResult,
@@ -66,6 +66,17 @@ export class LasseCashClient {
   chain(): Promise<ChainInfo> { return this.backend.chain(); }
   accountOf(name: string): Promise<AccountView> { return this.backend.account(name); }
   state(keys: string[]): Promise<Record<string, string>> { return this.backend.state(keys); }
+
+  /**
+   * Confirmed contract calls grouped by signer, newest-busiest first.
+   *
+   * Empty on the simulator, which keeps no transaction log — callers get a
+   * blank activity column rather than an error, because the rest of a stats
+   * view is still worth showing.
+   */
+  activity(limit = 2000): Promise<AccountActivity[]> {
+    return this.backend.activity ? this.backend.activity(limit) : Promise.resolve([]);
+  }
   txStatus(txId: string) { return this.backend.txStatus(txId); }
 
   /** Content, newest first. */

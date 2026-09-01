@@ -13,7 +13,7 @@
  *   - `localNodeInfo.last_processed_block` is the Hive height (3s per unit)
  */
 import { MAPPED_BALANCE_PREFIX } from "./magi-pools.js";
-import { BackendError, type AccountOp, type PoolOp, type Backend, type Signer } from "./backend.js";
+import { BackendError, type AccountActivity, type AccountOp, type PoolOp, type Backend, type Signer } from "./backend.js";
 import * as engine from "./engine.js";
 import { toUnits } from "./amount.js";
 import type { TxStatus } from "./types.js";
@@ -1020,6 +1020,61 @@ export class MagiBackend implements Backend {
     }
     // The node answers newest-first; a replay needs the opposite.
     return out.reverse();
+  }
+
+
+  /**
+   * Confirmed contract calls grouped by signer.
+   *
+   * Same walk as `poolOps` with nothing filtered out: the contract cannot
+   * enumerate accounts and keeps no activity log, so the only record of who
+   * used the chain is the transaction list itself.
+   *
+   * FAILED transactions are dropped. A refused call is not an action — it
+   * moved nothing and changed nothing, and counting it would credit someone
+   * for a mint that never happened.
+   *
+   * Posting-key calls (post, vote, comment, the sweeps) name their signer in
+   * `required_posting_auths`, NOT `required_auths` — the trap that made
+   * discovery blind to every real post on throwaway #4.
+   */
+  async activity(limit = 2000): Promise<AccountActivity[]> {
+    const by = new Map<string, { actions: Record<string, number>; calls: number; lastSeen: string }>();
+    const PAGE = 50;
+    for (let offset = 0; offset < limit; offset += PAGE) {
+      const data = await this.query<{
+        findTransaction: {
+          anchr_ts: string; status: string;
+          required_auths: string[]; required_posting_auths: string[];
+          ops: { type: string; data: { action?: string } }[];
+        }[];
+      }>(
+        `query($c: String!, $o: Int!, $l: Int!) { findTransaction(filterOptions: {byContract: $c, offset: $o, limit: $l}) {
+          anchr_ts status required_auths required_posting_auths ops { type data } } }`,
+        { c: this.#contractId, o: offset, l: PAGE },
+      );
+      const page = data.findTransaction ?? [];
+      for (const tx of page) {
+        if (tx.status !== "CONFIRMED") continue;
+        const signer = (tx.required_auths ?? [])[0] ?? (tx.required_posting_auths ?? [])[0] ?? "";
+        if (!signer) continue;
+        for (const op of tx.ops ?? []) {
+          const action = op.data?.action;
+          if (op.type !== "call" || !action) continue;
+          const row = by.get(signer) ?? { actions: {}, calls: 0, lastSeen: tx.anchr_ts };
+          row.actions[action] = (row.actions[action] ?? 0) + 1;
+          row.calls += 1;
+          // The node answers newest-first, so the FIRST time we see an account
+          // is its most recent call.
+          if (row.lastSeen < tx.anchr_ts) row.lastSeen = tx.anchr_ts;
+          by.set(signer, row);
+        }
+      }
+      if (page.length < PAGE) break;
+    }
+    return [...by.entries()]
+      .map(([account, r]) => ({ account, ...r }))
+      .sort((a, b) => b.calls - a.calls);
   }
 
   /**

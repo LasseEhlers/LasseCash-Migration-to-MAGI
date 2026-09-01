@@ -101,6 +101,26 @@ export interface SubmitOptions {
 export const MaxSideCalls = 2;
 
 /** One pool-moving contract call, exactly as the chain recorded it. */
+/**
+ * Every contract call one account has made, counted by action.
+ *
+ * The unit of the stats page: who has actually USED the chain, as opposed to
+ * who merely holds a balance. Built by walking the contract's transactions and
+ * attributing each call to its signer, because the contract itself cannot
+ * enumerate accounts and keeps no per-account activity log — nor should it,
+ * since that would be state written on every call for nobody's benefit.
+ */
+export interface AccountActivity {
+  /** Fully qualified, `hive:alice`. */
+  account: string;
+  /** action name -> how many CONFIRMED calls. */
+  actions: Record<string, number>;
+  /** Total confirmed calls. */
+  calls: number;
+  /** ISO 8601 of the most recent confirmed call. */
+  lastSeen: string;
+}
+
 export interface PoolOp {
   /** ISO 8601, UTC — when the transaction was anchored. */
   time: string;
@@ -144,6 +164,9 @@ export interface Backend {
    * constant-product formula a second time in TypeScript.
    */
   poolOps(limit?: number): Promise<PoolOp[]>;
+  /** Confirmed contract calls grouped by signer. Optional: the simulator keeps
+   *  no transaction log, so it cannot answer this. */
+  activity?(limit?: number): Promise<AccountActivity[]>;
   /** This account's recent contract calls, newest first. Optional: the
    *  simulator keeps no transaction log. */
   accountOps?(account: string, limit?: number): Promise<AccountOp[]>;
