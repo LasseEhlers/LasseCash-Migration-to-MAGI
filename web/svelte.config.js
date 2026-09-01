@@ -52,6 +52,8 @@ export default {
           // by link unfurlers. Waking a function to hand back a 1 KB constant
           // is pure waste.
           "/favicon.*",
+          // Coin logos: static files on every wallet render.
+          "/coins/*",
         ],
       },
     }),
