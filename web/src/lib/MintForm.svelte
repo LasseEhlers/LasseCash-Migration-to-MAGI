@@ -199,7 +199,13 @@
              the dollar value — writing "$" as well would be two units for one
              number. It respects the footer switch, so anyone who finds it
              noisy turns it off once and it stays off. -->
-        <div class="subline hbdline"><Hbd amount={yieldNow.perDay} /> <span class="dim">per day</span></div>
+        <!-- SIZED UP DELIBERATELY. This is the figure that turns "L-Shares"
+             and "1.63x" into something a person can feel, and it is the one
+             that makes the case for locking more and locking longer. It stays
+             a step below the LASSECASH figure — that one is what the contract
+             actually pays; this is the same number at today's pool price, and
+             the price is the part that moves. -->
+        <div class="hbdline"><Hbd amount={yieldNow.perDay} /> <span class="dim">per day</span></div>
         <div class="subline">
           <span class="dim">≈ {yieldNow.pctYear}% a year on what you lock, at today's share base</span>
         </div>
@@ -269,7 +275,12 @@
     border: 1px solid var(--line); border-radius: 2px; padding: 0.05rem 0.3rem;
   }
   .subline { font-size: 0.8rem; margin-top: 0.2rem; }
-  .hbdline { display: flex; align-items: baseline; gap: 0.3rem; }
+  .hbdline { display: flex; align-items: baseline; gap: 0.35rem; margin-top: 0.25rem; }
+  /* The Hbd component ships at --t-micro for inline use; this is a headline
+     figure, so it is raised here rather than in the component, which every
+     other page depends on staying small. */
+  .hbdline :global(.hbd) { font-size: 1.15rem; color: var(--gold-hot); }
+  .hbdline .dim { font-size: 0.78rem; }
   .yield { display: flex; align-items: baseline; gap: 0.35rem; flex-wrap: wrap; margin: 0.5rem 0 0.3rem; font-size: 0.85rem; }
   .yield b { font-size: 1.05rem; }
   .est { display: block; line-height: 1.55; margin-bottom: 0.4rem; }
