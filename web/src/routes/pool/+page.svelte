@@ -396,6 +396,12 @@
     if (sendHbdUnits > hbdSpendableUnits) {
       // Naming the balance here would be a lie: they HAVE the HBD, they just
       // cannot spend all of it in one call while it is also backing their RC.
+      // Three different situations, three different answers. Telling someone
+      // to deposit HBD they already hold, or to press a Max that is zero, is
+      // worse than saying nothing.
+      if (hbdSpendableUnits <= 0n) {
+        return "Not enough resource credits right now — they refill over 5 days, or instantly if you deposit more HBD to MAGI";
+      }
       return rcIsBinding
         ? "Too much for one deposit — on MAGI your HBD is also your resource credits. Press Max, or add more HBD (it raises the meter)."
         : "Not enough HBD on MAGI — deposit from Hive first";
