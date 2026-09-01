@@ -27,8 +27,8 @@ export interface Signer {
    * Move HBD between Hive L1 and MAGI. Optional, because only a real wallet
    * can: the simulator has no Hive side to bridge to.
    */
-  depositHbd?(amount: number): Promise<TxResult>;
-  withdrawHbd?(amount: number, to?: string): Promise<TxResult>;
+  depositHbd?(amount: number, asset?: "HBD" | "HIVE"): Promise<TxResult>;
+  withdrawHbd?(amount: number, to?: string, asset?: "HBD" | "HIVE"): Promise<TxResult>;
   /**
    * A swap on one of MAGI's own pools. Optional: it is a call to a FOREIGN
    * contract, so only a real wallet can make it.

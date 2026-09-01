@@ -20,6 +20,8 @@
   import Hbd from "$lib/Hbd.svelte";
   import SendForm from "$lib/SendForm.svelte";
   import { describeCall } from "$lib/callSummary.js";
+  import AssetChips from "$lib/AssetChips.svelte";
+  import CoinIcon from "$lib/CoinIcon.svelte";
   import Seo from "$lib/Seo.svelte";
   import { SITE_OG_IMAGE, SITE_URL } from "$lib/site.js";
   import {
@@ -38,6 +40,9 @@
   let hbdErr = $state<string | null>(null);
   /** What sits on the HIVE side. A deposit spends THIS, not the MAGI balance. */
   let hiveHbd = $state<string | null>(null);
+  let hiveHive = $state<string | null>(null);
+  /** Which asset the bridge is moving. BTC is not offered — see the note. */
+  let bridgeAsset = $state<"HBD" | "HIVE">("HBD");
 
   async function moveHbd(dir: "in" | "out") {
     const n = Number(hbdAmount);
@@ -45,12 +50,12 @@
     hbdBusy = true; hbdErr = null; hbdMsg = null;
     try {
       const res = dir === "in"
-        ? await client.depositHbd(hbdAmount)
-        : await client.withdrawHbd(hbdAmount);
+        ? await client.depositHbd(hbdAmount, bridgeAsset)
+        : await client.withdrawHbd(hbdAmount, undefined, bridgeAsset);
       if (!res.ok) { hbdErr = res.msg; return; }
       hbdMsg = dir === "in"
-        ? "Sent to the gateway. It credits your MAGI balance within a few minutes."
-        : "Withdrawal submitted. It lands on Hive within a few minutes.";
+        ? `Sent to the gateway. Your MAGI ${bridgeAsset} balance updates within a few minutes.`
+        : `Withdrawal submitted. The ${bridgeAsset} lands on Hive within a few minutes.`;
       hbdAmount = "";
       await chain.refresh();
     } catch (e) {
@@ -99,6 +104,13 @@
     const units = (quote.amountOutUnits * (10_000n - bps)) / 10_000n;
     return unitsToDecimal(units, ASSET_SCALE[swapTo] ?? 1_000n);
   });
+
+  /** What the chips show. null means "we cannot read this", never zero. */
+  const magiBalances = $derived.by((): Record<string, string | null> => ({
+    HBD: me ? (Number(me.hbd) / 100_000_000).toFixed(3) : null,
+    HIVE: me ? (Number(me.hive ?? 0) / 100_000_000).toFixed(3) : null,
+    BTC: null,
+  }));
 
   /** Balances we can actually check. BTC is not in the account view. */
   const swapBalance = $derived.by(() => {
@@ -171,7 +183,9 @@
       client.hiveResourceCredits().catch(() => null),
     ]);
     magiRc = m; hiveRc = h; meters = true;
-    hiveHbd = (await client.hiveBalances().catch(() => null))?.hbd ?? null;
+    const hb = await client.hiveBalances().catch(() => null);
+    hiveHbd = hb?.hbd ?? null;
+    hiveHive = hb?.hive ?? null;
   }
   onMount(() => { void loadMeters(); void loadOps(); });
   // Signing in on this page should fill the meters without a reload.
@@ -189,8 +203,13 @@
    * Which direction is actually possible. Each spends a different balance,
    * and a button that cannot work should not look like it can.
    */
-  const canDeposit = $derived(hiveHbd === null || Number(hiveHbd) > 0);
-  const canWithdraw = $derived(hbdOnMagi > 0);
+  const canDeposit = $derived.by(() => {
+    const side = bridgeAsset === "HBD" ? hiveHbd : hiveHive;
+    return side === null || Number(side) > 0;
+  });
+  const canWithdraw = $derived(
+    Number(bridgeAsset === "HBD" ? (me?.hbd ?? 0) : (me?.hive ?? 0)) > 0,
+  );
 </script>
 
 <Seo
@@ -353,10 +372,13 @@
           </div>
           <div class="legrow">
             <input inputmode="decimal" placeholder="0.000" bind:value={swapAmount} disabled={chain.busy} />
-            <select bind:value={swapFrom} disabled={chain.busy}>
-              {#each ["HBD", "HIVE", "BTC"] as a (a)}<option value={a}>{a}</option>{/each}
-            </select>
+            <span class="asset"><CoinIcon asset={swapFrom} /> {swapFrom}</span>
           </div>
+          <AssetChips
+            assets={["HBD", "HIVE", "BTC"]} selected={swapFrom}
+            balances={magiBalances} disabled={chain.busy}
+            onpick={(a) => { swapFrom = a; swapAmount = ""; }}
+          />
         </div>
 
         <button class="flip" onclick={flipSwap} disabled={chain.busy} aria-label="Swap direction">↓</button>
@@ -367,10 +389,13 @@
             <div class="out mono" class:dim={!quote}>
               {quote ? quote.amountOut : quoting ? "…" : "0.000"}
             </div>
-            <select bind:value={swapTo} disabled={chain.busy}>
-              {#each swapTargets as a (a)}<option value={a}>{a}</option>{/each}
-            </select>
+            <span class="asset"><CoinIcon asset={swapTo} /> {swapTo}</span>
           </div>
+          <AssetChips
+            assets={swapTargets} selected={swapTo}
+            balances={magiBalances} disabled={chain.busy}
+            onpick={(a) => (swapTo = a)}
+          />
         </div>
       </div>
 
@@ -418,7 +443,7 @@
     </section>
 
     <section class="panel">
-      <h2>HBD between Hive and MAGI</h2>
+      <h2>Move funds between Hive and MAGI</h2>
       <p class="lede">
         It is the <b>same HBD</b> — bridged, not wrapped. On MAGI it is your resource
         meter, the pool's other side, and the only way to buy LASSECASH, which makes
@@ -429,17 +454,25 @@
            the Hive one and a withdrawal spends the MAGI one. Showing only
            the MAGI figure is what let a Deposit button sit there looking
            available while the Hive side was empty. -->
+      <AssetChips
+        assets={["HBD", "HIVE", "BTC"]} selected={bridgeAsset}
+        balances={{ HBD: hiveHbd, HIVE: hiveHive, BTC: null }}
+        disabled={chain.busy}
+        onpick={(a) => { if (a !== "BTC") { bridgeAsset = a as "HBD" | "HIVE"; hbdAmount = ""; hbdErr = null; hbdMsg = null; } else { hbdErr = "BTC does not cross here — see below."; } }}
+      />
+      <small class="dim chipnote">Balances shown are what you hold ON HIVE, which is what a deposit spends.</small>
+
       <div class="sides">
         <div class="side">
           <span class="slabel">on Hive</span>
-          <b class="mono">{hiveHbd === null ? "…" : lc(hiveHbd, 3)}</b>
-          <span class="sunit">HBD</span>
+          <b class="mono">{(bridgeAsset === "HBD" ? hiveHbd : hiveHive) === null ? "…" : lc((bridgeAsset === "HBD" ? hiveHbd : hiveHive)!, 3)}</b>
+          <span class="sunit">{bridgeAsset}</span>
         </div>
         <span class="arrow">↔</span>
         <div class="side">
           <span class="slabel">on MAGI</span>
-          <b class="mono">{lc(fromUnits(BigInt(Math.trunc(Number(me.hbd)))), 3)}</b>
-          <span class="sunit">HBD</span>
+          <b class="mono">{lc(fromUnits(BigInt(Math.trunc(Number(bridgeAsset === "HBD" ? me.hbd : (me.hive ?? 0))))), 3)}</b>
+          <span class="sunit">{bridgeAsset}</span>
         </div>
       </div>
 
@@ -568,6 +601,7 @@
   .legrow input { flex: 1; background: none; border: 0; padding: 0; color: var(--ink); font-family: var(--mono); font-size: var(--t-xl); font-variant-numeric: tabular-nums; min-width: 0; }
   .legrow input:focus { outline: none; }
   .legrow select { background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: var(--r-sm); padding: 0.4rem 0.55rem; font-family: var(--mono); font-weight: 700; }
+  .asset { display: inline-flex; align-items: center; gap: 0.4rem; font-family: var(--mono); font-weight: 700; font-size: var(--t-sm); flex: none; }
   .out { flex: 1; font-size: var(--t-xl); color: var(--gold); font-variant-numeric: tabular-nums; }
   .out.dim { color: var(--dimmer); }
   .flip {
@@ -592,6 +626,7 @@
   .quote .warn { color: var(--amber); }
   .fine { font-size: var(--t-micro); color: var(--dim); line-height: 1.55; margin: 0.5rem 0 0; }
 
+  .chipnote { display: block; margin: 0.4rem 0 0.7rem; }
   .sides { display: flex; align-items: center; gap: 1rem; margin-bottom: 0.8rem; flex-wrap: wrap; }
   .side { background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--r-sm); padding: 0.5rem 0.8rem; }
   .slabel { display: block; font-family: var(--mono); font-size: var(--t-micro); letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); }

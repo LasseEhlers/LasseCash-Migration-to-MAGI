@@ -163,11 +163,15 @@ export class AiohaWallet {
    * MAGI balance to credit. ACTIVE authority, because it moves real money on
    * Hive — the wallet asks at the moment it matters.
    */
-  async depositHbd(amount: number): Promise<TxResult> {
+  async depositHbd(amount: number, asset: "HBD" | "HIVE" = "HBD"): Promise<TxResult> {
     const user = this.aioha.getCurrentUser();
     if (!user) throw new BackendError("not signed in");
+    // Same gateway, same memo, either asset — the gateway credits whatever it
+    // is sent. BTC is NOT here: a mapped asset is deposited to an address the
+    // network issues, not by a Hive transfer, and we do not guess at that.
     const res = await this.aioha.transfer(
-      AiohaWallet.HBD_GATEWAY, amount, HiveAsset.HBD, `to=${user}`,
+      AiohaWallet.HBD_GATEWAY, amount,
+      asset === "HIVE" ? HiveAsset.HIVE : HiveAsset.HBD, `to=${user}`,
     );
     return {
       ok: !!res.success,
@@ -184,10 +188,12 @@ export class AiohaWallet {
    * gateway memo to get wrong on the way out — the destination is a
    * parameter, not a string a user has to format.
    */
-  async withdrawHbd(amount: number, to?: string): Promise<TxResult> {
+  async withdrawHbd(amount: number, to?: string, asset: "HBD" | "HIVE" = "HBD"): Promise<TxResult> {
     const user = this.aioha.getCurrentUser();
     if (!user) throw new BackendError("not signed in");
-    const res = await this.aioha.vscWithdraw(to || user, amount, HiveAsset.HBD);
+    const res = await this.aioha.vscWithdraw(
+      to || user, amount, asset === "HIVE" ? HiveAsset.HIVE : HiveAsset.HBD,
+    );
     return {
       ok: !!res.success,
       msg: res.success ? "submitted" : AiohaWallet.hiveReason(res.error),
@@ -732,8 +738,8 @@ export class AiohaSigner implements Signer {
   }
 
   /** Bridging HBD is the wallet's job; the signer just exposes it. */
-  depositHbd(amount: number): Promise<TxResult> { return this.wallet.depositHbd(amount); }
-  withdrawHbd(amount: number, to?: string): Promise<TxResult> { return this.wallet.withdrawHbd(amount, to); }
+  depositHbd(amount: number, asset?: "HBD" | "HIVE"): Promise<TxResult> { return this.wallet.depositHbd(amount, asset); }
+  withdrawHbd(amount: number, to?: string, asset?: "HBD" | "HIVE"): Promise<TxResult> { return this.wallet.withdrawHbd(amount, to, asset); }
 
   /** 8dp base units -> the "1.234" HBD string an intent limit wants (3dp). */
   static hbdLimit(baseUnits: string): string {

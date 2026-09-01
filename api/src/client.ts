@@ -596,13 +596,13 @@ export class LasseCashClient {
    * account's RC meter as well as the pool's other side, so this is the one
    * operation that unblocks everything else on the site.
    */
-  async depositHbd(amount: string): Promise<TxResult> {
-    if (!this.#signer?.depositHbd) throw new BackendError("moving HBD needs a wallet");
-    return this.#signer.depositHbd(Number(amount));
+  async depositHbd(amount: string, asset: "HBD" | "HIVE" = "HBD"): Promise<TxResult> {
+    if (!this.#signer?.depositHbd) throw new BackendError("moving funds needs a wallet");
+    return this.#signer.depositHbd(Number(amount), asset);
   }
-  async withdrawHbd(amount: string, to?: string): Promise<TxResult> {
-    if (!this.#signer?.withdrawHbd) throw new BackendError("moving HBD needs a wallet");
-    return this.#signer.withdrawHbd(Number(amount), to);
+  async withdrawHbd(amount: string, to?: string, asset: "HBD" | "HIVE" = "HBD"): Promise<TxResult> {
+    if (!this.#signer?.withdrawHbd) throw new BackendError("moving funds needs a wallet");
+    return this.#signer.withdrawHbd(Number(amount), to, asset);
   }
 
   /**
