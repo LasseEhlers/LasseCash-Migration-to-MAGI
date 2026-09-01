@@ -7,9 +7,11 @@
    * what did they do once they got here? A balance says someone was given
    * tokens seven years ago. A row of actions says someone is here now.
    *
-   * PRIVATE BY NOT BEING DEPLOYED — see +page.ts. Every figure is on-chain, but
-   * a sorted leaderboard with an activity profile attached is a different thing
-   * from data that is technically queryable, and shipping it is a decision.
+   * PUBLIC, and in the nav. It started life as a private console; the argument
+   * that retired that idea is the same one that made the snapshot public — the
+   * public deserves to watch the progress on the same terms the founder does,
+   * and a figure volunteered is a disclosure while the same figure discovered
+   * is an expose.
    *
    * THREE SOURCES, none of them derived here:
    *   admin-data.json   the committed snapshot — who was entitled to what
@@ -177,13 +179,21 @@
 </script>
 
 <Seo
-  title="Who showed up"
-  description="Migration claims and on-chain activity."
+  title="Who showed up — LasseCash migration progress"
+  description="Live from the chain: who has claimed their LASSECASH on MAGI, what they have earned, and what they have done since."
   canonical={`${SITE_URL}/stats`}
-  noindex
 />
 
 <h1>Who showed up</h1>
+
+<!-- THE CLAIM FUNNEL, AT THE TOP. Someone arriving cold does not want a
+     leaderboard, they want to know whether any of this is theirs — and the
+     window for claiming while the position still EARNS closes on 30 September.
+     That question outranks every figure below it. -->
+<p class="claimcta">
+  Haven't claimed yet? <a href="/check">Check whether you're in the snapshot →</a>
+  <span class="dim">— 418 accounts qualified. Claiming before 30 September keeps the position earning.</span>
+</p>
 
 {#if error}
   <div class="panel"><p class="red"><strong>Could not load.</strong> {error}</p></div>
@@ -272,6 +282,9 @@
 
 <style>
   h1 { margin: 0 0 1rem; }
+  .claimcta { margin: 0 0 1.5rem; padding: .8rem 1rem; font-size: .95rem;
+              border: 1px solid var(--gold-dim); border-radius: 4px; }
+  .claimcta a { color: var(--gold); font-weight: 600; }
   h2 { font-size: 1rem; margin: 0 0 .75rem; }
   .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: 1rem; }
   .summary dt { font-size: .7rem; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); }

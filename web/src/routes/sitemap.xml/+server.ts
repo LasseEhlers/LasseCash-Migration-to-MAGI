@@ -32,6 +32,9 @@ export const GET: RequestHandler = async () => {
     // rather than navigate to it, and a week is not long enough to be found
     // slowly.
     { loc: `${SITE_URL}/check`, changefreq: "daily", priority: "0.9" },
+    // The live half of the migration, and now the nav entry that leads to
+    // /check. Hourly because it changes every time anyone claims.
+    { loc: `${SITE_URL}/stats`, changefreq: "hourly", priority: "0.8" },
   ];
 
   for (const p of posts) {

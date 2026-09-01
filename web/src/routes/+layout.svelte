@@ -30,10 +30,16 @@
     // check what those things did — and whether you can afford the next one.
     ["/wallet", "Wallet"],
     ["/chain", "Chain"], ["/thresholds", "Thresholds"],
-    // The roll call: for one week before the snapshot this is the most
-    // important page on the site, and it is useless to anyone who cannot find
-    // it. It stays afterwards as the permanent public record of who migrated.
-    ["/check", "Snapshot"], ["/about", "About"],
+    // WAS "Snapshot" -> /check. Before launch the roll call was the most
+    // important page on the site; after it, the frozen record matters less
+    // than what has happened since — who claimed, what they earned, whether
+    // anyone is using the thing. So the nav points at the live page and the
+    // snapshot is one click inside it.
+    //
+    // /check is still the claim funnel and the claim window runs to 30
+    // September, so Stats links to it ABOVE the fold, not in a footer. A page
+    // reached only by scrolling is a page nobody reaches.
+    ["/stats", "Stats"], ["/about", "About"],
   ]);
 
   /**
