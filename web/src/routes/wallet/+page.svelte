@@ -322,16 +322,36 @@
         </a>
       </div>
       <p class="note out">
-        These open <b>Altera</b>, MAGI's own swap interface, and the whole route is
-        <b class="green">trustless</b>: LASSECASH → HBD here and HBD → BTC or HIVE there
-        are both on-chain swaps against a contract, each signed by you at the moment it
-        happens. Nobody takes custody, nothing is an IOU, no permission is granted to any
-        person, and there is no step where someone could decline to give your money back.
-        We link rather than rebuild — putting our own front end on a contract we do not
-        control would break when theirs changes, and would hide from you that you are
-        trading in someone else's pool at someone else's fee. Both are small, a few
-        thousand dollars each, so check the price impact before a large trade exactly as
-        you would here.
+        These open <b>Altera</b>, MAGI's own swap interface. Every swap is an on-chain
+        trade against a contract that you sign yourself — no account, no deposit with a
+        company, no permission granted to any person. But the three pools do not carry the
+        same risk, and it is worth knowing which is which before a large trade. Both of
+        MAGI's are small, a few thousand dollars each, so check price impact there exactly
+        as you would here.
+      </p>
+      <ol class="ranked">
+        <li>
+          <b>LASSECASH : HBD</b> — ours. From <b>10 October</b> the contract has no owner
+          key at all: the swap rule, the 0% fee and the reserves are frozen in code nobody
+          can replace. LASSECASH is native to that contract, so no one custodies it. The
+          HBD side is real HBD, which reaches MAGI across the bridge above.
+        </li>
+        <li>
+          <b>HBD : HIVE</b> — MAGI's contract, which <em>does</em> keep an owner and can be
+          updated. Both assets are bridged from Hive by the same two-thirds validator
+          multisig, so you rely on that set for both sides.
+        </li>
+        <li>
+          <b>BTC : HBD</b> — MAGI's contract, plus the HBD bridge, plus <b>BTC custody</b>:
+          Bitcoin on MAGI is <em>mapped</em>, meaning real BTC is held off-chain by
+          somebody. That is one more layer of trust than either pool above, and we do not
+          publish a claim about a mechanism we have not verified.
+        </li>
+      </ol>
+      <p class="note out">
+        We link rather than rebuild: putting our own front end on contracts we do not
+        control would break when theirs change, and would blur exactly the distinction
+        above — that ours is the only one of the three that becomes unchangeable.
       </p>
     </section>
   {/if}
@@ -391,5 +411,11 @@
   .route strong { display: block; font-family: var(--mono); color: var(--gold); letter-spacing: 0.06em; }
   .route span { display: block; margin-top: 0.3rem; font-size: var(--t-micro); color: var(--dim); }
   .note.out { margin-top: 0.9rem; max-width: 76ch; }
+  .ranked { margin: 0.9rem 0 0; padding-left: 1.2rem; display: grid; gap: 0.65rem; }
+  .ranked li { font-size: var(--t-sm); color: var(--dim); line-height: 1.6; max-width: 78ch; }
+  .ranked b { color: var(--ink); }
+  .ranked li::marker { color: var(--gold-dim); font-family: var(--mono); }
+
+
   .warn { margin: 1rem 0 0; font-size: var(--t-sm); color: var(--gold); line-height: 1.6; }
 </style>
