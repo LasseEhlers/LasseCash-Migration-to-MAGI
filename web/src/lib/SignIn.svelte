@@ -64,14 +64,14 @@
         // usefully do on any other page. Even the reader who followed a Hive
         // link to vote on a post cannot vote until they claim, so leaving
         // them there would be leaving them somewhere that does not work.
-        if (here !== "/") await goto("/");
+        if (here !== "/mint") await goto("/mint");
         return;
       }
       // A CLAIMED account can act anywhere, so it is only sent to the feed
       // when it is not already somewhere specific — a post or a profile is a
       // destination the user chose, and throwing it away would be rude.
       const specific = page.route.id?.startsWith("/[account=at]") ?? false;
-      if (!specific && here !== "/feed") await goto("/feed");
+      if (!specific && here !== "/") await goto("/");
     } catch { /* a convenience, never an error */ }
   }
 

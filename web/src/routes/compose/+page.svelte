@@ -204,7 +204,7 @@
     <div class="panel done">
       <strong class="gold">Published.</strong>
       Registered as <code>{published}</code> — the payout window is open.
-      <a href="/feed">See it in the feed →</a>
+      <a href="/">See it in the feed →</a>
     </div>
   {/if}
 

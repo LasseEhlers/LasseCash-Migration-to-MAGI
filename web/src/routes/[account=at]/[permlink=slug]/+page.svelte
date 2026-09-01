@@ -129,7 +129,7 @@
 />
 
 <div class="grid">
-  <a class="back" href="/feed">← Feed</a>
+  <a class="back" href="/">← Feed</a>
 
   {#if !a.registered && !a.published}
     <p class="empty"><strong>Not found.</strong> This post is not registered on-chain.</p>

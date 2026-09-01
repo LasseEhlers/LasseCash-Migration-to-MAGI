@@ -169,7 +169,7 @@
       // successful claim lands on the feed rather than leaving the claimant
       // staring at the page whose one job they just finished. The mint is on
       // Mint whenever they want it; nothing here is hidden by moving on.
-      await goto("/feed");
+      await goto("/");
     }
   }
 </script>

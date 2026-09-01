@@ -23,7 +23,7 @@ export const GET: RequestHandler = async () => {
 
   const entries: Entry[] = [
     { loc: `${SITE_URL}/`, changefreq: "daily", priority: "0.8" },
-    { loc: `${SITE_URL}/feed`, changefreq: "hourly", priority: "1.0" },
+    { loc: SITE_URL, changefreq: "hourly", priority: "1.0" },
     { loc: `${SITE_URL}/about/short`, changefreq: "monthly", priority: "0.8" },
     { loc: `${SITE_URL}/about/full`, changefreq: "monthly", priority: "0.7" },
     { loc: `${SITE_URL}/chain`, changefreq: "hourly", priority: "0.6" },

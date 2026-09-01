@@ -25,7 +25,7 @@
   // Pre-launch the nav is the two pages that are actually true today. See
   // +layout.ts — the rest redirect, so linking them would be a dead end.
   const navLinks = $derived(PRELAUNCH ? [["/check", "Snapshot"], ["/about", "About"]] : [
-    ["/feed", "Feed"], ["/compose", "Write"], ["/", "Mint"], ["/pool", "Pool"],
+    ["/", "Feed"], ["/compose", "Write"], ["/mint", "Mint"], ["/pool", "Pool"],
     ["/chain", "Chain"], ["/thresholds", "Thresholds"],
     // The roll call: for one week before the snapshot this is the most
     // important page on the site, and it is useless to anyone who cannot find
