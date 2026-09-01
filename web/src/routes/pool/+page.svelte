@@ -78,9 +78,14 @@
   );
 
   /**
-   * Pool APY for a brand-new depositor, day one, before any loyalty bonus —
-   * the honest number, not one inflated by blending in already-loyal
+   * Pool APY for a deposit made right now, at 1.00x loyalty, before any bonus
+   * — the honest number, not one inflated by blending in already-loyal
    * tranches sharing the same pool at up to 1.9x weight.
+   *
+   * The caption says "at 1.00x loyalty" and not "day one", which Lasse read
+   * as the CHAIN's first day (2026-09-01). It is the DEPOSIT's first day, and
+   * a phrase that has to be explained is a phrase that is wrong: the
+   * multiplier says the same thing and cannot be read as a date.
    *
    * ESTIMATE, computed by `engine.PoolAPY` (the formula lives in Go, never
    * here): exact emission numerator, live reserves/weight denominator — the
@@ -370,7 +375,7 @@
     <div class="panel stat">
       <div class="label">Pool APY</div>
       <div class="value gold">{poolApy !== null ? fractionPct(poolApy) : "—"}</div>
-      <div class="sub">new deposit, day one — estimate, moves with the pool</div>
+      <div class="sub">at 1.00x loyalty, before the bonus — estimate, moves with the pool</div>
     </div>
     <div class="panel stat">
       <div class="label">Pool reserves</div>

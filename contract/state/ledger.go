@@ -87,6 +87,29 @@ func Transfer(s Store, ctx Ctx, to string, amt engine.Amount) Result {
 	if to == "" || to == ctx.Sender {
 		return fail("invalid recipient")
 	}
+	// THE RECIPIENT MUST BE A QUALIFIED ADDRESS, and this refusal is the whole
+	// protection.
+	//
+	// Balances are keyed by the address exactly as the SDK renders a sender —
+	// `hive:alice`, never `alice` — so crediting a bare name creates a balance
+	// under a key NO SIGNER CAN EVER MATCH. ctx.Sender always carries its
+	// namespace, so nobody can sign for `bal_alice`, ever.
+	//
+	// It happened on the live chain 2026-09-01: `transfer daneamanda|1000`
+	// was CONFIRMED and stranded 1,000 LC permanently. The call succeeded, the
+	// sender was debited, and the money went somewhere with no owner.
+	//
+	// We REFUSE rather than prepend `hive:`. Prepending guesses intent, and a
+	// mistyped `did:pkh:` address would be silently rewritten into a Hive name
+	// that may belong to someone else. A refusal costs the caller a failed
+	// transaction; a guess can cost them the balance.
+	//
+	// This is exactly the class of bug the key burn makes permanent: after 10
+	// October a bare name would strand funds forever, for every client, with
+	// no warning and no recovery.
+	if !strings.Contains(to, ":") {
+		return fail("recipient must be a full address, e.g. hive:alice")
+	}
 	if !debit(s, ctx.Sender, amt) {
 		return fail("insufficient balance")
 	}

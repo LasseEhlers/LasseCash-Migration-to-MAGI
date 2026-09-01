@@ -147,3 +147,44 @@ func TestFundPoolRefusesWhatItShould(t *testing.T) {
 	}
 	auditSupply(t, s)
 }
+
+// TestTransferRefusesUnqualifiedRecipient pins the refusal that stops a
+// transfer from stranding money at an address nobody can sign for.
+//
+// It happened on the live chain on 2026-09-01: `transfer daneamanda|1000` was
+// CONFIRMED and put 1,000 LC under `bal_daneamanda`. Balances are keyed by the
+// address exactly as the SDK renders a sender — always namespaced — so no
+// ctx.Sender can ever equal a bare name and the balance is unspendable
+// forever. The call reported success while the money went nowhere.
+//
+// After the key burn this would be permanent, for every client, with no
+// recovery. So the contract refuses instead of guessing.
+func TestTransferRefusesUnqualifiedRecipient(t *testing.T) {
+	s, ctx := newChain(t)
+	if r := creditLiquid(s, "hive:alice", lc(1_000)); !r.OK {
+		t.Fatalf("seed: %s", r.Msg)
+	}
+	ctx.Sender = "hive:alice"
+
+	if r := Transfer(s, ctx, "bob", lc(100)); r.OK {
+		t.Fatal("a bare name was accepted; it strands the money forever")
+	}
+	if got := Balance(s, "bob"); got != 0 {
+		t.Fatalf("bare name was credited %d — this is the stranding bug", got)
+	}
+	if got := Balance(s, "hive:alice"); got != lc(1_000) {
+		t.Fatalf("sender debited by a refused transfer: %d", got)
+	}
+
+	// The qualified form still works, and so does a non-Hive namespace: the
+	// rule is "has a namespace", not "is a Hive account".
+	if r := Transfer(s, ctx, "hive:bob", lc(100)); !r.OK {
+		t.Fatalf("qualified transfer refused: %s", r.Msg)
+	}
+	if r := Transfer(s, ctx, "did:pkh:eip155:1:0xabc", lc(100)); !r.OK {
+		t.Fatalf("did: address refused: %s", r.Msg)
+	}
+	if got := Balance(s, "hive:bob"); got != lc(100) {
+		t.Fatalf("hive:bob got %d, want %d", got, lc(100))
+	}
+}

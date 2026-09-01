@@ -388,8 +388,26 @@ export class LasseCashClient {
   // Amounts are typed by the user as decimals and converted here — the single
   // point where human input becomes chain input.
 
+  /**
+   * Send LASSECASH to another account.
+   *
+   * THE RECIPIENT IS QUALIFIED HERE, and it is not cosmetic. Balances are
+   * keyed by the address exactly as the SDK renders a sender — `hive:alice`,
+   * never `alice` — so a bare name creates a balance under a key that no
+   * signer can ever match. On 2026-09-01 `transfer daneamanda|1000` was
+   * CONFIRMED on the live chain and stranded 1,000 LC permanently: the call
+   * succeeded, the sender was debited, and the money landed somewhere with no
+   * owner.
+   *
+   * The contract now refuses a bare name outright, which is the real fix. This
+   * is the second layer: a person typing a username into a send box means the
+   * Hive account, and should not have to know the chain's addressing rules to
+   * avoid losing their balance.
+   */
   async transfer(to: string, amount: string): Promise<TxResult> {
-    return this.#send(Entrypoint.Transfer, args(to, toBaseUnitArg(amount)));
+    const t = to.trim().replace(/^@/, "");
+    return this.#send(Entrypoint.Transfer,
+      args(t.includes(":") ? t : `hive:${t}`, toBaseUnitArg(amount)));
   }
 
   async burn(amount: string): Promise<TxResult> {
