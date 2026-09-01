@@ -12,7 +12,7 @@
  *     quotes are produced without broadcasting
  *   - `localNodeInfo.last_processed_block` is the Hive height (3s per unit)
  */
-import { BackendError, type PoolOp, type Backend, type Signer } from "./backend.js";
+import { BackendError, type AccountOp, type PoolOp, type Backend, type Signer } from "./backend.js";
 import * as engine from "./engine.js";
 import { toUnits } from "./amount.js";
 import type { TxStatus } from "./types.js";
@@ -768,6 +768,43 @@ export class MagiBackend implements Backend {
     });
     const body = (await res.json()) as { result?: T };
     return body.result ?? null;
+  }
+
+  /**
+   * This account's recent contract calls, newest first.
+   *
+   * The answer to "did that go through?", which is otherwise a GraphQL query
+   * nobody should have to write. Status comes from the chain, and a FAILED
+   * row is kept rather than hidden: a refusal is the most useful row on the
+   * list, because it is the one the user is looking for.
+   */
+  async accountOps(account: string, limit = 30): Promise<AccountOp[]> {
+    const addr = qualified(account);
+    const data = await this.query<{
+      findTransaction: {
+        id: string; anchr_ts: string; status: string;
+        required_auths: string[]; required_posting_auths: string[];
+        ops: { type: string; data: { action?: string; payload?: string } }[];
+      }[];
+    }>(
+      `query($a: String!, $l: Int!) { findTransaction(filterOptions: {byAccount: $a, limit: $l}) {
+        id anchr_ts status required_auths required_posting_auths ops { type data } } }`,
+      { a: addr, l: Math.min(100, limit) },
+    );
+    const out: AccountOp[] = [];
+    for (const tx of data.findTransaction ?? []) {
+      for (const op of tx.ops ?? []) {
+        if (op.type !== "call" || !op.data?.action) continue;
+        out.push({
+          id: tx.id,
+          time: tx.anchr_ts,
+          action: op.data.action,
+          payload: op.data.payload ?? "",
+          status: tx.status === "CONFIRMED" ? "confirmed" : tx.status === "FAILED" ? "failed" : "pending",
+        });
+      }
+    }
+    return out;
   }
 
   /**

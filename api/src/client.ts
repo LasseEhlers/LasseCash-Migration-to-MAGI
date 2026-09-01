@@ -11,7 +11,7 @@
  */
 import { fromUnits, toBaseUnitArg, toUnits, type Amount } from "./amount.js";
 import type { Backend, Signer } from "./backend.js";
-import { BackendError, MaxSideCalls, type SubmitOptions } from "./backend.js";
+import { BackendError, MaxSideCalls, type AccountOp, type SubmitOptions } from "./backend.js";
 import type {
   AccountView, ChainInfo, Content, GovernanceMember, LiquidityQuote,
   MigrationRecord, MintQuote, MintView, PoolTrade, PostVote, PostView, PublishResult,
@@ -583,6 +583,29 @@ export class LasseCashClient {
   /** Record a consensus member's standing preference for a parameter. */
   async setParam(key: string, value: string | number): Promise<TxResult> {
     return this.#send(Entrypoint.SetParam, args(key, value));
+  }
+
+  /**
+   * Move HBD between Hive L1 and MAGI.
+   *
+   * MAGI's HBD is the same HBD — it is bridged, not wrapped — and it is the
+   * account's RC meter as well as the pool's other side, so this is the one
+   * operation that unblocks everything else on the site.
+   */
+  async depositHbd(amount: string): Promise<TxResult> {
+    if (!this.#signer?.depositHbd) throw new BackendError("moving HBD needs a wallet");
+    return this.#signer.depositHbd(Number(amount));
+  }
+  async withdrawHbd(amount: string, to?: string): Promise<TxResult> {
+    if (!this.#signer?.withdrawHbd) throw new BackendError("moving HBD needs a wallet");
+    return this.#signer.withdrawHbd(Number(amount), to);
+  }
+
+  /** Recent contract calls by this account, newest first. */
+  accountOps(limit = 30): Promise<AccountOp[]> {
+    const who = this.account;
+    if (!who || !this.backend.accountOps) return Promise.resolve([]);
+    return this.backend.accountOps(who, limit);
   }
 
   /** An account's resource credits, or null if the backend cannot report them. */

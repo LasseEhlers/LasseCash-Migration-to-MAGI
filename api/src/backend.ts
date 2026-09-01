@@ -24,6 +24,12 @@ export interface Signer {
    */
   submit(entrypoint: string, args: string, opts?: SubmitOptions): Promise<TxResult>;
   /**
+   * Move HBD between Hive L1 and MAGI. Optional, because only a real wallet
+   * can: the simulator has no Hive side to bridge to.
+   */
+  depositHbd?(amount: number): Promise<TxResult>;
+  withdrawHbd?(amount: number, to?: string): Promise<TxResult>;
+  /**
    * Content-layer writes. Present on wallet signers only: the simulator keeps
    * its own content store, so the dev signer has no Hive to write to. A
    * backend that needs these and finds them absent must refuse, never skip —
@@ -99,6 +105,15 @@ export interface PoolOp {
   signer: string;
 }
 
+/** One contract call this account signed, as the chain recorded it. */
+export interface AccountOp {
+  id: string;
+  time: string;
+  action: string;
+  payload: string;
+  status: "confirmed" | "failed" | "pending";
+}
+
 /** Read access to chain state. */
 export interface Backend {
   readonly name: string;
@@ -117,6 +132,9 @@ export interface Backend {
    * constant-product formula a second time in TypeScript.
    */
   poolOps(limit?: number): Promise<PoolOp[]>;
+  /** This account's recent contract calls, newest first. Optional: the
+   *  simulator keeps no transaction log. */
+  accountOps?(account: string, limit?: number): Promise<AccountOp[]>;
   posts(limit?: number): Promise<PostView[]>;
   /**
    * The same list, CONTENT ONLY — no payout figures, and therefore no engine.

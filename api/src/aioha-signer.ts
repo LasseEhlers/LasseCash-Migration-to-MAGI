@@ -15,7 +15,7 @@
  * cannot move funds. Anything touching value uses ACTIVE authority, so a site
  * compromise cannot drain an account that only ever granted posting.
  */
-import { Aioha, KeyTypes, Providers } from "@aioha/aioha";
+import { Aioha, Asset as HiveAsset, KeyTypes, Providers } from "@aioha/aioha";
 import { BackendError, MaxSideCalls, type Signer, type SubmitOptions } from "./backend.js";
 import { commentMetadata, postMetadata } from "./hive-metadata.js";
 import type { TxResult } from "./types.js";
@@ -154,6 +154,46 @@ export class AiohaWallet {
 
   logout(): Promise<unknown> {
     return this.aioha.logout();
+  }
+
+  /**
+   * Move HBD from Hive L1 onto MAGI.
+   *
+   * An ordinary Hive transfer to the gateway, with the memo that says whose
+   * MAGI balance to credit. ACTIVE authority, because it moves real money on
+   * Hive — the wallet asks at the moment it matters.
+   */
+  async depositHbd(amount: number): Promise<TxResult> {
+    const user = this.aioha.getCurrentUser();
+    if (!user) throw new BackendError("not signed in");
+    const res = await this.aioha.transfer(
+      AiohaWallet.HBD_GATEWAY, amount, HiveAsset.HBD, `to=${user}`,
+    );
+    return {
+      ok: !!res.success,
+      msg: res.success ? "submitted" : AiohaWallet.hiveReason(res.error),
+      height: 0,
+      txId: res.success && typeof res.result === "string" ? res.result : undefined,
+    };
+  }
+
+  /**
+   * Move HBD from MAGI back to Hive L1.
+   *
+   * `vscWithdraw` is Aioha's own supported call for this, so there is no
+   * gateway memo to get wrong on the way out — the destination is a
+   * parameter, not a string a user has to format.
+   */
+  async withdrawHbd(amount: number, to?: string): Promise<TxResult> {
+    const user = this.aioha.getCurrentUser();
+    if (!user) throw new BackendError("not signed in");
+    const res = await this.aioha.vscWithdraw(to || user, amount, HiveAsset.HBD);
+    return {
+      ok: !!res.success,
+      msg: res.success ? "submitted" : AiohaWallet.hiveReason(res.error),
+      height: 0,
+      txId: res.success && typeof res.result === "string" ? res.result : undefined,
+    };
   }
 
   /**
@@ -326,6 +366,21 @@ export class AiohaWallet {
       return null;
     }
   }
+  /**
+   * The Hive account that bridges HBD between Hive L1 and MAGI.
+   *
+   * VERIFIED against its own history, 2026-09-01: deposits are ordinary Hive
+   * transfers to this account carrying the memo `to=<hive username>`, and
+   * withdrawals come back out of it. Not guessed — read from real transfers
+   * by real accounts, including the 12 HBD that funded @lassecashmagi.
+   *
+   * ⚠️ THE MEMO IS THE ADDRESS. A deposit without it, or with the wrong name
+   * in it, is a transfer to a stranger — there is no refund path and no
+   * support desk. Every caller here builds the memo from the signed-in
+   * account rather than from anything a user typed.
+   */
+  static readonly HBD_GATEWAY = "vsc.gateway";
+
   /** RC every hive: account has without staking anything on MAGI (rc-system/). */
   static readonly FREE_RC = 10_000;
 
@@ -637,6 +692,10 @@ export class AiohaSigner implements Signer {
     add_liquidity: 1, // <lcAmount>|<maxHbd>
     swap_hbd_lc: 0, //   <hbdIn>|<minOut>
   };
+
+  /** Bridging HBD is the wallet's job; the signer just exposes it. */
+  depositHbd(amount: number): Promise<TxResult> { return this.wallet.depositHbd(amount); }
+  withdrawHbd(amount: number, to?: string): Promise<TxResult> { return this.wallet.withdrawHbd(amount, to); }
 
   /** 8dp base units -> the "1.234" HBD string an intent limit wants (3dp). */
   static hbdLimit(baseUnits: string): string {

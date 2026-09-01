@@ -21,7 +21,49 @@
   import SendForm from "$lib/SendForm.svelte";
   import Seo from "$lib/Seo.svelte";
   import { SITE_OG_IMAGE, SITE_URL } from "$lib/site.js";
-  import { fromUnits, type ResourceCredits } from "$api/index.js";
+  import { fromUnits, type AccountOp, type ResourceCredits } from "$api/index.js";
+
+  // --- HBD across the bridge ------------------------------------------------
+  //
+  // MAGI's HBD is the SAME HBD, bridged rather than wrapped. It is the RC
+  // meter, the pool's other side, and the only way to buy LASSECASH — which
+  // makes moving it the one operation that unblocks everything else here.
+  let hbdAmount = $state("");
+  let hbdBusy = $state(false);
+  let hbdMsg = $state<string | null>(null);
+  let hbdErr = $state<string | null>(null);
+
+  async function moveHbd(dir: "in" | "out") {
+    const n = Number(hbdAmount);
+    if (!Number.isFinite(n) || n <= 0) { hbdErr = "Enter an amount"; return; }
+    hbdBusy = true; hbdErr = null; hbdMsg = null;
+    try {
+      const res = dir === "in"
+        ? await client.depositHbd(hbdAmount)
+        : await client.withdrawHbd(hbdAmount);
+      if (!res.ok) { hbdErr = res.msg; return; }
+      hbdMsg = dir === "in"
+        ? "Sent to the gateway. It credits your MAGI balance within a few minutes."
+        : "Withdrawal submitted. It lands on Hive within a few minutes.";
+      hbdAmount = "";
+      await chain.refresh();
+    } catch (e) {
+      hbdErr = e instanceof Error ? e.message : String(e);
+    } finally {
+      hbdBusy = false;
+    }
+  }
+
+  // --- recent activity ------------------------------------------------------
+  let ops = $state<AccountOp[]>([]);
+  async function loadOps() {
+    if (!chain.account) return;
+    try { ops = await client.accountOps(30); } catch { ops = []; }
+  }
+  const when = (iso: string) =>
+    new Date(iso + "Z").toLocaleString(undefined, {
+      month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
+    });
 
   const me = $derived(chain.me);
 
@@ -37,7 +79,7 @@
     ]);
     magiRc = m; hiveRc = h; meters = true;
   }
-  onMount(loadMeters);
+  onMount(() => { void loadMeters(); void loadOps(); });
   // Signing in on this page should fill the meters without a reload.
   $effect(() => { if (chain.account && !meters) void loadMeters(); });
 
@@ -158,6 +200,63 @@
     </section>
 
     <section class="panel">
+      <h2>HBD between Hive and MAGI</h2>
+      <p class="lede">
+        It is the <b>same HBD</b> — bridged, not wrapped. On MAGI it is your resource
+        meter, the pool's other side, and the only way to buy LASSECASH, which makes
+        this the one move that unblocks everything else on the site.
+      </p>
+      <div class="hbdform">
+        <input
+          inputmode="decimal" placeholder="0.000" bind:value={hbdAmount}
+          disabled={hbdBusy} aria-label="HBD amount"
+        />
+        <button onclick={() => moveHbd("in")} disabled={hbdBusy}>Deposit to MAGI</button>
+        <button class="ghost" onclick={() => moveHbd("out")} disabled={hbdBusy}>Withdraw to Hive</button>
+      </div>
+      {#if hbdErr}<p class="err">{hbdErr}</p>{/if}
+      {#if hbdMsg}<p class="ok">{hbdMsg}</p>{/if}
+      <p class="note">
+        A deposit is a Hive transfer to <span class="mono">vsc.gateway</span> carrying the
+        memo that names your account — the page builds that memo from your signed-in name,
+        never from anything typed, because a wrong memo is a transfer to a stranger with no
+        refund path. Both directions ask for your <b>active</b> key, and both take a few
+        minutes to appear.
+      </p>
+      <p class="note">
+        <b>Want BTC?</b> Sell LASSECASH for HBD here, then swap HBD for BTC on
+        <a href="https://altera.magi.eco/swap" target="_blank" rel="noopener">Altera</a>.
+        Both legs are on-chain swaps you sign yourself — nobody takes custody of your funds
+        at any point, and no account or permission is granted to anyone.
+      </p>
+    </section>
+
+    {#if ops.length}
+      <section class="panel">
+        <h2>Recent activity</h2>
+        <small class="dim">
+          Your last {ops.length} contract calls, newest first — including the ones the chain
+          refused, which are the rows worth having.
+        </small>
+        <div class="scroll">
+          <table>
+            <thead><tr><th>When</th><th>Call</th><th>Details</th><th>Status</th></tr></thead>
+            <tbody>
+              {#each ops as o (o.id + o.action + o.time)}
+                <tr>
+                  <td class="mono dim">{when(o.time)}</td>
+                  <td class="mono">{o.action}</td>
+                  <td class="mono dim clip">{o.payload}</td>
+                  <td><span class="pill {o.status}">{o.status}</span></td>
+                </tr>
+              {/each}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    {/if}
+
+    <section class="panel">
       <h2>Beyond LASSECASH</h2>
       <p class="lede">
         Our pool is <b>LASSECASH:HBD</b> — that is the pair this contract owns and the
@@ -175,11 +274,16 @@
         </a>
       </div>
       <p class="note out">
-        These open <b>Altera</b>, MAGI's own swap interface. We link rather than rebuild:
-        putting our own front end on a contract we do not control means our page breaks
-        when theirs changes, and it would hide the fact that you are trading in someone
-        else's pool. Both are small — a few thousand dollars each — so check the price
-        impact before a large trade, the same way you would here.
+        These open <b>Altera</b>, MAGI's own swap interface, and the whole route is
+        <b class="green">trustless</b>: LASSECASH → HBD here and HBD → BTC or HIVE there
+        are both on-chain swaps against a contract, each signed by you at the moment it
+        happens. Nobody takes custody, nothing is an IOU, no permission is granted to any
+        person, and there is no step where someone could decline to give your money back.
+        We link rather than rebuild — putting our own front end on a contract we do not
+        control would break when theirs changes, and would hide from you that you are
+        trading in someone else's pool at someone else's fee. Both are small, a few
+        thousand dollars each, so check the price impact before a large trade exactly as
+        you would here.
       </p>
     </section>
   {/if}
@@ -205,6 +309,22 @@
   .note { margin: 0; font-size: var(--t-micro); color: var(--dim); line-height: 1.6; }
   /* Gold, not red: an empty meter is a wait, not a loss. Red on this site
      means value actively being lost, and nothing here is being lost. */
+  .hbdform { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-bottom: 0.5rem; }
+  .hbdform input { flex: 1 1 10rem; min-width: 8rem; }
+  .err { color: var(--red); font-size: var(--t-sm); margin: 0.4rem 0 0; }
+  .ok { color: var(--green); font-size: var(--t-sm); margin: 0.4rem 0 0; }
+
+  .scroll { overflow-x: auto; margin-top: 0.7rem; }
+  table { border-collapse: collapse; width: 100%; min-width: 34rem; font-size: var(--t-tiny); }
+  th { text-align: left; font-family: var(--mono); font-size: var(--t-micro); letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); padding: 0.5rem 0.7rem; border-bottom: 1px solid var(--line); }
+  td { padding: 0.45rem 0.7rem; border-bottom: 1px solid var(--line-soft); }
+  tbody tr:last-child td { border-bottom: 0; }
+  .clip { max-width: 22rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pill { font-family: var(--mono); font-size: var(--t-micro); padding: 0.08rem 0.4rem; border-radius: 2px; }
+  .pill.confirmed { color: var(--green); border: 1px solid rgba(53, 208, 127, 0.45); }
+  .pill.failed { color: var(--red); border: 1px solid rgba(255, 77, 77, 0.45); }
+  .pill.pending { color: var(--dim); border: 1px solid var(--line); }
+
   .routes { display: grid; gap: 0.7rem; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); }
   .route {
     display: block; text-decoration: none;
