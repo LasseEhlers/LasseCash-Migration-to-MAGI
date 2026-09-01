@@ -232,7 +232,7 @@
                  hbd_savings and hive_consensus only; a mapped asset lives in
                  its own contract and is not readable from here yet. A zero
                  would be a claim we cannot support — the dash is the truth. -->
-            <div class="sub">not reported by the node yet · swappable above</div>
+            <div class="sub">not reported by the node yet · swappable below</div>
           </div>
           <div class="panel stat">
             <div class="label">HBD</div>
