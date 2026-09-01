@@ -12,7 +12,10 @@
   import { chain, client } from "$lib/chain.svelte.js";
   import { toUnits } from "$api/index.js";
   import { lc, mult } from "$lib/format.js";
-  import { constants, mintQuote, toBaseUnitArg, Param, type EngineMintQuote } from "$api/index.js";
+  import {
+    constants, dailyRewards, estimateRewardShare, mintQuote, toBaseUnitArg, Param,
+    type EngineMintQuote,
+  } from "$api/index.js";
   import { readGovernance } from "$lib/governance.js";
 
   const C = $derived(chain.ready ? constants() : null);
@@ -70,6 +73,42 @@
   const overBalance = $derived(
     !!preview?.ok && safeUnits(amount) > toUnits(balance),
   );
+  /**
+   * What this mint would earn per day at TODAY'S share base.
+   *
+   * Every number crosses the engine: the daily L-Share slice from
+   * `dailyRewards`, the split from `estimateRewardShare`. The only arithmetic
+   * here is turning LC/day into a percentage for display, which is
+   * presentation, not economics.
+   *
+   * Null unless the chain and a valid preview are both loaded — an estimate
+   * built on a missing denominator is a wrong number, not a rough one.
+   */
+  const yieldNow = $derived.by(() => {
+    const info = chain.info;
+    if (!info || !preview?.ok || !chain.ready) return null;
+    try {
+      const daily = dailyRewards(info.genesis_height, info.height).lshare;
+      const mine = toBaseUnitArg(preview.shares);
+      // The mint is not live yet, so it joins the denominator.
+      const total = (BigInt(toBaseUnitArg(info.total_shares)) + BigInt(mine)).toString();
+      if (BigInt(total) <= 0n) return null;
+      const perDay = estimateRewardShare(toBaseUnitArg(daily), mine, total);
+      const locked = Number(amount);
+      if (!locked) return null;
+      const pctYear = ((Number(perDay) * 365) / locked * 100).toFixed(1);
+      return { perDay, pctYear };
+    } catch { return null; }
+  });
+
+  /** The day-30 cliff is close enough to change what this estimate means. */
+  const cliffSoon = $derived.by(() => {
+    const info = chain.info;
+    if (!info) return false;
+    const days = (info.height - info.genesis_height) / 28_800;
+    return days < 45;
+  });
+
   const canSubmit = $derived(
     !!chain.account && !!preview?.ok && !overBalance && !chain.busy && !confirming,
   );
@@ -139,16 +178,54 @@
 
   {#if preview}
     <div class="preview" class:invalid={!preview.ok}>
-      <div class="headline">
-        <span class="dim">You receive</span>
-        <strong class="gold mono">{lc(preview.shares)}</strong>
-        <span class="dim">L-Shares</span>
-      </div>
+      <!-- THE YIELD IS THE HEADLINE, because it is what someone is actually
+           buying. L-Shares are the mechanism, not the outcome — leading with
+           them made "1.50x" read like a 50% return on the money instead of a
+           bigger slice of a daily pool.
+           But the hierarchy must not blur the golden rule's split: the yield
+           is an ESTIMATE (it divides a pool among shares that keep changing)
+           and the share count is EXACT (a pure function of what you lock). So
+           the estimate is big and labelled, and the exact figure stays. -->
+      {#if yieldNow}
+        <div class="headline">
+          <span class="dim">Earns about</span>
+          <strong class="gold mono big">{lc(yieldNow.perDay, 3)}</strong>
+          <span class="dim">LC / day</span>
+          <span class="chip">estimate</span>
+        </div>
+        <div class="subline">
+          <span class="dim">≈ {yieldNow.pctYear}% a year on what you lock, at today's share base</span>
+        </div>
+        <div class="subline">
+          <span class="dim">for</span>
+          <b class="mono">{lc(preview.shares)}</b>
+          <span class="dim">L-Shares — exact, frozen at creation</span>
+        </div>
+      {:else}
+        <div class="headline">
+          <span class="dim">You receive</span>
+          <strong class="gold mono">{lc(preview.shares)}</strong>
+          <span class="dim">L-Shares</span>
+        </div>
+      {/if}
       <div class="bonuses">
         <span>Longer pays better <b class="mono">{mult(preview.durationMultiplier)}</b></span>
         <span>Bigger pays better <b class="mono">{mult(preview.volumeMultiplier)}</b></span>
         <span class="combined">Combined <b class="mono gold">{mult(preview.combinedMultiplier)}</b></span>
       </div>
+      {#if yieldNow}
+        <small class="dim est">
+          <b>Estimate.</b> Your slice depends on every other live L-Share, and that
+          denominator moves whenever anyone mints or a mint matures — it is not a rate
+          anyone promises you. It also assumes the shares stay live: they retire at
+          maturity, so a short mint earns for a short time.
+          {#if cliffSoon}
+            <b class="gold">Every migration mint matures on 30 September</b>, retiring most
+            of the network's shares at once — whoever holds shares after that divides the
+            same pool between far fewer of them.
+          {/if}
+        </small>
+      {/if}
       <small class="dim">
         Share rate {lc(shareRate, 5)} LC per share. It only ever rises — 7% a year.
       </small>
@@ -164,6 +241,16 @@
 
 <style>
   .ends { display: flex; justify-content: space-between; font-size: 0.72rem; margin-top: 0.2rem; }
+  .headline .big { font-size: 1.7rem; line-height: 1.1; }
+  .chip {
+    font-family: var(--mono); font-size: var(--t-micro); letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--dim);
+    border: 1px solid var(--line); border-radius: 2px; padding: 0.05rem 0.3rem;
+  }
+  .subline { font-size: 0.8rem; margin-top: 0.2rem; }
+  .yield { display: flex; align-items: baseline; gap: 0.35rem; flex-wrap: wrap; margin: 0.5rem 0 0.3rem; font-size: 0.85rem; }
+  .yield b { font-size: 1.05rem; }
+  .est { display: block; line-height: 1.55; margin-bottom: 0.4rem; }
   .preview {
     background: var(--panel-2); border: 1px solid var(--line);
     border-radius: 8px; padding: 0.85rem; margin-bottom: 0.9rem;
