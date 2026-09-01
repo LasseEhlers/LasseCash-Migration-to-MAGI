@@ -369,15 +369,21 @@
             The account SIGNED a LASSECASH operation on Hive-Engine within the
             {raw.window_months}-month window — a transfer, a stake, an unstake, a delegation.
             Holding the token was never enough and being active elsewhere on Hive was never
-            enough: {migratedRows.length} of {migratedRows.length} accounts qualified this way.
-            Hive active-key timestamps are collected and published for the audit trail, but
-            they qualify nobody.
+            enough: <b>{migratedRows.length} of {migratedRows.length}</b> accounts qualified
+            this way. Hive active-key timestamps are collected and published for the audit
+            trail, but they qualify nobody.
           </div>
-          <div class="legend-row">
-            <span class="badge a">unresolved</span>
-            Fail-open: the history walk never finished, so the account migrated unproven.
-            A scan that ran out of pages is not evidence of death — nobody is burned on
-            missing data. None in this snapshot.
+          <div class="legend-row plain">
+            <!-- The fail-open rule bound for no one, so it gets no badge — a
+                 legend explains symbols that appear in the table. It is still
+                 stated, because it is a promise the snapshot kept and reading
+                 the criterion without it makes the rule look harsher than it
+                 was. The snapshot is committed and final, so "none" is not a
+                 count that can change later. -->
+            Nobody was burned on missing data. An account whose history walk never
+            finished would have migrated <em>unproven</em> — a scan that ran out of pages
+            is not evidence of death. That safeguard was never needed here: every
+            qualifying account was resolved, and signed.
           </div>
         </div>
         <small class="dim">
@@ -552,6 +558,8 @@
   }
   .legend-row { display: flex; gap: 0.55rem; align-items: flex-start; font-size: var(--t-sm); color: var(--dim); }
   .legend-row .badge { flex-shrink: 0; margin-top: 0.05rem; }
+  /* A stated rule rather than a key to a symbol: no swatch to align to. */
+  .legend-row.plain { padding-left: 0.1rem; }
 
   /* The committed snapshot facts: label left, value right, one per row. */
   .facts { margin: 0.9rem 0 0; display: grid; gap: 1px; background: var(--line-soft); border: 1px solid var(--line-soft); }
