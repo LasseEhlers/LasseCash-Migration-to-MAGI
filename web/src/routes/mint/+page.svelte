@@ -4,7 +4,6 @@
   import { displayName, lc, lcShort, durationWords } from "$lib/format.js";
   import ClaimMigration from "$lib/ClaimMigration.svelte";
   import MintForm from "$lib/MintForm.svelte";
-  import SendForm from "$lib/SendForm.svelte";
   import MintCard from "$lib/MintCard.svelte";
   import RateChart from "$lib/RateChart.svelte";
   import Hbd from "$lib/Hbd.svelte";
@@ -219,7 +218,6 @@
 
     <aside class="side">
       <MintForm />
-      <SendForm />
 
       {#if chain.info}
         <div class="panel">
