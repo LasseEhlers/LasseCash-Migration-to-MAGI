@@ -215,14 +215,25 @@
           <span class="dim">L-Shares</span>
         </div>
       {/if}
-      <div class="bonuses">
-        <span>Longer pays better <b class="mono">{mult(preview.durationMultiplier)}</b></span>
-        <span>Bigger pays better <b class="mono">{mult(preview.volumeMultiplier)}</b></span>
-        <span class="combined">
-          Combined <b class="mono gold">{mult(preview.combinedMultiplier)}</b>
-          <span class="on">on your L-Shares</span>
-        </span>
-      </div>
+      <!-- Label left, number right. These are figures a reader COMPARES — is
+           the duration bonus or the size bonus doing the work — and a column
+           of right-aligned tabular digits is the only layout that lets them
+           be compared at a glance. Inline values put each number at a
+           different x position, which is what made this read as clutter. -->
+      <dl class="bonuses">
+        <div class="brow">
+          <dt>Longer pays better</dt>
+          <dd class="mono">{mult(preview.durationMultiplier)}</dd>
+        </div>
+        <div class="brow">
+          <dt>Bigger pays better</dt>
+          <dd class="mono">{mult(preview.volumeMultiplier)}</dd>
+        </div>
+        <div class="brow combined">
+          <dt>Combined<small>on your L-Shares</small></dt>
+          <dd class="mono gold">{mult(preview.combinedMultiplier)}</dd>
+        </div>
+      </dl>
       {#if yieldNow}
         <small class="dim est">
           <b>Estimate.</b> Your slice depends on every other live L-Share, and that
@@ -269,15 +280,16 @@
   .preview.invalid { opacity: 0.5; }
   .headline { display: flex; align-items: baseline; gap: 0.5rem; flex-wrap: wrap; }
   .headline strong { font-size: 1.55rem; }
-  .bonuses {
-    display: flex; gap: 1rem; flex-wrap: wrap; align-items: baseline;
-    margin: 0.5rem 0 0.4rem; font-size: 0.8rem; color: var(--dim);
+  .bonuses { margin: 0.6rem 0 0.5rem; display: grid; gap: 0.3rem; }
+  .brow {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 1rem;
+    font-size: 0.8rem; color: var(--dim);
   }
-  .bonuses b { color: var(--ink); font-size: 1rem; }
-  .bonuses .combined b { font-size: 1.15rem; }
-  .combined { margin-left: auto; }
-  /* The one label that stops "1.50x" being read as 50% on the money. */
-  .on { font-size: var(--t-micro); color: var(--dimmer); margin-left: 0.25rem; }
+  .brow dt { display: flex; flex-direction: column; }
+  .brow dt small { font-size: var(--t-micro); color: var(--dimmer); }
+  .brow dd { margin: 0; color: var(--ink); font-size: 1rem; font-variant-numeric: tabular-nums; }
+  .brow.combined { border-top: 1px solid var(--line-soft); padding-top: 0.4rem; margin-top: 0.1rem; }
+  .brow.combined dd { font-size: 1.2rem; }
   .err { color: var(--red); font-size: 0.86rem; margin: 0 0 0.7rem; }
   button { width: 100%; }
 </style>
