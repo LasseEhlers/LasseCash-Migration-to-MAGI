@@ -280,6 +280,32 @@
     } catch { return 0n; }
   });
 
+  /**
+   * Why "Swap" is disabled, or null when it is ready to send.
+   *
+   * THE BALANCE CHECK IS THE POINT. Without it a swap larger than the
+   * account holds reached the wallet, was signed, and was refused on-chain
+   * with "insufficient LASSECASH" — @angeloextreme, 1,000 LC against a 900
+   * balance, 2026-09-01. Nothing was lost (the contract is the backstop it
+   * is supposed to be), but the user paid RC, waited 90 seconds and got an
+   * error for something the page already knew was impossible. The mint form
+   * grew the identical guard on 2026-08-22; the swap panel never did.
+   *
+   * Both directions: selling spends LASSECASH, buying spends real HBD.
+   */
+  const swapDisabledReason = $derived.by((): string | null => {
+    if (!poolReady) return "Pool is empty";
+    let inUnits: bigint;
+    try { inUnits = toUnits(amountIn || "0"); } catch { return "Enter an amount"; }
+    if (inUnits <= 0n) return "Enter an amount";
+    if (!me) return null; // signed out: the button already says "Sign in to swap"
+    if (sellingLC && inUnits > toUnits(me.balance)) return "Not enough LASSECASH";
+    if (!sellingLC && inUnits > hbdBalanceUnits) return "Not enough HBD on MAGI";
+    if (!quote?.ok) return "No quote";
+    if (outBelowHbdStep) return "Too small — rounds to zero HBD";
+    return null;
+  });
+
   /** Why "Add liquidity" is disabled, or null when the deposit is ready to send. */
   const insufficientReason = $derived.by((): string | null => {
     if (!me) return null;
@@ -422,8 +448,8 @@
       {/if}
 
       {#if swapError}<p class="err">{swapError}</p>{/if}
-      <button onclick={doSwap} disabled={!chain.account || !poolReady || !quote?.ok || outBelowHbdStep || chain.busy}>
-        {chain.account ? "Swap" : "Sign in to swap"}
+      <button onclick={doSwap} disabled={!chain.account || !!swapDisabledReason || chain.busy}>
+        {chain.account ? (swapDisabledReason ?? "Swap") : "Sign in to swap"}
       </button>
     </section>
 
