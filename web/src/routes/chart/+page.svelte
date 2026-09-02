@@ -132,7 +132,7 @@
       </div>
 
       <dl class="stats">
-        <div><dt>Depth</dt><dd class="mono">{lc(last.lcReserve, 2)} LC · {lc(last.hbdReserve, 3)} HBD</dd></div>
+        <div><dt>Depth</dt><dd class="mono">{lc(last.lcReserve, 0)} LC · {lc(last.hbdReserve, 3)} HBD</dd></div>
         <div><dt>Trades</dt><dd class="mono">{swaps.length}</dd></div>
         <div><dt>Volume</dt><dd class="mono">{lc(String(volumeLc), 2)} LC</dd></div>
         {#if low && high}
@@ -230,7 +230,14 @@
                   {:else}<span class="dim">—</span>{/if}
                 </td>
                 <!-- A buy is the one row where amountIn is the HBD side. -->
-                <td class="num mono">{lc(t.side === "buy" ? t.amountOut : t.amountIn, 3)}</td>
+                <!-- WHOLE LASSECASH in this table. Trades here run from 10 to
+                     11,700, and at today's price a whole LASSECASH is about half
+                     a cent — three decimals were a sub-half-cent tail on every
+                     row. Deliberately NOT the site-wide default: the same
+                     setting would render a 4.300 LC/day yield as "4", and a
+                     0.9 LC pending balance as "0" when that 0.9 is exactly what
+                     decides whether it mints or rolls over. -->
+                <td class="num mono">{lc(t.side === "buy" ? t.amountOut : t.amountIn, 0)}</td>
                 <!-- THREE DECIMALS, because that is all HBD has. Hive holds it
                      as "1.098 HBD" and MAGI moves it in milli-units — there is
                      no such thing as 0.107721 HBD. Our own contract settles the
@@ -241,7 +248,7 @@
                      small to shift a milli now reads 0.000, which is exactly
                      what it paid. -->
                 <td class="num mono">{lc(t.side === "buy" ? t.amountIn : t.amountOut, 3)}</td>
-                <td class="num mono">{lc(t.lcReserve, 2)}</td>
+                <td class="num mono">{lc(t.lcReserve, 0)}</td>
                 <td class="num mono">{lc(t.hbdReserve, 3)}</td>
                 <td class="num mono gold">{lc(t.price, 8)}</td>
               </tr>
