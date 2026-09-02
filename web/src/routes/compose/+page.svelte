@@ -13,8 +13,12 @@
    *     whole reward, so it is confirmed rather than clicked.
    */
   import { goto } from "$app/navigation";
+  import { onMount } from "svelte";
   import { chain, client } from "$lib/chain.svelte.js";
   import { lc } from "$lib/format.js";
+  import { compare } from "$api/amount.js";
+  import { constants } from "$api/engine.js";
+  import { readGovernedValue } from "$lib/governance.js";
   import { renderMarkdown } from "$lib/markdown.js";
   import { PayoutMode, Window, permlinkFor } from "$api/index.js";
   import { wallet } from "$lib/chain.svelte.js";
@@ -47,11 +51,51 @@
   let linkTouched = $state(false);
   const permlink = $derived(linkTouched ? permlinkFor(link) : permlinkFor(title));
 
+  /**
+   * THE POSTING THRESHOLD, CHECKED BEFORE ANYTHING IS WRITTEN TO HIVE.
+   *
+   * Publishing is ONE transaction: the Hive `comment` and the contract call
+   * travel together. Hive accepts its half immediately; MAGI settles seconds
+   * later and can refuse. So an author below the threshold ends up with a post
+   * ON HIVE that is not registered here — the orphan the publish order was
+   * designed to avoid, arriving through the other end.
+   *
+   * It happened twice on 2026-09-02: @lazzvi's "new-to-lassecash" and
+   * @tonyz's "amsterdam" are both on Hive and on no LasseCash pool. They were
+   * told "need 100000000000 L-Shares", which is the contract's raw base units
+   * and means 1,000.
+   *
+   * Comments already preflight this. Posts did not.
+   *
+   * NULL MEANS NOT KNOWN — the chain has not answered yet. A preflight that
+   * cannot read the threshold refuses to promise anything rather than assume
+   * the post will be accepted, which is the same rule Comments follows.
+   */
+  let thresholdViral = $state<string | null>(null);
+  let thresholdDeep = $state<string | null>(null);
+  const threshold = $derived(window_ === 1 ? thresholdDeep : thresholdViral);
+  const clearsThreshold = $derived.by(() => {
+    if (!chain.me || threshold === null) return null;
+    return compare(chain.me.shares, threshold) >= 0;
+  });
+
+  onMount(async () => {
+    if (!chain.ready) return;
+    const c = constants();
+    const [v, d] = await Promise.all([
+      readGovernedValue(c.paramPostThresholdViral),
+      readGovernedValue(c.paramPostThresholdDeep),
+    ]);
+    thresholdViral = v ? v.value : null;
+    thresholdDeep = d ? d.value : null;
+  });
+
   const canPublish = $derived(
     !!chain.account &&
       title.trim().length > 0 &&
       permlink.length > 0 &&
       !chain.busy &&
+      clearsThreshold === true &&
       (mode !== PayoutMode.Burn || burnConfirmed),
   );
 
@@ -393,6 +437,17 @@
         chain says what you need.
       </small>
       {#if error}<p class="err">{error}</p>{/if}
+      {#if chain.account && clearsThreshold === false}
+        <p class="gate">
+          <strong>You need {lc(threshold ?? "0", 0)} L-Shares to post
+          {window_ === 1 ? "deep" : "viral"}.</strong>
+          You hold {lc(chain.me?.shares ?? "0", 0)}. Publishing would put the
+          post on Hive and leave it unregistered here, so it is blocked before
+          anything is written. <a href="/mint">Lock LASSECASH to get L-Shares →</a>
+        </p>
+      {:else if chain.account && clearsThreshold === null}
+        <p class="gate dim">Reading the posting threshold from the chain…</p>
+      {/if}
       <button onclick={publish} disabled={!canPublish}>
         {#if !chain.account}Sign in to publish
         {:else if chain.busy}Publishing…
@@ -418,6 +473,10 @@
 
   .windows { display: flex; gap: 0.6rem; margin-bottom: 0.6rem; }
   .note.only strong { color: var(--gold); }
+  .gate { margin: 0 0 .75rem; padding: .7rem .9rem; font-size: .82rem; line-height: 1.55;
+          border: 1px solid var(--gold-dim); border-radius: 4px; }
+  .gate strong { color: var(--gold); }
+  .gate a { color: var(--gold); }
   .win {
     flex: 1; display: flex; flex-direction: column; gap: 0.15rem;
     background: transparent; border: 1px solid var(--line); color: var(--dim);

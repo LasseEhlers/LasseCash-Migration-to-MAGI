@@ -46,6 +46,23 @@
   const canAfford = $derived(power !== null && Number(cost) <= Number(power));
 
   /**
+   * A VOTE WITH NO L-SHARES IS A REFUSAL, AND THE PAGE HAD NO IDEA.
+   *
+   * Vote power and vote weight are different things. Someone who has never
+   * minted has a FULL power meter — regeneration does not care whether you
+   * hold anything — but weight is `shares x power spent`, so their vote is
+   * worth exactly nothing and the contract refuses it: "no L-Shares, no vote
+   * weight".
+   *
+   * canAfford only ever checked the meter, so the button was enabled and the
+   * call could not succeed. It happened four times on 2026-09-02 alone, to
+   * @tonyz, @lazzvi and @condeas — @condeas being the pool's first outside
+   * LP, who has real money in the pool and still could not vote. Each attempt
+   * cost them RC and told them nothing.
+   */
+  const hasShares = $derived(!!me && Number(me.shares) > 0);
+
+  /**
    * ESTIMATE of what this vote adds to the post's payout.
    *
    * rshares are exact; converting them to LASSECASH divides a pool that is
@@ -154,9 +171,18 @@
       </button>
     {/if}
     {#if error}<p class="err">{error}</p>{/if}
-    <button class="small" onclick={cast} disabled={!canAfford || chain.busy}>
-      {canAfford ? "Cast vote" : "Not enough vote power"}
+    <button class="small" onclick={cast} disabled={!hasShares || !canAfford || chain.busy}>
+      {#if !hasShares}Mint to get vote weight
+      {:else if !canAfford}Not enough vote power
+      {:else}Cast vote{/if}
     </button>
+    {#if !hasShares}
+      <p class="noshares">
+        A vote's weight is your L-Shares × the power you spend, so with none it
+        would count for nothing and the chain refuses it.
+        <a href="/mint">Lock LASSECASH to get L-Shares →</a>
+      </p>
+    {/if}
     <!-- SAID AS THE GAIN, NOT THE LOSS, and the gain is the true half.
          Every Hive-Engine veteran expects Scotbot behaviour — it read Hive and
          computed rewards off-chain, so voting from PeakD paid you here. That
@@ -191,6 +217,8 @@
   .here { margin: 0.6rem 0 0; font-size: 0.68rem; color: var(--dim); line-height: 1.5;
           border-top: 1px solid var(--line); padding-top: 0.5rem; }
   .here b { color: var(--gold); }
+  .noshares { margin: 0.5rem 0 0; font-size: 0.7rem; color: var(--dim); line-height: 1.5; }
+  .noshares a { color: var(--gold); }
   .err { color: var(--red); font-size: 0.8rem; margin: 0.3rem 0; }
   .voter > button:last-child { width: 100%; margin-top: 0.4rem; }
 </style>
