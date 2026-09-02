@@ -132,9 +132,9 @@
       </div>
 
       <dl class="stats">
-        <div><dt>Depth</dt><dd class="mono">{lc(last.lcReserve, 0)} LC · {lc(last.hbdReserve, 3)} HBD</dd></div>
+        <div><dt>Depth</dt><dd class="mono">{lc(last.lcReserve, 0)} LASSECASH · {lc(last.hbdReserve, 3)} HBD</dd></div>
         <div><dt>Trades</dt><dd class="mono">{swaps.length}</dd></div>
-        <div><dt>Volume</dt><dd class="mono">{lc(String(volumeLc), 2)} LC</dd></div>
+        <div><dt>Volume</dt><dd class="mono">{lc(String(volumeLc), 0)} LASSECASH</dd></div>
         {#if low && high}
           <div><dt>Low / high</dt><dd class="mono">{lc(low.price, 8)} · {lc(high.price, 8)}</dd></div>
         {/if}
@@ -216,7 +216,7 @@
                    asset on every row, and the badge says which way it moved. -->
               <th>Time</th><th>Event</th><th>Trader</th>
               <th class="num">LASSECASH</th><th class="num">HBD</th>
-              <th class="num">LC reserve</th><th class="num">HBD reserve</th><th class="num">Price after</th>
+              <th class="num">LASSECASH reserve</th><th class="num">HBD reserve</th><th class="num">Price after</th>
             </tr>
           </thead>
           <tbody>
