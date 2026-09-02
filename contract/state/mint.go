@@ -14,6 +14,27 @@ import "github.com/lassecash/engine"
 const (
 	MinDurationDays = engine.MinMintDays
 	MaxDurationDays = engine.MaxMintDays
+
+	// DefaultDurationDays is the length of the monthly Proof-of-Brain mint for
+	// an account that has never chosen one.
+	//
+	// WAS THE MAXIMUM, 1,095 DAYS. Changed 2026-09-02, before any account had
+	// accrued a single unit of pending earnings, so nobody is relocked
+	// retroactively.
+	//
+	// Three years earns the most — the full 1.50x from Longer Pays Better —
+	// which is exactly why it was chosen, and exactly why it was wrong. A
+	// default is not an opportunity to give somebody the best deal; it is what
+	// happens to people who never saw the question. A three-year lock nobody
+	// chose is not a good deal, it is a three-year lock nobody chose, and it
+	// cannot be shortened afterwards because a mint's length is frozen at
+	// creation.
+	//
+	// Thirty days matches the migration mint every single holder has just
+	// lived through, so it is the one length they already understand. It is
+	// recoverable in a month; 1,095 days is not recoverable at all. Anyone who
+	// wants the 1.50x sets it deliberately, which is the right way round.
+	DefaultDurationDays = engine.MigrationMintDays
 )
 
 // GetMint loads one mint.
@@ -49,11 +70,11 @@ func addShares(s Store, account string, d engine.Shares) {
 }
 
 // MintDuration returns the mint length an account chose in settings, used for
-// the monthly Proof-of-Brain mint. Defaults to the full three years.
+// the monthly Proof-of-Brain mint. Defaults to DefaultDurationDays.
 func MintDuration(s Store, account string) int64 {
 	v := get(s, durationKey(account))
 	if v == nil {
-		return MaxDurationDays
+		return DefaultDurationDays
 	}
 	d := decI64(*v)
 	if d < MinDurationDays {

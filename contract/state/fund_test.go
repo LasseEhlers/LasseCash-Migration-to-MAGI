@@ -1,6 +1,10 @@
 package state
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/lassecash/engine"
+)
 
 // Funding exists because emission ENDS and recycling feeds only the L-Share
 // pool. Without it, Proof-of-Brain and liquidity have no funding source once
@@ -186,5 +190,50 @@ func TestTransferRefusesUnqualifiedRecipient(t *testing.T) {
 	}
 	if got := Balance(s, "hive:bob"); got != lc(100) {
 		t.Fatalf("hive:bob got %d, want %d", got, lc(100))
+	}
+}
+
+// TestMonthlyMintDefaultsToThirtyDays pins the default an account gets when it
+// has never chosen a length.
+//
+// It was the MAXIMUM, 1,095 days, which is the best-earning choice and the
+// wrong default: a three-year lock nobody selected cannot be shortened, because
+// a mint's length is frozen at creation. Changed 2026-09-02, before any account
+// had accrued a unit of pending earnings.
+//
+// The test pins both halves — the default AND that an explicit choice still
+// wins — because the failure that matters is a change here silently overriding
+// what someone deliberately set.
+func TestMonthlyMintDefaultsToThirtyDays(t *testing.T) {
+	s, ctx := newChain(t)
+
+	if got := MintDuration(s, "hive:newcomer"); got != 30 {
+		t.Fatalf("an account that never chose gets %d days, want 30", got)
+	}
+	if got := MintDuration(s, "hive:newcomer"); got != engine.MigrationMintDays {
+		t.Fatalf("default %d should be the migration mint length %d — the one "+
+			"length every holder has already lived through", got, engine.MigrationMintDays)
+	}
+
+	// An explicit choice still wins, at both ends of the range.
+	for _, days := range []int64{1, 365, MaxDurationDays} {
+		c := ctx
+		c.Sender = "hive:chooser"
+		if r := SetMintDuration(s, c, days); !r.OK {
+			t.Fatalf("setting %d days: %s", days, r.Msg)
+		}
+		if got := MintDuration(s, "hive:chooser"); got != days {
+			t.Fatalf("chose %d, got %d", days, got)
+		}
+	}
+
+	// And out of range is refused rather than clamped, so the caller sees it.
+	c := ctx
+	c.Sender = "hive:chooser"
+	if r := SetMintDuration(s, c, MaxDurationDays+1); r.OK {
+		t.Fatal("accepted a duration above the maximum")
+	}
+	if r := SetMintDuration(s, c, 0); r.OK {
+		t.Fatal("accepted a zero duration")
 	}
 }
