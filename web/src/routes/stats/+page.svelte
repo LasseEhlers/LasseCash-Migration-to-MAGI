@@ -294,8 +294,7 @@
         <table>
           <thead><tr>
             <th class="num">#</th><th>Account</th>
-            <th class="num">Total LC</th><th class="num">L-Shares at claim</th>
-            <th class="num">L-Shares now</th><th class="num">Earned</th><th>Did</th>
+            <th class="num">Total LC</th><th class="num">L-Shares at claim</th><th>Did</th>
           </tr></thead>
           <tbody>
             {#each (showAllClaimed ? claimed : claimed.slice(0, 40)) as r, i}
@@ -304,8 +303,6 @@
                 <td><a href="/@{r.account}">@{r.account}</a></td>
                 <td class="num mono">{amt(r.entitledTotal)}</td>
                 <td class="num mono dim">{amt(r.entitledStaked)}</td>
-                <td class="num mono" class:zero={r.sharesNow === 0n}>{amt(r.sharesNow)}</td>
-                <td class="num mono" class:zero={r.earned === 0n} class:gold={r.earned > 0n}>{amt(r.earned)}</td>
                 <td class="kinds">
                   {#each r.kinds as k}<b>{k}</b>{/each}
                   {#if r.kinds.length <= 1}<span class="dim">— claim only</span>{/if}
