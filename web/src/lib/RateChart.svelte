@@ -45,7 +45,10 @@
   const yMaxRaw = $derived(points.length ? Math.max(...points.map((p) => p.y)) : 1);
   // Headroom so the curve never touches the frame.
   const yPad = $derived((yMaxRaw - yMinRaw) * 0.1 || Math.abs(yMaxRaw) * 0.05 || 1);
-  const yLo = $derived(yMinRaw - yPad);
+  // NEVER BELOW ZERO on a series that has none. The padding pushed the axis
+  // negative on the share-cost chart, which labelled a price -0.000098 HBD —
+  // a figure that cannot exist and that makes a reader doubt the rest.
+  const yLo = $derived(yMinRaw >= 0 ? Math.max(0, yMinRaw - yPad) : yMinRaw - yPad);
   const yHi = $derived(yMaxRaw + yPad);
 
   function px(x: number): number {
@@ -72,6 +75,21 @@
     const ticks: number[] = [];
     for (let i = 0; i < X_TICKS; i++) ticks.push(xMin + ((xMax - xMin) * i) / (X_TICKS - 1));
     return ticks;
+  });
+
+  /**
+   * Enough decimals to tell the ticks apart.
+   *
+   * Fixed at zero decimals, five ticks across two days read "0 0 1 1 2" — the
+   * same label three times, which says nothing about where you are on the
+   * axis. A projection spanning ten years still wants whole numbers, so the
+   * precision follows the span rather than being chosen once.
+   */
+  const xDecimals = $derived.by(() => {
+    const span = xMax - xMin;
+    if (span >= X_TICKS) return 0;
+    if (span >= X_TICKS / 10) return 1;
+    return 2;
   });
 
   const Y_TICKS = 5;
@@ -103,7 +121,7 @@
     {/each}
     {#each xTicks as t (t)}
       <line x1={px(t)} x2={px(t)} y1={padT} y2={padT + plotH} class="grid" />
-      <text x={px(t)} y={H - 8} class="tick x" text-anchor="middle">{t.toFixed(0)}</text>
+      <text x={px(t)} y={H - 8} class="tick x" text-anchor="middle">{t.toFixed(xDecimals)}</text>
     {/each}
 
     <path d={areaPath} class="area" />
