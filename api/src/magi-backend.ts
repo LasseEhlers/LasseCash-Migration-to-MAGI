@@ -993,13 +993,13 @@ export class MagiBackend implements Backend {
     for (let offset = 0; offset < limit; offset += PAGE) {
       const data = await this.query<{
         findTransaction: {
-          anchr_ts: string; status: string;
+          anchr_ts: string; anchr_height: number; status: string;
           required_auths: string[]; required_posting_auths: string[];
           ops: { type: string; data: { action?: string; payload?: string } }[];
         }[];
       }>(
         `query($c: String!, $o: Int!, $l: Int!) { findTransaction(filterOptions: {byContract: $c, offset: $o, limit: $l}) {
-          anchr_ts status required_auths required_posting_auths ops { type data } } }`,
+          anchr_ts anchr_height status required_auths required_posting_auths ops { type data } } }`,
         { c: this.#contractId, o: offset, l: PAGE },
       );
       const page = data.findTransaction ?? [];
@@ -1010,6 +1010,7 @@ export class MagiBackend implements Backend {
           if (op.type !== "call" || !action || !wanted.has(action)) continue;
           out.push({
             time: tx.anchr_ts,
+            height: Number(tx.anchr_height) || 0,
             action: action as PoolOp["action"],
             payload: op.data?.payload ?? "",
             signer: (tx.required_auths ?? [])[0] ?? (tx.required_posting_auths ?? [])[0] ?? "",

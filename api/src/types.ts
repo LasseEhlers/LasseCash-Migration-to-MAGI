@@ -395,6 +395,14 @@ export type Param = (typeof Param)[keyof typeof Param];
 export interface PoolTrade {
   /** ISO 8601, UTC. */
   time: string;
+  /** Hive height, so an L-Share can be priced at the moment of the trade. */
+  height: number;
+  /**
+   * What ONE L-Share cost in HBD at this point — the exact share rate at this
+   * height, converted at the reserves this trade left behind. Null before the
+   * pool has both sides.
+   */
+  shareHbd: Amount | null;
   /** `open` is the deposit that set the price; `liquidity` moves depth only. */
   side: "open" | "liquidity" | "sell" | "buy";
   amountIn: Amount;

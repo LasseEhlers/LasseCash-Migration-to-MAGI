@@ -124,6 +124,9 @@ export interface AccountActivity {
 export interface PoolOp {
   /** ISO 8601, UTC — when the transaction was anchored. */
   time: string;
+  /** The Hive height this was anchored at. Needed to price an L-Share at the
+   *  moment of the trade: the share rate is a function of height, not of time. */
+  height: number;
   action: "add_liquidity" | "remove_liquidity" | "swap_lc_hbd" | "swap_hbd_lc";
   /** The pipe-delimited argument string, untouched. */
   payload: string;

@@ -263,6 +263,30 @@ export class LasseCashClient {
     let lc = 0n;
     let hbd = 0n;
 
+    /**
+     * WHAT ONE L-SHARE COST AT THIS POINT, in HBD.
+     *
+     * Both halves of a minter's decision in one number: the share rate is
+     * EXACT — a deterministic +7% a year from genesis, never down — and the
+     * price is whatever the pool held at that block. The engine does the
+     * conversion (`shareRateHbd`), so the ratchet is never re-derived here.
+     *
+     * Height, not time: the ratchet is a function of block height, and the
+     * chain hands us `anchr_height` per transaction, so there is nothing to
+     * estimate.
+     *
+     * Expect it to track the price chart for a long while. The rate moves
+     * about 0.02% a day; the pool moved 91% on a single 5 HBD buy. The
+     * ratchet only separates the two over years — by which time it has
+     * doubled the cost on its own.
+     */
+    const shareCostNow = (height: number): Amount | null => {
+      if (lc <= 0n || hbd <= 0n || !height) return null;
+      try {
+        return engine.shareRateHbd(info.genesis_height, height, lc.toString(), hbd.toString());
+      } catch { return null; }
+    };
+
     const priceNow = (): Amount => {
       if (lc <= 0n || hbd <= 0n) return "0.00000000";
       // One LASSECASH, priced by the pool: the engine's own conversion.
@@ -313,10 +337,10 @@ export class LasseCashClient {
         trancheShares.set(`${op.signer}_${id}`, minted);
 
         trades.push({
-          time: op.time, side: q.isFirstDeposit ? "open" : "liquidity",
+          time: op.time, height: op.height, side: q.isFirstDeposit ? "open" : "liquidity",
           amountIn: fromUnits(dLc), amountOut: fromUnits(dHbd),
           lcReserve: fromUnits(lc), hbdReserve: fromUnits(hbd), price: priceNow(),
-          trader: op.signer,
+          shareHbd: shareCostNow(op.height), trader: op.signer,
         });
         continue;
       }
@@ -337,10 +361,10 @@ export class LasseCashClient {
         trancheShares.delete(key);
 
         trades.push({
-          time: op.time, side: "liquidity",
+          time: op.time, height: op.height, side: "liquidity",
           amountIn: fromUnits(outLc), amountOut: fromUnits(outHbd),
           lcReserve: fromUnits(lc), hbdReserve: fromUnits(hbd), price: priceNow(),
-          trader: op.signer,
+          shareHbd: shareCostNow(op.height), trader: op.signer,
         });
         continue;
       }
@@ -357,10 +381,10 @@ export class LasseCashClient {
       if (selling) { lc += amountIn; hbd -= outUnits; }
       else { hbd += amountIn; lc -= outUnits; }
       trades.push({
-        time: op.time, side: selling ? "sell" : "buy",
+        time: op.time, height: op.height, side: selling ? "sell" : "buy",
         amountIn: fromUnits(amountIn), amountOut: q.amountOut,
         lcReserve: fromUnits(lc), hbdReserve: fromUnits(hbd), price: priceNow(),
-        trader: op.signer,
+        shareHbd: shareCostNow(op.height), trader: op.signer,
       });
     }
 

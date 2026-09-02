@@ -1,6 +1,6 @@
 <script lang="ts">
   /** Mint — the dashboard. */
-  import { chain } from "$lib/chain.svelte.js";
+  import { chain, client } from "$lib/chain.svelte.js";
   import { displayName, lc, lcShort, durationWords } from "$lib/format.js";
   import ClaimMigration from "$lib/ClaimMigration.svelte";
   import MintForm from "$lib/MintForm.svelte";
@@ -82,6 +82,41 @@
   });
 
   /**
+   * WHAT AN L-SHARE HAS ACTUALLY COST, in HBD, at every real trade.
+   *
+   * Replaces a projection of the same curve in different units. The old
+   * right-hand chart held today's price constant and drew the ratchet again,
+   * so it was the left chart scaled — two panels asserting one fact, and it
+   * answered a question nobody has ("what if the price never moved?").
+   *
+   * This answers the one a minter does have: am I buying shares cheap or
+   * expensive right now? Every input is a fact — the ratchet is exact, the
+   * reserves are what the pool held at that block, the heights come from the
+   * chain's own `anchr_height`. Nothing is forecast.
+   *
+   * It will track the price chart for a long time, and that is honest rather
+   * than redundant: the rate moves 0.02% a day while the pool moved 91% on a
+   * single 5 HBD buy. Two days in, the share cost sits 0.034% above the raw
+   * price. The ratchet only separates them over years — by which point it has
+   * doubled the cost on its own.
+   */
+  let shareHistory = $state<{ x: number; y: number }[] | null>(null);
+  $effect(() => {
+    if (!chain.ready || !chain.info) return;
+    const g = genesis;
+    const perDay = Number(constants().heightsPerDay) || 28800;
+    void client.poolTrades(500)
+      .then(({ trades }) => {
+        const pts = trades
+          .filter((t) => t.shareHbd && t.height)
+          .map((t) => ({ x: (t.height - g) / perDay, y: Number(t.shareHbd) }));
+        shareHistory = pts.length > 1 ? pts : null;
+      })
+      .catch(() => (shareHistory = null));
+  });
+  const historyNowX = $derived(shareHistory?.length ? shareHistory[shareHistory.length - 1]!.x : 0);
+
+  /**
    * Sampled series for both charts, genesis to genesis+10yr. Both curves come
    * straight from the engine at each sampled height — plotting the numbers is
    * presentation, but every number plotted is one the engine computed.
@@ -90,28 +125,18 @@
     if (!chain.ready || !chain.info) return null;
     const heightsPerYear = Number(constants().heightsPerYear);
     const span = RATE_CHART_YEARS * heightsPerYear;
-    const lcReserve = toBaseUnitArg(chain.info.amm_lc);
-    const hbdReserve = toBaseUnitArg(chain.info.amm_hbd);
-
+    // ONE projected curve now, not two. The HBD projection held today's price
+    // constant, which made it this same curve scaled — replaced by the real
+    // history above, which uses prices that actually happened.
     const lcPoints: { x: number; y: number }[] = [];
-    const hbdPoints: { x: number; y: number }[] = [];
-    let hbdSeeded = true;
-
     for (let i = 0; i < RATE_CHART_POINTS; i++) {
       const t = i / (RATE_CHART_POINTS - 1);
-      const h = genesis + Math.round(t * span);
-      const years = t * RATE_CHART_YEARS;
-
-      lcPoints.push({ x: years, y: Number(shareRate(genesis, h)) });
-
-      if (hbdSeeded) {
-        const v = shareRateHbd(genesis, h, lcReserve, hbdReserve);
-        if (v === null) hbdSeeded = false;
-        else hbdPoints.push({ x: years, y: Number(v) });
-      }
+      lcPoints.push({
+        x: t * RATE_CHART_YEARS,
+        y: Number(shareRate(genesis, genesis + Math.round(t * span))),
+      });
     }
-
-    return { lcPoints, hbdPoints: hbdSeeded ? hbdPoints : null };
+    return { lcPoints };
   });
 </script>
 
@@ -259,13 +284,6 @@
           <div class="value gold">{currentRate ? lc(currentRate, 5) : "—"}</div>
           <div class="sub">LC per share</div>
         </div>
-        {#if currentRateHbd}
-          <p class="hbd-est dim">
-            ≈ <span class="mono">{lc(currentRateHbd, 6)}</span> HBD per share at
-            today's pool price
-            <span class="pill info">estimate</span>
-          </p>
-        {/if}
       </div>
 
       {#if rateSeries}
@@ -277,18 +295,20 @@
             nowX={nowYears}
             yFormat={(y) => y.toFixed(2)}
           />
-          {#if rateSeries.hbdPoints}
+          {#if shareHistory}
             <RateChart
-              title="Rate in HBD"
-              subtitle="ESTIMATE — today's pool price held constant"
-              points={rateSeries.hbdPoints}
-              nowX={nowYears}
+              title="What one L-Share has cost"
+              headline={currentRateHbd ? lc(currentRateHbd, 6) : null}
+              headlineUnit="HBD per share, now"
+              subtitle="Every trade since the pool opened — the rate underneath rises 7% a year; what moves is the pool"
+              points={shareHistory}
+              nowX={historyNowX}
               yFormat={(y) => y.toFixed(6)}
             />
           {:else}
             <div class="chart-panel panel empty-chart">
-              <h2>Rate in HBD</h2>
-              <p class="dim">Pool not seeded yet.</p>
+              <h2>What one L-Share has cost</h2>
+              <p class="dim">Not enough trades yet.</p>
             </div>
           {/if}
         </div>
@@ -330,10 +350,6 @@
     color: var(--dim); font-size: var(--t-micro); letter-spacing: 0.13em;
     text-transform: uppercase; font-weight: 700; font-family: var(--mono);
     margin-top: 0.15rem;
-  }
-  .hbd-est {
-    margin: 0 0 0.25rem; font-size: var(--t-sm);
-    display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
   }
   .charts { display: flex; gap: 1rem; flex-wrap: wrap; }
   .charts > :global(.chart-panel) { flex: 1 1 320px; min-width: 0; }

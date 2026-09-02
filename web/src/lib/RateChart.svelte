@@ -17,12 +17,17 @@
     points,
     nowX,
     yFormat,
+    headline = null,
+    headlineUnit = "",
   }: {
     title: string;
     subtitle?: string;
     points: Point[];
     nowX: number;
     yFormat: (y: number) => string;
+    /** The current value this chart is about, shown above it. */
+    headline?: string | null;
+    headlineUnit?: string;
   } = $props();
 
   const W = 460;
@@ -81,6 +86,15 @@
 
 <div class="chart-panel panel">
   <h2>{title}</h2>
+  <!-- Each panel now shows a DIFFERENT thing — one projects the exact ratchet,
+       the other replays what shares actually cost — so each carries its own
+       current value rather than sharing one figure in the section header. -->
+  {#if headline}
+    <p class="headline">
+      <strong class="mono gold">{headline}</strong>
+      {#if headlineUnit}<span class="dim">{headlineUnit}</span>{/if}
+    </p>
+  {/if}
   {#if subtitle}<p class="subtitle dim">{subtitle}</p>{/if}
   <svg viewBox="0 0 {W} {H}" class="chart" role="img" aria-label="{title}: {subtitle ?? ''}">
     {#each yTicks as t (t)}
@@ -106,6 +120,8 @@
 <style>
   .chart-panel { min-width: 0; }
   .subtitle { font-size: var(--t-tiny); margin: -0.5rem 0 0.7rem; line-height: 1.4; }
+  .headline { margin: -0.35rem 0 0.15rem; font-size: 1.35rem; line-height: 1.2; }
+  .headline span { font-size: var(--t-tiny); margin-left: 0.35rem; }
   .chart { width: 100%; height: auto; display: block; overflow: visible; }
 
   .grid { stroke: var(--line-soft); stroke-width: 1; }
