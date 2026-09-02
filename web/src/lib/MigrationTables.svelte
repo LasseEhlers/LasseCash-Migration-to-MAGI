@@ -264,6 +264,21 @@
   const burnedTotal = $derived(sumBigint(burnedRows, (r) => r.liquid + r.staked));
 
   /**
+   * The founder's share of everything that will EVER exist: the whole snapshot
+   * (qualified + burned) plus the 20,000,000 emission cap. Both denominators
+   * are fixed by the contract, so this figure only moves as the founder's own
+   * holding does.
+   */
+  const founderOfAll = $derived.by(() => {
+    if (!raw) return "—";
+    const combined = Number(raw.stats.combined_total);
+    const mine = combined * Number(raw.stats.founder_ownership_pct) / 100;
+    const everything = combined + Number(burnedTotal) + 20_000_000 * 1e8;
+    return everything > 0 ? ((mine / everything) * 100).toFixed(1) : "—";
+  });
+
+
+  /**
    * The burned list is 12,143 rows and almost all of it is dust, which hides
    * the fact that a handful of large holders make up nearly all of it. This
    * is the shape of the burn in one line: how many accounts held a real
@@ -350,6 +365,19 @@
           <div class="label">Founder ownership</div>
           <div class="value">{raw.stats.founder_ownership_pct}%</div>
           <div class="sub">@lasseehlers of combined total</div>
+          <!-- BOTH FIGURES, because one of them alone misleads in each
+               direction. The committed share says nothing about the
+               20,000,000 still to be emitted, so a reader seeing only it
+               concludes the founder will always hold most of the supply —
+               true today, false over the life of the chain. Showing only the
+               diluted figure would look like hiding the first.
+               Computed here rather than baked into admin-data.json: the
+               denominator is the snapshot plus the emission cap, both of them
+               constants, so it can never drift from the figure above it. -->
+          <div class="sub dilute">
+            {founderOfAll}% of all that will ever exist — the
+            <b>20,000,000</b> still to be emitted dilutes it
+          </div>
         </div>
       </section>
 
