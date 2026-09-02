@@ -230,6 +230,19 @@
         and its votes regenerate over 30 days rather than 7.
         <strong>This cannot be changed after publishing.</strong>
       </p>
+      <!-- WHY THE WRITE PAGE EXISTS AT ALL. A post tagged `lassecash` from any
+           Hive frontend is registered by its first vote — and registerForAuthor
+           hardcodes Window: Viral. So the window is decided by WHERE it was
+           written, permanently, and three quarters of all Proof-of-Brain
+           emission is reachable only from here. Worth saying on the page where
+           the choice is actually available, rather than leaving people to
+           discover it never was. -->
+      <p class="note only">
+        <strong>Deep exists only here.</strong> A post tagged
+        <span class="mono">lassecash</span> from any other frontend still earns —
+        but its first vote registers it as viral, permanently, however many
+        L-Shares its author holds.
+      </p>
 
       <label class="field">
         <span>Title</span>
@@ -404,6 +417,7 @@
   }
 
   .windows { display: flex; gap: 0.6rem; margin-bottom: 0.6rem; }
+  .note.only strong { color: var(--gold); }
   .win {
     flex: 1; display: flex; flex-direction: column; gap: 0.15rem;
     background: transparent; border: 1px solid var(--line); color: var(--dim);

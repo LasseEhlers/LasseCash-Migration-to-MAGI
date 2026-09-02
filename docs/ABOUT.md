@@ -237,6 +237,12 @@ Deep is where long-form work is meant to go, and is paid three times as well for
 
 **Posting requires stake:** by default **1,000 L-Shares** for viral, **10,000** for deep. This is the only anti-spam mechanism, governable inside hardcoded bounds (section 7). Newcomers post viral, earn shares, and grow into deep.
 
+**A post written anywhere on Hive can earn here.** Tag it `lassecash`, and if you hold the viral threshold it appears on LasseCash and its first vote registers it on-chain. Nothing is walled off: no account here, no permission, no approval.
+
+**But it registers as viral, permanently.** The window is fixed at registration and cannot be changed afterwards, whatever stake the author holds. So **deep — three quarters of all content emission — is reachable only from the Write page on this site.**
+
+That is deliberate, and it is the one thing this site asks for. A tagged post from PeakD or ecency is a full citizen of the viral pool. The larger pool is where the long-form work goes, and it is written here.
+
 **Payout modes.** At publication you choose how your own reward is paid, frozen with the post:
 
 | Mode | Your author reward |
