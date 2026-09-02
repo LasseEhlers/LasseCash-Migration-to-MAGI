@@ -239,11 +239,22 @@
               </button>
             </div>
             {#if durErr}<p class="err small">{durErr}</p>{/if}
+            <!-- THERE IS NO DEADLINE, and saying so is the point. The contract
+                 reads this value at the moment the mint is created, and that
+                 moment is LAZY — the mint is made the first time the account is
+                 touched after the calendar month turns, not at a fixed instant.
+                 So there is nothing to grey out and no cutoff to miss, and a
+                 change made on the 1st still counts.
+                 Left unsaid, the natural assumption is a deadline somewhere. -->
             <p class="durnote dim">
-              Applies to the mint the chain creates on the 1st from your post and
-              curation earnings — not to mints you open yourself. Longer earns
-              more, up to 1.50x at three years, and a mint's length is frozen
-              once it is created.
+              Applies to the mint the chain creates from your post and curation
+              earnings — not to mints you open yourself. Longer earns more, up
+              to 1.50x at three years, and a mint's length is frozen once it is
+              created.
+              <br />
+              <b>No deadline.</b> The value set here when the mint is made is the
+              one used, and the mint is made the first time your account is
+              touched after the month turns — so a change on the 1st still counts.
             </p>
           </div>
         {/if}
