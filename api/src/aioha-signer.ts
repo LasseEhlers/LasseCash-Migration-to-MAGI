@@ -773,8 +773,14 @@ export class AiohaSigner implements Signer {
     good_accounting: 800,
     set_duration: 400,
     settle_pending: 6_000, // drains up to MaxCurationDrain queue entries
-    promote: 1_200,
-    set_param: 800,
+    // MEASURED FAILING ON MAINNET 2026-09-02: set_param at 800 died with
+    // gas_limit_hit on a real threshold change. Simulation says ~2 RC, which is
+    // why the floor matters more than the dry run here — settlement weighs a
+    // state write 19x and the simulator does not. Both of these read gov_board
+    // and every member's shares before writing, so they cost more than the
+    // transfer they were sized against (2,500, measured 872).
+    promote: 3_000,
+    set_param: 3_000,
     post: 3_000,          // mainnet 1,098
     // A reply is the same write set as a post plus the queue append, and it
     // measures HIGHER than a post on mainnet: 1,974 against 1,098.
