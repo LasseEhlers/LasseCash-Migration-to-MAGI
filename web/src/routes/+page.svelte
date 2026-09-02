@@ -363,7 +363,7 @@
                 {:else if money.paid_out}
                   <span class="pill ok">paid out</span>
                 {:else}
-                  <span class="pending mono gold">{lc(money.pending_payout)} LC</span>
+                  <span class="pending mono gold">{lc(money.pending_payout)} LASSECASH</span>
                   <Hbd amount={money.pending_payout} />
                   <span class="dim">
                     {#if money.payable}window closed{:else}pays in {durationWords(money.payout_height - height)}{/if}

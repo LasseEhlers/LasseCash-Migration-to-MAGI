@@ -412,16 +412,16 @@
           <div><dt>Committed root</dt><dd class="root">{MIGRATION_ROOT}</dd></div>
           <div><dt>Snapshot block</dt><dd>109,504,918 <span class="dim">· 31 Aug 2026, 12:00 UTC</span></dd></div>
           <div><dt>Leaves in the tree</dt><dd>{leafCount.toLocaleString()} <span class="dim">· every account with a balance, qualified or burned</span></dd></div>
-          <div><dt>Qualified</dt><dd>{migratedRows.length.toLocaleString()} accounts · <b>{lc(fromUnits(BigInt(raw.stats.combined_total)))}</b> LC</dd></div>
-          <div><dt>Burned to @null</dt><dd>{burnedRows.length.toLocaleString()} accounts · <b>{lc(fromUnits(burnedTotal), 3)}</b> LC</dd></div>
-          <div><dt>Snapshot supply</dt><dd><b>{lc(fromUnits(burnedTotal + BigInt(raw.stats.combined_total)))}</b> LC <span class="dim">· qualified + burned</span></dd></div>
+          <div><dt>Qualified</dt><dd>{migratedRows.length.toLocaleString()} accounts · <b>{lc(fromUnits(BigInt(raw.stats.combined_total)))}</b> LASSECASH</dd></div>
+          <div><dt>Burned to @null</dt><dd>{burnedRows.length.toLocaleString()} accounts · <b>{lc(fromUnits(burnedTotal), 3)}</b> LASSECASH</dd></div>
+          <div><dt>Snapshot supply</dt><dd><b>{lc(fromUnits(burnedTotal + BigInt(raw.stats.combined_total)))}</b> LASSECASH <span class="dim">· qualified + burned</span></dd></div>
         </dl>
       </section>
 
       <section class="panel">
         <h2>Migrated accounts</h2>
         <small class="dim">
-          {migratedRows.length.toLocaleString()} accounts · {lc(fromUnits(BigInt(raw.stats.combined_total)))} LC total
+          {migratedRows.length.toLocaleString()} accounts · {lc(fromUnits(BigInt(raw.stats.combined_total)))} LASSECASH total
         </small>
 
         <div class="legend-box">
@@ -514,9 +514,9 @@
       <section class="panel">
         <h2>Did not make it (burned at migration)</h2>
         <small class="dim">
-          {burnedRows.length.toLocaleString()} accounts · {lc(fromUnits(burnedTotal), 3)} LC total ·
+          {burnedRows.length.toLocaleString()} accounts · {lc(fromUnits(burnedTotal), 3)} LASSECASH total ·
           <b>{bigBurned.count.toLocaleString()}</b> of them held over 10,000 LASSECASH, together
-          <b>{lc(fromUnits(bigBurned.sum), 3)}</b> LC — {bigBurned.pct}% of everything burned.
+          <b>{lc(fromUnits(bigBurned.sum), 3)}</b> — {bigBurned.pct}% of everything burned.
           Their tokens sit at @null, unspendable, listed account by account forever.
         </small>
         <div class="scroll">
@@ -563,7 +563,7 @@
           it is notional, because there it adds tokens to L-Shares.)
         </small>
         <small class="dim">
-          {allRows.length.toLocaleString()} accounts · {lc(fromUnits(allTotal), 3)} LC total
+          {allRows.length.toLocaleString()} accounts · {lc(fromUnits(allTotal), 3)} LASSECASH total
         </small>
         <div class="scroll">
           <table>

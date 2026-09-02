@@ -58,7 +58,7 @@ export function describeCall(action: string, payload: string): string {
   // by the backend, because "you received" and "you sent" are the same call
   // seen from opposite ends and the list is useless if it cannot tell them
   // apart.
-  if (action === "+transfer") return `${amt(f[1])} LC from ${who(f[2]) || "another account"}`;
+  if (action === "+transfer") return `${amt(f[1])} LASSECASH from ${who(f[2]) || "another account"}`;
   if (action === "+ledger" || action === "ledger") {
     const [from, to, amount, asset] = f;
     const unit = (asset ?? "").toUpperCase();
@@ -69,19 +69,19 @@ export function describeCall(action: string, payload: string): string {
 
   switch (action) {
     // Field 2 is the memo — ignored by the contract, permanent in the payload.
-    case "transfer":     return `${amt(f[1])} LC to ${who(f[0])}`
+    case "transfer":     return `${amt(f[1])} LASSECASH to ${who(f[0])}`
                                 + (f[2] ? ` — "${f[2]}"` : "");
-    case "burn":         return `${amt(f[0])} LC burned`;
-    case "mint":         return `${amt(f[0])} LC locked for ${f[1]} days`;
+    case "burn":         return `${amt(f[0])} LASSECASH burned`;
+    case "mint":         return `${amt(f[0])} LASSECASH locked for ${f[1]} days`;
     case "claim_mint":   return `closed mint #${f[0]}`;
     case "sweep_mint":   return `swept ${who(f[0])}'s dead mint #${f[1]}`;
     case "good_accounting": return `armed Good Accounting on mint #${f[0]}`;
     case "set_duration": return `default mint length set to ${f[0]} days`;
 
     // Both sides quote a MINIMUM out: the floor you accepted, not the fill.
-    case "swap_lc_hbd":  return `sold ${amt(f[0])} LC · at least ${amt(f[1], 6)} HBD`;
-    case "swap_hbd_lc":  return `bought with ${amt(f[0], 6)} HBD · at least ${amt(f[1])} LC`;
-    case "add_liquidity":    return `added ${amt(f[0])} LC + ${amt(f[1], 6)} HBD`;
+    case "swap_lc_hbd":  return `sold ${amt(f[0])} LASSECASH · at least ${amt(f[1], 6)} HBD`;
+    case "swap_hbd_lc":  return `bought with ${amt(f[0], 6)} HBD · at least ${amt(f[1])} LASSECASH`;
+    case "add_liquidity":    return `added ${amt(f[0])} LASSECASH + ${amt(f[1], 6)} HBD`;
     case "remove_liquidity": return `withdrew tranche #${f[0]}`;
     case "claim_pool":       return `claimed rewards on tranche #${f[0]}`;
     case "sweep_tranche":    return `evicted ${who(f[0])}'s dormant tranche #${f[1]}`;
@@ -90,11 +90,11 @@ export function describeCall(action: string, payload: string): string {
     case "comment": return `replied to ${post(f[1], f[2])}`;
     case "vote":    return `${f[2]}% on ${post(f[0], f[1])}`;
     case "payout":  return `settled ${post(f[0], f[1])}`;
-    case "promote_post": return `${amt(f[2])} LC burned to promote ${post(f[0], f[1])}`;
+    case "promote_post": return `${amt(f[2])} LASSECASH burned to promote ${post(f[0], f[1])}`;
     case "claim_curation": return `claimed curation on ${post(f[0], f[1])}`;
     case "sweep_curation": return `swept expired curation on ${post(f[0], f[1])}`;
 
-    case "claim_migration": return `claimed ${amt(f[0])} LC liquid + ${amt(f[1])} LC as a mint`;
+    case "claim_migration": return `claimed ${amt(f[0])} LASSECASH liquid + ${amt(f[1])} as a mint`;
     case "record_burn":     return `recorded ${who(f[0])}'s burn`;
     case "settle":          return "settled this account";
     case "settle_pending":  return "settled pending rewards";

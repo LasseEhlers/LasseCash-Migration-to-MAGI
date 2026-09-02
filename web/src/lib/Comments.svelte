@@ -262,7 +262,7 @@
             {:else if view.paid_out}
               <span class="pill ok">paid out</span>
             {:else}
-              <span class="reward mono gold">{lc(view.pending_payout, 3)} LC</span>
+              <span class="reward mono gold">{lc(view.pending_payout, 3)} LASSECASH</span>
               <Hbd amount={view.pending_payout} />
             {/if}
           </div>

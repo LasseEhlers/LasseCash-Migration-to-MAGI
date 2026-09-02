@@ -185,7 +185,7 @@
                 {#if m.paid_out}
                   <span class="pill ok">paid out</span>
                 {:else}
-                  <span class="mono gold">{lc(m.pending_payout)} LC</span>
+                  <span class="mono gold">{lc(m.pending_payout)} LASSECASH</span>
                   <span>
                     {m.payable ? "window closed" : `pays in ${durationWords(m.payout_height - height)}`}
                   </span>

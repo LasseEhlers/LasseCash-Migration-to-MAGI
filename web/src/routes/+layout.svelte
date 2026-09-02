@@ -103,7 +103,7 @@
         : "Pricing in LASSECASH only. Click to show an approximate HBD value beside each figure."}
     >
       <span class="unitlabel">prices in</span>
-      <span class="unitval">{hbdPref.show ? "LC + HBD" : "LC only"}</span>
+      <span class="unitval">{hbdPref.show ? "LASSECASH + HBD" : "LASSECASH only"}</span>
     </button>
 
     <div class="session">

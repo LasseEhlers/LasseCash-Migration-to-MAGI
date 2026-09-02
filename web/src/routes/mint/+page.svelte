@@ -275,7 +275,7 @@
         </div>
       {:else if nextUp}
         <div class="value green">{durationWords(nextUp.maturity_height - height)}</div>
-        <div class="sub">{lc(nextUp.principal)} LC matures</div>
+        <div class="sub">{lc(nextUp.principal)} LASSECASH matures</div>
       {:else if openMints.length > 0}
         <div class="value dim">—</div>
         <div class="sub">nothing due</div>
@@ -350,7 +350,7 @@
   {#if chain.info}
     <section class="panel rate-panel">
       <!-- BOTH CURRENT VALUES ON ONE LINE, above the charts they belong to.
-           The LC rate sat in the section header while the HBD figure sat
+           The LASSECASH rate sat in the section header while the HBD figure sat
            inside its chart panel, so the page's two headline numbers were at
            different heights and read as unrelated. They are the same fact in
            two units — Lasse's layout, and it is the right one. -->
@@ -358,7 +358,7 @@
         <div class="head">
           <h2>L-Share rate</h2>
           <div class="value gold">{currentRate ? lc(currentRate, 5) : "—"}</div>
-          <div class="sub">LC per share</div>
+          <div class="sub">LASSECASH per share</div>
         </div>
         <div class="head">
           <h2>What one L-Share has cost</h2>

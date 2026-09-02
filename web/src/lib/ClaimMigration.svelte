@@ -231,7 +231,7 @@
           {#if hasStake}
             <p class="line">
               plus a {constants().migrationMintDays}-day migration mint of
-              <span class="mono">{lc(fromUnits(BigInt(leaf.staked)))}</span> LC,
+              <span class="mono">{lc(fromUnits(BigInt(leaf.staked)))}</span> LASSECASH,
               maturing {maturityDate ? shortDate(maturityDate) : "—"} — in
               <strong>{durationWords(preview.maturityHeight - height)}</strong>.
               It has been running on the shared clock since genesis, so claiming

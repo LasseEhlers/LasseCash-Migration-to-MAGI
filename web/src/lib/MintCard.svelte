@@ -88,9 +88,9 @@
   {#if confirming}
     <div class="confirm">
       <p>
-        Ending early forfeits <strong class="red">all {lc(mint.pending_yield)} LC of yield</strong>
-        and slashes principal. You receive <strong>{lc(mint.if_claimed_now)} LC</strong>
-        and give up <strong class="red">{lc(mint.slashed_if_claimed_now)} LC</strong>
+        Ending early forfeits <strong class="red">all {lc(mint.pending_yield)} LASSECASH of yield</strong>
+        and slashes principal. You receive <strong>{lc(mint.if_claimed_now)} LASSECASH</strong>
+        and give up <strong class="red">{lc(mint.slashed_if_claimed_now)} LASSECASH</strong>
         to the reward pool.
       </p>
       <p class="dim">

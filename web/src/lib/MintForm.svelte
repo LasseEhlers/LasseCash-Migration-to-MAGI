@@ -173,8 +173,8 @@
     <span>Amount to lock</span>
     <input inputmode="decimal" bind:value={amount} placeholder="10000" />
     <small class="dim">
-      Balance {lc(balance)} LC{#if overBalance} · <span class="red">more than you hold</span>{/if}
-      {#if C}· minimum {lc(C.minMintAmount === "100000000" ? "1.00000000" : "1.00000000", 0)} LC{/if}
+      Balance {lc(balance)} LASSECASH{#if overBalance} · <span class="red">more than you hold</span>{/if}
+      {#if C}· minimum {lc(C.minMintAmount === "100000000" ? "1.00000000" : "1.00000000", 0)} LASSECASH{/if}
     </small>
   </label>
 
@@ -205,7 +205,7 @@
         <div class="headline">
           <span class="dim">Earns about</span>
           <strong class="gold mono big">{lc(yieldNow.perDay, 3)}</strong>
-          <span class="dim">LC / day</span>
+          <span class="dim">LASSECASH / day</span>
           <span class="chip">estimate</span>
         </div>
         <!-- The HBD line, through the SAME component and the same toggle as
@@ -228,7 +228,7 @@
              who scrolls. -->
         <!-- THE PERCENTAGE IS THE MOST MISREADABLE FIGURE ON THE PAGE, so it
              carries its own caveat rather than borrowing the one below.
-             The L-Share slice is FIXED — 833,333 LC a year in era 1 — so the
+             The L-Share slice is FIXED — 833,333 LASSECASH a year in era 1 — so the
              rate is just that pool divided by the LASSECASH locked in mints.
              It is high today because few have claimed, and it falls toward
              about 7% as participation approaches the whole supply, halving
@@ -314,7 +314,7 @@
         </small>
       {/if}
       <small class="dim">
-        Share rate {lc(shareRate, 5)} LC per share. It only ever rises — 7% a year.
+        Share rate {lc(shareRate, 5)} LASSECASH per share. It only ever rises — 7% a year.
       </small>
     </div>
   {/if}

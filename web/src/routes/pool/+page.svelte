@@ -724,7 +724,7 @@
                 <td class="num" class:green={t.age_days >= 90}>
                   {mult(t.loyalty_multiplier)}{#if t.age_days >= 90}<span class="pill ok">max</span>{/if}
                 </td>
-                <td class="num">{lc(t.value_lc)} LC <small class="dim">+ {lc(t.value_hbd, 3)} HBD</small></td>
+                <td class="num">{lc(t.value_lc)} LASSECASH <small class="dim">+ {lc(t.value_hbd, 3)} HBD</small></td>
                 <td class="num" class:gold={!isZero(t.pending_reward)} class:dim={isZero(t.pending_reward)}>
                   {lc(t.pending_reward, 3)}
                   <Hbd amount={t.pending_reward} decimals={6} block />
@@ -778,7 +778,7 @@
                 <td class="num mono">{(t.share * 100).toFixed(1)}%</td>
                 <td class="num">{t.ageDays}d</td>
                 <td class="num" class:green={t.ageDays >= 90}>{mult(t.loyalty)}</td>
-                <td class="num">{lc(t.valueLc)} LC <small class="dim">+ {lc(t.valueHbd, 3)} HBD</small></td>
+                <td class="num">{lc(t.valueLc)} LASSECASH <small class="dim">+ {lc(t.valueHbd, 3)} HBD</small></td>
               </tr>
             {/each}
           </tbody>

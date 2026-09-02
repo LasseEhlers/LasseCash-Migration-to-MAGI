@@ -234,8 +234,8 @@
                      11,700, and at today's price a whole LASSECASH is about half
                      a cent — three decimals were a sub-half-cent tail on every
                      row. Deliberately NOT the site-wide default: the same
-                     setting would render a 4.300 LC/day yield as "4", and a
-                     0.9 LC pending balance as "0" when that 0.9 is exactly what
+                     setting would render a 4.300 LASSECASH/day yield as "4", and a
+                     0.9 LASSECASH pending balance as "0" when that 0.9 is exactly what
                      decides whether it mints or rolls over. -->
                 <td class="num mono">{lc(t.side === "buy" ? t.amountOut : t.amountIn, 0)}</td>
                 <!-- THREE DECIMALS, because that is all HBD has. Hive holds it
@@ -291,6 +291,21 @@
   td { padding: 0.45rem 0.7rem; border-bottom: 1px solid var(--line-soft); white-space: nowrap; font-variant-numeric: tabular-nums; }
   .num { text-align: right; }
   th.num { text-align: right; }
+
+  /* THE FIVE NUMERIC COLUMNS READ AS TWO PAIRS AND A RESULT: what moved
+     (LASSECASH, HBD), what it left behind (both reserves), then the price.
+     The table is `width: 100%` with automatic layout, so the browser was
+     handing its slack to whichever column had the widest content — which put
+     a chasm before LASSECASH RESERVE and squeezed the pair before it. The
+     eye read that as grouping, and grouped the wrong things.
+
+     Equal widths make the gap inside the first pair identical to the gap
+     inside the second, and the extra pad where a pair BEGINS is what
+     separates the pairs. Time, Event and Trader stay automatic and absorb
+     whatever is left. */
+  th:nth-child(n + 4), td:nth-child(n + 4) { width: 8.25rem; }
+  th:nth-child(6), td:nth-child(6),
+  th:nth-child(8), td:nth-child(8) { padding-left: 2.1rem; }
   tbody tr:last-child td { border-bottom: 0; }
   .pill { font-family: var(--mono); font-size: var(--t-micro); padding: 0.08rem 0.4rem; border-radius: 2px; letter-spacing: 0.08em; }
   .pill.buy { color: var(--cyan); border: 1px solid rgba(46, 230, 214, 0.45); }
