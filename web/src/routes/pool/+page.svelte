@@ -513,7 +513,7 @@
     <div class="panel stat">
       <div class="label">Swap fee</div>
       <div class="value green">0%</div>
-      <div class="sub">{keysBurned ? "forever — the keys are burned" : "hardcoded · no governance path"}</div>
+      <div class="sub">{keysBurned ? "forever — the keys are burned" : "hardcoded · nobody can raise it"}</div>
     </div>
   </section>
 

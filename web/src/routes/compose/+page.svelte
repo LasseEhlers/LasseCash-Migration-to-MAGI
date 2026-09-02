@@ -388,8 +388,8 @@
         <dd class="mono">{window_ === 1 ? "Deep · 30 days" : "Viral · 7 days"}</dd>
       </dl>
       <small class="dim">
-        Posting requires L-Shares, and the threshold is set by the top 10 — a
-        governed value with hardcoded bounds. If publishing is refused, the
+        Posting requires L-Shares. The threshold is set by the top 10, inside
+        hardcoded bounds they can never leave. If publishing is refused, the
         chain says what you need.
       </small>
       {#if error}<p class="err">{error}</p>{/if}

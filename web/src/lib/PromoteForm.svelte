@@ -118,7 +118,7 @@
         {#if minBurn !== null}
           <span class="dim">Minimum {lc(minBurn)} — set by the top 10, inside hardcoded bounds.</span>
         {:else}
-          <span class="dim">Reading the governed minimum…</span>
+          <span class="dim">Reading the minimum…</span>
         {/if}
         <Hbd {amount} />
       </div>

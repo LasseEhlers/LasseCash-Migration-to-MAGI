@@ -38,7 +38,7 @@ Every number here comes from one piece of code: the share formula, halving sched
 
 ## 2. The numbers that never change
 
-Hardcoded in the contract. No governance path to any of them, and after the key burn no path at all.
+Hardcoded in the contract. None of them is a threshold the top ten can touch, and after the key burn there is no path at all.
 
 The two caps are not arbitrary and they are not independent. The 2019 design set **51,000,000** as the total that would ever exist, in three parts: **11,000,000** to the founder at launch, **20,000,000** of inflation for the first ten years, and **20,000,000** for all the years after that. The first two are already issued — Hive-Engine records `supply 31,000,000` today — and they are what migrates. The third is the emission cap below, and MAGI is the first time it has a schedule instead of an announcement.
 
@@ -176,7 +176,7 @@ A **mint** is LASSECASH you lock for a period you choose, from 1 to 1,095 days. 
 
 `shares = principal / share rate x duration multiplier x volume multiplier`
 
-**Longer Pays Better** is the duration multiplier: 1.00x at one day, rising linearly to **1.50x** at 1,095 days. **Bigger Pays Better** is the volume multiplier: 1.00x at or below the start amount (default 1,000 LASSECASH), rising linearly to **1.50x** at or above the end amount (default 50,000). They **multiply**, so **2.25x** is the absolute maximum. Both ceilings are hardcoded; only the two trigger amounts are governable.
+**Longer Pays Better** is the duration multiplier: 1.00x at one day, rising linearly to **1.50x** at 1,095 days. **Bigger Pays Better** is the volume multiplier: 1.00x at or below the start amount (default 1,000 LASSECASH), rising linearly to **1.50x** at or above the end amount (default 50,000). They **multiply**, so **2.25x** is the absolute maximum. Both ceilings are hardcoded; only the two trigger amounts are thresholds the top ten can move.
 
 The **share rate** is what one L-Share costs. It starts at 1.00000000 LASSECASH and ratchets up 7% a year, forever, so early commitment is predictably worth more than late:
 
@@ -235,7 +235,7 @@ Half of every reward goes to content, in two windows you choose between at publi
 
 Deep is where long-form work is meant to go, and is paid three times as well for it. The meters are separate, so spending one does not weaken the other.
 
-**Posting requires stake:** by default **1,000 L-Shares** for viral, **10,000** for deep. This is the only anti-spam mechanism, governable inside hardcoded bounds (section 7). Newcomers post viral, earn shares, and grow into deep.
+**Posting requires stake:** by default **1,000 L-Shares** for viral, **10,000** for deep. This is the only anti-spam mechanism, and it is a threshold: the top ten can move it inside hardcoded bounds (section 7). Newcomers post viral, earn shares, and grow into deep.
 
 **A post written anywhere on Hive can earn here.** Tag it `lassecash`, and if you hold the viral threshold it appears on LasseCash and its first vote registers it on-chain. Nothing is walled off: no account here, no permission, no approval.
 
@@ -259,7 +259,7 @@ That is deliberate, and it is the one thing this site asks for. A tagged post fr
 
 **Comments earn.** A comment here is a registered reply: post machinery with a parent reference, on viral economics — 7-day window, viral pool, viral meter — behind its own lower threshold of **100 L-Shares by default**. Lasse did not want to lose comment rewards (*"a monster good valuable comment [can] earn 100 or 1000 dollars"*) and did not want tip-bot spam either. So a comment from another Hive frontend appears here only if its author holds the threshold, and earns only if registered here. Below-threshold comments still exist on Hive; nobody is censored or deleted, they are simply not part of LasseCash, and "nice post!" never appears.
 
-**Promotion is a burn.** Promoting a post burns LASSECASH to `hive:null` and records a running total on the post. It buys a clearly labelled slot every fifth row of the same trending list, ordered by burn, and **never above the posts people actually voted for** — money and votes are not mixed. The minimum burn is governed (**100 LASSECASH by default**), and promotion is refused on comments, after payout, and once 75% of the window has elapsed. There is no cap on what you may burn.
+**Promotion is a burn.** Promoting a post burns LASSECASH to `hive:null` and records a running total on the post. It buys a clearly labelled slot every fifth row of the same trending list, ordered by burn, and **never above the posts people actually voted for** — money and votes are not mixed. The minimum burn is a threshold (**100 LASSECASH by default**), and promotion is refused on comments, after payout, and once 75% of the window has elapsed. There is no cap on what you may burn.
 
 **There are no downvotes and no reputation.** The contract accepts vote weights of **1% to 100%** only, and a negative weight is refused outright. Weight **0** is not a downvote either: it withdraws **your own** vote and can subtract only what your account added, which exists because a LasseCash vote also casts the Hive vote and removing one has to take back both. Spent voting power is not refunded, exactly as on Hive. You vote for what you value with your own L-Shares, or you withhold — you cannot subtract from someone else's reward. No greyed-out posts, no hidden accounts, no flag wars; a post nobody values earns nothing. Every registered post and comment is always visible to everyone, crawlers included, and the only filter anywhere is the stake threshold at registration.
 
@@ -269,7 +269,7 @@ MAGI routes every pool through HBD, Hive's dollar-pegged stablecoin, as the sing
 
 The contract runs the market itself, custodying **real HBD** on one side and its own LASSECASH ledger on the other as a **constant-product** market maker, the same shape as a Uniswap or Diesel pool. Every swap rounds in the pool's favour, so the invariant can only grow.
 
-**The swap fee is zero, hardcoded, with no governance path.** LPs are paid from the 25% emission slice, which grows with the product, so fee income would be noise beside it; and arbitrage keeps the price honest for free, because the spread is the arbitrageur's profit. A fee would only widen the no-arbitrage band and give holders worse prices — and a lever that exists eventually gets pulled, so deleting it makes 0% a promise the code enforces rather than a default someone can walk back.
+**The swap fee is zero, hardcoded, and it is not a threshold** — there is no parameter for it and no way for anyone to raise it. LPs are paid from the 25% emission slice, which grows with the product, so fee income would be noise beside it; and arbitrage keeps the price honest for free, because the spread is the arbitrageur's profit. A fee would only widen the no-arbitrage band and give holders worse prices — and a lever that exists eventually gets pulled, so deleting it makes 0% a promise the code enforces rather than a default someone can walk back.
 
 **Liquidity earns by age.** Each deposit is a **tranche** with its own creation height and loyalty bonus — **+1% per day, linear, capped at 90 days** — so a 90-day-old tranche earns 1.90x the weight of a fresh one. Tranches are exited **individually by id**, like mints, so a partial exit can never silently destroy your most-matured position. Claiming a tranche's rewards removes its weight and slice together and re-adds the weight at its current age, conserving exactly.
 
@@ -297,7 +297,7 @@ So: everything inside the LasseCash contract is trustless from 10 October. Every
 
 **There are no proposals.** You cannot verify on-chain that a funded proposal was ever delivered, so an immutable protocol should not pretend otherwise. There is no inflation slice for proposals, marketing or onboarding either.
 
-Instead, the **ten largest holders of live L-Shares** hold seats, each keeping a **standing preferred value** for every governable parameter, changeable at any moment. The **median of those preferences is the value in force**, continuously — no quorum, no round, nothing to time or snipe. Losing a seat drops your preference at once; seats with no preference are skipped, not counted as zero; with an even count the **lower** median is used, so the arithmetic is exact and every node agrees. Median rather than average, because extreme votes neutralise themselves: demanding 10,000% moves the result no further than voting a notch above the median. L-Shares win you a seat, not a louder voice within it, which is why there is no whale-weight cap.
+Instead, the **ten largest holders of live L-Shares** hold seats, each keeping a **standing preferred value** for every threshold, changeable at any moment. The **median of those preferences is the value in force**, continuously — no quorum, no round, nothing to time or snipe. Losing a seat drops your preference at once; seats with no preference are skipped, not counted as zero; with an even count the **lower** median is used, so the arithmetic is exact and every node agrees. Median rather than average, because extreme votes neutralise themselves: demanding 10,000% moves the result no further than voting a notch above the median. L-Shares win you a seat, not a louder voice within it, which is why there is no whale-weight cap.
 
 | Parameter | Key | Floor | Default | Ceiling |
 |---|---|---|---|---|
@@ -312,7 +312,7 @@ That list is closed and cannot grow: a parameter means something only if the dep
 
 **Why the ceilings exist.** The top ten hold the most shares by definition. Without a ceiling on the posting thresholds, six colluding seats could set the deep threshold above everyone's holdings but their own and farm 37.5% of all emission — capture pays a cartel more than the price damage costs it, so "they want the price up" is not a defence. At the ceiling, ten captured seats can at worst squeeze deep posting to a few dozen accounts: painful, visible, reversible, never exclusive. **The floor is one L-Share**, so protection can never be switched off but nobody is locked out. The bounds are in L-Shares rather than dollars because a price-denominated threshold would need an on-chain oracle, and the only one available is LasseCash's own thin, manipulable pool.
 
-**The bounds are hardcoded because they must be un-negotiable** — a bounds table that was itself governable would be no bounds at all. **And parameter changes affect future mints only:** shares are computed at creation and frozen, so the top ten can never retroactively dilute a minter.
+**The bounds are hardcoded because they must be un-negotiable** — a bounds table that could itself be moved would be no bounds at all. **And parameter changes affect future mints only:** shares are computed at creation and frozen, so the top ten can never retroactively dilute a minter.
 
 What the median does not defend against is one entity holding several seats. That is accepted deliberately, and the bounds limit the damage: the top ten tune values inside fixed ranges; they are not a check on the founder, and nothing in the protocol is.
 
@@ -344,7 +344,7 @@ LasseCash is one person, Lasse Ehlers. What follows is his commitment, stated in
 
 **The proving period.** The risk is front-loaded: the day-30 cliff, the first monthly Proof-of-Brain mint, the first grace, bleed and sweep cycle, the first sizeable pool withdrawal. Once one full mint lifecycle (about seven months) and a handful of monthly mints have run clean on real state, every code path that exists has been exercised on the real chain. The intent is that this exact code runs untouched for two years before anyone calls it proven. What remains after that is the ordinary, permanent risk every chain carries — a hack, an economic attack nobody foresaw — which no recovery plan reduces and which Lasse Ehlers is not going to dress up in a percentage.
 
-**Future dApps do not extend the core — they read it.** Any such application is its own contract, with its own owner, registry and bounds, reading the core's public state to derive the same legitimate top ten. It keeps its owner key and can iterate forever behind its own timelocks; the core never moves. The governing set must live in the dApp's *contract*, not its frontend — a frontend enforces nothing, since anyone can call a contract directly. The suggested norm for dApp fees is **0.1% to 1%**, against the 20–30% a centralised platform typically takes: a norm for authors to follow, not something the frozen core can enforce.
+**Future dApps do not extend the core — they read it.** Any such application is its own contract, with its own owner, registry and bounds, reading the core's public state to derive the same legitimate top ten. It keeps its owner key and can iterate forever behind its own timelocks; the core never moves. The deciding set must live in the dApp's *contract*, not its frontend — a frontend enforces nothing, since anyone can call a contract directly. The suggested norm for dApp fees is **0.1% to 1%**, against the 20–30% a centralised platform typically takes: a norm for authors to follow, not something the frozen core can enforce.
 
 ## 8b. Why voting here pays twice
 
