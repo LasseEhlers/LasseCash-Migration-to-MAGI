@@ -217,6 +217,15 @@
              LASSECASH above; this is that number at today's pool price, and
              the price is the part that moves. -->
         <div class="hbdline"><Hbd amount={yieldNow.perDay} /> <span class="dim">per day</span></div>
+        <!-- THE ACTION SITS UNDER THE NUMBER IT IS ABOUT, and above everything
+             that explains it. The explanation below is good and honest, and it
+             was four paragraphs tall — on a 1080p screen the Mint button was
+             off the bottom of the page, so the primary action of the page was
+             something you had to go looking for.
+             Shrinking the prose would have punished the person who reads it to
+             help the person who does not. Moving the button serves both: the
+             figure they came for, then the button, then the detail for anyone
+             who scrolls. -->
         <!-- THE PERCENTAGE IS THE MOST MISREADABLE FIGURE ON THE PAGE, so it
              carries its own caveat rather than borrowing the one below.
              The L-Share slice is FIXED — 833,333 LC a year in era 1 — so the
@@ -228,6 +237,26 @@
              Saying that here costs nothing. Not saying it means every minter
              who locked for three years on today's number discovers it in year
              two, which is the expensive version. -->
+      {/if}
+    </div>
+  {/if}
+
+  <!-- THE ACTION SITS UNDER THE NUMBER IT IS ABOUT, and above everything that
+       explains it. The explanation below is good and it was four paragraphs
+       tall: on a 1080p screen the Mint button fell off the bottom, so the
+       primary action of the page was something you had to go looking for.
+       Shrinking the prose would punish the person who reads it to help the
+       person who does not — moving the button serves both.
+       It stays OUTSIDE the conditionals: with no preview, or signed out, the
+       label is the thing worth showing. -->
+  {#if error}<p class="err">{error}</p>{/if}
+  <button onclick={submit} disabled={!canSubmit}>
+    {#if confirming}Confirming…{:else if !chain.account}Sign in to mint{:else}Mint{/if}
+  </button>
+
+  {#if preview}
+    <div class="preview detail" class:invalid={!preview.ok}>
+      {#if yieldNow}
         <div class="subline">
           <span class="dim">≈</span>
           <b class="mono rate">{yieldNow.pctYear}%</b>
@@ -236,9 +265,8 @@
         </div>
         <div class="subline">
           <span class="dim">
-            The reward pool is fixed, so this rate <b>falls as more people mint</b> —
-            toward roughly 7% if the whole supply were locked, and it halves again
-            every era. It is paid in LASSECASH, not in dollars.
+            Paid in LASSECASH, and the rate <b>falls as more people mint</b>.
+            <a href="/about/full#4-mint--lassemint-and-l-shares">Why →</a>
           </span>
         </div>
         <div class="subline">
@@ -276,8 +304,8 @@
         <small class="dim est">
           <b>Estimate.</b> Your slice depends on every other live L-Share, and that
           denominator moves whenever anyone mints or a mint matures — it is not a rate
-          anyone promises you. It also assumes the shares stay live: they retire at
-          maturity, so a short mint earns for a short time.
+          anyone promises you. Shares retire at maturity, so a short mint earns for a
+          short time.
           {#if cliffSoon}
             <b class="gold">Every migration mint matures on 30 September</b>, retiring most
             of the network's shares at once — whoever holds shares after that divides the
@@ -291,11 +319,6 @@
     </div>
   {/if}
 
-  {#if error}<p class="err">{error}</p>{/if}
-
-  <button onclick={submit} disabled={!canSubmit}>
-    {#if confirming}Confirming…{:else if !chain.account}Sign in to mint{:else}Mint{/if}
-  </button>
 </div>
 
 <style>
@@ -327,6 +350,9 @@
   .preview.invalid { opacity: 0.5; }
   .headline { display: flex; align-items: baseline; gap: 0.5rem; flex-wrap: wrap; }
   .headline strong { font-size: 1.55rem; }
+  /* The second half of the preview: everything that EXPLAINS the figure,
+     below the button rather than between it and the number. */
+  .preview.detail { margin-top: 0.9rem; }
   .bonuses { margin: 0.6rem 0 0.5rem; display: grid; gap: 0.3rem; }
   .brow {
     display: flex; align-items: baseline; justify-content: space-between; gap: 1rem;
