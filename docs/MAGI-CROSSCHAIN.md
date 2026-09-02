@@ -92,3 +92,27 @@ Assets: `hive | hbd | hbd_savings`. **No swap helper and no pool method** —
 which is why the interface above had to be read from transactions. The
 absence of a convenience method is not the absence of an interface; do not
 conclude "impossible" from an SDK's method list again.
+
+
+## Off-chain indexer — `vsc-eco/magi-mongo-indexer` (TibFox, 2026-09-01)
+
+> "the data is read from an off-chain indexer where all contract logs are
+> parsed and stored to reconstruct chain state"
+> — https://github.com/vsc-eco/magi-mongo-indexer
+
+Answered the BTC-balance question a day after we had already solved it by
+reading `vsc-eco/utxo-mapping` (balances live at `a-<qualified account>` in the
+mapping contract, see above). **Recorded for the other thing it answers.**
+
+The Chart page replays every pool call from genesis on each load and the Stats
+page walks the whole transaction log. Both are correct and both are O(all
+history) — fine at 66 transactions, not at 100,000. The LasseCash Markets track
+(CLAUDE.md) needs exactly this: every trade indexed, never sampled, candles
+derived from it, a CMC/CoinGecko-shaped API on top.
+
+So when that gets built, the first question is whether to run this rather than
+write another one. It is MAGI's own, it parses contract logs generically, and
+the alternative is maintaining a second implementation of the same walk.
+
+Not urgent: it is off-chain, has no deadline, and nothing about the key burn
+touches it.
