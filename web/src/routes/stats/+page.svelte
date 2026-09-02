@@ -119,6 +119,46 @@
       // (entitlement) is untouched and the mint keys are documented above, so
       // it is a re-add rather than a rebuild if the numbers ever get big
       // enough to be worth the wait.
+      // SHOWED UP — active on the chain with nothing in the snapshot.
+      //
+      // Everyone in the tables above was GIVEN something: they held LASSECASH
+      // on Hive-Engine and came to collect it. These people had nothing to
+      // collect and used the chain anyway, which is the only evidence that the
+      // thing pulls rather than being pushed.
+      //
+      // The owner is excluded: init and set_snapshot are genesis transactions,
+      // not somebody turning up.
+      //
+      // ⚠️ DELETED BY ACCIDENT 2026-09-02 and restored. Removing the `earned`
+      // computation cut a slice of code between two markers, and this block
+      // sat inside that slice — the markup survived, `newcomers` stayed empty,
+      // and the section silently stopped rendering. Nothing failed and no test
+      // caught it. If this ever moves again, move it deliberately.
+      const known = new Set(file.migrated.map((m) => `hive:${m.account}`));
+      const strangers = activity
+        .map((a) => a.account)
+        .filter((a) => !known.has(a) && a !== "hive:lassecashmagi");
+      if (strangers.length) {
+        const st2 = await client.state([
+          ...strangers.map((a) => `bal_${a}`),
+          ...strangers.map((a) => `shr_${a}`),
+        ]);
+        newcomers = strangers
+          .map((a) => {
+            const act = acts.get(a);
+            return {
+              account: a.replace(/^hive:/, ""),
+              balance: BigInt(st2[`bal_${a}`] || "0"),
+              shares: BigInt(st2[`shr_${a}`] || "0"),
+              kinds: act
+                ? KINDS.filter((k) => k.actions.some((x) => (act.actions[x] ?? 0) > 0)).map((k) => k.letter)
+                : [],
+              calls: act?.calls ?? 0,
+            };
+          })
+          .sort((a, b) => (b.balance > a.balance ? 1 : -1));
+      }
+
       rows = file.migrated.map((m) => {
         const q = `hive:${m.account}`;
         const act = acts.get(q);
