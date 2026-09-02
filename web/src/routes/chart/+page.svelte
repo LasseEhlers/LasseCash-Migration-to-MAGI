@@ -231,9 +231,18 @@
                 </td>
                 <!-- A buy is the one row where amountIn is the HBD side. -->
                 <td class="num mono">{lc(t.side === "buy" ? t.amountOut : t.amountIn, 3)}</td>
-                <td class="num mono">{lc(t.side === "buy" ? t.amountIn : t.amountOut, 6)}</td>
+                <!-- THREE DECIMALS, because that is all HBD has. Hive holds it
+                     as "1.098 HBD" and MAGI moves it in milli-units — there is
+                     no such thing as 0.107721 HBD. Our own contract settles the
+                     point: HbdPayMilli rounds DOWN to whole milli, so a payout
+                     the engine computed as 0.107721 pays 0.107 and the
+                     remainder stays in custody as dust.
+                     Six decimals showed precision that never moved. A trade too
+                     small to shift a milli now reads 0.000, which is exactly
+                     what it paid. -->
+                <td class="num mono">{lc(t.side === "buy" ? t.amountIn : t.amountOut, 3)}</td>
                 <td class="num mono">{lc(t.lcReserve, 2)}</td>
-                <td class="num mono">{lc(t.hbdReserve, 6)}</td>
+                <td class="num mono">{lc(t.hbdReserve, 3)}</td>
                 <td class="num mono gold">{lc(t.price, 8)}</td>
               </tr>
             {/each}
