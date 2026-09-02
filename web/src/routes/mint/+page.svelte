@@ -83,8 +83,12 @@
   let durSaving = $state(false);
   let durErr = $state<string | null>(null);
   let durDays = $state(1095);
-  /** What the chain currently holds, so Save can be disabled when unchanged. */
-  const durSaved = $derived(chain.me?.mint_duration_days || 1095);
+  /** What the chain currently holds, so Save can be disabled when unchanged.
+      The fallback mirrors the contract's default for accounts that never set
+      one — the migration-mint length, not the 1,095-day maximum. */
+  const durSaved = $derived(
+    chain.me?.mint_duration_days || constants().migrationMintDays,
+  );
   function openDuration() {
     durDays = durSaved;
     durErr = null;

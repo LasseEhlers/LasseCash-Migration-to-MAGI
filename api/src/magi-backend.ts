@@ -450,7 +450,12 @@ export class MagiBackend implements Backend {
       shares: units(base["shr_" + acct]),
       pending: units((base["pend_" + acct] ?? "0").split("|")[0]),
       pending_curation: 0, // informational only; needs the queue cursors
-      mint_duration_days: num(base["set_" + acct + "_days"]) || 1095,
+      // An account that never called set_duration gets the contract's default,
+      // which is the migration-mint length (DefaultDurationDays in
+      // contract/state/mint.go). Only true once the 2026-09 code update is
+      // live on this contract — the pre-update code defaulted to 1,095.
+      mint_duration_days:
+        num(base["set_" + acct + "_days"]) || engine.constants().migrationMintDays,
       // The caller's liquid HBD on MAGI from `getAccountBalance` (the ledger,
       // not contract state), in the engine's 1e8 base units like every other
       // amount in this view. The node keeps milli-HBD.
