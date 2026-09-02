@@ -300,7 +300,7 @@
               title="What one L-Share has cost"
               headline={currentRateHbd ? lc(currentRateHbd, 6) : null}
               headlineUnit="HBD per share, now"
-              subtitle="Every trade since the pool opened — the rate underneath rises 7% a year; what moves is the pool"
+              subtitle="Every trade since the pool opened — the rate underneath rises 7% a year; what moves is the pool price"
               points={shareHistory}
               nowX={historyNowX}
               yFormat={(y) => y.toFixed(6)}
