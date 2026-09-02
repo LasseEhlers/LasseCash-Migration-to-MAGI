@@ -1257,35 +1257,53 @@ export class MagiBackend implements Backend {
    * whose weight the chain no longer recognises.
    */
   async postVotes(author: string, permlink: string): Promise<PostVote[]> {
-    const data = await this.query<{
-      findTransaction: {
-        required_auths: string[];
-        required_posting_auths: string[];
-        ops: { type: string; data: { action?: string; payload?: string } }[];
-      }[];
-    }>(
-      // MAGI rejects limit outside 1..100 — the node enforces the cap.
-      `query($c: String!) { findTransaction(filterOptions: {byContract: $c, limit: 100}) {
-        required_auths required_posting_auths ops { type data } } }`,
-      { c: this.#contractId },
-    );
-
-    // `vote` takes <author>|<permlink>|<weight>, so the prefix identifies the
-    // post exactly. Matching on the prefix rather than splitting keeps a
-    // permlink containing a pipe (which the contract would reject anyway) from
-    // ever being read as a different post.
+    // PAGINATED, because a single page silently truncates the voter list.
+    //
+    // This read `limit: 100` with no offset, so it only ever saw the newest 100
+    // transactions on the contract. On 2026-09-02 the genesis post showed ONE
+    // of its three voters: @zaxan and @angeloextreme had voted the day before
+    // and had since fallen off the end of that window. The page then compared
+    // its short list against the record's vote COUNT and told the reader the
+    // missing two had been paid out — a wrong guess presented as fact, on a
+    // post that had not paid out at all.
+    //
+    // It also got worse every day: each new transaction pushed another old vote
+    // out of range, so posts would show fewer voters the longer they existed.
+    //
+    // The node caps a page at 100, so pages are walked until one comes back
+    // short. Same shape as poolOps and activity, which were already paginated.
+    const PAGE = 100;
+    const MAX = 3000;
     const prefix = `${author}|${permlink}|`;
     const voters: string[] = [];
     const seen = new Set<string>();
-    for (const tx of data.findTransaction ?? []) {
-      for (const op of tx.ops ?? []) {
-        if (op.type !== "call" || op.data?.action !== "vote") continue;
-        if (!(op.data.payload ?? "").startsWith(prefix)) continue;
-        const voter = tx.required_auths?.[0] ?? tx.required_posting_auths?.[0];
-        if (!voter || seen.has(voter)) continue;
-        seen.add(voter);
-        voters.push(voter);
+    for (let offset = 0; offset < MAX; offset += PAGE) {
+      const data = await this.query<{
+        findTransaction: {
+          required_auths: string[];
+          required_posting_auths: string[];
+          ops: { type: string; data: { action?: string; payload?: string } }[];
+        }[];
+      }>(
+        `query($c: String!, $o: Int!, $l: Int!) { findTransaction(filterOptions: {byContract: $c, offset: $o, limit: $l}) {
+          required_auths required_posting_auths ops { type data } } }`,
+        { c: this.#contractId, o: offset, l: PAGE },
+      );
+      const page = data.findTransaction ?? [];
+      for (const tx of page) {
+        for (const op of tx.ops ?? []) {
+          if (op.type !== "call" || op.data?.action !== "vote") continue;
+          // `vote` takes <author>|<permlink>|<weight>, so the prefix identifies
+          // the post exactly. Matching the prefix rather than splitting keeps a
+          // permlink containing a pipe from ever reading as a different post.
+          if (!(op.data.payload ?? "").startsWith(prefix)) continue;
+          const voter = tx.required_auths?.[0] ?? tx.required_posting_auths?.[0];
+          if (!voter || seen.has(voter)) continue;
+          seen.add(voter);
+          voters.push(voter);
+        }
       }
+      if (page.length < PAGE) break; // reached the beginning of history
     }
     if (voters.length === 0) return [];
 
