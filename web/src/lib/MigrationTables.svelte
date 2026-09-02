@@ -413,7 +413,7 @@
           <div><dt>Snapshot block</dt><dd>109,504,918 <span class="dim">· 31 Aug 2026, 12:00 UTC</span></dd></div>
           <div><dt>Leaves in the tree</dt><dd>{leafCount.toLocaleString()} <span class="dim">· every account with a balance, qualified or burned</span></dd></div>
           <div><dt>Qualified</dt><dd>{migratedRows.length.toLocaleString()} accounts · <b>{lc(fromUnits(BigInt(raw.stats.combined_total)))}</b> LC</dd></div>
-          <div><dt>Burned to @null</dt><dd>{burnedRows.length.toLocaleString()} accounts · <b>{lc(fromUnits(burnedTotal))}</b> LC</dd></div>
+          <div><dt>Burned to @null</dt><dd>{burnedRows.length.toLocaleString()} accounts · <b>{lc(fromUnits(burnedTotal), 3)}</b> LC</dd></div>
           <div><dt>Snapshot supply</dt><dd><b>{lc(fromUnits(burnedTotal + BigInt(raw.stats.combined_total)))}</b> LC <span class="dim">· qualified + burned</span></dd></div>
         </dl>
       </section>
@@ -485,10 +485,10 @@
                 <tr>
                   <td class="num dim">{i + 1}</td>
                   <td>{displayName(`hive:${row.account}`)}</td>
-                  <td class="num">{lc(fromUnits(row.liquid))}</td>
-                  <td class="num">{lc(fromUnits(row.lshares))}</td>
-                  {#if dumpMap}<td class="num">{lc(fromUnits(row.principal))}</td>{/if}
-                  <td class="num gold">{lc(fromUnits(row.total))}</td>
+                  <td class="num">{lc(fromUnits(row.liquid), 3)}</td>
+                  <td class="num">{lc(fromUnits(row.lshares), 3)}</td>
+                  {#if dumpMap}<td class="num">{lc(fromUnits(row.principal), 3)}</td>{/if}
+                  <td class="num gold">{lc(fromUnits(row.total), 3)}</td>
                   <td><span class="badge {row.badge === 'unresolved' ? 'a' : 'b'}">{row.badge}</span></td>
                 </tr>
               {/each}
@@ -514,9 +514,9 @@
       <section class="panel">
         <h2>Did not make it (burned at migration)</h2>
         <small class="dim">
-          {burnedRows.length.toLocaleString()} accounts · {lc(fromUnits(burnedTotal))} LC total ·
+          {burnedRows.length.toLocaleString()} accounts · {lc(fromUnits(burnedTotal), 3)} LC total ·
           <b>{bigBurned.count.toLocaleString()}</b> of them held over 10,000 LC, together
-          <b>{lc(fromUnits(bigBurned.sum))}</b> LC — {bigBurned.pct}% of everything burned.
+          <b>{lc(fromUnits(bigBurned.sum), 3)}</b> LC — {bigBurned.pct}% of everything burned.
           Their tokens sit at @null, unspendable, listed account by account forever.
         </small>
         <div class="scroll">
@@ -536,9 +536,9 @@
                 <tr>
                   <td class="num dim">{i + 1}</td>
                   <td>{displayName(`hive:${row.account}`)}</td>
-                  <td class="num">{lc(fromUnits(row.liquid))}</td>
-                  <td class="num">{lc(fromUnits(row.staked))}</td>
-                  <td class="num gold">{lc(fromUnits(row.total))}</td>
+                  <td class="num">{lc(fromUnits(row.liquid), 3)}</td>
+                  <td class="num">{lc(fromUnits(row.staked), 3)}</td>
+                  <td class="num gold">{lc(fromUnits(row.total), 3)}</td>
                   <td><span class="badge {row.group === 'protocol' ? 'a' : 'burn'}">{row.group === 'protocol' ? 'protocol' : 'burned'}</span></td>
                 </tr>
               {/each}
@@ -563,7 +563,7 @@
           it is notional, because there it adds tokens to L-Shares.)
         </small>
         <small class="dim">
-          {allRows.length.toLocaleString()} accounts · {lc(fromUnits(allTotal))} LC total
+          {allRows.length.toLocaleString()} accounts · {lc(fromUnits(allTotal), 3)} LC total
         </small>
         <div class="scroll">
           <table>
@@ -581,9 +581,9 @@
                 <tr>
                   <td class="num dim">{i + 1}</td>
                   <td>{displayName(`hive:${row.account}`)}</td>
-                  <td class="num">{lc(fromUnits(row.liquid))}</td>
-                  <td class="num">{lc(fromUnits(row.staked))}</td>
-                  <td class="num gold">{lc(fromUnits(row.total))}</td>
+                  <td class="num">{lc(fromUnits(row.liquid), 3)}</td>
+                  <td class="num">{lc(fromUnits(row.staked), 3)}</td>
+                  <td class="num gold">{lc(fromUnits(row.total), 3)}</td>
                 </tr>
               {/each}
             </tbody>

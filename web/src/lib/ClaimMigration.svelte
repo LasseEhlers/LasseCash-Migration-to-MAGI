@@ -239,7 +239,7 @@
             </p>
           {/if}
         {:else}
-          <div class="hero mono gold">{lc(preview.toOwner)}</div>
+          <div class="hero mono gold">{lc(preview.toOwner, 3)}</div>
           <div class="hero-sub">from your LASSECASH POWER, paid straight to liquid</div>
           <p class="line">
             plus <span class="mono">{lc(fromUnits(BigInt(leaf.liquid)))}</span>
@@ -247,7 +247,7 @@
           </p>
           {#if preview.toRewardPool !== "0.00000000"}
             <p class="line bled">
-              <span class="mono">{lc(preview.toRewardPool)}</span> has already bled
+              <span class="mono">{lc(preview.toRewardPool, 3)}</span> has already bled
               away to the L-Share reward pool. The mint matured on day
               {constants().migrationMintDays} and the bleed does not pause for
               anyone.

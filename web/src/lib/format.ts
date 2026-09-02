@@ -29,8 +29,34 @@ import { format, fromUnits, type Amount } from "$api/index.js";
  *   anyone can hold, and it is genuinely sub-milli — 0.005144 is a real figure
  *   where 0.005144 HBD is not.
  */
-export function lc(amount: Amount, decimals = 3): string {
-  return format(amount, { decimals });
+export function lc(amount: Amount, decimals?: number): string {
+  return format(amount, { decimals: decimals ?? autoDecimals(amount) });
+}
+
+/**
+ * Decimals by MAGNITUDE, which is the rule that survives the price moving.
+ *
+ * A whole LASSECASH is worth about half a cent today, so three decimals on a
+ * five-figure amount is a sub-half-cent tail nobody reads — while three on a
+ * 4.3/day yield is the whole figure. The asset is not what decides it; the
+ * size is.
+ *
+ *     >= 1,000   none      11,700
+ *     >= 100     one       983.5
+ *     >= 10      two       48.90
+ *     below      three     4.300
+ *
+ * Pass an explicit count to override, and two kinds of figure always should:
+ * PRICES, which are ratios and genuinely sub-milli, and PROOFS — the snapshot,
+ * the claim page, anything that has to reconcile to the base unit.
+ */
+export function autoDecimals(amount: Amount): number {
+  const n = Math.abs(Number(amount));
+  if (!Number.isFinite(n)) return 3;
+  if (n >= 1000) return 0;
+  if (n >= 100) return 1;
+  if (n >= 10) return 2;
+  return 3;
 }
 
 /** A short form for headline figures. */
