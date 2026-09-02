@@ -199,6 +199,14 @@ export interface PostMeta {
  */
 export interface PostVote {
   voter: string;
+  /**
+   * RAW BASE UNITS, exactly as the `pv_` record holds them — NOT a decimal
+   * Amount like almost every other string in this file.
+   *
+   * The unlabelled `string` cost an hour on 2026-09-02: a caller ran it
+   * through `toBaseUnitArg` a second time, multiplied it by 1e8, and the
+   * derived weight silently fell outside 1..100 and read as "never voted".
+   */
   rshares: string;
 }
 

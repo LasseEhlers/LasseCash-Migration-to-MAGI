@@ -43,20 +43,30 @@
    * slider opens on. The habit still applies to posts you have not voted.
    */
   let myWeight = $state<number | null>(null);
+  /** Your EXACT rshares on this post, straight off the `pv_` record. Derived
+   *  from the rounded weight instead, a same-weight re-vote left a residue of
+   *  a few base units and reported "adds 0.0000" rather than "no change". */
+  let myRsharesOnPost = $state(0);
   $effect(() => {
     const who = chain.account;
     if (!who || !post.registered) { myWeight = null; return; }
     void client.postVotes(post.author, post.permlink)
       .then((vs) => {
         const mine = vs.find((v) => v.voter === who);
-        if (!mine || !me) { myWeight = null; return; }
+        if (!mine || !me) { myWeight = null; myRsharesOnPost = 0; return; }
+        myRsharesOnPost = Number(mine.rshares) || 0;
         // rshares = shares x powerSpent, and a 100% vote spends a tenth of the
         // meter — so weight = rshares / (shares / 10), read back exactly.
+        //
+        // `mine.rshares` is ALREADY base units (it comes straight off the `pv_`
+        // record); `me.shares` is a decimal Amount. Converting both would
+        // multiply the first by 1e8 again, which is what made every weight land
+        // outside 1..100 and read as "never voted".
         const full = Number(toBaseUnitArg(me.shares)) / 10;
-        const w = full > 0 ? Math.round((Number(toBaseUnitArg(mine.rshares)) / full) * 100) : 0;
+        const w = full > 0 ? Math.round((Number(mine.rshares) / full) * 100) : 0;
         myWeight = w >= 1 && w <= 100 ? w : null;
       })
-      .catch(() => (myWeight = null));
+      .catch(() => { myWeight = null; myRsharesOnPost = 0; });
   });
   // Opening the panel adopts your existing vote, not your habit.
   $effect(() => { if (open && myWeight !== null) weight = myWeight; });
@@ -114,9 +124,7 @@
       const mine = Number(toBaseUnitArg(voteWeight(toBaseUnitArg(me.shares), toBaseUnitArg(cost))));
       if (mine <= 0) return null;
       // Replacing your own vote does not add to the post twice.
-      const existing = myWeight !== null
-        ? Number(toBaseUnitArg(me.shares)) / 10 * (myWeight / 100)
-        : 0;
+      const existing = existingRshares;
       const others = Math.max(0, Number(post.rshares) - existing);
       // NOBODY ELSE HAS VOTED: taking "100%" is arithmetically true and
       // completely uninformative — there is no one to crowd out. Warning here
@@ -149,7 +157,12 @@
       //
       // What the post actually gains is the DIFFERENCE between the vote you
       // are about to cast and the one you already hold.
-      const delta = Number(toBaseUnitArg(myRshares)) - existingRshares;
+      // SAME WEIGHT IS DECIDED ON THE WEIGHT, not on the rshares.
+      // Recomputing your existing rshares in floating point leaves a residue
+      // of a few base units against the contract's integer math, which read as
+      // "you are lowering this vote" when nothing had changed at all.
+      const unchanged = myWeight !== null && weight === myWeight;
+      const delta = unchanged ? 0 : Number(toBaseUnitArg(myRshares)) - existingRshares;
       const newTotal = postRshares + delta;
       if (newTotal <= 0) return null;
       if (delta <= 0) return { rshares: myRshares, added: "0.00000000", delta };
@@ -164,14 +177,12 @@
   const mine = $derived(myWeight !== null);
 
   /** Rshares this account already has on this post, 0 if it has not voted. */
-  const existingRshares = $derived(
-    myWeight !== null && me ? (Number(toBaseUnitArg(me.shares)) / 10) * (myWeight / 100) : 0,
-  );
+  const existingRshares = $derived(myWeight !== null ? myRsharesOnPost : 0);
 
   async function remove() {
     error = null;
     error = await chain.submit(() => client.unvote(post.author, post.permlink));
-    if (!error) { myWeight = null; open = false; onvoted?.(); }
+    if (!error) { myWeight = null; myRsharesOnPost = 0; open = false; onvoted?.(); }
   }
 
   async function cast() {
