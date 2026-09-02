@@ -103,7 +103,7 @@
 </script>
 
 <div class="chart-panel panel">
-  <h2>{title}</h2>
+  {#if title}<h2>{title}</h2>{/if}
   <!-- Each panel now shows a DIFFERENT thing — one projects the exact ratchet,
        the other replays what shares actually cost — so each carries its own
        current value rather than sharing one figure in the section header. -->

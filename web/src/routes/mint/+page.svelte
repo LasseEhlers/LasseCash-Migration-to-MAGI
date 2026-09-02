@@ -277,19 +277,28 @@
 
   {#if chain.info}
     <section class="panel rate-panel">
-      <h2>L-Share rate</h2>
-
-      <div class="rate-top">
-        <div class="hero">
+      <!-- BOTH CURRENT VALUES ON ONE LINE, above the charts they belong to.
+           The LC rate sat in the section header while the HBD figure sat
+           inside its chart panel, so the page's two headline numbers were at
+           different heights and read as unrelated. They are the same fact in
+           two units — Lasse's layout, and it is the right one. -->
+      <div class="heads">
+        <div class="head">
+          <h2>L-Share rate</h2>
           <div class="value gold">{currentRate ? lc(currentRate, 5) : "—"}</div>
           <div class="sub">LC per share</div>
+        </div>
+        <div class="head">
+          <h2>What one L-Share has cost</h2>
+          <div class="value gold">{currentRateHbd ? lc(currentRateHbd, 6) : "—"}</div>
+          <div class="sub">HBD per share, now</div>
         </div>
       </div>
 
       {#if rateSeries}
         <div class="charts">
           <RateChart
-            title="Rate in LASSECASH"
+            title=""
             subtitle="EXACT — the ratchet is deterministic, +7% a year, never down"
             points={rateSeries.lcPoints}
             nowX={nowYears}
@@ -297,9 +306,7 @@
           />
           {#if shareHistory}
             <RateChart
-              title="What one L-Share has cost"
-              headline={currentRateHbd ? lc(currentRateHbd, 6) : null}
-              headlineUnit="HBD per share, now"
+              title=""
               subtitle="Every trade since the pool opened — the rate underneath rises 7% a year; what moves is the pool price"
               points={shareHistory}
               nowX={historyNowX}
@@ -307,7 +314,6 @@
             />
           {:else}
             <div class="chart-panel panel empty-chart">
-              <h2>What one L-Share has cost</h2>
               <p class="dim">Not enough trades yet.</p>
             </div>
           {/if}
@@ -337,20 +343,13 @@
   dd { margin: 0; text-align: right; }
   dt.sub, dd.sub { font-size: 0.78rem; padding-left: 0.8rem; opacity: 0.9; }
 
-  .rate-top {
-    display: flex; align-items: flex-end; gap: 1.4rem; flex-wrap: wrap;
-    margin-bottom: 1.1rem;
-  }
-  .hero .value {
-    font-family: var(--mono); font-size: var(--t-hero); font-weight: 800;
-    font-variant-numeric: tabular-nums; line-height: 1.15;
-    text-shadow: var(--glow-gold);
-  }
-  .hero .sub {
-    color: var(--dim); font-size: var(--t-micro); letter-spacing: 0.13em;
-    text-transform: uppercase; font-weight: 700; font-family: var(--mono);
-    margin-top: 0.15rem;
-  }
+  /* Same two-column shape as .charts below, so each value sits over its own
+     chart at every width. */
+  .heads { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
+  .head { flex: 1 1 320px; min-width: 0; }
+  .head h2 { margin: 0 0 0.35rem; }
+  .head .value { font-size: 2rem; line-height: 1.1; font-family: var(--mono); }
+  .head .sub { font-size: var(--t-tiny); color: var(--dim); }
   .charts { display: flex; gap: 1rem; flex-wrap: wrap; }
   .charts > :global(.chart-panel) { flex: 1 1 320px; min-width: 0; }
   .empty-chart { display: flex; flex-direction: column; justify-content: center; min-height: 150px; }
