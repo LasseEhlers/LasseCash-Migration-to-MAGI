@@ -6,7 +6,29 @@
  */
 import { format, fromUnits, type Amount } from "$api/index.js";
 
-/** LASSECASH for display: grouped, 3 decimals by default. */
+/**
+ * A figure for display: grouped, 3 decimals by default.
+ *
+ * HOW MANY DECIMALS — the rule, because it drifted once already.
+ *
+ *   AMOUNTS of HBD get THREE. That is not a preference, it is all that exists:
+ *   Hive holds HBD as "1.098 HBD" and MAGI moves it in milli-units. Our own
+ *   contract settles it — HbdPayMilli rounds DOWN to whole milli, so a payout
+ *   the engine computes as 0.107721 pays 0.107 and the rest stays in custody as
+ *   dust. And because this function TRUNCATES, three decimals show exactly what
+ *   was paid.
+ *
+ *   AMOUNTS of LASSECASH get THREE by default. The ledger has eight, and the
+ *   chain always settles to the base unit — but the eighth decimal is worth
+ *   about 0.00000000005 HBD today, so showing it would be noise pretending to
+ *   be precision. This is a display choice and reversible; the eight-decimal
+ *   figures belong where a number is a PROOF rather than a price: the snapshot,
+ *   the claim page, anything that must reconcile to the base unit.
+ *
+ *   PRICES AND RATES keep more. "HBD per LASSECASH" is a ratio, not something
+ *   anyone can hold, and it is genuinely sub-milli — 0.005144 is a real figure
+ *   where 0.005144 HBD is not.
+ */
 export function lc(amount: Amount, decimals = 3): string {
   return format(amount, { decimals });
 }

@@ -536,7 +536,7 @@
             {#if quote.ok}
               <div class="headline">
                 <span class="dim">You receive about</span>
-                <strong class="gold mono">{lc(quote.amountOut, 6)}</strong>
+                <strong class="gold mono">{lc(quote.amountOut, 3)}</strong>
                 <span class="dim">{outSymbol}</span>
               </div>
               <div class="meta">
@@ -548,13 +548,13 @@
               {#if outBelowHbdStep}
                 <p class="estimate red">
                   Too small to pay out: HBD moves in 0.001 steps on MAGI and
-                  this swap would pay {lc(quote.amountOut, 6)}. Increase the
+                  this swap would pay {lc(quote.amountOut, 3)}. Increase the
                   amount.
                 </p>
               {:else}
                 <p class="estimate">
                   Estimate. Reserves move before this broadcasts — you receive at
-                  least <b class="mono">{lc(minOut, 6)}</b> {outSymbol} or the swap is rejected.
+                  least <b class="mono">{lc(minOut, 3)}</b> {outSymbol} or the swap is rejected.
                 </p>
               {/if}
             {:else}
@@ -631,7 +631,7 @@
           <div class="asset-head">
             <span class="asset-name">HBD</span>
             <span class="asset-balance">
-              Balance <b class="mono">{lc(hbdBalance, 8)}</b>
+              Balance <b class="mono">{lc(hbdBalance, 3)}</b>
               <button
                 type="button" class="ghost small linklike"
                 onclick={maxHbd} disabled={!chain.account || !activeReserveArgs}
@@ -724,9 +724,9 @@
                 <td class="num" class:green={t.age_days >= 90}>
                   {mult(t.loyalty_multiplier)}{#if t.age_days >= 90}<span class="pill ok">max</span>{/if}
                 </td>
-                <td class="num">{lc(t.value_lc)} LC <small class="dim">+ {lc(t.value_hbd, 6)} HBD</small></td>
+                <td class="num">{lc(t.value_lc)} LC <small class="dim">+ {lc(t.value_hbd, 3)} HBD</small></td>
                 <td class="num" class:gold={!isZero(t.pending_reward)} class:dim={isZero(t.pending_reward)}>
-                  {lc(t.pending_reward, 6)}
+                  {lc(t.pending_reward, 3)}
                   <Hbd amount={t.pending_reward} decimals={6} block />
                 </td>
                 <td class="health"><TrancheHealth {health} /></td>
@@ -778,7 +778,7 @@
                 <td class="num mono">{(t.share * 100).toFixed(1)}%</td>
                 <td class="num">{t.ageDays}d</td>
                 <td class="num" class:green={t.ageDays >= 90}>{mult(t.loyalty)}</td>
-                <td class="num">{lc(t.valueLc)} LC <small class="dim">+ {lc(t.valueHbd, 6)} HBD</small></td>
+                <td class="num">{lc(t.valueLc)} LC <small class="dim">+ {lc(t.valueHbd, 3)} HBD</small></td>
               </tr>
             {/each}
           </tbody>
