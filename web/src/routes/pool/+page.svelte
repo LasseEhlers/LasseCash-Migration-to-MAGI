@@ -273,6 +273,26 @@
    * If RC is unknown (dev chain, node down) this falls back to the balance
    * rather than blocking a deposit on a meter we cannot read.
    */
+  /**
+   * THE ANNOUNCED KEY-BURN HEIGHT — day 40 after genesis, 10 October 2026.
+   *
+   * The zero fee is already hardcoded: no parameter, no registry row, no
+   * governance path, pinned by TestSwapTakesNoFee and
+   * TestSwapFeeIsZeroAndNotGovernable. But "forever" is not true until the
+   * owner key is destroyed, because until then a timelocked contract update
+   * could still change it.
+   *
+   * That is the same standard that rejected "12 months of admin keys" as
+   * disingenuous, so the page does not claim the word early. It says what is
+   * true today, and starts saying "forever" on the day it becomes true.
+   *
+   * Height, not a date: the chain is the clock. Verify the burn actually
+   * happened before trusting the wording — this switches on the ANNOUNCED
+   * height, and an announcement is a plan until the transaction is published.
+   */
+  const KEY_BURN_HEIGHT = 110_664_118;
+  const keysBurned = $derived(!!info && info.height >= KEY_BURN_HEIGHT);
+
   const RC_RESERVE_MILLI = 5_500;
 
   /**
@@ -493,7 +513,7 @@
     <div class="panel stat">
       <div class="label">Swap fee</div>
       <div class="value green">0%</div>
-      <div class="sub">LPs are paid in LASSECASH</div>
+      <div class="sub">{keysBurned ? "forever — the keys are burned" : "hardcoded · no governance path"}</div>
     </div>
   </section>
 

@@ -50,12 +50,26 @@
    * for Hive posts, where authors write poems and addresses and peakd does the
    * same — but here it rendered the prose as an 80-column block on a 1900px
    * screen. Unwrap: a single newline between two text lines becomes a space.
-   * Blank lines (paragraphs), list items, table rows, headings and code
-   * fences are untouched because each of those starts its line with a marker
-   * the lookahead excludes.
+   * Blank lines (paragraphs), list items, table rows and headings are
+   * untouched because each starts its line with a marker the lookahead
+   * excludes.
+   *
+   * CODE FENCES ARE NOT, AND THAT WAS A BUG. Only the ``` lines themselves
+   * start with a backtick; the CONTENT starts with whatever the author wrote.
+   * The supply-reconciliation block in section 3 begins its lines with
+   * "exists", "−", "=" and "+", none of them excluded, so all seven lines
+   * were joined into one and the page grew a horizontal scrollbar around a
+   * column of figures (found 2026-09-02).
+   *
+   * So the fences are split out FIRST and passed through untouched. A code
+   * block means "these characters, these lines" — reflowing it is never right.
    */
   function unwrap(md: string): string {
-    return md.replace(/([^\n])\n(?![\n|#>*\-\d\[`])/g, "$1 ");
+    // Odd indices are the inside of a fence, and are left exactly as written.
+    return md
+      .split(/(```[\s\S]*?```)/g)
+      .map((part, i) => (i % 2 ? part : part.replace(/([^\n])\n(?![\n|#>*\-\d\[`])/g, "$1 ")))
+      .join("");
   }
 
   const parts = $derived.by(() => {
