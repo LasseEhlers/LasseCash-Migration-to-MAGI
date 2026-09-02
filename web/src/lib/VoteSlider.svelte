@@ -30,6 +30,37 @@
   let open = $state(false);
   let error = $state<string | null>(null);
 
+  /**
+   * YOUR EXISTING WEIGHT ON *THIS* POST, when you have already voted it.
+   *
+   * The remembered weight above is your habit, not your vote. Opening a post
+   * you voted at 100% showed the slider at 7% because 7% was the last thing
+   * you used somewhere else — so it read as "already changed" when the chain
+   * still held 100%. 2026-09-02: a re-vote was skipped on that basis, and the
+   * post that actually got changed was a different one with a similar name.
+   *
+   * The chain is the authority, so when it knows your vote, that is what the
+   * slider opens on. The habit still applies to posts you have not voted.
+   */
+  let myWeight = $state<number | null>(null);
+  $effect(() => {
+    const who = chain.account;
+    if (!who || !post.registered) { myWeight = null; return; }
+    void client.postVotes(post.author, post.permlink)
+      .then((vs) => {
+        const mine = vs.find((v) => v.voter === who);
+        if (!mine || !me) { myWeight = null; return; }
+        // rshares = shares x powerSpent, and a 100% vote spends a tenth of the
+        // meter — so weight = rshares / (shares / 10), read back exactly.
+        const full = Number(toBaseUnitArg(me.shares)) / 10;
+        const w = full > 0 ? Math.round((Number(toBaseUnitArg(mine.rshares)) / full) * 100) : 0;
+        myWeight = w >= 1 && w <= 100 ? w : null;
+      })
+      .catch(() => (myWeight = null));
+  });
+  // Opening the panel adopts your existing vote, not your habit.
+  $effect(() => { if (open && myWeight !== null) weight = myWeight; });
+
   const me = $derived(chain.me);
   const height = $derived(chain.info?.height ?? 0);
   const isDeep = $derived(post.window === "deep");
@@ -61,6 +92,41 @@
    * cost them RC and told them nothing.
    */
   const hasShares = $derived(!!me && Number(me.shares) > 0);
+
+  /**
+   * WHAT SHARE OF THIS POST THIS VOTE WOULD TAKE.
+   *
+   * Only shown when it is LARGE. For a mid-sized or small holder the figure is
+   * a few percent and saying so is discouraging noise — the number only means
+   * anything to someone whose vote can drown out everyone else's, which is the
+   * situation it exists to warn about.
+   *
+   * That situation is real here: one account holds 80.6% of live L-Shares, so
+   * a full vote takes 93% of a post the largest other holder voted at 100%.
+   * The old tribe's answer was a hand-remembered "never above 7%"; this makes
+   * the same judgement visible at the moment the slider moves, and it tracks
+   * automatically as others mint rather than being a number to remember.
+   */
+  const WHALE_SHARE = 0.5;
+  const myShare = $derived.by(() => {
+    if (!me || !chain.ready) return null;
+    try {
+      const mine = Number(toBaseUnitArg(voteWeight(toBaseUnitArg(me.shares), toBaseUnitArg(cost))));
+      if (mine <= 0) return null;
+      // Replacing your own vote does not add to the post twice.
+      const existing = myWeight !== null
+        ? Number(toBaseUnitArg(me.shares)) / 10 * (myWeight / 100)
+        : 0;
+      const others = Math.max(0, Number(post.rshares) - existing);
+      // NOBODY ELSE HAS VOTED: taking "100%" is arithmetically true and
+      // completely uninformative — there is no one to crowd out. Warning here
+      // would fire on every fresh post for every account, which is the noise
+      // this is meant to avoid.
+      if (others <= 0) return null;
+      return mine / (mine + others);
+    } catch { return null; }
+  });
+  const dominates = $derived(myShare !== null && myShare >= WHALE_SHARE);
 
   /**
    * ESTIMATE of what this vote adds to the post's payout.
@@ -192,6 +258,12 @@
          chains for one signature, and curators take 25% of every payout here,
          paid automatically. Nobody gives anything up by voting here, which
          makes it the easiest habit to change. -->
+    {#if dominates && myShare !== null}
+      <p class="whale">
+        At {weight}% this vote takes <b>{(myShare * 100).toFixed(0)}%</b> of this
+        post's reward. Everyone else who votes it shares the rest.
+      </p>
+    {/if}
     <p class="here">
       <b>This vote pays twice.</b> One signature casts your Hive vote and your
       LasseCash vote at the same weight — you earn curation on both. A vote
@@ -219,6 +291,13 @@
   .here b { color: var(--gold); }
   .noshares { margin: 0.5rem 0 0; font-size: 0.7rem; color: var(--dim); line-height: 1.5; }
   .noshares a { color: var(--gold); }
+  /* Gold, never red: nothing is being lost here and red is reserved for value
+     actively disappearing. This is a judgement call being surfaced, not an
+     error — the vote is entirely legitimate. */
+  .whale { margin: 0.5rem 0 0; padding: 0.5rem 0.6rem; font-size: 0.7rem;
+           line-height: 1.5; color: var(--dim);
+           border-left: 2px solid var(--gold-dim); }
+  .whale b { color: var(--gold); }
   .err { color: var(--red); font-size: 0.8rem; margin: 0.3rem 0; }
   .voter > button:last-child { width: 100%; margin-top: 0.4rem; }
 </style>
