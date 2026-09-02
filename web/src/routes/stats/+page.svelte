@@ -236,7 +236,7 @@
     <div><dt>Supply claimed</dt><dd class="mono gold">{amt(sum(claimed))}</dd>
       <dd class="dim">{pct(sum(claimed), sum(rows))}% of entitled</dd></div>
     <div><dt>Still unclaimed</dt><dd class="mono">{amt(sum(unclaimed))}</dd>
-      <dd class="dim">{unclaimed.length} accounts holding 1 LC or more</dd></div>
+      <dd class="dim">{unclaimed.length} accounts holding 1 LASSECASH or more</dd></div>
     <div><dt>Have done something</dt><dd class="mono gold">{claimed.filter((r) => r.calls > 1).length}</dd>
       <dd class="dim">beyond claiming</dd></div>
 
@@ -247,7 +247,7 @@
        PeakD, and it looked like a snapshot bug for a minute. It is the whole
        position: liquid + staked. Same numbers, said properly. -->
   <p class="legend unit">
-    <span><b>Total LC</b> is the whole snapshot position — liquid plus staked.
+    <span><b>Total LASSECASH</b> is the whole snapshot position — liquid plus staked.
     The staked half is what becomes the mint, shown as L-Shares.</span>
   </p>
 
@@ -262,7 +262,7 @@
         <table>
           <thead><tr>
             <th class="num">#</th><th>Account</th>
-            <th class="num">Total LC</th><th class="num">L-Shares at claim</th><th>Did</th>
+            <th class="num">Total LASSECASH</th><th class="num">L-Shares at claim</th><th>Did</th>
           </tr></thead>
           <tbody>
             {#each (showAllClaimed ? claimed : claimed.slice(0, 40)) as r, i}
@@ -317,7 +317,7 @@
     <section class="panel">
       <h2>Not claimed <span class="dim">— {unclaimed.length}</span></h2>
       <p class="note dim">
-        {dustCount} more qualified with less than 1 LC between them, dust the
+        {dustCount} more qualified with less than 1 LASSECASH between them, dust the
         contract would not even mint.
         <button class="link" onclick={() => showDust = !showDust}>
           {showDust ? "hide them" : "show them anyway"}
@@ -327,7 +327,7 @@
         <table>
           <thead><tr>
             <th class="num">#</th><th>Account</th>
-            <th class="num">Total LC</th><th class="num">L-Shares waiting</th>
+            <th class="num">Total LASSECASH</th><th class="num">L-Shares waiting</th>
           </tr></thead>
           <tbody>
             {#each (showAllUnclaimed ? unclaimedShown : unclaimedShown.slice(0, 40)) as r, i}

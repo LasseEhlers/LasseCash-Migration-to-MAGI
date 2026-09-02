@@ -343,7 +343,7 @@
           <div class="label">Migrated accounts</div>
           <div class="value dim">{raw.stats.migrated_accounts.toLocaleString()}</div>
           <div class="sub">
-            met the rule · <b>{withBalance.toLocaleString()}</b> hold more than 1 LC
+            met the rule · <b>{withBalance.toLocaleString()}</b> hold more than 1 LASSECASH
           </div>
         </div>
         <div class="panel stat">
@@ -515,7 +515,7 @@
         <h2>Did not make it (burned at migration)</h2>
         <small class="dim">
           {burnedRows.length.toLocaleString()} accounts · {lc(fromUnits(burnedTotal), 3)} LC total ·
-          <b>{bigBurned.count.toLocaleString()}</b> of them held over 10,000 LC, together
+          <b>{bigBurned.count.toLocaleString()}</b> of them held over 10,000 LASSECASH, together
           <b>{lc(fromUnits(bigBurned.sum), 3)}</b> LC — {bigBurned.pct}% of everything burned.
           Their tokens sit at @null, unspendable, listed account by account forever.
         </small>
