@@ -63,6 +63,17 @@ export function coverImage(body: string): string | null {
 /** Strip markup for a plain-text excerpt. */
 export function excerpt(body: string, max = 180): string {
   const text = body
+    // HTML FIRST, and it has to be first. More than half of real Hive posts
+    // are written in it, so an excerpt that only knew markdown leaked raw
+    // tags into the one place they are most visible: the meta description
+    // and og:description, i.e. Google results and every link preview.
+    // Found 2026-09-02 on an Actifit post, reading "...noises in the cabin.
+    // <br/ This report was published via Actifit app".
+    //
+    // Comments go too — an HTML comment is invisible in a post and would
+    // otherwise be quoted verbatim as the summary.
+    .replace(/<!--[\s\S]*?-->/g, " ")
+    .replace(/<[^>]*>/g, " ")
     .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
     .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
     .replace(/https?:\/\/\S+/g, "")
