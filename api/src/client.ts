@@ -554,9 +554,26 @@ export class LasseCashClient {
     return this.#send(Entrypoint.GoodAccounting, args(mintId));
   }
 
-  /** The mint length used for the monthly Proof-of-Brain mint. */
+  /**
+   * How long this account's monthly Proof-of-Brain mint locks for.
+   *
+   * Post and curation earnings do not each become a mint — one real post
+   * carried 201 votes, and a mint per payout would be roughly 1.5 million new
+   * positions a year. They accrue to one pending balance, and on the 1st of
+   * each calendar month that whole balance becomes ONE mint. This is its
+   * length.
+   *
+   * The contract defaults to the MAXIMUM, 1,095 days, for an account that has
+   * never set one — and nothing on the site could set one until 2026-09-02,
+   * so every account was heading for a three-year lock on 1 October without
+   * being asked.
+   *
+   * 1..1,095. The contract refuses anything outside that rather than clamping
+   * silently, so the caller sees the error instead of a different lock than
+   * they asked for.
+   */
   async setMintDuration(days: number): Promise<TxResult> {
-    return this.#send(Entrypoint.SetDuration, args(days));
+    return this.#send(Entrypoint.SetDuration, args(Math.round(days)));
   }
 
   /** Convert accrued Proof-of-Brain rewards into this month's mint. */

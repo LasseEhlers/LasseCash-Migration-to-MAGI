@@ -75,6 +75,28 @@
   const RATE_CHART_POINTS = 80;
 
   /** Where "now" sits on the charts' x-axis, in years since genesis. */
+  // Plain state, seeded from the chain when the control is opened — a derived
+  // value cannot be bound to a range input, and mixing "the chain's number"
+  // with "what the user is dragging" in one expression made durLocal read
+  // before it was declared.
+  let durOpen = $state(false);
+  let durSaving = $state(false);
+  let durErr = $state<string | null>(null);
+  let durDays = $state(1095);
+  /** What the chain currently holds, so Save can be disabled when unchanged. */
+  const durSaved = $derived(chain.me?.mint_duration_days || 1095);
+  function openDuration() {
+    durDays = durSaved;
+    durErr = null;
+    durOpen = !durOpen;
+  }
+  async function saveDuration() {
+    durErr = null; durSaving = true;
+    durErr = await chain.submit(() => client.setMintDuration(durDays));
+    durSaving = false;
+    if (!durErr) durOpen = false;
+  }
+
   const nowYears = $derived.by(() => {
     if (!chain.ready || !chain.info) return 0;
     const heightsPerYear = Number(constants().heightsPerYear);
@@ -187,6 +209,45 @@
           · {me.pending_curation} curation claim{me.pending_curation > 1 ? "s" : ""} queued
         {/if}
       </div>
+      <!-- "Mints on the 1st" raised the question and never answered it: FOR HOW
+           LONG. The contract has always taken a per-account length and defaults
+           to the MAXIMUM three years when none is set — and nothing could set
+           one, so every account was heading for a 1,095-day lock on 1 October
+           without being asked.
+           It belongs here rather than on a settings page: one setting does not
+           earn a nav slot, and this is the tile that poses the question. The
+           control only unfolds when asked for, so the tile stays a figure. -->
+      {#if me}
+        <div class="sub locklen">
+          locked for <b>{durationWords(durSaved * Number(constants().heightsPerDay))}</b>
+          <button class="linky" onclick={openDuration}>
+            {durOpen ? "close" : "change"}
+          </button>
+        </div>
+        {#if durOpen}
+          <div class="durbox">
+            <!-- Deliberately NOT the word "Duration": the mint form on this
+                 same page has its own duration slider, for the mint you are
+                 creating now. Different words and different place, so the two
+                 are never mistaken for each other. -->
+            <input type="range" min="1" max="1095" step="1" bind:value={durDays} />
+            <div class="durrow">
+              <span class="mono">{durDays} days</span>
+              <button class="ghost small" onclick={saveDuration}
+                      disabled={chain.busy || durSaving || durDays === durSaved}>
+                {durSaving ? "Saving…" : "Save"}
+              </button>
+            </div>
+            {#if durErr}<p class="err small">{durErr}</p>{/if}
+            <p class="durnote dim">
+              Applies to the mint the chain creates on the 1st from your post and
+              curation earnings — not to mints you open yourself. Longer earns
+              more, up to 1.50x at three years, and a mint's length is frozen
+              once it is created.
+            </p>
+          </div>
+        {/if}
+      {/if}
       {#if chain.settleStoppedForRc}
         <div class="sub amber">
           Paused — your resource credits are low. The rest settles once they
@@ -345,6 +406,15 @@
 
   /* Same two-column shape as .charts below, so each value sits over its own
      chart at every width. */
+  .locklen { margin-top: 0.35rem; }
+  .locklen b { color: var(--fg); }
+  .linky { background: none; border: 0; padding: 0 0 0 0.35rem; font: inherit;
+           color: var(--gold); text-decoration: underline; cursor: pointer; }
+  .durbox { margin-top: 0.6rem; padding-top: 0.6rem; border-top: 1px solid var(--line); }
+  .durbox input[type="range"] { width: 100%; }
+  .durrow { display: flex; align-items: center; justify-content: space-between;
+            gap: 0.5rem; margin-top: 0.3rem; }
+  .durnote { font-size: var(--t-micro); line-height: 1.5; margin: 0.45rem 0 0; }
   .heads { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
   .head { flex: 1 1 320px; min-width: 0; }
   .head h2 { margin: 0 0 0.35rem; }
