@@ -274,6 +274,15 @@
       <dd class="dim">earned, not yet taken</dd></div>
   </div>
 
+  <!-- "LASSECASH" read as the LIQUID balance, because that is how every Hive
+       wallet labels its first column — @klye showed 22,476 here and 2,046 on
+       PeakD, and it looked like a snapshot bug for a minute. It is the whole
+       position: liquid + staked. Same numbers, said properly. -->
+  <p class="legend unit">
+    <span><b>Total LC</b> is the whole snapshot position — liquid plus staked.
+    The staked half is what becomes the mint, shown as L-Shares.</span>
+  </p>
+
   <p class="legend">
     {#each KINDS as k}<span><b>{k.letter}</b> {k.label}</span>{/each}
   </p>
@@ -285,7 +294,7 @@
         <table>
           <thead><tr>
             <th class="num">#</th><th>Account</th>
-            <th class="num">LASSECASH</th><th class="num">L-Shares at claim</th>
+            <th class="num">Total LC</th><th class="num">L-Shares at claim</th>
             <th class="num">L-Shares now</th><th class="num">Earned</th><th>Did</th>
           </tr></thead>
           <tbody>
@@ -353,7 +362,7 @@
         <table>
           <thead><tr>
             <th class="num">#</th><th>Account</th>
-            <th class="num">LASSECASH</th><th class="num">L-Shares waiting</th>
+            <th class="num">Total LC</th><th class="num">L-Shares waiting</th>
           </tr></thead>
           <tbody>
             {#each (showAllUnclaimed ? unclaimedShown : unclaimedShown.slice(0, 40)) as r, i}
@@ -403,6 +412,7 @@
              font-family: inherit; font-size: .75rem; }
   .legend { display: flex; flex-wrap: wrap; gap: .25rem 1rem; font-size: .7rem; color: var(--dim); margin: 1rem 0; }
   .legend b { color: var(--gold); margin-right: .25rem; }
+  .legend.unit { margin-bottom: .25rem; }
   button { margin-top: .75rem; }
   .note { font-size: .75rem; margin: 0 0 .75rem; }
   .showed { margin-top: 2rem; padding-top: 1.25rem; border-top: 1px solid var(--rule); }
