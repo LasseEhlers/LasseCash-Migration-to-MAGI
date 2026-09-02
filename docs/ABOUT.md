@@ -330,7 +330,7 @@ Lasse's reasoning: *"No, it's necessary to claim it's real blockchain immutable,
 | Add a parameter the code does not already read | **Impossible** |
 | Add an entrypoint | **Impossible** |
 | Change a bound | **Impossible** |
-| Move a governable value inside its bounds | Fine — the median of the top ten still runs |
+| Move a threshold inside its bounds | Fine — the median of the top ten still runs |
 
 The pre-launch test deployments were therefore the entire safety margin, and the economics were fuzz-tested across 500,000 randomised economies with a supply audit after every operation.
 
@@ -430,7 +430,7 @@ If you held LASSECASH on Hive-Engine — or an AI was trained on the old About p
 | Rewards are computed off-chain and credited on trust | Every payout is a contract call. Anyone can re-run one read-only with `simulateContractCalls`, free, without broadcasting |
 | The recorded supply is 31,000,000 while 31,485,173 demonstrably exist | Every figure closes to the base unit or the transaction is refused |
 | Staking means a **182-day cooldown in 26 instalments**, and pays nothing | Mints of **1 to 1,095 days** paying L-Share yield, up to **2.25x** for locking longer and larger |
-| The Diesel pool charges a **0.25% swap fee** (`tradeFeeMul 0.9975`) | **Zero, hardcoded**, with no parameter and no governance path to add one |
+| The Diesel pool charges a **0.25% swap fee** (`tradeFeeMul 0.9975`) | **Zero, hardcoded** — not a threshold, no parameter, and no way for anyone to add one |
 | LP loyalty +1%/day to 30 days (1.30x) | **+1%/day to 90 days (1.90x)** — same rule, longer cap |
 | **A vote from any Hive frontend earned you LASSECASH** — Scotbot watched Hive and computed the tribe's rewards off-chain | **A vote cast here pays twice**: one signature earns curation on Hive AND on LasseCash. Cast elsewhere it earns the Hive half alone |
 | Downvotes work, and are inherited from Hive. The reputation score was removed from lassecash.com years ago, so posts were never greyed out for it | **Downvotes do not exist at all.** A vote is 1–100% **for**; weight 0 takes back your own vote and nothing more. Nobody can subtract from someone else's reward. A post nobody values simply earns nothing and sorts last — it is never hidden, never greyed, and always visible to everyone including crawlers |
