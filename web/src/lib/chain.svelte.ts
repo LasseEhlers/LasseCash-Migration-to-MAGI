@@ -55,6 +55,43 @@ export const wallet = WALLET_MODE && typeof window !== "undefined"
 
 export const client = new LasseCashClient({ backend });
 
+/**
+ * A node refusal, said in words someone can act on.
+ *
+ * MAGI answers in its own vocabulary — "cost limit exceeded", "ledger_error",
+ * "minimum RC requirement is not met" — and showing that verbatim tells a
+ * newcomer nothing. Nearly every one of them is the same subject underneath:
+ * resource credits, which on MAGI are simply the HBD held on the account.
+ *
+ * Seen on real people in the first two days: three "cost limit exceeded" and
+ * two "RCs available: 0", none of whom could have known what to do next.
+ *
+ * The raw text is KEPT at the end. Someone debugging needs the node's own
+ * words, and hiding them makes a failure harder to report than it already is.
+ */
+function chainRefusal(raw?: string): string {
+  const e = (raw ?? "").toLowerCase();
+  const tail = raw ? ` (${raw})` : "";
+
+  if (e.includes("cost limit") || e.includes("gas_limit")) {
+    return "Not enough resource credits for this call. RC refills over 5 days — or instantly if you "
+      + `deposit more HBD to MAGI: there, your HBD IS the meter, and it is never spent.${tail}`;
+  }
+  if (e.includes("minimum rc") || e.includes("rcs available")) {
+    return "Out of resource credits. They refill over 5 days, or instantly if you deposit more HBD "
+      + `to MAGI — your HBD is the meter there, held as collateral and never spent.${tail}`;
+  }
+  if (e.includes("insufficient balance") && e.includes("ledger")) {
+    return "MAGI would not release the HBD for this. Your HBD is also your resource credits, so not "
+      + `all of it can go out at once — try a smaller amount, or deposit more.${tail}`;
+  }
+  if (e.includes("no caller intent")) {
+    return `This call needed permission to draw HBD and the wallet did not grant it.${tail}`;
+  }
+  if (!raw) return "The chain refused this call.";
+  return `The chain refused this: ${raw}`;
+}
+
 class ChainStore {
   /** Global chain position. Null until the first load completes. */
   info = $state<ChainInfo | null>(null);
@@ -221,7 +258,7 @@ class ChainStore {
       }
       await this.refresh();
       if (verdict.status === "FAILED") {
-        return verdict.error ? `The chain refused this: ${verdict.error}` : "The chain refused this call.";
+        return chainRefusal(verdict.error);
       }
       if (verdict.status !== "CONFIRMED") {
         return "Still waiting for MAGI to include this transaction — the figures update when it lands.";

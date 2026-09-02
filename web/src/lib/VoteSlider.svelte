@@ -139,29 +139,39 @@
     try {
       const myRshares = voteWeight(toBaseUnitArg(me.shares), toBaseUnitArg(cost));
       const postRshares = Number(post.rshares);
-      const newTotal = postRshares + Number(toBaseUnitArg(myRshares));
+
+      // A VOTE REPLACES YOUR OWN, IT DOES NOT STACK ON IT.
+      //
+      // post.rshares ALREADY CONTAINS your existing vote, so adding yours on
+      // top counted you twice: a post you had voted at 7% offered to "add"
+      // another 74.29 LASSECASH for re-voting at the same 7%, when the net
+      // change is exactly zero. Found 2026-09-02.
+      //
+      // What the post actually gains is the DIFFERENCE between the vote you
+      // are about to cast and the one you already hold.
+      const delta = Number(toBaseUnitArg(myRshares)) - existingRshares;
+      const newTotal = postRshares + delta;
       if (newTotal <= 0) return null;
-      // The post's slice grows by my share of the new total.
+      if (delta <= 0) return { rshares: myRshares, added: "0.00000000", delta };
       const pending = Number(post.pending_payout);
-      const added = pending * (Number(toBaseUnitArg(myRshares)) / newTotal);
-      return { rshares: myRshares, added: added.toFixed(8) };
+      const added = pending * (delta / newTotal);
+      return { rshares: myRshares, added: added.toFixed(8), delta };
     } catch { return null; }
   });
 
-  // Whether this account already voted here, from the chain's voter list.
-  let mine = $state(false);
-  $effect(() => {
-    const acct = chain.account;
-    if (!acct || post.registered === false) { mine = false; return; }
-    client.postVotes(post.author, post.permlink)
-      .then((vs) => { mine = vs.some((v) => v.voter === acct); })
-      .catch(() => { mine = false; });
-  });
+  // Derived from the same lookup that gives myWeight — this used to be a
+  // second, identical postVotes call.
+  const mine = $derived(myWeight !== null);
+
+  /** Rshares this account already has on this post, 0 if it has not voted. */
+  const existingRshares = $derived(
+    myWeight !== null && me ? (Number(toBaseUnitArg(me.shares)) / 10) * (myWeight / 100) : 0,
+  );
 
   async function remove() {
     error = null;
     error = await chain.submit(() => client.unvote(post.author, post.permlink));
-    if (!error) { mine = false; open = false; onvoted?.(); }
+    if (!error) { myWeight = null; open = false; onvoted?.(); }
   }
 
   async function cast() {
@@ -214,6 +224,18 @@
           because the chain has no record of it — casting the first vote
           registers it as a viral post.
         </p>
+      {:else if estimate && estimate.delta <= 0}
+        <!-- Re-voting at the same weight, or lower. The chain REPLACES your
+             vote rather than adding to it, so there is nothing to promise. -->
+        <div class="line">
+          <span class="dim">
+            {#if estimate.delta === 0}
+              You already hold this post at {weight}% — re-voting changes nothing.
+            {:else}
+              Lowering your vote: this takes weight back off the post.
+            {/if}
+          </span>
+        </div>
       {:else if estimate}
         <div class="line">
           <span class="dim">Adds about</span>
