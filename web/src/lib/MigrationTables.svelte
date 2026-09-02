@@ -378,6 +378,20 @@
             {founderOfAll}% of all that will ever exist — the
             <b>20,000,000</b> still to be emitted dilutes it
           </div>
+          <!-- WHERE THE DIFFERENCE WENT. 11M was allocated at inception in
+               2019 and the holding is 7M today, which invites the obvious
+               question. The answer is a post with dates in it, so it is linked
+               rather than asserted.
+               Linked to OUR copy, not to peakd: the author's Hive reputation
+               is negative, so every Hive frontend collapses the post behind a
+               "low rating" screen. LasseCash inherits none of that — no
+               greying, no hiding, no reputation filter — so our own page shows
+               the thing the claim rests on. -->
+          <p class="donations">
+            <a href="/@lasseehlers/donation-lassecash-for-years">
+              Where the difference went: 11M in 2019 → 7M today →
+            </a>
+          </p>
         </div>
       </section>
 
@@ -587,6 +601,11 @@
   </div>
 
 <style>
+  /* The founder tile carries two figures and a link, so it runs taller than
+     the others; the grid already stretches to the tallest row. */
+  .donations { margin: 0.5rem 0 0; font-size: var(--t-micro); line-height: 1.45; }
+  .donations a { color: var(--gold); }
+
   /* Same top-of-page tile grid as /chain. */
   .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 1rem; }
   @media (max-width: 720px) {
