@@ -17,6 +17,16 @@ So the expected outcome for most rows is a REFUSAL, not a success: this runs
 as an account that mostly cannot afford what it is asking for. What matters is
 that the refusal is the RIGHT one.
 
+⚠️ THE GAS COLUMN ON A REFUSED ROW IS THE REJECTION COST, NOT THE REAL ONE.
+A call that aborts at a bounds check never does the work. Measured 2026-09-02:
+set_param with an out-of-bounds value returned in 183,452 gas (1.8 RC), while
+the SAME call with a valid value costs 121,742,220 gas (1,217 RC) — 670x more.
+The client's RC floor had been set from the cheap figure and every real
+threshold change failed with gas_limit_hit.
+
+So never size an RC limit from this table. Measure the SUCCEEDING path
+separately, with arguments the contract will accept.
+
     python3 tools/entrypoint-sweep/sweep.py                       # production
     python3 tools/entrypoint-sweep/sweep.py --contract vsc1B...   # a throwaway
 """
@@ -87,7 +97,10 @@ CALLS = [
     ("swap_lc_hbd",      "100000000|1",                       "swapped"),
     ("swap_hbd_lc",      "100000000|1",                       "no caller intent"),
     # governance
-    ("set_param",        "post.threshold_viral|1000",         None),
+    # VALID on purpose: an out-of-bounds value aborts early and measures
+    # nothing. 1,000 L-Shares is the current default, so this is a no-op that
+    # still walks the whole path.
+    ("set_param",        "post.threshold_viral|100000000000",  "ok"),
     ("promote",          "hive:nobody",                       None),
     # and one that must NOT exist
     ("no_such_entry",    "",                                  "not found"),
