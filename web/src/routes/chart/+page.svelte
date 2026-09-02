@@ -208,7 +208,14 @@
         <table>
           <thead>
             <tr>
-              <th>Time</th><th>Event</th><th>Trader</th><th class="num">In</th><th class="num">Out</th>
+              <!-- PER ASSET, not per direction. "In" and "Out" meant different
+                   assets on different rows — a SELL puts LASSECASH in and takes
+                   HBD out, a BUY does the reverse, and a LIQUIDITY row puts both
+                   in — so the reader had to work out the unit from the badge
+                   before the number meant anything. Each column now holds one
+                   asset on every row, and the badge says which way it moved. -->
+              <th>Time</th><th>Event</th><th>Trader</th>
+              <th class="num">LASSECASH</th><th class="num">HBD</th>
               <th class="num">LC reserve</th><th class="num">HBD reserve</th><th class="num">Price after</th>
             </tr>
           </thead>
@@ -222,8 +229,9 @@
                     <a href="/@{displayName(t.trader).replace('@','')}">{displayName(t.trader)}</a>
                   {:else}<span class="dim">—</span>{/if}
                 </td>
-                <td class="num mono">{lc(t.amountIn, 4)}</td>
-                <td class="num mono">{lc(t.amountOut, 6)}</td>
+                <!-- A buy is the one row where amountIn is the HBD side. -->
+                <td class="num mono">{lc(t.side === "buy" ? t.amountOut : t.amountIn, 3)}</td>
+                <td class="num mono">{lc(t.side === "buy" ? t.amountIn : t.amountOut, 6)}</td>
                 <td class="num mono">{lc(t.lcReserve, 2)}</td>
                 <td class="num mono">{lc(t.hbdReserve, 6)}</td>
                 <td class="num mono gold">{lc(t.price, 8)}</td>
