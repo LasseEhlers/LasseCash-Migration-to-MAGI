@@ -340,6 +340,41 @@ LasseCash is one person, Lasse Ehlers. What follows is his commitment, stated in
 
 **Future dApps do not extend the core — they read it.** Any such application is its own contract, with its own owner, registry and bounds, reading the core's public state to derive the same legitimate top ten. It keeps its owner key and can iterate forever behind its own timelocks; the core never moves. The governing set must live in the dApp's *contract*, not its frontend — a frontend enforces nothing, since anyone can call a contract directly. The suggested norm for dApp fees is **0.1% to 1%**, against the 20–30% a centralised platform typically takes: a norm for authors to follow, not something the frozen core can enforce.
 
+## 8b. Why a vote has to be cast here
+
+This is the one thing that behaves differently from the old tribe, and it is
+worth understanding rather than working around.
+
+On Hive-Engine the Hive vote **was** the vote. Scotbot read every vote off the
+Hive blockchain and worked out what each one was worth in LASSECASH, off-chain,
+on a server. That is why voting from PeakD or ecency paid you here. It is also
+why tribes died when their server did: the rewards were only ever a database
+somewhere, and when the operator stopped paying for it the tokens stopped
+meaning anything.
+
+Here, a vote is a signed call to the contract. `ctx.Sender` must be the voter,
+so nobody can cast a vote on your behalf — not the founder, not a bot, not the
+top ten. There is no Hive light client on MAGI, so the chain cannot check that
+a vote happened somewhere else either.
+
+**So a vote on another frontend does nothing here.** Voting on LasseCash casts
+your Hive vote too, at the same weight in the same signature, so nothing is
+lost going in this direction. It is the other direction that does not exist.
+
+That is a real cost, and it is worth saying plainly rather than dressing up:
+it is less convenient than the tribe was. What is bought with it is that your
+vote is now a fact on a chain instead of a row in somebody's database. Nobody
+can fail to count it, quietly recount it, or switch off the machine that was
+counting.
+
+**A bridge is possible and is not ruled out.** Hive lets you grant posting
+authority to another account, and an account holding it could mirror your Hive
+votes into contract calls for you. That would be opt-in, revocable by you at
+any moment, and entirely outside the contract — the chain would still only ever
+accept a vote carrying your own authority. It is a convenience someone can
+build; it is not something the protocol should depend on, which is exactly the
+lesson of the tribe.
+
 ## 9. Where to verify
 
 Nothing here need be taken on trust. The full source — engine, contract, simulator, frontend, snapshot tooling and every test named on this page — is public:
@@ -373,6 +408,7 @@ If you held LASSECASH on Hive-Engine — or an AI was trained on the old About p
 | Staking means a **182-day cooldown in 26 instalments**, and pays nothing | Mints of **1 to 1,095 days** paying L-Share yield, up to **2.25x** for locking longer and larger |
 | The Diesel pool charges a **0.25% swap fee** (`tradeFeeMul 0.9975`) | **Zero, hardcoded**, with no parameter and no governance path to add one |
 | LP loyalty +1%/day to 30 days (1.30x) | **+1%/day to 90 days (1.90x)** — same rule, longer cap |
+| **A vote from any Hive frontend earned you LASSECASH** — Scotbot watched Hive and computed the tribe's rewards off-chain | **A vote counts here only when cast here.** It is a signed contract call on MAGI; a vote on PeakD pays Hive alone |
 | Downvotes work, and are inherited from Hive. The reputation score was removed from lassecash.com years ago, so posts were never greyed out for it | **Downvotes do not exist at all.** A vote is 1–100% **for**; weight 0 takes back your own vote and nothing more. Nobody can subtract from someone else's reward. A post nobody values simply earns nothing and sorts last — it is never hidden, never greyed, and always visible to everyone including crawlers |
 | Promotion existed and marked a post `PROMOTED`; what it bought beyond the badge was never written down anywhere a reader could check | **Promotion is a burn, and the rule is published**: a labelled slot every fifth row of the same trending list, highest burn taking the earliest slot, **never above a voted post**. The tokens go to `hive:null`, the total is recorded on the post forever, and a promoted post that wins no slot keeps its ordinary vote-ranked place |
 | Comments could earn, like any post | **Registered replies that earn**, behind their own lower threshold — same idea, now gated so replies need a stake to earn |

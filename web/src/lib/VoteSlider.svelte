@@ -157,6 +157,18 @@
     <button class="small" onclick={cast} disabled={!canAfford || chain.busy}>
       {canAfford ? "Cast vote" : "Not enough vote power"}
     </button>
+    <!-- THE ONE THING EVERY HIVE-ENGINE VETERAN WILL GET WRONG.
+         On the old tribe the Hive vote WAS the vote: Scotbot watched Hive and
+         computed LASSECASH rewards off-chain, so voting from PeakD paid you
+         here. Now a vote is a signed contract call on MAGI — nobody can cast
+         it on your behalf, and no server is watching Hive. Someone arriving
+         from the tribe will vote on PeakD, see nothing happen here, and
+         reasonably conclude the site is broken. Better they read it first. -->
+    <p class="here">
+      Votes count here only when cast here. This one also casts your Hive vote,
+      at the same weight, in the same signature — but a vote from another
+      frontend pays Hive alone.
+    </p>
   </div>
 {/if}
 
@@ -174,6 +186,8 @@
   .meter .fill { position: absolute; inset: 0 auto 0 0; background: var(--blue); }
   .meter .spend { position: absolute; inset: 0 auto 0 0; background: var(--gold); }
   .estimate { margin: 0.4rem 0 0; font-size: 0.73rem; color: var(--dim); line-height: 1.5; }
+  .here { margin: 0.6rem 0 0; font-size: 0.68rem; color: var(--dim); line-height: 1.5;
+          border-top: 1px solid var(--line); padding-top: 0.5rem; }
   .err { color: var(--red); font-size: 0.8rem; margin: 0.3rem 0; }
   .voter > button:last-child { width: 100%; margin-top: 0.4rem; }
 </style>
