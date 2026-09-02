@@ -25,8 +25,6 @@
    */
   import { chain, client } from "$lib/chain.svelte.js";
   import { lc } from "$lib/format.js";
-  import { entitlement } from "$api/engine.js";
-  import { toUnits } from "$api/amount.js";
   import Seo from "$lib/Seo.svelte";
   import { SITE_URL } from "$lib/site.js";
 
@@ -60,8 +58,6 @@
     kinds: string[];
     calls: number;
     lastSeen: string;
-    /** Earned from the protocol and not yet spent into a balance. */
-    earned: bigint;
   };
 
   /**
@@ -106,88 +102,23 @@
         client.state([
           ...accounts.map((a) => `mig_${a}`),
           ...accounts.map((a) => `shr_${a}`),
-          // Pending Proof-of-Brain: earned, waiting for the 1st of the month.
-          ...accounts.map((a) => `pend_${a}`),
-          // How many mints each account has ever opened, so the ids to read
-          // are known without guessing.
-          ...accounts.map((a) => `mseq_${a}`),
         ]),
         client.activity(3000),
       ]);
 
       const acts = new Map(activity.map((a) => [a.account, a]));
 
-      // WHAT "EARNED" MEANS HERE, and it is deliberately narrow:
+      // WHAT THIS PAGE DELIBERATELY DOES NOT READ.
       //
-      //   pending PoB   author and curation rewards awaiting the monthly mint
-      // + mint yield    the L-Share pool's emission, accrued since each mint
-      //                 started earning
+      // It used to show what each account had earned and not yet taken, which
+      // meant reading pend_ and mseq_ for all 418 accounts and then every mint
+      // record behind them — roughly double the chain reads, for a column of
+      // near-zeros this early and one summary figure.
       //
-      // NOT included: anything already claimed into a balance. This column
-      // answers "what has the protocol paid you that you have not taken yet",
-      // which is the figure that says whether being here is worth anything —
-      // a balance cannot distinguish a reward from a migrated holding.
-      //
-      // The division is engine.entitlement, never arithmetic here: a mint's
-      // yield is shares x (acc_now - acc_at_start), and that is money math.
-      const acc = (await client.state(["acc_per"]))["acc_per"] || "0";
-
-      // Only accounts that have actually minted have records to read, so the
-      // second round is small — 12 accounts today, and it stays proportional
-      // to who turns up rather than to the whole snapshot.
-      const mintKeys: string[] = [];
-      for (const a of accounts) {
-        const n = Number(st[`mseq_${a}`] || "0");
-        for (let id = 1; id <= n; id++) mintKeys.push(`mint_${a}_${id}`);
-      }
-      const mints = mintKeys.length ? await client.state(mintKeys) : {};
-
-      function earnedFor(q: string): bigint {
-        let total = BigInt(st[`pend_${q}`] || "0");
-        const n = Number(st[`mseq_${q}`] || "0");
-        for (let id = 1; id <= n; id++) {
-          const raw = mints[`mint_${q}_${id}`];
-          if (!raw) continue;
-          const f = raw.split("|");
-          // Field 5 is Ended: a closed mint already paid out, so counting it
-          // would report money the account has spent as money it is owed.
-          if (f[5] === "1") continue;
-          const shares = f[1] || "0";
-          const accStart = f[6] || "0";
-          try { total += toUnits(entitlement(shares, accStart, acc)); }
-          catch { /* engine not loaded yet: a missing column beats a broken page */ }
-        }
-        return total;
-      }
-
-      // Anyone who has signed a call and is NOT in the snapshot. The owner is
-      // excluded: init and set_snapshot are the genesis transactions, not
-      // someone turning up.
-      const known = new Set(file.migrated.map((m) => `hive:${m.account}`));
-      const strangers = activity
-        .map((a) => a.account)
-        .filter((a) => !known.has(a) && a !== "hive:lassecashmagi");
-      if (strangers.length) {
-        const st2 = await client.state([
-          ...strangers.map((a) => `bal_${a}`),
-          ...strangers.map((a) => `shr_${a}`),
-        ]);
-        newcomers = strangers
-          .map((a) => {
-            const act = acts.get(a);
-            return {
-              account: a.replace(/^hive:/, ""),
-              balance: BigInt(st2[`bal_${a}`] || "0"),
-              shares: BigInt(st2[`shr_${a}`] || "0"),
-              kinds: act
-                ? KINDS.filter((k) => k.actions.some((x) => (act.actions[x] ?? 0) > 0)).map((k) => k.letter)
-                : [],
-              calls: act?.calls ?? 0,
-            };
-          })
-          .sort((a, b) => (b.balance > a.balance ? 1 : -1));
-      }
-
+      // Removed 2026-09-02 for the speed. The engine bridge that computed it
+      // (entitlement) is untouched and the mint keys are documented above, so
+      // it is a re-add rather than a rebuild if the numbers ever get big
+      // enough to be worth the wait.
       rows = file.migrated.map((m) => {
         const q = `hive:${m.account}`;
         const act = acts.get(q);
@@ -207,7 +138,6 @@
           kinds,
           calls: act?.calls ?? 0,
           lastSeen: act?.lastSeen ?? "",
-          earned: earnedFor(q),
         };
       });
     } catch (e) {
@@ -235,14 +165,13 @@
   const unclaimedShown = $derived(showDust ? allUnclaimed : unclaimed);
 
   const sum = (xs: Row[]) => xs.reduce((t, r) => t + r.entitledTotal, 0n);
-  const earnedTotal = $derived(claimed.reduce((t, r) => t + r.earned, 0n));
   const amt = (v: bigint) => lc((Number(v) / Number(U)).toFixed(8), 2);
   const pct = (a: bigint, b: bigint) => b === 0n ? "0.0" : (Number(a) / Number(b) * 100).toFixed(1);
 </script>
 
 <Seo
   title="Who showed up — LasseCash migration progress"
-  description="Live from the chain: who has claimed their LASSECASH on MAGI, what they have earned, and what they have done since."
+  description="Live from the chain: who has claimed their LASSECASH on MAGI, and what they have done since."
   canonical={`${SITE_URL}/stats`}
 />
 
@@ -270,8 +199,7 @@
       <dd class="dim">{unclaimed.length} accounts holding 1 LC or more</dd></div>
     <div><dt>Have done something</dt><dd class="mono gold">{claimed.filter((r) => r.calls > 1).length}</dd>
       <dd class="dim">beyond claiming</dd></div>
-    <div><dt>Rewards owed</dt><dd class="mono gold">{amt(earnedTotal)}</dd>
-      <dd class="dim">earned, not yet taken</dd></div>
+
   </div>
 
   <!-- "LASSECASH" read as the LIQUID balance, because that is how every Hive
