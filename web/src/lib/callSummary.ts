@@ -51,6 +51,23 @@ function post(author?: string, permlink?: string): string {
 const WINDOW = ["viral", "deep"];
 const MODE = ["split 20/80", "all minted", "burned"];
 
+/**
+ * The governed parameters, for reading a `set_param` row back in words.
+ *
+ * Values are 1e8 base units like every amount; the key decides whether the
+ * unit is L-Shares or LASSECASH. The labels match the Thresholds page. An
+ * unknown key falls back to the raw payload — the frozen contract can never
+ * gain one, so that path only fires on a call the chain refused anyway.
+ */
+const PARAMS: Record<string, { label: string; unit: string }> = {
+  "mint.volume_start":      { label: "Bigger Pays Better start", unit: "LASSECASH" },
+  "mint.volume_end":        { label: "Bigger Pays Better end",   unit: "LASSECASH" },
+  "post.threshold_viral":   { label: "viral posting threshold",  unit: "L-Shares" },
+  "post.threshold_deep":    { label: "deep posting threshold",   unit: "L-Shares" },
+  "post.threshold_comment": { label: "comment threshold",        unit: "L-Shares" },
+  "promote.min_burn":       { label: "promotion minimum burn",   unit: "LASSECASH" },
+};
+
 export function describeCall(action: string, payload: string): string {
   const f = payload.split("|");
 
@@ -76,7 +93,7 @@ export function describeCall(action: string, payload: string): string {
     case "claim_mint":   return `closed mint #${f[0]}`;
     case "sweep_mint":   return `swept ${who(f[0])}'s dead mint #${f[1]}`;
     case "good_accounting": return `armed Good Accounting on mint #${f[0]}`;
-    case "set_duration": return `default mint length set to ${f[0]} days`;
+    case "set_duration": return `monthly Proof-of-Brain mint set to ${f[0]} days`;
 
     // Both sides quote a MINIMUM out: the floor you accepted, not the fill.
     case "swap_lc_hbd":  return `sold ${amt(f[0])} LASSECASH · at least ${amt(f[1], 6)} HBD`;
@@ -100,7 +117,12 @@ export function describeCall(action: string, payload: string): string {
     case "settle_pending":  return "settled pending rewards";
     case "advance":         return f[0] ? `advanced the accrual by ${f[0]} days` : "advanced the accrual";
     case "promote":         return `offered ${who(f[0])} a board seat`;
-    case "set_param":       return `${f[0]} preference set to ${f[1]}`;
+    case "set_param": {
+      const p = PARAMS[f[0] ?? ""];
+      return p
+        ? `${p.label} preference set to ${amt(f[1], 0)} ${p.unit}`
+        : `${f[0]} preference set to ${f[1]}`;
+    }
   }
 
   // MAGI's own operations (its native pools, its bridge) are JSON, not our
