@@ -853,6 +853,16 @@ Lasse did not want to lose comment rewards ("a monster good valuable comment
   order, inside a thread it is time order. Comments always run VIRAL — 7-day
   window from THEIR registration, viral pool, viral meter — even under deep
   posts, and voting closes when the window does.
+- ❌ **VOTE-REGISTRATION OF HIVE-ONLY COMMENTS — PROPOSED AND REJECTED
+  2026-09-03, do not re-propose.** The pitch was old-tribe onboarding
+  (earn before you visit); it fails twice on the frozen contract:
+  `registerForAuthor` checks the VIRAL threshold (not the comment one)
+  against the author, so zero-stake strangers can never be registered by a
+  vote anyway — stake-gated earning is the C6 identity, on every path —
+  and a vote-registered comment gets a PARENTLESS record (the tibfox
+  "nice!"-as-article bug), unfixable after the burn. The honest onboarding
+  lever is threshold governance (floor 1 L-Share). The rule stands: comment
+  on LasseCash to earn; Hive-only replies are display-only.
 - **A REPLY IMPORTS ITS PARENT — DECIDED 2026-09-03 (amends the display
   rule above; Lasse: the reply says "this comment has value for the
   conversation").** A Hive-only comment shows if its author holds the
