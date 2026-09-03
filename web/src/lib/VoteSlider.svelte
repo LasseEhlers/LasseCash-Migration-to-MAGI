@@ -163,11 +163,34 @@
       // "you are lowering this vote" when nothing had changed at all.
       const unchanged = myWeight !== null && weight === myWeight;
       const delta = unchanged ? 0 : Number(toBaseUnitArg(myRshares)) - existingRshares;
-      const newTotal = postRshares + delta;
-      if (newTotal <= 0) return null;
+      if (postRshares + delta <= 0) return null;
       if (delta <= 0) return { rshares: myRshares, added: "0.00000000", delta };
       const pending = Number(post.pending_payout);
-      const added = pending * (delta / newTotal);
+
+      // WHAT A VOTE ADDS COMES FROM THE POOL, NOT FROM THE POST.
+      //
+      // This used to be `pending × delta/(postRshares+delta)` — re-dividing
+      // the post's OWN payout, so the promise could never exceed what the
+      // post already showed: a 51% vote "added" 203 and a 100% vote 219 on a
+      // post pending 235 (Lasse, 2026-09-03). In truth extra rshares pull
+      // more of the SHARED window pool toward this post from every other
+      // post; the ceiling is the pool, not the post.
+      //
+      // The window's total rshares is not served directly, but the engine
+      // computed pending = pool × postRshares / totalRshares, so totalRshares
+      // is recovered by inverting that same division — consistent with
+      // whatever the engine did, not a second opinion about it.
+      //
+      // The sole-post case falls out naturally: pending == pool makes the
+      // new share 100% before and after, so added is 0 — which is true, a
+      // bigger vote on the only post in the window moves nothing.
+      const pool = Number(isDeep ? chain.info.pool_deep : chain.info.pool_viral);
+      if (pending <= 0 || postRshares <= 0 || pool <= 0) {
+        return { rshares: myRshares, added: "0.00000000", delta };
+      }
+      const totalRshares = postRshares * (pool / pending);
+      const newShare = (postRshares + delta) / (totalRshares + delta);
+      const added = Math.max(0, pool * newShare - pending);
       return { rshares: myRshares, added: added.toFixed(8), delta };
     } catch { return null; }
   });
