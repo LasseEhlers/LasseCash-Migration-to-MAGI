@@ -356,6 +356,10 @@
     lcInput = fromUnits(m.lc);
     hbdInput = fromUnits(m.hbd);
   }
+  function maxSwapIn() {
+    if (!me) return;
+    amountIn = sellingLC ? me.balance : fromUnits(hbdSpendableUnits);
+  }
   function maxHbd() {
     const m = affordableDeposit();
     if (!m) return;
@@ -525,10 +529,23 @@
         <button class="ghost" class:active={!sellingLC} onclick={() => (direction = "hbd_lc")}>Buy LASSECASH</button>
       </div>
 
-      <label class="field">
-        <span>You pay — {inSymbol}</span>
+      <div class="field">
+        <!-- The balance lives ON the input it limits, same pattern as the
+             liquidity boxes; it used to live only across the page, and
+             finding it mid-swap was a hunt (Lasse, 2026-09-03). Max on the
+             buy side is RC-capped exactly like a deposit: swap_hbd_lc draws
+             HBD, and on MAGI the balance is not the ceiling, the meter is. -->
+        <div class="asset-head">
+          <span>You pay — {inSymbol}</span>
+          {#if chain.account && me}
+            <span class="asset-balance">
+              Balance <b class="mono">{sellingLC ? lc(me.balance) : lc(hbdBalance, 3)}</b>
+              <button type="button" class="ghost small linklike" onclick={maxSwapIn}>Max</button>
+            </span>
+          {/if}
+        </div>
         <input inputmode="decimal" bind:value={amountIn} />
-      </label>
+      </div>
 
       {#if poolReady}
         {#if quote}
