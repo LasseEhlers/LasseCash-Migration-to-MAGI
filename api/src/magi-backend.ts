@@ -485,17 +485,45 @@ export class MagiBackend implements Backend {
     action: "post" | "comment" = "post",
     accept?: (payload: string) => boolean,
   ): Promise<{ author: string; permlink: string }[]> {
-    const data = await this.query<{ findTransaction: DiscoverTx[] }>(
-      // MAGI rejects limit outside 1..100 — the node enforces the cap.
-      // BOTH auth lists: a posting-key call (post, comment, vote — i.e. every
-      // content call a real user makes) names its signer ONLY in
-      // required_posting_auths. Found 2026-08-22 when the first real post
-      // registered fine and the feed stayed empty.
-      `query($c: String!) { findTransaction(filterOptions: {byContract: $c, limit: 100}) {
-        anchr_ts status required_auths required_posting_auths ops { type data } } }`,
-      { c: this.#contractId },
-    );
-    return discoveredCalls(data.findTransaction ?? [], limit, action, accept);
+    // ⚠️ ONE PAGE IS NOT A FEED. The node caps a page at 100 transactions,
+    // and by 2026-09-03 — three days after launch — the newest 100 reached
+    // back only to Sep 1 midday: every post registered on launch day had
+    // silently dropped out of the feed unless a recent vote re-surfaced it,
+    // and the horizon shortens with every claim, swap and transfer. So
+    // discovery PAGES (the node supports offset) until it has covered the
+    // deep payout window — beyond that no post can still be earning — or
+    // history ends, or the page cap trips. The cap is a rate-limit courtesy;
+    // if the chain ever outgrows it, the real fix is the indexer, not a
+    // bigger cap.
+    //
+    // The horizon prefers the engine's own constant, but postsMeta() runs in
+    // the Cloudflare worker where the engine is deliberately absent — there
+    // the fallback mirrors DeepPayoutDays, and being a day generous merely
+    // reads one page more than needed.
+    let horizonDays = 31;
+    try { horizonDays = Number(engine.constants().deepPayoutDays) + 1; } catch { /* worker: engine absent */ }
+    const horizonMs = Date.now() - horizonDays * 24 * 3_600_000;
+
+    const MAX_PAGES = 10;
+    const txs: DiscoverTx[] = [];
+    for (let page = 0; page < MAX_PAGES; page++) {
+      const data = await this.query<{ findTransaction: DiscoverTx[] }>(
+        // MAGI rejects limit outside 1..100 — the node enforces the cap.
+        // BOTH auth lists: a posting-key call (post, comment, vote — i.e.
+        // every content call a real user makes) names its signer ONLY in
+        // required_posting_auths. Found 2026-08-22 when the first real post
+        // registered fine and the feed stayed empty.
+        `query($c: String!, $o: Int!) { findTransaction(filterOptions: {byContract: $c, limit: 100, offset: $o}) {
+          anchr_ts status required_auths required_posting_auths ops { type data } } }`,
+        { c: this.#contractId, o: page * 100 },
+      );
+      const rows = data.findTransaction ?? [];
+      txs.push(...rows);
+      if (rows.length < 100) break; // history exhausted
+      const oldest = rows[rows.length - 1]?.anchr_ts;
+      if (oldest && Date.parse(isoUtc(oldest)) < horizonMs) break;
+    }
+    return discoveredCalls(txs, limit, action, accept);
   }
 
   /**
@@ -682,20 +710,34 @@ export class MagiBackend implements Backend {
     return out;
   }
 
-  /** Recent `lassecash`-tagged blog posts of every `gov_board` account. */
+  /**
+   * Recent `lassecash`-tagged blog posts of every `gov_board` account.
+   *
+   * Per-member results are kept as a last-good cache: this fires up to 20
+   * parallel calls at api.hive.blog, and when one is dropped or rate-limited
+   * the old behaviour was an empty list for that member — their posts
+   * flickered out of the feed for a render and came back on the next.
+   * Observed 2026-09-03: three members' posts vanished from one build and
+   * were present in the next three. Stale-for-a-render beats gone.
+   */
+  #boardCache = new Map<string, HiveTaggedPost[]>();
+
   async #boardPosts(): Promise<HiveTaggedPost[]> {
     const st = await this.state(["gov_board"]);
     const members = (st["gov_board"] || "").split("|").filter(Boolean).slice(0, 20);
     const lists = await Promise.all(members.map(async (acct) => {
       const rows = await this.#hiveRpc<HiveTaggedPost[]>("bridge.get_account_posts",
         { sort: "posts", account: acct.replace(/^hive:/, ""), limit: 10 }).catch(() => null);
-      return (rows ?? []).filter((p) => {
+      if (rows === null) return this.#boardCache.get(acct) ?? [];
+      const tagged = (rows ?? []).filter((p) => {
         const meta = p.json_metadata;
         const tags = typeof meta === "string"
           ? (() => { try { return (JSON.parse(meta) as { tags?: string[] }).tags ?? []; } catch { return []; } })()
           : ((meta as { tags?: string[] } | null | undefined)?.tags ?? []);
         return Array.isArray(tags) && tags.includes(LASSECASH_TAG);
       });
+      this.#boardCache.set(acct, tagged);
+      return tagged;
     }));
     return lists.flat();
   }
@@ -1780,6 +1822,7 @@ function firstImage(body: string): string | null {
 
 /** One contract transaction as discovery reads it, status included. */
 export interface DiscoverTx {
+  anchr_ts?: string | null;
   status?: string | null;
   required_auths?: string[] | null;
   required_posting_auths?: string[] | null;
