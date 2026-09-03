@@ -14,7 +14,11 @@ import { AiohaSigner, AiohaWallet } from "./aioha-signer.js";
  * state writes the way settlement does.
  */
 const MEASURED_RC = {
-  transfer: 872, mint: 3_486, vote: 904, post: 1_098, comment: 1_974,
+  // vote: an ordinary vote is 904, but a FIRST vote on an outside tagged post
+  // registers it too — 4,818 RC simulated against production 2026-09-03, and
+  // three real ones died at a 4,000 limit the day before. The registering
+  // case is the one the floor must survive.
+  transfer: 872, mint: 3_486, vote: 4_818, post: 1_098, comment: 1_974,
   promote_post: 833, swap_lc_hbd: 206, claim_pool: 463, burn: 167,
   claim_migration: 5_892, record_burn: 590,
 };
@@ -131,4 +135,20 @@ test("a 0/0 RC answer is treated as unknown, never as broke", async () => {
   const signer = new AiohaSigner(wallet as never, "hive:test", "vsc1test", 1_500);
   const r = await signer.sizeRc("comment", "p|a|pp", [], AiohaSigner.RC_LIMITS["comment"]!);
   assert.equal(typeof r, "number", "an unknown meter must not refuse the call");
+});
+
+/**
+ * THE DEAD DRY RUN, 2026-09-03. The node refuses a bare `required_auths`
+ * ("must start with hive: or did:") as a GraphQL error, which simulate()
+ * surfaces as a throw, which sizeRc catches by falling back to the table —
+ * so a bare name didn't fail loudly, it silently disabled EVERY dry run in
+ * production. Three registering votes (~4,800 RC real) then died at the old
+ * vote table of 4,000. Every account name sent to the node must be qualified.
+ */
+import { qualifyAuth } from "./aioha-signer.js";
+
+test("a bare Aioha name is qualified before it reaches the node", () => {
+  assert.equal(qualifyAuth("lasseehlers"), "hive:lasseehlers");
+  assert.equal(qualifyAuth("hive:lasseehlers"), "hive:lasseehlers");
+  assert.equal(qualifyAuth("did:pkh:eip155:1:0xabc"), "did:pkh:eip155:1:0xabc");
 });

@@ -62,6 +62,16 @@ export interface WalletOption {
 }
 
 /**
+ * MAGI addresses are qualified (`hive:alice`, `did:pkh:…`); Aioha hands us a
+ * bare Hive name. Every node query that names an account must qualify it —
+ * the node either refuses a bare name outright (simulateContractCalls) or
+ * answers a wrong-but-plausible zero for it (getAccountRC).
+ */
+export function qualifyAuth(account: string): string {
+  return account.includes(":") ? account : `hive:${account}`;
+}
+
+/**
  * Creates and holds one Aioha instance.
  *
  * One per app: Aioha keeps session state, and a second instance would silently
@@ -400,6 +410,15 @@ export class AiohaWallet {
   async simulate(account: string, action: string, payload: string, intents: unknown[]): Promise<
     { ok: true; gas: number } | { ok: false; msg: string; gasLimitHit: boolean }
   > {
+    // ⚠️ QUALIFY THE NAME, exactly as availableRc below must. Aioha hands us
+    // a bare Hive name, and the node REFUSES a bare `required_auths` ("must
+    // start with hive: or did:") — as a GraphQL error, which this method
+    // surfaces as a throw, which sizeRc catches by falling back to the table.
+    // So a bare name here doesn't fail loudly: it silently turns EVERY dry
+    // run off, and every call goes out at its table value. That is how three
+    // registering votes (real cost ~4,800 RC) died at the vote table's 4,000
+    // on 2026-09-02 — and how their targets then vanished from the feed.
+    const addr = qualifyAuth(account);
     const res = await fetch(this.#chainUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -407,7 +426,7 @@ export class AiohaWallet {
         query: `query($i: SimulateContractCallsInput!) {
           simulateContractCalls(input: $i) { success err_msg gas_used } }`,
         variables: { i: {
-          tx_id: "sim", required_auths: account,
+          tx_id: "sim", required_auths: addr,
           calls: [{ contract_id: this.#contractId, action, payload, rc_limit: 100_000, intents }],
         } },
       }),
@@ -429,7 +448,7 @@ export class AiohaWallet {
    */
   async availableRc(account: string): Promise<number | null> {
     // MAGI addresses are qualified; Aioha hands us a bare Hive name.
-    const addr = account.includes(":") ? account : `hive:${account}`;
+    const addr = qualifyAuth(account);
     try {
       const res = await fetch(this.#chainUrl, {
         method: "POST",
@@ -791,7 +810,13 @@ export class AiohaSigner implements Signer {
     // Debit, burn to null, rewrite the post record. Unmeasured on a real
     // deploy — measure with simulateContractCalls before launch.
     promote_post: 2_500,  // mainnet 833
-    vote: 4_000,          // mainnet 904, plus PiggybackDrain curation settles
+    // An ordinary vote is 904 on mainnet — but a FIRST vote on an outside
+    // tagged post also REGISTERS it (record write, author-stake check,
+    // curation-queue seed): 4,818 RC simulated against production 2026-09-03.
+    // Three of those died at the old 4,000 on 2026-09-02 (the silvertop
+    // incident), and their targets vanished from the feed. The dry run sizes
+    // the real case; this floor must survive it when the dry run cannot.
+    vote: 7_000,
     payout: 4_000,
     claim_curation: 1_200,
     sweep_curation: 1_200,

@@ -160,3 +160,40 @@ test("mergeTagged drops posts older than the cutoff", () => {
   const views = mergeTagged([], [old, fresh], { "hive:alice": "100000000000000" }, "100000000000", Date.now() - 60_000);
   assert.deepEqual(views.map((v) => v.permlink), ["new"]);
 });
+
+/**
+ * THE GHOST-POST BUG, 2026-09-03. A failed vote's target used to be
+ * "discovered", which put it on mergeTagged's known-list (excluded as
+ * registered) while the registered path dropped it for having no record —
+ * the post vanished from the feed entirely. Three refused votes ghosted
+ * @silvertop's and @elizabethbit's actifit posts in production.
+ */
+import { discoveredCalls, type DiscoverTx } from "./magi-backend.js";
+
+function voteTx(status: string, payload: string): DiscoverTx {
+  return {
+    status,
+    required_posting_auths: ["hive:voter"],
+    ops: [{ type: "call", data: { action: "vote", payload } }],
+  };
+}
+
+test("a FAILED vote discovers nothing", () => {
+  const txs = [voteTx("FAILED", "hive:silvertop|actifit-1|7")];
+  assert.equal(discoveredCalls(txs, 50, "post").length, 0);
+});
+
+test("a CONFIRMED vote still discovers its target", () => {
+  const txs = [voteTx("CONFIRMED", "hive:silvertop|actifit-1|7")];
+  assert.deepEqual(discoveredCalls(txs, 50, "post"),
+    [{ author: "hive:silvertop", permlink: "actifit-1" }]);
+});
+
+test("a post ghosted by a failed vote stays visible as tagged", () => {
+  // End to end: discovery must NOT hand the failed vote's target to
+  // mergeTagged as "known", so the tagged row survives.
+  const found = discoveredCalls([voteTx("FAILED", "hive:alice|hello-world|7")], 50, "post");
+  const out = mergeTagged(found, [row()], RICH, THRESHOLD);
+  assert.equal(out.length, 1, "the post must not vanish");
+  assert.equal(out[0]!.registered, false);
+});

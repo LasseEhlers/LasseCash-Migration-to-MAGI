@@ -485,61 +485,17 @@ export class MagiBackend implements Backend {
     action: "post" | "comment" = "post",
     accept?: (payload: string) => boolean,
   ): Promise<{ author: string; permlink: string }[]> {
-    const data = await this.query<{
-      findTransaction: {
-        anchr_ts: string;
-        required_auths: string[];
-        required_posting_auths: string[];
-        ops: { type: string; data: { action?: string; payload?: string } }[];
-      }[];
-    }>(
+    const data = await this.query<{ findTransaction: DiscoverTx[] }>(
       // MAGI rejects limit outside 1..100 — the node enforces the cap.
       // BOTH auth lists: a posting-key call (post, comment, vote — i.e. every
       // content call a real user makes) names its signer ONLY in
       // required_posting_auths. Found 2026-08-22 when the first real post
       // registered fine and the feed stayed empty.
       `query($c: String!) { findTransaction(filterOptions: {byContract: $c, limit: 100}) {
-        anchr_ts required_auths required_posting_auths ops { type data } } }`,
+        anchr_ts status required_auths required_posting_auths ops { type data } } }`,
       { c: this.#contractId },
     );
-
-    // Newest-first discovery, deduped: re-registering a permlink is refused by
-    // the contract, so the first sighting is the real one.
-    const seen = new Set<string>();
-    const found: { author: string; permlink: string }[] = [];
-    for (const tx of data.findTransaction ?? []) {
-      for (const op of tx.ops ?? []) {
-        if (op.type !== "call") continue;
-        const payload = op.data?.payload ?? "";
-        let author: string | undefined;
-        let permlink: string | undefined;
-        if (op.data?.action === action) {
-          if (accept && !accept(payload)) continue;
-          author = tx.required_auths?.[0] ?? tx.required_posting_auths?.[0];
-          permlink = payload.split("|")[0];
-        } else if (action === "post" && op.data?.action === "vote") {
-          // A post registered BY ITS FIRST VOTE never had a `post` call; the
-          // vote's target is a registered post by construction (the contract
-          // refuses a vote on anything else). Found 2026-08-22 on mainnet:
-          // the registration landed and the feed still showed "earns from
-          // the first vote". The state read below is still what decides —
-          // a refused vote leaves no record and is dropped there.
-          const f = payload.split("|");
-          author = f[0];
-          permlink = f[1];
-        } else {
-          continue;
-        }
-        if (!author || !permlink) continue;
-        const key = author + "/" + permlink;
-        if (!seen.has(key)) {
-          seen.add(key);
-          found.push({ author, permlink });
-        }
-      }
-      if (found.length >= limit) break;
-    }
-    return found;
+    return discoveredCalls(data.findTransaction ?? [], limit, action, accept);
   }
 
   /**
@@ -1820,4 +1776,73 @@ function firstImage(body: string): string | null {
   if (md) return md[1] ?? null;
   const bare = /^(https?:\/\/\S+\.(?:png|jpe?g|gif|webp))\s*$/im.exec(body);
   return bare?.[1] ?? null;
+}
+
+/** One contract transaction as discovery reads it, status included. */
+export interface DiscoverTx {
+  status?: string | null;
+  required_auths?: string[] | null;
+  required_posting_auths?: string[] | null;
+  ops?: { type: string; data?: { action?: string; payload?: string } | null }[] | null;
+}
+
+/**
+ * The pure half of `#discover`, split out to be testable like `mergeTagged`.
+ *
+ * ⚠️ A FAILED transaction registers NOTHING and must discover nothing. This
+ * is not a tidy-up: a failed vote's target used to enter this list, where
+ * `mergeTagged` then excluded it as "already on the chain" while the
+ * registered path dropped it for having no record — so the post vanished
+ * from the feed entirely, for everyone, until the failed transaction
+ * scrolled out of the 100-transaction window. Found 2026-09-03: three
+ * refused votes (rc too small) ghosted both of @silvertop's actifit posts
+ * and one of @elizabethbit's.
+ *
+ * Pending transactions stay discoverable: a vote confirms within a MAGI
+ * block or two, and the state read downstream still decides what renders.
+ */
+export function discoveredCalls(
+  txs: DiscoverTx[],
+  limit: number,
+  action: "post" | "comment",
+  accept?: (payload: string) => boolean,
+): { author: string; permlink: string }[] {
+  // Newest-first discovery, deduped: re-registering a permlink is refused by
+  // the contract, so the first sighting is the real one.
+  const seen = new Set<string>();
+  const found: { author: string; permlink: string }[] = [];
+  for (const tx of txs) {
+    if (tx.status === "FAILED") continue;
+    for (const op of tx.ops ?? []) {
+      if (op.type !== "call") continue;
+      const payload = op.data?.payload ?? "";
+      let author: string | undefined;
+      let permlink: string | undefined;
+      if (op.data?.action === action) {
+        if (accept && !accept(payload)) continue;
+        author = tx.required_auths?.[0] ?? tx.required_posting_auths?.[0];
+        permlink = payload.split("|")[0];
+      } else if (action === "post" && op.data?.action === "vote") {
+        // A post registered BY ITS FIRST VOTE never had a `post` call; the
+        // vote's target is a registered post by construction (the contract
+        // refuses a vote on anything else). Found 2026-08-22 on mainnet:
+        // the registration landed and the feed still showed "earns from
+        // the first vote". The state read downstream is still what decides —
+        // a refused vote leaves no record and is dropped there.
+        const f = payload.split("|");
+        author = f[0];
+        permlink = f[1];
+      } else {
+        continue;
+      }
+      if (!author || !permlink) continue;
+      const key = author + "/" + permlink;
+      if (!seen.has(key)) {
+        seen.add(key);
+        found.push({ author, permlink });
+      }
+    }
+    if (found.length >= limit) break;
+  }
+  return found;
 }
