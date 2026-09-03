@@ -1004,7 +1004,7 @@ export class AiohaSigner implements Signer {
   static rcRefusal(needed: number, avail: number): TxResult {
     return {
       ok: false, height: 0,
-      msg: `not enough resource credits: this call needs about ${needed.toLocaleString()} RC and the account has ${avail.toLocaleString()}. RC refills over 5 days — or instantly: HBD held on your MAGI account IS the meter (10 HBD ≈ 10,000 RC, never spent).`,
+      msg: `Not enough resource credits: needs ~${needed.toLocaleString()}, you have ${avail.toLocaleString()}. More HBD on MAGI fixes it instantly.`,
     };
   }
 

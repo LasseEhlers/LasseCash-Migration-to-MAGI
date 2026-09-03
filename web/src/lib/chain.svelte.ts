@@ -74,12 +74,10 @@ function chainRefusal(raw?: string): string {
   const tail = raw ? ` (${raw})` : "";
 
   if (e.includes("cost limit") || e.includes("gas_limit")) {
-    return "Not enough resource credits for this call. RC refills over 5 days — or instantly if you "
-      + `deposit more HBD to MAGI: there, your HBD IS the meter, and it is never spent.${tail}`;
+    return "Not enough resource credits. More HBD on MAGI fixes it instantly.";
   }
   if (e.includes("minimum rc") || e.includes("rcs available")) {
-    return "Out of resource credits. They refill over 5 days, or instantly if you deposit more HBD "
-      + `to MAGI — your HBD is the meter there, held as collateral and never spent.${tail}`;
+    return "Out of resource credits. More HBD on MAGI fixes it instantly.";
   }
   if (e.includes("insufficient balance") && e.includes("ledger")) {
     return "MAGI would not release the HBD for this. Your HBD is also your resource credits, so not "
