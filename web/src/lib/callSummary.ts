@@ -108,9 +108,14 @@ export function describeCall(action: string, payload: string): string {
     case "post":    return `${f[0]} · ${WINDOW[Number(f[1])] ?? "?"} · ${MODE[Number(f[2])] ?? "?"}`;
     case "comment": return `replied to ${post(f[1], f[2])}`;
     // Weight 0 is the unvote — "voted 0%" would read as a vote that counts.
-    case "vote":    return f[2] === "0"
-      ? `removed vote on ${post(f[0], f[1])}`
-      : `voted ${f[2]}% on ${post(f[0], f[1])}`;
+    // Post or comment: the payload does not say, but every reply permlink
+    // this site (and every Hive frontend) generates starts with "re-".
+    case "vote": {
+      const kind = (f[1] ?? "").startsWith("re-") ? "comment" : "post";
+      return f[2] === "0"
+        ? `removed vote on ${kind}: ${post(f[0], f[1])}`
+        : `voted ${f[2]}% on ${kind}: ${post(f[0], f[1])}`;
+    }
     case "payout":  return `settled ${post(f[0], f[1])}`;
     case "promote_post": return `${amt(f[2])} LASSECASH burned to promote ${post(f[0], f[1])}`;
     case "claim_curation": return `claimed curation on ${post(f[0], f[1])}`;

@@ -19,6 +19,7 @@
   import { lc } from "$lib/format.js";
   import Hbd from "$lib/Hbd.svelte";
   import { describeCall } from "$lib/callSummary.js";
+  import CallText from "$lib/CallText.svelte";
   import AssetChips from "$lib/AssetChips.svelte";
   import CoinIcon from "$lib/CoinIcon.svelte";
   import Seo from "$lib/Seo.svelte";
@@ -684,7 +685,7 @@
                     {#if o.action.startsWith("+")}<span class="in">in</span>{/if}
                     {o.action.replace(/^\+/, "")}
                   </td>
-                  <td class="clip" title={o.payload}>{describeCall(o.action, o.payload)}</td>
+                  <td class="clip" title={o.payload}><CallText text={describeCall(o.action, o.payload)} /></td>
                   <td><span class="pill {o.status}">{o.status}</span></td>
                 </tr>
               {/each}
