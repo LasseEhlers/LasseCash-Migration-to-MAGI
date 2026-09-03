@@ -676,16 +676,19 @@
         </small>
         <div class="scroll">
           <table>
-            <thead><tr><th>When</th><th>Call</th><th>What it did</th><th>Status</th></tr></thead>
+            <!-- No raw entrypoint column: "set_param" beside "Voted: …" was
+                 jargon repeating what the words already say. The technical
+                 identity survives on hover — the title carries the call name
+                 and the raw payload, which is where a debugging eye looks. -->
+            <thead><tr><th>When</th><th>What it did</th><th>Status</th></tr></thead>
             <tbody>
               {#each ops as o (o.id + o.action + o.time)}
                 <tr>
                   <td class="mono dim">{when(o.time)}</td>
-                  <td class="mono dim">
+                  <td class="clip" title="{o.action.replace(/^\+/, '')} · {o.payload}">
                     {#if o.action.startsWith("+")}<span class="in">in</span>{/if}
-                    {o.action.replace(/^\+/, "")}
+                    <CallText text={describeCall(o.action, o.payload)} />
                   </td>
-                  <td class="clip" title={o.payload}><CallText text={describeCall(o.action, o.payload)} /></td>
                   <td><span class="pill {o.status}">{o.status}</span></td>
                 </tr>
               {/each}
