@@ -92,45 +92,45 @@ export function describeCall(action: string, payload: string): string {
                                 + (f[2] ? ` — "${f[2]}"` : "");
     case "burn":         return `${amt(f[0])} LASSECASH burned`;
     case "mint":         return `${amt(f[0])} LASSECASH locked for ${f[1]} days`;
-    case "claim_mint":   return `closed mint #${f[0]}`;
-    case "sweep_mint":   return `swept ${who(f[0])}'s dead mint #${f[1]}`;
-    case "good_accounting": return `armed Good Accounting on mint #${f[0]}`;
-    case "set_duration": return `monthly Proof-of-Brain mint set to ${f[0]} days`;
+    case "claim_mint":   return `Closed mint #${f[0]}`;
+    case "sweep_mint":   return `Swept ${who(f[0])}'s dead mint #${f[1]}`;
+    case "good_accounting": return `Armed Good Accounting on mint #${f[0]}`;
+    case "set_duration": return `Monthly Proof-of-Brain mint set to ${f[0]} days`;
 
     // Both sides quote a MINIMUM out: the floor you accepted, not the fill.
-    case "swap_lc_hbd":  return `sold ${amt(f[0])} LASSECASH · at least ${amt(f[1], 6)} HBD`;
-    case "swap_hbd_lc":  return `bought with ${amt(f[0], 6)} HBD · at least ${amt(f[1])} LASSECASH`;
-    case "add_liquidity":    return `added ${amt(f[0])} LASSECASH + ${amt(f[1], 6)} HBD`;
-    case "remove_liquidity": return `withdrew tranche #${f[0]}`;
-    case "claim_pool":       return `claimed rewards on tranche #${f[0]}`;
-    case "sweep_tranche":    return `evicted ${who(f[0])}'s dormant tranche #${f[1]}`;
+    case "swap_lc_hbd":  return `Sold ${amt(f[0])} LASSECASH · at least ${amt(f[1], 6)} HBD`;
+    case "swap_hbd_lc":  return `Bought with ${amt(f[0], 6)} HBD · at least ${amt(f[1])} LASSECASH`;
+    case "add_liquidity":    return `Added ${amt(f[0])} LASSECASH + ${amt(f[1], 6)} HBD`;
+    case "remove_liquidity": return `Withdrew tranche #${f[0]}`;
+    case "claim_pool":       return `Claimed rewards on tranche #${f[0]}`;
+    case "sweep_tranche":    return `Evicted ${who(f[0])}'s dormant tranche #${f[1]}`;
 
     case "post":    return `${f[0]} · ${WINDOW[Number(f[1])] ?? "?"} · ${MODE[Number(f[2])] ?? "?"}`;
-    case "comment": return `replied to ${post(f[1], f[2])}`;
+    case "comment": return `Replied to ${post(f[1], f[2])}`;
     // Weight 0 is the unvote — "voted 0%" would read as a vote that counts.
     // Post or comment: the payload does not say, but every reply permlink
     // this site (and every Hive frontend) generates starts with "re-".
     case "vote": {
       const kind = (f[1] ?? "").startsWith("re-") ? "comment" : "post";
       return f[2] === "0"
-        ? `removed vote on ${kind}: ${post(f[0], f[1])}`
-        : `voted ${f[2]}% on ${kind}: ${post(f[0], f[1])}`;
+        ? `Removed vote on ${kind}: ${post(f[0], f[1])}`
+        : `Voted ${f[2]}% on ${kind}: ${post(f[0], f[1])}`;
     }
-    case "payout":  return `settled ${post(f[0], f[1])}`;
+    case "payout":  return `Settled ${post(f[0], f[1])}`;
     case "promote_post": return `${amt(f[2])} LASSECASH burned to promote ${post(f[0], f[1])}`;
-    case "claim_curation": return `claimed curation on ${post(f[0], f[1])}`;
-    case "sweep_curation": return `swept expired curation on ${post(f[0], f[1])}`;
+    case "claim_curation": return `Claimed curation on ${post(f[0], f[1])}`;
+    case "sweep_curation": return `Swept expired curation on ${post(f[0], f[1])}`;
 
-    case "claim_migration": return `claimed ${amt(f[0])} LASSECASH liquid + ${amt(f[1])} as a mint`;
-    case "record_burn":     return `recorded ${who(f[0])}'s burn`;
-    case "settle":          return "settled this account";
-    case "settle_pending":  return "settled pending rewards";
-    case "advance":         return f[0] ? `advanced the accrual by ${f[0]} days` : "advanced the accrual";
-    case "promote":         return `offered ${who(f[0])} a board seat`;
+    case "claim_migration": return `Claimed ${amt(f[0])} LASSECASH liquid + ${amt(f[1])} as a mint`;
+    case "record_burn":     return `Recorded ${who(f[0])}'s burn`;
+    case "settle":          return "Settled this account";
+    case "settle_pending":  return "Settled pending rewards";
+    case "advance":         return f[0] ? `Advanced the accrual by ${f[0]} days` : "Advanced the accrual";
+    case "promote":         return `Offered ${who(f[0])} a board seat`;
     case "set_param": {
       const p = PARAMS[f[0] ?? ""];
       return p
-        ? `voted: ${p.what} ${amt(f[1], 0)} ${p.unit}`
+        ? `Voted: ${p.what} ${amt(f[1], 0)} ${p.unit}`
         : `${f[0]} preference set to ${f[1]}`;
     }
   }
@@ -148,10 +148,10 @@ export function describeCall(action: string, payload: string): string {
         const inAmt = magiAmount(j.amount_in, j.asset_in);
         const floor = magiAmount(j.min_amount_out, j.asset_out);
         const tail = floor ? ` · at least ${floor} ${j.asset_out}` : ` for ${j.asset_out}`;
-        return `swapped ${inAmt} ${j.asset_in}${tail}`;
+        return `Swapped ${inAmt} ${j.asset_in}${tail}`;
       }
       if (j.type === "deposit" && j.asset0 && j.asset1) {
-        return `added ${magiAmount(j.amount0, j.asset0)} ${j.asset0} + ${magiAmount(j.amount1, j.asset1)} ${j.asset1}`;
+        return `Added ${magiAmount(j.amount0, j.asset0)} ${j.asset0} + ${magiAmount(j.amount1, j.asset1)} ${j.asset1}`;
       }
       if (j.type) return String(j.type);
     } catch { /* not JSON after all: fall through */ }
