@@ -112,10 +112,13 @@
       onclick={() => hbdPref.toggle()}
       aria-pressed={hbdPref.show}
       title={hbdPref.show
-        ? "Showing an approximate HBD value beside LASSECASH figures. Click to price in LASSECASH only."
-        : "Pricing in LASSECASH only. Click to show an approximate HBD value beside each figure."}
+        ? "Showing an approximate HBD value beside LASSECASH amounts. Click to show amounts in LASSECASH only."
+        : "Showing amounts in LASSECASH only. Click to show an approximate HBD value beside each amount."}
     >
-      <span class="unitlabel">prices in</span>
+      <!-- "amounts", not "prices": this toggle adds ≈HBD beside LASSECASH
+           AMOUNTS (payouts, balances, rewards). The site's actual prices —
+           the pool tile and the chart — are always in HBD regardless. -->
+      <span class="unitlabel">amounts in</span>
       <span class="unitval">{hbdPref.show ? "LASSECASH + HBD" : "LASSECASH only"}</span>
     </button>
 
