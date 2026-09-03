@@ -54,18 +54,20 @@ const MODE = ["split 20/80", "all minted", "burned"];
 /**
  * The governed parameters, for reading a `set_param` row back in words.
  *
- * Values are 1e8 base units like every amount; the key decides whether the
- * unit is L-Shares or LASSECASH. The labels match the Thresholds page. An
- * unknown key falls back to the raw payload — the frozen contract can never
- * gain one, so that path only fires on a call the chain refused anyway.
+ * A `set_param` is a top-ten seat's standing VOTE — the value in force is the
+ * median of all ten — so the row reads as "voted: <what> <value>", not as if
+ * the caller changed the rule single-handed. Values are 1e8 base units like
+ * every amount; each entry names its unit. An unknown key falls back to the
+ * raw payload — the frozen contract can never gain one, so that path only
+ * fires on a call the chain refused anyway.
  */
-const PARAMS: Record<string, { label: string; unit: string }> = {
-  "mint.volume_start":      { label: "Bigger Pays Better start", unit: "LASSECASH" },
-  "mint.volume_end":        { label: "Bigger Pays Better end",   unit: "LASSECASH" },
-  "post.threshold_viral":   { label: "viral posting threshold",  unit: "L-Shares" },
-  "post.threshold_deep":    { label: "deep posting threshold",   unit: "L-Shares" },
-  "post.threshold_comment": { label: "comment threshold",        unit: "L-Shares" },
-  "promote.min_burn":       { label: "promotion minimum burn",   unit: "LASSECASH" },
+const PARAMS: Record<string, { what: string; unit: string }> = {
+  "mint.volume_start":      { what: "the mint-size bonus should start rising at",     unit: "LASSECASH" },
+  "mint.volume_end":        { what: "the full 1.50x mint-size bonus should start at", unit: "LASSECASH" },
+  "post.threshold_viral":   { what: "posting a viral post should take",               unit: "L-Shares" },
+  "post.threshold_deep":    { what: "posting a deep post should take",                unit: "L-Shares" },
+  "post.threshold_comment": { what: "commenting should take",                         unit: "L-Shares" },
+  "promote.min_burn":       { what: "promoting a post should cost at least",          unit: "LASSECASH" },
 };
 
 export function describeCall(action: string, payload: string): string {
@@ -120,7 +122,7 @@ export function describeCall(action: string, payload: string): string {
     case "set_param": {
       const p = PARAMS[f[0] ?? ""];
       return p
-        ? `${p.label} preference set to ${amt(f[1], 0)} ${p.unit}`
+        ? `voted: ${p.what} ${amt(f[1], 0)} ${p.unit}`
         : `${f[0]} preference set to ${f[1]}`;
     }
   }
