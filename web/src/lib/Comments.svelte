@@ -48,6 +48,20 @@
   let draft = $state("");
   /** Which comment the box answers; null = the post itself. */
   let replyTo = $state<{ author: string; permlink: string } | null>(null);
+  let box = $state<HTMLTextAreaElement | null>(null);
+  /**
+   * The composer lives at the top of the section, so from a Reply button far
+   * down a thread, retargeting it LOOKED like nothing happened (Lasse,
+   * 2026-09-03: "must be a bug!!"). The click now carries the reader to the
+   * box and puts the cursor in it.
+   */
+  function replyToComment(author: string, permlink: string) {
+    replyTo = { author, permlink };
+    queueMicrotask(() => {
+      box?.scrollIntoView({ behavior: "smooth", block: "center" });
+      box?.focus();
+    });
+  }
   let uploading = $state(false);
   let fileInput = $state<HTMLInputElement | null>(null);
 
@@ -243,6 +257,7 @@
         </p>
       {/if}
       <textarea
+        bind:this={box}
         bind:value={draft}
         rows="4"
         onpaste={onPaste}
@@ -328,7 +343,7 @@
                    comment. The author registers their own reply by writing it
                    here; a reader should not do it for them by accident. -->
               <span class="dim tiny">
-                written on Hive — its author can register it by replying here
+                written on Hive — reply to it there; its author can register it by replying here
               </span>
             {:else if !view.paid_out && !view.payable}
               <VoteSlider post={view} onvoted={load} />
@@ -338,7 +353,7 @@
               <span class="dim tiny">settles on the 1st</span>
             {/if}
             {#if view.registered !== false && clearsThreshold}
-              <button class="ghost small" onclick={() => (replyTo = { author: view.author, permlink: view.permlink })}>
+              <button class="ghost small" onclick={() => replyToComment(view.author, view.permlink)}>
                 Reply
               </button>
             {/if}
