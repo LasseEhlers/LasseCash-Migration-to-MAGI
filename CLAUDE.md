@@ -845,6 +845,24 @@ Lasse did not want to lose comment rewards ("a monster good valuable comment
   else."*
 - Display: comments under their post, earning ones ranked first with their
   pending reward. No comment/reply tabs on profiles.
+- **THREADED — DECIDED 2026-09-03 (supersedes the one-level KISS rule).**
+  Unlimited reply depth: the frozen contract already allows it (a registered
+  comment is a registered record, so it can be a parent — verified by
+  simulation against production). The INDENT caps at three levels; past that
+  a reply shows "→ @name" instead of marching right. Top level keeps money
+  order, inside a thread it is time order. Comments always run VIRAL — 7-day
+  window from THEIR registration, viral pool, viral meter — even under deep
+  posts, and voting closes when the window does.
+- **A REPLY IMPORTS ITS PARENT — DECIDED 2026-09-03 (amends the display
+  rule above; Lasse: the reply says "this comment has value for the
+  conversation").** A Hive-only comment shows if its author holds the
+  threshold NOW, **or** if anything visible hangs below it — a qualified
+  reply anchors its parent into visibility forever (registered records never
+  expire). A below-threshold thread nobody qualified engaged with stays
+  invisible in its entirety. Computed fresh per read from live `shr_`, so
+  minting later surfaces past debates retroactively — and at maturity
+  (shares retire) an author's un-engaged Hive-only comments vanish until
+  they re-mint. Context-only comments render dimmed with a "context" pill.
 
 Production contract: 27 entrypoints. Frontend (reply box, comment list,
 preflight, Hive-side display filter) follows; the comment WRITE path through
