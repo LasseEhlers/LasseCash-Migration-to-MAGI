@@ -261,7 +261,7 @@
     </div>
 
     {#if wallet}
-      <p class="estimate">Also casts your Hive vote at {weight}% — one confirm, like the old tribe.</p>
+      <p class="estimate">Also casts your Hive vote at {weight}% — one confirm.</p>
     {/if}
     {#if mine}
       <button class="ghost small" onclick={remove} disabled={chain.busy}
