@@ -64,9 +64,9 @@ const MODE = ["split 20/80", "all minted", "burned"];
 const PARAMS: Record<string, { what: string; unit: string }> = {
   "mint.volume_start":      { what: "the mint-size bonus should start rising at",     unit: "LASSECASH" },
   "mint.volume_end":        { what: "the full 1.50x mint-size bonus should start at", unit: "LASSECASH" },
-  "post.threshold_viral":   { what: "posting a viral post should take",               unit: "L-Shares" },
-  "post.threshold_deep":    { what: "posting a deep post should take",                unit: "L-Shares" },
-  "post.threshold_comment": { what: "commenting should take",                         unit: "L-Shares" },
+  "post.threshold_viral":   { what: "the viral posting threshold should be",          unit: "L-Shares" },
+  "post.threshold_deep":    { what: "the deep posting threshold should be",           unit: "L-Shares" },
+  "post.threshold_comment": { what: "the comment threshold should be",                unit: "L-Shares" },
   "promote.min_burn":       { what: "promoting a post should cost at least",          unit: "LASSECASH" },
 };
 
