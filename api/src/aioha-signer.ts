@@ -957,6 +957,20 @@ export class AiohaSigner implements Signer {
       if (sim.gasLimitHit) {
         return { ok: false, msg: "this call would exceed the per-call gas ceiling — call advance first to close the accrual gap", height: 0 };
       }
+      // THE NODE SAYS "insufficient balance" WHEN IT MEANS THE METER. On an
+      // HBD-drawing call, admission needs available RC >= draw + rc_limit —
+      // the @daneamanda wall — so a drained meter refuses a draw the balance
+      // easily covers, and the raw message reads as a lie ("insufficient
+      // balance when it's not", Lasse, 2026-09-03, on a 1 HBD buy against an
+      // 18 HBD balance). Translate it where it can only mean the meter.
+      if (entrypoint in AiohaSigner.HBD_DRAW_OPS && /insufficient balance/i.test(sim.msg)) {
+        return {
+          ok: false, height: 0,
+          msg: "your HBD covers this, but your meter does not — drawing HBD "
+            + "needs that much available RC on top of the call's own cost. "
+            + "RC recovers over 5 days, or instantly: hold more HBD on MAGI.",
+        };
+      }
       return { ok: false, msg: sim.msg, height: 0 };
     }
     const need = Math.ceil(sim.gas / AiohaSigner.GAS_PER_RC);
