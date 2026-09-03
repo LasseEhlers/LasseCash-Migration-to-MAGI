@@ -293,7 +293,7 @@
        loading screen (debated 2026-09-03: a blank page hides readable
        content and punishes the slowest connections hardest). -->
   {#if sort === "trending" && !hydrated && shown.length > 0}
-    <p class="reading-chain">● reading the chain — newest first until the payouts arrive, then ranked</p>
+    <p class="reading-chain">● reading the chain…</p>
   {/if}
 
   {#if awaitingPayout.length > 0}
