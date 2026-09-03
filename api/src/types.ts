@@ -30,6 +30,9 @@ export interface ChainInfo {
   pool_lshare: Amount;
   pool_viral: Amount;
   pool_deep: Amount;
+  /** The windows' live rshares totals — the denominator a vote's pool share divides against. */
+  rsh_viral: Amount;
+  rsh_deep: Amount;
   pool_liquidity: Amount;
   amm_lc: Amount;
   amm_hbd: Amount;

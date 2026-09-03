@@ -176,19 +176,19 @@
       // more of the SHARED window pool toward this post from every other
       // post; the ceiling is the pool, not the post.
       //
-      // The window's total rshares is not served directly, but the engine
-      // computed pending = pool × postRshares / totalRshares, so totalRshares
-      // is recovered by inverting that same division — consistent with
-      // whatever the engine did, not a second opinion about it.
+      // The window's total rshares, read straight from the chain — which
+      // also covers a FIRST vote, where the post has no record to divide
+      // from. (An earlier build inverted the total from pool×postR/pending;
+      // same figure, but useless at pending = 0.)
       //
-      // The sole-post case falls out naturally: pending == pool makes the
-      // new share 100% before and after, so added is 0 — which is true, a
-      // bigger vote on the only post in the window moves nothing.
+      // The sole-post case falls out naturally: when this post already IS
+      // the whole window, the share is 100% before and after, so added is
+      // 0 — true, a bigger vote on the only post moves nothing.
       const pool = Number(isDeep ? chain.info.pool_deep : chain.info.pool_viral);
-      if (pending <= 0 || postRshares <= 0 || pool <= 0) {
+      const totalRshares = Number(toBaseUnitArg(isDeep ? chain.info.rsh_deep : chain.info.rsh_viral));
+      if (pool <= 0 || totalRshares + delta <= 0) {
         return { rshares: myRshares, added: "0.00000000", delta };
       }
-      const totalRshares = postRshares * (pool / pending);
       const newShare = (postRshares + delta) / (totalRshares + delta);
       const added = Math.max(0, pool * newShare - pending);
       return { rshares: myRshares, added: added.toFixed(8), delta };
@@ -254,10 +254,16 @@
              plainly, because the voter is doing the author a favour they
              cannot do for themselves from another frontend. -->
         <p class="estimate">
-          Your vote opens this post's 7-day window. It has no reward figure yet
-          because the chain has no record of it — casting the first vote
+          Your vote opens this post's 7-day window — casting the first vote
           registers it as a viral post.
         </p>
+        {#if estimate && estimate.delta > 0 && Number(estimate.added) > 0}
+          <div class="line">
+            <span class="dim">It would open holding about</span>
+            <b class="gold mono">{lc(estimate.added, 4)}</b>
+            <span class="dim">LASSECASH of the viral pool</span>
+          </div>
+        {/if}
       {:else if estimate && estimate.delta <= 0}
         <!-- Re-voting at the same weight, or lower. The chain REPLACES your
              vote rather than adding to it, so there is nothing to promise. -->

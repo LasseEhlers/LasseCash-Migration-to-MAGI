@@ -395,6 +395,11 @@ type ChainInfo struct {
 	PoolLShare     string   `json:"pool_lshare"`
 	PoolViral      string   `json:"pool_viral"`
 	PoolDeep       string   `json:"pool_deep"`
+	// The two windows' LIVE rshares totals — what a vote's pool share divides
+	// against. Exposed so the browser can estimate a FIRST vote's take, where
+	// the post itself has no record to invert from.
+	RshViral       string   `json:"rsh_viral"`
+	RshDeep        string   `json:"rsh_deep"`
 	PoolLiquidity  string   `json:"pool_liquidity"`
 	AmmLC          string   `json:"amm_lc"`
 	AmmHBD         string   `json:"amm_hbd"`
@@ -430,6 +435,8 @@ func (c *Chain) Info() ChainInfo {
 		PoolLShare:     dec(state.PoolLShare(c.store)),
 		PoolViral:      dec(state.PoolViral(c.store)),
 		PoolDeep:       dec(state.PoolDeep(c.store)),
+		RshViral:       dec(c.rawAmount("rsh_viral")),
+		RshDeep:        dec(c.rawAmount("rsh_deep")),
 		PoolLiquidity:  dec(c.rawAmount("pool_liq")),
 		AmmLC:          dec(lcRes),
 		AmmHBD:         dec(hbdRes),
