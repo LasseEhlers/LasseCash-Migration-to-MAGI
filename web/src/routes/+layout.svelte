@@ -134,7 +134,7 @@
   {#if showMobileNote}
     <div class="mobile-note" role="note">
       <span>Built desktop-first for now — everything works on a phone, but the
-        layout is not polished yet. A proper mobile pass is coming.</span>
+        layout is not polished yet. A proper mobile layout is coming.</span>
       <button class="mobile-note-dismiss" onclick={dismissMobileNote} aria-label="dismiss">×</button>
     </div>
   {/if}
