@@ -60,7 +60,20 @@
     el.dispatchEvent(new Event("input", { bubbles: true }));
   }
 
+  /**
+   * Phone-width honesty note. Whether it SHOWS at all is CSS (narrow
+   * viewports only — a desktop never renders it), this state only remembers
+   * a dismissal per browser. Starts hidden so the server-rendered HTML never
+   * flashes it on a desktop before the CSS loads.
+   */
+  let showMobileNote = $state(false);
+  function dismissMobileNote() {
+    showMobileNote = false;
+    try { localStorage.setItem("lc_mobile_note", "1"); } catch { /* fine */ }
+  }
+
   onMount(async () => {
+    try { showMobileNote = !localStorage.getItem("lc_mobile_note"); } catch { showMobileNote = true; }
     document.addEventListener("input", decimalComma, true);
     hbdPref.restore();
     await chain.init();
@@ -118,6 +131,14 @@
     </div>
   </header>
 
+  {#if showMobileNote}
+    <div class="mobile-note" role="note">
+      <span>Built desktop-first for now — everything works on a phone, but the
+        layout is not polished yet. A proper mobile pass is coming.</span>
+      <button class="mobile-note-dismiss" onclick={dismissMobileNote} aria-label="dismiss">×</button>
+    </div>
+  {/if}
+
   {#if chain.confirming}
     <div class="confirming" role="status">
       <span class="dot"></span> Signed — waiting for MAGI to confirm. The figures update by themselves.
@@ -148,6 +169,23 @@
 </div>
 
 <style>
+  /* Rendered always, SHOWN only at phone width — the media query is the
+     switch, so no user-agent sniffing and no JS resize listener. Cyan
+     machine chrome, not red: nothing is broken, it is a status report. */
+  .mobile-note { display: none; }
+  @media (max-width: 700px) {
+    .mobile-note {
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      padding: 8px 14px; font-family: var(--mono); font-size: var(--t-sm);
+      color: var(--cyan); background: rgba(46, 230, 214, 0.06);
+      border-bottom: 1px solid rgba(46, 230, 214, 0.3);
+    }
+    .mobile-note-dismiss {
+      background: none; border: none; color: var(--cyan);
+      font-size: 1.1rem; line-height: 1; cursor: pointer; padding: 2px 6px;
+    }
+  }
+
   /* A display preference, in the chrome where display preferences live. */
   .unit {
     display: inline-flex; align-items: baseline; gap: 0.35rem;
