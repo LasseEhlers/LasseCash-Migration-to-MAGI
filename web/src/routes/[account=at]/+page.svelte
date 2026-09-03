@@ -17,7 +17,7 @@
    * the governing top 10. The balance is just cash.
    */
   import { chain, client } from "$lib/chain.svelte.js";
-  import { displayName, lc, lcShort, shortDate, durationWords } from "$lib/format.js";
+  import { displayName, lc, shortDate, durationWords } from "$lib/format.js";
   import Seo from "$lib/Seo.svelte";
   import { SITE_NAME, SITE_OG_IMAGE, SITE_URL, metaDescription, profileUrl } from "$lib/site.js";
   import type { AccountView, PostView } from "$api/index.js";
@@ -125,9 +125,11 @@
     </div>
 
     <div class="hero">
-      <div class="value gold">{view ? lcShort(view.shares) : "—"}</div>
+      <!-- The full figure, no k-abbreviation: there is room, and the exact
+           number IS the point of a hero (Lasse, 2026-09-03). The duplicate
+           small line underneath went with it. -->
+      <div class="value gold">{view ? lc(view.shares) : "—"}</div>
       <div class="cap">L-Shares</div>
-      <div class="exact mono dim">{view ? lc(view.shares) : ""}</div>
     </div>
   </section>
 
@@ -139,8 +141,8 @@
     <section class="stats">
       <div class="panel stat">
         <div class="label">Liquid</div>
-        <div class="value">{lcShort(view.balance)}</div>
-        <div class="sub mono">{lc(view.balance)} LASSECASH</div>
+        <div class="value">{lc(view.balance)}</div>
+        <div class="sub">LASSECASH</div>
       </div>
       <div class="panel stat">
         <div class="label">Open mints</div>
