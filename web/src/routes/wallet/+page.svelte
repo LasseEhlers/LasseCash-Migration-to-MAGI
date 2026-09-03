@@ -350,7 +350,7 @@
             Claims, mints, votes, comments, swaps — every contract call. Your meter is
             <b>HBD held on MAGI</b> plus 10,000 free: about
             <b class="mono">{Math.round(hbdOnMagi * 1000 + 10_000).toLocaleString()}</b> at
-            your current balance. Spent credits thaw over five days, and the HBD is never
+            your current balance. Spent credits recover over five days, and the HBD is never
             spent — it is a meter, and you can move it out whenever you like.
           </p>
         </div>
@@ -379,7 +379,7 @@
           {:else if low(magiRc)}
             <b>MAGI credits are low.</b> Contract calls — claiming, minting, voting,
             swapping — will be refused before the wallet opens. Hold a little more HBD on
-            MAGI for an instant fix, or wait for the thaw.
+            MAGI for an instant fix, or wait for recovery.
           {:else}
             <b>Hive credits are low.</b> Posts, comments and votes will be refused by Hive
             itself. This one only refills with time.
