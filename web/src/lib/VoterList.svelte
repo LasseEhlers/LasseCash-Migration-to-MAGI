@@ -27,18 +27,27 @@
   let loading = $state(false);
   let error = $state<string | null>(null);
 
-  async function toggle() {
-    open = !open;
-    if (!open || votes !== null || loading) return;
+  /**
+   * The post.rshares value the list was fetched under. A re-vote REPLACES a
+   * vote and moves the post's total, so a list read before it belongs to a
+   * different era — mixing the two showed a stale 8% weight over a fresh 7%
+   * total, which rendered as a 0.00% share (seen live 2026-09-03). Keying
+   * the fetch on the total means both figures always come from the same era.
+   */
+  let fetchedFor = $state<string | null>(null);
+
+  $effect(() => {
+    if (!open || loading || fetchedFor === post.rshares) return;
+    fetchedFor = post.rshares;
     loading = true;
-    try {
-      votes = await client.postVotes(post.author, post.permlink);
-      error = null;
-    } catch (e) {
-      error = e instanceof Error ? e.message : String(e);
-    } finally {
-      loading = false;
-    }
+    client.postVotes(post.author, post.permlink)
+      .then((v) => { votes = v; error = null; })
+      .catch((e) => { error = e instanceof Error ? e.message : String(e); })
+      .finally(() => { loading = false; });
+  });
+
+  function toggle() {
+    open = !open;
   }
 
   /**
