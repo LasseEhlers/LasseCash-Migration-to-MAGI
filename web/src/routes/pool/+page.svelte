@@ -462,6 +462,16 @@
   async function doSwap() {
     swapError = null;
     swapError = await chain.submit(() => client.swap(direction, amountIn, minOut), { movesHbd: true });
+    // A refusal with no error text on a SWAP is almost always the minOut
+    // floor: the contract's outputs carry only ok/ret, and when the DAG's
+    // errMsg is unreadable the generic line told the user nothing about the
+    // one protection they configured themselves (seen live 2026-09-03, the
+    // first slippage refusal on production).
+    if (swapError && /refused this call\.$/.test(swapError)) {
+      swapError = "The chain refused this swap — most likely your slippage protection: "
+        + "the price moved past your tolerance before the swap landed, and nothing was "
+        + "traded. Re-quote and try again, or allow more slippage.";
+    }
   }
   async function addLiquidity() {
     lpError = null;

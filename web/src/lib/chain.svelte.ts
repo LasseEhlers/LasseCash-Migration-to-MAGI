@@ -85,6 +85,11 @@ function chainRefusal(raw?: string): string {
     return "MAGI would not release the HBD for this. Your HBD is also your resource credits, so not "
       + `all of it can go out at once — try a smaller amount, or deposit more.${tail}`;
   }
+  if (e.includes("below the minimum required")) {
+    return "Your slippage protection fired: the price moved past your tolerance between the "
+      + "quote and the chain, so the swap was refused and nothing was traded. "
+      + `Re-quote and try again, or allow more slippage.${tail}`;
+  }
   if (e.includes("no caller intent")) {
     return `This call needed permission to draw HBD and the wallet did not grant it.${tail}`;
   }
