@@ -13,6 +13,7 @@
    * used to sit outside the anchor — dragging the slider must not navigate.
    */
   import { onMount } from "svelte";
+  import { flip } from "svelte/animate";
   import { chain, client } from "$lib/chain.svelte.js";
   import { displayName, lc, shortDate, durationWords } from "$lib/format.js";
   import { coverImage, excerpt } from "$lib/markdown.js";
@@ -285,6 +286,16 @@
     <a class="write" href="/compose">Write →</a>
   </div>
 
+  <!-- Trending is a fact about money the browser has not read yet, so the
+       pre-hydration list is honest chronology wearing the Trending tab. This
+       line SAYS so instead of letting the reorder look like a glitch — and
+       content stays readable the whole time, which is the reason there is no
+       loading screen (debated 2026-09-03: a blank page hides readable
+       content and punishes the slowest connections hardest). -->
+  {#if sort === "trending" && !hydrated && shown.length > 0}
+    <p class="reading-chain">● reading the chain — newest first until the payouts arrive, then ranked</p>
+  {/if}
+
   {#if awaitingPayout.length > 0}
     <div class="panel settle">
       <strong class="gold">
@@ -306,7 +317,11 @@
       {#each shown as { post, slot } (post.author + "/" + post.permlink)}
         {@const img = cover(post)}
         {@const money = rewards.get(key(post))}
-        <article class="post panel" class:settled={money?.paid_out} class:slotted={slot}>
+        <!-- The one-time reorder when the payouts arrive is ANIMATED so the
+             card someone is reading visibly slides to its ranked place
+             instead of teleporting out from under their eyes. -->
+        <article class="post panel" animate:flip={{ duration: 450 }}
+                 class:settled={money?.paid_out} class:slotted={slot}>
           {#if slot}
             <!-- The slot says WHY this row is here, in the row itself. A
                  promoted post that is not in a slot carries the same badge in
@@ -414,6 +429,12 @@
   .sorts { display: flex; gap: 0.4rem; }
   .sorts button.active { border-color: var(--gold); color: var(--gold); background: rgba(255, 210, 63, 0.07); }
   .write { margin-left: auto; color: var(--cyan); font-weight: 700; font-family: var(--mono); font-size: var(--t-sm); }
+  /* Machine chrome, so cyan — it reports what the terminal is doing, not money. */
+  .reading-chain {
+    color: var(--cyan); font-family: var(--mono); font-size: var(--t-sm);
+    margin: 0 0 12px; animation: reading-pulse 1.6s ease-in-out infinite;
+  }
+  @keyframes reading-pulse { 50% { opacity: 0.55; } }
 
   .settle { border-color: var(--gold-dim); font-size: var(--t-sm); }
   .err { color: var(--red); }
