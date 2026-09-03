@@ -8,7 +8,7 @@
    * so a trade cannot be sandwiched into a far worse one.
    */
   import { chain, client } from "$lib/chain.svelte.js";
-  import { fractionPct, lc, lcShort, mult, pct } from "$lib/format.js";
+  import { fractionPct, lc, mult, pct } from "$lib/format.js";
   import {
     estimateSwap, estimateLiquidity, toBaseUnitArg, toUnits, fromUnits, isZero,
     trancheHealth, dailyRewards, poolApy as poolApy_, type SwapDirection, type TrancheView,
@@ -497,7 +497,7 @@
     </div>
     <div class="panel stat">
       <div class="label">Pool reserves</div>
-      <div class="value gold">{info ? lcShort(info.amm_lc) : "—"}</div>
+      <div class="value gold">{info ? lc(info.amm_lc) : "—"}</div>
       <div class="sub">LASSECASH</div>
     </div>
     <div class="panel stat">
@@ -692,7 +692,7 @@
               {lc(info.pool_liquidity)}
               <Hbd amount={info.pool_liquidity} block />
             </dd>
-            <dt>Total pool shares</dt><dd class="mono">{lcShort(info.amm_shares)}</dd>
+            <dt>Total pool shares</dt><dd class="mono">{lc(info.amm_shares)}</dd>
           </dl>
           <small class="dim">Funded by 25% of every block reward — not by trading fees.</small>
         </div>
