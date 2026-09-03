@@ -161,6 +161,8 @@
   <footer>
     <span>What you see is what the chain pays — every figure comes from the contract itself.</span>
     <span class="mono">
+      <a href="https://discord.gg/5JW2w9t" target="_blank" rel="noopener">Discord</a>
+      ·
       <a href="https://www.youtube.com/@LasseCashNews" target="_blank" rel="noopener">Crypto World News</a>
       ·
       <a href="https://lassemusic.com" target="_blank" rel="noopener">Lasse Music</a>
