@@ -959,6 +959,17 @@ CoinGecko / TradingView readiness, pays nobody ever). Design:
   top-10 LP list (LPs discovered from tx history; the contract cannot
   enumerate); richlists and full LP tables stay on price-stats.lassecash.com,
   re-pointed at MAGI after migration. Additive, never touches the contract.
+- **Post indexer + feed "load more" — DEFERRED 2026-09-03 (after the key
+  burn).** The feed assembles itself in every browser from the last 30 days
+  of transaction history (paged, 10-page cap) and shows at most 50 registered
+  posts, no pagination; older posts live on profiles, direct URLs and Google.
+  Fine at launch volume (~15 posts in 3 days) but it re-reads history per
+  visitor and cannot browse past the deep window. When LasseMedia volume
+  makes the 50-cap bind: first a cheap "load more" that extends the window
+  backward, then the real fix — the same indexer service as the trade
+  recorder, watching the chain once and serving the post list from its own
+  DB, making deep history browsable for the first time. Purely additive,
+  never touches the contract.
 
 ## Visual design — DECIDED 2026-08-20
 
