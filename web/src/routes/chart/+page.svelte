@@ -41,6 +41,16 @@
   const last = $derived(priced[priced.length - 1] ?? null);
   const swaps = $derived(trades.filter((t) => t.side === "sell" || t.side === "buy"));
 
+  /**
+   * The table shows the newest rows and grows on demand — the full history
+   * lives here already (it is what the chart replays), so "show more" costs
+   * nothing but rendering. Every trade since genesis stays reachable; the
+   * page just stops making the reader scroll past all of it by default.
+   */
+  const TRADES_PAGE = 15;
+  let tradesShown = $state(15);
+  const tradeRows = $derived([...trades].reverse().slice(0, tradesShown));
+
   /** Change since the pool opened. Exact division of two exact figures. */
   const changePct = $derived.by(() => {
     if (!first || !last) return null;
@@ -220,7 +230,7 @@
             </tr>
           </thead>
           <tbody>
-            {#each [...trades].reverse() as t (t.time + t.side + t.amountIn)}
+            {#each tradeRows as t (t.time + t.side + t.amountIn)}
               <tr>
                 <td class="mono dim">{when(t.time)}</td>
                 <td><span class="pill {t.side}">{t.side}</span></td>
@@ -256,11 +266,18 @@
           </tbody>
         </table>
       </div>
+      {#if trades.length > tradesShown}
+        <button class="ghost small showmore" onclick={() => (tradesShown += TRADES_PAGE)}>
+          Show {Math.min(TRADES_PAGE, trades.length - tradesShown)} more · {trades.length - tradesShown} older trade{trades.length - tradesShown === 1 ? "" : "s"} below
+        </button>
+      {/if}
     </section>
   {/if}
 </div>
 
 <style>
+  .showmore { display: block; margin: 0.8rem auto 0; }
+
   .hero { display: flex; flex-wrap: wrap; gap: 1.2rem 2.4rem; align-items: flex-end; margin: 0.6rem 0 1.1rem; }
   .price { font-size: clamp(1.9rem, 6vw, 2.6rem); font-weight: 800; color: var(--gold); text-shadow: var(--glow-gold); line-height: 1; }
   .delta .mono { font-size: 1.35rem; font-weight: 700; color: var(--amber); }
