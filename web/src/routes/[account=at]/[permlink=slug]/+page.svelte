@@ -297,6 +297,17 @@
          cached HTML. A registered post with no replies still renders the box. -->
     {#if post && post.registered && !post.parent_permlink}
       <Comments {post} />
+    {:else if post && !post.registered && !post.parent_permlink}
+      <!-- The contract refuses a reply to an unregistered parent, so there
+           is no box to offer — but a silently missing section reads as a
+           bug (asked about the same day it shipped). Say why, and what
+           opens it. -->
+      <section class="panel">
+        <p class="dim" style="margin:0">
+          Comments open when the post is registered — the first vote registers
+          it and starts its 7-day window.
+        </p>
+      </section>
     {/if}
   {/if}
 </div>
