@@ -468,9 +468,7 @@
     // one protection they configured themselves (seen live 2026-09-03, the
     // first slippage refusal on production).
     if (swapError && /refused this call\.$/.test(swapError)) {
-      swapError = "The chain refused this swap — most likely your slippage protection: "
-        + "the price moved past your tolerance before the swap landed, and nothing was "
-        + "traded. Re-quote and try again, or allow more slippage.";
+      swapError = "The chain refused this swap due to slippage.";
     }
   }
   async function addLiquidity() {
