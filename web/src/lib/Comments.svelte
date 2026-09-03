@@ -290,6 +290,7 @@
         <!-- Indent is CAPPED: past three levels the thread stops marching
              right and the "→ name" marker carries who answers whom. -->
         <li class="comment" class:settled={view.paid_out} class:offchain={view.registered === false}
+            class:context={view.shown_for_context}
             class:nested={depth > 0} style:margin-left="{Math.min(depth, 3) * 1.4}rem">
           <div class="cmeta">
             <a class="author" href="/{displayName(view.author)}">{displayName(view.author)}</a>
@@ -302,8 +303,11 @@
                    the comment threshold. Shown because it is part of the
                    conversation; marked because it earns nothing — only a
                    registered reply does. -->
-              <span class="pill dimpill" title="Written on Hive, not registered with the contract — it earns nothing.">
-                from Hive
+              <span class="pill dimpill"
+                title={view.shown_for_context
+                  ? "Written on Hive by an author below the comment threshold — shown because someone qualified replied to it. It earns nothing."
+                  : "Written on Hive, not registered with the contract — it earns nothing."}>
+                {view.shown_for_context ? "context" : "from Hive"}
               </span>
             {:else if view.paid_out}
               <span class="pill ok">paid out</span>
@@ -399,6 +403,9 @@
   /* A nested reply hangs off a faint rail — depth reads at a glance without
      the staircase. */
   .comment.nested { border-left: 2px solid var(--line); }
+  /* Below-threshold, shown only because someone qualified engaged: readable,
+     but visibly not a full citizen of the page. */
+  .comment.context { opacity: 0.7; }
   .replying { margin: 0 0 0.4rem; }
 
   /* Deliberately LIGHTER than a post: no gradient, a hairline rule, a smaller

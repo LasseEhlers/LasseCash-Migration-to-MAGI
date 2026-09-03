@@ -159,6 +159,14 @@ export interface PostView {
    * fact about the chain.
    */
   registered: boolean;
+  /**
+   * A Hive-only comment whose author is BELOW the comment threshold, shown
+   * anyway because someone qualified replied to it — the reply is an
+   * endorsement that imports its parent as context, so a conversation
+   * LasseCash's rules let happen stays readable in full (decided 2026-09-03).
+   * Absent everywhere else.
+   */
+  shown_for_context?: boolean;
 }
 
 /**

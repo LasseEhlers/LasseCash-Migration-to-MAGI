@@ -1117,7 +1117,35 @@ export class MagiBackend implements Backend {
     }
     const found = all.filter((e) => inTree.has(`${e.author}/${e.permlink}`));
     const registered = await this.#hydrate(await this.#viewsFor(found));
-    const unregistered = await this.#hiveReplies(author, permlink, registered);
+    const hive = await this.#hiveReplies(author, permlink, registered);
+
+    // A REPLY IMPORTS ITS PARENT — decided 2026-09-03, amending the Aug 22
+    // display rule. A Hive-only comment shows if its author holds the
+    // threshold NOW, or if anything visible hangs below it: a qualified
+    // reply is an endorsement that keeps the conversation readable in full,
+    // forever (registered replies never expire). A below-threshold thread
+    // nobody qualified engaged with stays invisible, all of it. Computed
+    // fresh per read from live shares — mint later and your past debates
+    // surface retroactively.
+    const visible = new Set(registered.map((c) => `${c.author}/${c.permlink}`));
+    for (const h of hive) {
+      if (h.qualifies) visible.add(`${h.view.author}/${h.view.permlink}`);
+    }
+    for (let grew = true; grew; ) {
+      grew = false;
+      for (const h of hive) {
+        const key = `${h.view.author}/${h.view.permlink}`;
+        if (visible.has(key)) continue;
+        const hasVisibleChild =
+          registered.some((c) => `${c.parent_author}/${c.parent_permlink}` === key) ||
+          hive.some((o) => visible.has(`${o.view.author}/${o.view.permlink}`) &&
+            `${o.view.parent_author}/${o.view.parent_permlink}` === key);
+        if (hasVisibleChild) { visible.add(key); grew = true; }
+      }
+    }
+    const unregistered = hive
+      .filter((h) => visible.has(`${h.view.author}/${h.view.permlink}`))
+      .map((h) => (h.qualifies ? h.view : { ...h.view, shown_for_context: true }));
     return [...registered, ...unregistered];
   }
 
@@ -1140,7 +1168,7 @@ export class MagiBackend implements Backend {
    */
   async #hiveReplies(
     author: string, permlink: string, registered: PostView[],
-  ): Promise<PostView[]> {
+  ): Promise<{ view: PostView; qualifies: boolean }[]> {
     try {
       // BFS over the thread, because Hive conversations nest: the post,
       // every registered comment, and every accepted Hive-only reply gets
@@ -1184,11 +1212,14 @@ export class MagiBackend implements Backend {
       ]);
       const threshold = governed[c.paramPostThresholdComment] ?? "0";
 
-      const out: PostView[] = [];
+      const out: { view: PostView; qualifies: boolean }[] = [];
       for (const r of fresh) {
         const a = qualified(r.author);
-        if (!engine.canPost(shares[`shr_${a}`] || "0", threshold)) continue;
-        out.push({
+        // NO EXCLUSION HERE. Whether a below-threshold author's reply is
+        // shown depends on whether anyone qualified engaged with it — a
+        // judgement about the TREE, made in comments(), not about the row.
+        const qualifies = engine.canPost(shares[`shr_${a}`] || "0", threshold);
+        out.push({ qualifies, view: {
           author: a, permlink: r.permlink, title: "", body: r.body ?? "",
           summary: "", image: null, tags: [],
           created: r.created ? `${r.created}Z` : "",
@@ -1203,7 +1234,7 @@ export class MagiBackend implements Backend {
           // the old code pinned every Hive reply to the post itself.
           parent_author: qualified(r.parent_author), parent_permlink: r.parent_permlink,
           registered: false,
-        } as PostView);
+        } as PostView });
       }
       return out;
     } catch {
