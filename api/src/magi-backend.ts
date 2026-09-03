@@ -1119,34 +1119,7 @@ export class MagiBackend implements Backend {
     const registered = await this.#hydrate(await this.#viewsFor(found));
     const hive = await this.#hiveReplies(author, permlink, registered);
 
-    // A REPLY IMPORTS ITS PARENT — decided 2026-09-03, amending the Aug 22
-    // display rule. A Hive-only comment shows if its author holds the
-    // threshold NOW, or if anything visible hangs below it: a qualified
-    // reply is an endorsement that keeps the conversation readable in full,
-    // forever (registered replies never expire). A below-threshold thread
-    // nobody qualified engaged with stays invisible, all of it. Computed
-    // fresh per read from live shares — mint later and your past debates
-    // surface retroactively.
-    const visible = new Set(registered.map((c) => `${c.author}/${c.permlink}`));
-    for (const h of hive) {
-      if (h.qualifies) visible.add(`${h.view.author}/${h.view.permlink}`);
-    }
-    for (let grew = true; grew; ) {
-      grew = false;
-      for (const h of hive) {
-        const key = `${h.view.author}/${h.view.permlink}`;
-        if (visible.has(key)) continue;
-        const hasVisibleChild =
-          registered.some((c) => `${c.parent_author}/${c.parent_permlink}` === key) ||
-          hive.some((o) => visible.has(`${o.view.author}/${o.view.permlink}`) &&
-            `${o.view.parent_author}/${o.view.parent_permlink}` === key);
-        if (hasVisibleChild) { visible.add(key); grew = true; }
-      }
-    }
-    const unregistered = hive
-      .filter((h) => visible.has(`${h.view.author}/${h.view.permlink}`))
-      .map((h) => (h.qualifies ? h.view : { ...h.view, shown_for_context: true }));
-    return [...registered, ...unregistered];
+    return [...registered, ...visibleHiveReplies(registered, hive)];
   }
 
   /**
@@ -1967,4 +1940,41 @@ export function discoveredCalls(
     if (found.length >= limit) break;
   }
   return found;
+}
+
+/**
+ * A REPLY IMPORTS ITS PARENT — decided 2026-09-03, amending the Aug 22
+ * display rule. A Hive-only comment shows if its author holds the comment
+ * threshold NOW, or if anything visible hangs below it: a qualified reply is
+ * an endorsement that keeps the conversation readable in full, forever
+ * (registered replies never expire). A below-threshold thread nobody
+ * qualified engaged with stays invisible, all of it. Computed fresh per read
+ * from live shares — mint later and your past debates surface retroactively.
+ *
+ * Pure and exported, like mergeTagged and discoveredCalls: the rule that
+ * decides who is heard must be testable with no network under it.
+ */
+export function visibleHiveReplies(
+  registered: PostView[],
+  hive: { view: PostView; qualifies: boolean }[],
+): PostView[] {
+  const visible = new Set(registered.map((c) => `${c.author}/${c.permlink}`));
+  for (const h of hive) {
+    if (h.qualifies) visible.add(`${h.view.author}/${h.view.permlink}`);
+  }
+  for (let grew = true; grew; ) {
+    grew = false;
+    for (const h of hive) {
+      const key = `${h.view.author}/${h.view.permlink}`;
+      if (visible.has(key)) continue;
+      const hasVisibleChild =
+        registered.some((c) => `${c.parent_author}/${c.parent_permlink}` === key) ||
+        hive.some((o) => visible.has(`${o.view.author}/${o.view.permlink}`) &&
+          `${o.view.parent_author}/${o.view.parent_permlink}` === key);
+      if (hasVisibleChild) { visible.add(key); grew = true; }
+    }
+  }
+  return hive
+    .filter((h) => visible.has(`${h.view.author}/${h.view.permlink}`))
+    .map((h) => (h.qualifies ? h.view : { ...h.view, shown_for_context: true }));
 }

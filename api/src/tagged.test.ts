@@ -197,3 +197,72 @@ test("a post ghosted by a failed vote stays visible as tagged", () => {
   assert.equal(out.length, 1, "the post must not vanish");
   assert.equal(out[0]!.registered, false);
 });
+
+/**
+ * A REPLY IMPORTS ITS PARENT, 2026-09-03. The rule that decides who is heard,
+ * pinned in every direction it can decide.
+ */
+import { visibleHiveReplies, type DiscoverTx as _DT } from "./magi-backend.js";
+import type { PostView } from "./types.js";
+
+function cv(author: string, permlink: string, parentA: string, parentP: string): PostView {
+  return {
+    author, permlink, parent_author: parentA, parent_permlink: parentP,
+    title: "", summary: "", body_excerpt: "", tags: null, image: null, body: "",
+    created: "", created_time: "", payout_time: "", curation_expires_at: 0,
+    created_height: 0, payout_height: 0, window: "viral", payout_mode: 0,
+    rshares: "0", votes: 0, pending_payout: "0", curator_pot: "0",
+    paid_out: false, payable: false, promoted: "0", registered: false,
+  } as unknown as PostView;
+}
+const POST = ["hive:op", "the-post"] as const;
+
+test("a qualified reply anchors its below-threshold parent as context, forever", () => {
+  // B (below threshold) comments; A's REGISTERED reply hangs under it.
+  const bComment = cv("hive:b", "b-1", ...POST);
+  const aReply = { ...cv("hive:a", "a-1", "hive:b", "b-1"), registered: true } as PostView;
+  const out = visibleHiveReplies([aReply], [{ view: bComment, qualifies: false }]);
+  assert.equal(out.length, 1, "the engaged-with comment must show");
+  assert.equal(out[0]!.shown_for_context, true, "marked as context, not as qualified");
+});
+
+test("a below-threshold thread nobody engaged with is invisible in its entirety", () => {
+  const b1 = cv("hive:b", "b-1", ...POST);
+  const c1 = cv("hive:c", "c-1", "hive:b", "b-1");
+  const b2 = cv("hive:b", "b-2", "hive:c", "c-1");
+  const out = visibleHiveReplies([], [
+    { view: b1, qualifies: false },
+    { view: c1, qualifies: false },
+    { view: b2, qualifies: false },
+  ]);
+  assert.equal(out.length, 0, "no engagement, no display — all of it");
+});
+
+test("one qualified voice deep in a thread surfaces the whole parent chain", () => {
+  // b-1 <- c-1 <- q-1 (qualified): both ancestors become context.
+  const b1 = cv("hive:b", "b-1", ...POST);
+  const c1 = cv("hive:c", "c-1", "hive:b", "b-1");
+  const q1 = cv("hive:q", "q-1", "hive:c", "c-1");
+  const out = visibleHiveReplies([], [
+    { view: b1, qualifies: false },
+    { view: c1, qualifies: false },
+    { view: q1, qualifies: true },
+  ]);
+  assert.equal(out.length, 3);
+  const byKey = new Map(out.map((v) => [`${v.author}/${v.permlink}`, v]));
+  assert.equal(byKey.get("hive:b/b-1")!.shown_for_context, true);
+  assert.equal(byKey.get("hive:c/c-1")!.shown_for_context, true);
+  assert.equal(byKey.get("hive:q/q-1")!.shown_for_context, undefined, "the qualified author is no mere context");
+});
+
+test("a qualified author who later holds nothing takes un-anchored comments with them", () => {
+  // The same thread, re-read after hive:q's shares retired: qualifies flips
+  // false, nothing registered exists anywhere — the debate vanishes whole.
+  const b1 = cv("hive:b", "b-1", ...POST);
+  const q1 = cv("hive:q", "q-1", "hive:b", "b-1");
+  const out = visibleHiveReplies([], [
+    { view: b1, qualifies: false },
+    { view: q1, qualifies: false },
+  ]);
+  assert.equal(out.length, 0, "borrowed visibility returns when the collateral is gone");
+});
