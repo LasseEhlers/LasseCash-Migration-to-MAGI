@@ -117,3 +117,53 @@ the deploy key in plaintext, which is how the upstream tool works — so the
 snapshot files are LOCAL ONLY and are not in the repository. They are public
 contract state, not secrets, so they can be published as evidence if the proof
 is worth showing; they are simply not committed by default.
+
+---
+
+## ROUND 1 VERDICT — 2026-09-03, 20:56 CPH
+
+The update activated on schedule at height 109,598,771. Results:
+
+- **State diff: PASS.** All 25 keys byte-identical across the swap
+  (`t9-before.json` → `t9-after.json`, 24,228 blocks apart).
+- **Sweep: `fund` appeared** ("wasm function not found" → "funded pob").
+  The only other changed row was `mint`'s share count — the 7%/yr ratchet
+  moving across 20 hours, not a code change.
+- **🚨 THE BARE-NAME TRANSFER STILL ANSWERED "transferred".** The guard was
+  NOT in the activated code — and neither was the 30-day default. Cause,
+  established from git: the update was queued 2026-09-01 18:12 UTC; the
+  transfer guard was committed 20:54 UTC and the default 2026-09-02. **The
+  artifact predated two of the three changes this document said it carried.**
+  The runbook described the intent; the WASM was two days older. The sweep
+  caught exactly the class of error it exists to catch.
+
+**What round 1 proved, build-independently:** the update mechanism works —
+48h public timelock honored, activation on schedule, state preserved to the
+byte, a new entrypoint reachable.
+
+## ROUND 2 — the corrected build, queued 2026-09-03 21:19 CPH
+
+Rebuilt from HEAD (the full contract-side delta since the production build is
+exactly the three intended changes — commits d910a66+b297de2 `fund`, 35c8d79
+guard, c27ef68 default; verified `strings` shows "must be a full address" in
+the binary). TESTWINDOWS build, 96,298 bytes.
+
+| | |
+|---|---|
+| New code CID | `bafkreifxgszcwisnbcxapt2pq2ia2lcilgvxo27wivmdc6xgawqm7qomfe` |
+| Queue tx | `6b9cf3e6d9c5d5187e8d96a5920324072313c85d` (10 HBD) |
+| **Activates** | **height 109,656,821 — 2026-09-05 19:21:57 UTC (21:21 CPH Saturday)** |
+| Round-2 BEFORE | `t9r2-before.json` (25 keys); sweep baseline `t9-sweep-after.txt` |
+
+After Saturday's activation: diff `t9r2-before` → fresh grab, sweep again.
+**Expected vs the round-1 after-sweep: exactly one changed row — the bare
+name transfer flipping to "recipient must be a full address".** Then queue
+the MAINNET build (`contract/artifacts/main.wasm`, same HEAD) on production
+`vsc1Be4TTjUiHgzhHAfqFn6s3PDAExH2X59fXV` — prod BEFORE snapshot first —
+activating Monday evening. Sunday's first payouts land between the two, so
+anything they teach can still fold in before the production queue.
+
+**Lesson for every future update: pin the artifact to a commit at queue
+time.** Record `git rev-parse HEAD` and the WASM sha256 beside the queue tx,
+and rebuild immediately before queueing — never queue an artifact that has
+been sitting in `artifacts/` while the source moved.
