@@ -321,8 +321,8 @@
       </p>
     {/if}
     <p class="here">
-      <b>This vote pays twice.</b> One signature casts your Hive vote and your
-      LasseCash vote at the same weight — you earn curation on both. A vote
+      <b>This vote pays twice.</b> One signature casts your LasseCash vote and
+      your Hive vote at the same weight — you earn curation on both. A vote
       from another frontend earns Hive alone.
     </p>
   </div>
