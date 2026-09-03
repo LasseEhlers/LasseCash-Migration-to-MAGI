@@ -214,7 +214,7 @@
                    in — so the reader had to work out the unit from the badge
                    before the number meant anything. Each column now holds one
                    asset on every row, and the badge says which way it moved. -->
-              <th>Time</th><th>Event</th><th>Trader</th>
+              <th>Time</th><th>Event</th><th>Account</th>
               <th class="num">LASSECASH</th><th class="num">HBD</th>
               <th class="num">LASSECASH reserve</th><th class="num">HBD reserve</th><th class="num">Price after</th>
             </tr>
@@ -301,7 +301,7 @@
 
      Equal widths make the gap inside the first pair identical to the gap
      inside the second, and the extra pad where a pair BEGINS is what
-     separates the pairs. Time, Event and Trader stay automatic and absorb
+     separates the pairs. Time, Event and Account stay automatic and absorb
      whatever is left. */
   th:nth-child(n + 4), td:nth-child(n + 4) { width: 8.25rem; }
   th:nth-child(6), td:nth-child(6),
