@@ -221,7 +221,6 @@
     color: var(--dim); font-size: var(--t-micro); letter-spacing: 0.13em;
     text-transform: uppercase; font-weight: 700; font-family: var(--mono);
   }
-  .hero .exact { font-size: var(--t-tiny); margin-top: 0.15rem; }
 
   .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 1rem; }
   @media (max-width: 720px) {
