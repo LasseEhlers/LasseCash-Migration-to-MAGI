@@ -862,6 +862,12 @@
     background: var(--panel-2); border: 1px solid var(--line);
     border-radius: 8px; padding: 0.6rem 0.7rem; margin-bottom: 0.6rem;
   }
+  /* The swap field's own head row: the label span keeps the exact look it
+     had as label.field's direct child, with the balance chip beside it. */
+  .field .asset-head > span:first-child {
+    color: var(--dim); font-size: var(--t-micro); letter-spacing: 0.13em;
+    text-transform: uppercase; font-weight: 700; font-family: var(--mono);
+  }
   .asset-head {
     display: flex; justify-content: space-between; align-items: baseline;
     margin-bottom: 0.35rem; gap: 0.5rem; flex-wrap: wrap;
