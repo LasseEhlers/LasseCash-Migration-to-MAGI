@@ -484,7 +484,7 @@ export class MagiBackend implements Backend {
     limit: number,
     action: "post" | "comment" = "post",
     accept?: (payload: string) => boolean,
-  ): Promise<{ author: string; permlink: string }[]> {
+  ): Promise<{ author: string; permlink: string; payload: string }[]> {
     // ⚠️ ONE PAGE IS NOT A FEED. The node caps a page at 100 transactions,
     // and by 2026-09-03 — three days after launch — the newest 100 reached
     // back only to Sep 1 midday: every post registered on launch day had
@@ -1089,13 +1089,33 @@ export class MagiBackend implements Backend {
    * feed or the sitemap as an article.
    */
   async comments(author: string, permlink: string): Promise<PostView[]> {
-    // `comment` takes <permlink>|<parentAuthor>|<parentPermlink>[|mode]. Match
-    // on the two parent fields rather than a substring, so a permlink that
-    // merely CONTAINS this post's name cannot be mistaken for a reply to it.
-    const found = await this.#discover(100, "comment", (payload) => {
-      const f = payload.split("|");
-      return f[1] === author && f[2] === permlink;
-    });
+    // THE WHOLE SUBTREE, not just direct children. A reply to a registered
+    // comment is itself a registered comment — the contract only checks that
+    // the parent record exists (verified by simulation against production,
+    // 2026-09-03) — so a conversation nests. `comment` takes
+    // <permlink>|<parentAuthor>|<parentPermlink>[|mode]; every discovered
+    // comment carries its parent in the payload, and the tree is grown from
+    // the post by fixpoint: a comment is included exactly when its parent
+    // chain reaches this post. Matching on the split fields, never a
+    // substring, so a permlink that merely CONTAINS this post's name cannot
+    // be mistaken for a reply to it.
+    const all = await this.#discover(200, "comment");
+    const parentOf = new Map<string, string>();
+    for (const e of all) {
+      const f = e.payload.split("|");
+      parentOf.set(`${e.author}/${e.permlink}`, `${f[1]}/${f[2]}`);
+    }
+    const root = `${author}/${permlink}`;
+    const inTree = new Set<string>();
+    for (let grew = true; grew; ) {
+      grew = false;
+      for (const [key, parent] of parentOf) {
+        if (inTree.has(key) || (parent !== root && !inTree.has(parent))) continue;
+        inTree.add(key);
+        grew = true;
+      }
+    }
+    const found = all.filter((e) => inTree.has(`${e.author}/${e.permlink}`));
     const registered = await this.#hydrate(await this.#viewsFor(found));
     const unregistered = await this.#hiveReplies(author, permlink, registered);
     return [...registered, ...unregistered];
@@ -1122,14 +1142,38 @@ export class MagiBackend implements Backend {
     author: string, permlink: string, registered: PostView[],
   ): Promise<PostView[]> {
     try {
-      const rows = await this.#hiveRpc<{
+      // BFS over the thread, because Hive conversations nest: the post,
+      // every registered comment, and every accepted Hive-only reply gets
+      // its own children fetched. Bounded — a runaway thread stops being
+      // fetched deeper, it can never loop (a reply is always younger than
+      // its parent).
+      type HiveReply = {
         author: string; permlink: string; body: string; created: string;
         parent_author: string; parent_permlink: string;
-      }[]>("condenser_api.get_content_replies", [author.replace(/^hive:/, ""), permlink]);
-      if (!rows || rows.length === 0) return [];
-
+      };
+      const MAX_FETCHES = 30;
       const known = new Set(registered.map((c) => `${c.author}/${c.permlink}`));
-      const fresh = rows.filter((r) => !known.has(`${qualified(r.author)}/${r.permlink}`));
+      const queue: { author: string; permlink: string }[] = [
+        { author, permlink },
+        ...registered.map((c) => ({ author: c.author, permlink: c.permlink })),
+      ];
+      const queued = new Set(queue.map((n) => `${n.author}/${n.permlink}`));
+      const fresh: HiveReply[] = [];
+      let fetches = 0;
+      while (queue.length > 0 && fetches < MAX_FETCHES) {
+        const node = queue.shift()!;
+        fetches++;
+        const rows = await this.#hiveRpc<HiveReply[]>(
+          "condenser_api.get_content_replies",
+          [node.author.replace(/^hive:/, ""), node.permlink]);
+        for (const r of rows ?? []) {
+          const key = `${qualified(r.author)}/${r.permlink}`;
+          if (queued.has(key)) continue;
+          queued.add(key);
+          if (!known.has(key)) fresh.push(r);
+          queue.push({ author: qualified(r.author), permlink: r.permlink });
+        }
+      }
       if (fresh.length === 0) return [];
 
       const authors = [...new Set(fresh.map((r) => qualified(r.author)))];
@@ -1155,7 +1199,9 @@ export class MagiBackend implements Backend {
           payout_mode: 0, rshares: "0", votes: 0,
           pending_payout: "0.00000000", curator_pot: "0.00000000",
           paid_out: false, payable: false, promoted: "0.00000000",
-          parent_author: author, parent_permlink: permlink,
+          // The reply's REAL parent, so the UI nests it where it belongs —
+          // the old code pinned every Hive reply to the post itself.
+          parent_author: qualified(r.parent_author), parent_permlink: r.parent_permlink,
           registered: false,
         } as PostView);
       }
@@ -1849,11 +1895,13 @@ export function discoveredCalls(
   limit: number,
   action: "post" | "comment",
   accept?: (payload: string) => boolean,
-): { author: string; permlink: string }[] {
+): { author: string; permlink: string; payload: string }[] {
   // Newest-first discovery, deduped: re-registering a permlink is refused by
-  // the contract, so the first sighting is the real one.
+  // the contract, so the first sighting is the real one. The raw payload
+  // rides along because a comment's parent lives in it — comments() builds
+  // the reply tree from exactly those fields.
   const seen = new Set<string>();
-  const found: { author: string; permlink: string }[] = [];
+  const found: { author: string; permlink: string; payload: string }[] = [];
   for (const tx of txs) {
     if (tx.status === "FAILED") continue;
     for (const op of tx.ops ?? []) {
@@ -1882,7 +1930,7 @@ export function discoveredCalls(
       const key = author + "/" + permlink;
       if (!seen.has(key)) {
         seen.add(key);
-        found.push({ author, permlink });
+        found.push({ author, permlink, payload });
       }
     }
     if (found.length >= limit) break;

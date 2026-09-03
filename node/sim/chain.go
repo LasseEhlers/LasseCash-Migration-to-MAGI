@@ -994,7 +994,16 @@ func (c *Chain) Comments(author, permlink string) []PostView {
 	keys := c.store.Keys()
 	sortStrings(keys)
 
-	out := []PostView{}
+	// THE WHOLE SUBTREE, not just direct children. A reply to a registered
+	// comment is itself a registered comment — the contract only checks that
+	// the parent record exists — so a conversation nests, and the tree is
+	// grown from the post by fixpoint: a comment is included exactly when its
+	// parent chain reaches this post.
+	type rec struct {
+		a, pl, parent string
+		p             state.PostRecord
+	}
+	var all []rec
 	for _, k := range keys {
 		if !strings.HasPrefix(k, "post_") {
 			continue
@@ -1006,10 +1015,29 @@ func (c *Chain) Comments(author, permlink string) []PostView {
 		}
 		a, pl := rest[:sep], rest[sep+1:]
 		p, ok := state.GetPostView(c.store, a, pl)
-		if !ok || p.ParentAuthor != author || p.ParentPermlink != permlink {
+		if !ok || p.ParentPermlink == "" {
 			continue
 		}
-		out = append(out, c.viewOf(a, pl, p))
+		all = append(all, rec{a, pl, p.ParentAuthor + "/" + p.ParentPermlink, p})
+	}
+	root := author + "/" + permlink
+	in := map[string]bool{}
+	for grew := true; grew; {
+		grew = false
+		for _, r := range all {
+			key := r.a + "/" + r.pl
+			if in[key] || (r.parent != root && !in[r.parent]) {
+				continue
+			}
+			in[key] = true
+			grew = true
+		}
+	}
+	out := []PostView{}
+	for _, r := range all {
+		if in[r.a+"/"+r.pl] {
+			out = append(out, c.viewOf(r.a, r.pl, r.p))
+		}
 	}
 	// Newest first. The UI re-orders by pending reward, which is a fact about
 	// money it already holds; a stable order here is only so two calls agree.

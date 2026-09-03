@@ -19,9 +19,13 @@
    * Nobody is censored: a below-threshold reply still exists on Hive and is
    * readable on every other frontend. It is simply not part of LasseCash.
    *
-   * ONE LEVEL DEEP, deliberately. Replies-to-replies are a UI tree, a second
-   * set of sort rules and a recursion budget, for a conversation shape that a
-   * flat list handles fine. KISS.
+   * THREADED, Hive-style — decided 2026-09-03 (supersedes the one-level
+   * KISS rule). Reply depth is unlimited, because that is how Hive
+   * conversations actually shape themselves and the contract already allows
+   * it (a registered comment is a registered record, so it can be a parent).
+   * The INDENT is capped at three levels: unlimited indentation is the
+   * diagonal staircase every Hive frontend suffers from; past the cap a
+   * reply shows who it answers instead of marching further right.
    */
   import { onMount } from "svelte";
   import { chain, client, wallet } from "$lib/chain.svelte.js";
@@ -42,6 +46,8 @@
 
   /** The reply box. */
   let draft = $state("");
+  /** Which comment the box answers; null = the post itself. */
+  let replyTo = $state<{ author: string; permlink: string } | null>(null);
   let uploading = $state(false);
   let fileInput = $state<HTMLInputElement | null>(null);
 
@@ -99,8 +105,25 @@
    * JavaScript's safe integer range.
    */
   const ranked = $derived.by(() => {
-    const out = [...replies];
-    out.sort((a, b) => {
+    // TOP LEVEL keeps the money order; INSIDE a thread, time order — a
+    // conversation read out of sequence is not a conversation. A reply whose
+    // parent is missing from the list (filtered below threshold, or not yet
+    // discovered) renders at top level rather than disappearing.
+    const rootKey = `${post.author}/${post.permlink}`;
+    const byKey = new Set(replies.map((r) => `${r.view.author}/${r.view.permlink}`));
+    const children = new Map<string, Reply[]>();
+    const roots: Reply[] = [];
+    for (const r of replies) {
+      const pk = `${r.view.parent_author}/${r.view.parent_permlink}`;
+      if (pk !== rootKey && byKey.has(pk)) {
+        const list = children.get(pk) ?? [];
+        list.push(r);
+        children.set(pk, list);
+      } else {
+        roots.push(r);
+      }
+    }
+    roots.sort((a, b) => {
       // Registered replies rank above Hive-only ones, always. An unregistered
       // comment has no reward to compare, so ranking them together would put
       // a zero beside comments that are earning — the same rule the feed uses
@@ -112,6 +135,16 @@
       if (byReward !== 0) return byReward;
       return a.view.created_height - b.view.created_height;
     });
+    const byAge = (a: Reply, b: Reply) =>
+      a.view.created_time < b.view.created_time ? -1 : a.view.created_time > b.view.created_time ? 1 : 0;
+    const out: { r: Reply; depth: number }[] = [];
+    const walk = (r: Reply, depth: number) => {
+      out.push({ r, depth });
+      for (const k of (children.get(`${r.view.author}/${r.view.permlink}`) ?? []).sort(byAge)) {
+        walk(k, depth + 1);
+      }
+    };
+    for (const r of roots) walk(r, 0);
     return out;
   });
 
@@ -151,8 +184,8 @@
     try {
       const res = await client.comment({
         body: draft.trim(),
-        parentAuthor: post.author,
-        parentPermlink: post.permlink,
+        parentAuthor: replyTo?.author ?? post.author,
+        parentPermlink: replyTo?.permlink ?? post.permlink,
       });
       if (!res.ok) {
         // Contract messages carry RAW BASE UNITS and are diagnostic. This one
@@ -167,6 +200,7 @@
         if (refused) { error = refused; return; }
       }
       draft = "";
+      replyTo = null;
       previewing = false;
       await load();
       await chain.refresh();
@@ -202,6 +236,12 @@
     </p>
   {:else}
     <div class="box">
+      {#if replyTo}
+        <p class="dim tiny replying">
+          Replying to <b>{displayName(replyTo.author)}</b> ·
+          <button class="linkish" onclick={() => (replyTo = null)}>reply to the post instead</button>
+        </p>
+      {/if}
       <textarea
         bind:value={draft}
         rows="4"
@@ -246,10 +286,16 @@
     <p class="dim empty-note">No comments yet.</p>
   {:else}
     <ul class="list">
-      {#each ranked as { view, body } (view.author + "/" + view.permlink)}
-        <li class="comment" class:settled={view.paid_out} class:offchain={view.registered === false}>
+      {#each ranked as { r: { view, body }, depth } (view.author + "/" + view.permlink)}
+        <!-- Indent is CAPPED: past three levels the thread stops marching
+             right and the "→ name" marker carries who answers whom. -->
+        <li class="comment" class:settled={view.paid_out} class:offchain={view.registered === false}
+            class:nested={depth > 0} style:margin-left="{Math.min(depth, 3) * 1.4}rem">
           <div class="cmeta">
             <a class="author" href="/{displayName(view.author)}">{displayName(view.author)}</a>
+            {#if depth > 0}
+              <span class="dim tiny">→ {displayName(view.parent_author)}</span>
+            {/if}
             <span class="dim">{shortDate(view.created_time)}</span>
             {#if view.registered === false}
               <!-- Written from another Hive frontend by an author who clears
@@ -286,6 +332,11 @@
               <span class="dim tiny">window closed — settles with the post</span>
             {:else}
               <span class="dim tiny">settles on the 1st</span>
+            {/if}
+            {#if view.registered !== false && clearsThreshold}
+              <button class="ghost small" onclick={() => (replyTo = { author: view.author, permlink: view.permlink })}>
+                Reply
+              </button>
             {/if}
           </div>
         </li>
@@ -345,6 +396,10 @@
   .empty-note { font-size: var(--t-sm); margin: 0.9rem 0 0; }
 
   .list { list-style: none; margin: 1rem 0 0; padding: 0; display: grid; gap: 0.6rem; }
+  /* A nested reply hangs off a faint rail — depth reads at a glance without
+     the staircase. */
+  .comment.nested { border-left: 2px solid var(--line); }
+  .replying { margin: 0 0 0.4rem; }
 
   /* Deliberately LIGHTER than a post: no gradient, a hairline rule, a smaller
      type scale. A comment is part of a page, not a card competing with it. */

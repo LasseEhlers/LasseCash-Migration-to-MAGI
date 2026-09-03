@@ -186,7 +186,7 @@ test("a FAILED vote discovers nothing", () => {
 test("a CONFIRMED vote still discovers its target", () => {
   const txs = [voteTx("CONFIRMED", "hive:silvertop|actifit-1|7")];
   assert.deepEqual(discoveredCalls(txs, 50, "post"),
-    [{ author: "hive:silvertop", permlink: "actifit-1" }]);
+    [{ author: "hive:silvertop", permlink: "actifit-1", payload: "hive:silvertop|actifit-1|7" }]);
 });
 
 test("a post ghosted by a failed vote stays visible as tagged", () => {
