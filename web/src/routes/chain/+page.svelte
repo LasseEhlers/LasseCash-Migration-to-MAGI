@@ -251,7 +251,21 @@
   ul.split li { display: grid; grid-template-columns: 1fr auto; gap: 0.5rem; padding: 0.25rem 0; }
   ul.split li ul { grid-column: 1 / -1; }
   ul.split .k { color: var(--dim); font-size: 0.88rem; }
-  ol.group { list-style: none; margin: 0 0 0.9rem; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 0.4rem; }
+  /* Two columns, filled top-to-bottom rather than left-to-right — 1-5 down
+     the first column, 6-10 down the second, instead of auto-fill's uneven
+     6-then-4 split across however many 190px slots the panel happened to
+     fit (Lasse, 2026-09-04: "5 in one column and 5 in the next"). Fixed at
+     5 rows because the group is always AT MOST 10; fewer members just
+     leaves the second column short, which reads fine. */
+  ol.group {
+    list-style: none; margin: 0 0 0.9rem; padding: 0;
+    display: grid; grid-template-columns: repeat(2, minmax(150px, 1fr));
+    grid-template-rows: repeat(5, auto); grid-auto-flow: column;
+    gap: 0.4rem 1.2rem;
+  }
+  @media (max-width: 480px) {
+    ol.group { grid-template-columns: 1fr; grid-auto-flow: row; }
+  }
   ol.group li { display: flex; align-items: center; gap: 0.55rem; background: var(--panel-2); border-radius: 6px; padding: 0.4rem 0.6rem; }
   .rank { color: var(--dim); width: 1.4rem; }
   .who { font-weight: 600; }
