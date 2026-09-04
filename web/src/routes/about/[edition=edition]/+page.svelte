@@ -63,12 +63,19 @@
    *
    * So the fences are split out FIRST and passed through untouched. A code
    * block means "these characters, these lines" — reflowing it is never right.
+   *
+   * AND A BARE \d WAS TOO GREEDY (found 2026-09-04). The lookahead excluded
+   * every line starting with any digit — meant for "1. " list items, but it
+   * also kept "3-second clock…" as a hard break mid-paragraph. Now only a
+   * real ordered-list marker (digits, dot, space) blocks the join. A year
+   * at the start of a line ("2019. The dates…") IS such a marker, to this
+   * renderer and to real markdown alike — wrap the source so it can't happen.
    */
   function unwrap(md: string): string {
     // Odd indices are the inside of a fence, and are left exactly as written.
     return md
       .split(/(```[\s\S]*?```)/g)
-      .map((part, i) => (i % 2 ? part : part.replace(/([^\n])\n(?![\n|#>*\-\d\[`])/g, "$1 ")))
+      .map((part, i) => (i % 2 ? part : part.replace(/([^\n])\n(?!\n|[|#>*\-\[`]|\d+\. )/g, "$1 ")))
       .join("");
   }
 

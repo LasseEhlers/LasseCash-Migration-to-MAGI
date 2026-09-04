@@ -90,10 +90,9 @@ on it. The transactions are all still there for anyone to look up.
 | later | — | The site becomes an Outpost: a new layout, more features, NFTs — an experiment that never took off |
 | 31 Aug 2026 | 109,512,118 | MAGI genesis — the tokenomics stop being an announcement and become enforced code |
 
-Three names, three chains, and one number that has not moved since 5 May
-2019. The dates people remember are the launches; the dates the chain
-remembers are the transactions — both are real, and now both are written
-down.
+Three names, three chains, and one number that has not moved since 5 May 2019.
+The dates people remember are the launches; the dates the chain remembers are
+the transactions — both are real, and now both are written down.
 
 This migration moves it to MAGI, and it is not automatic: there is a
 snapshot, then you claim.
