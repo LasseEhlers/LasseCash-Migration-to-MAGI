@@ -585,6 +585,19 @@ measure a full drain against a test deployment and raise the cap as high as
 comfortably fits. Every unit raised is one fewer transaction an active curator's
 client has to send.
 
+**First measurement attempt, 2026-09-04, INVALID — do not trust its numbers.**
+Tried `simulateContractCalls` on real accounts with real queue depth (up to
+12, @lasseehlers): 423 RC at depth 1 scaling to 2,295 RC at depth 12, a clean
+~170 RC/entry line, extrapolating to ~3,650 RC for a full 20-entry drain.
+**But every post's payout window starts at ITS OWN first vote, the site was
+4 days old, and the fastest window is 7 days** — so not one queued entry
+anywhere could have been payable yet. `SettlePending` skips a not-yet-payable
+entry rather than crediting it, so this measured the CHEAP "nothing's ready"
+path, not the expensive credit-and-write path `MaxCurationDrain` actually
+exists to bound. Retest after ~8 September, once early viral posts cross day
+7 and some accounts have a genuinely payable backlog — ideally on an account
+whose queue is at or near depth 20, not extrapolated from a smaller one.
+
 **Who calls it — three layers, in order of how much they matter:**
 
 1. **Piggyback on the voter's own transaction** (`PiggybackDrain = 3`). Voting
@@ -2671,10 +2684,14 @@ after a long silence a claim can find it still behind its maturity day. No
 bounty, deliberately — a reward here would create an incentive to keep the chain
 quiet.
 
-⚠️ **`MaxAccrualDays = 1200` IS A GUESS AND MUST BE MEASURED**, like
-`MaxCurationDrain`. 1200 covers a maximum-length mint so a three-year position
-is always claimable in one transaction. Measure a full-length walk with
-`simulateContractCalls` against a test deployment.
+✅ **`MaxAccrualDays = 1200` — RESOLVED, this flag was stale.** Confirmed
+2026-09-04: the "Gas→RC economics" note below already measured a full
+1200-day walk at 5.85B gas (~58,500 RC), found it unpayable in one call, and
+that measurement is exactly why `advance` grew the `maxDays` slicing
+(`AccrueSteps`) and the client-side `catchUp()` bundling — a long gap closes
+in affordable slices instead of needing 58k RC at once. 1200 itself was never
+the risk; a single un-sliced 1200-day call would have been, and nothing calls
+it that way anymore.
 
 WASM after the rewrite: 76,225 bytes.
 
