@@ -126,10 +126,28 @@ class ChainStore {
             ? "/engine-testwindows.wasm"
             : "/engine.wasm",
         ).then(() => { this.ready = engineReady(); }),
-        this.refresh(),
+        this.#refreshWithRetry(),
       ]);
     } catch (e) {
       this.error = e instanceof Error ? e.message : String(e);
+    }
+  }
+
+  /**
+   * The very first chain read, on a cold connection (new device, new
+   * network — e.g. library wifi), can hiccup once before it succeeds. Found
+   * live 2026-09-04: a "Chain unreachable" flash that cleared on its own a
+   * second later, once restoreSession()'s own refresh() happened to land —
+   * an accidental retry masking a real one that should exist on purpose.
+   * One silent retry here means a flaky first request never shows the
+   * banner at all. Ordinary refresh() calls after this (on user actions)
+   * still surface failures immediately, as they should.
+   */
+  async #refreshWithRetry() {
+    await this.refresh();
+    if (this.error) {
+      await new Promise((r) => setTimeout(r, 1200));
+      await this.refresh();
     }
   }
 

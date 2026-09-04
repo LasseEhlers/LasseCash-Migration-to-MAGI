@@ -348,7 +348,11 @@
                 <a class="author" href="/{displayName(post.author)}">{displayName(post.author)}</a>
                 <span class="dim">{shortDate(post.created_time)}</span>
                 {#if money?.payout_mode === PayoutMode.Burn}
-                  <span class="pill bad">burns rewards</span>
+                  <!-- Amber, not red: a burn is the author's own deliberate,
+                       permanent choice, already made — not value the reader
+                       is actively losing right now. Same color PromotedBadge
+                       uses for its own burn, for the same reason. -->
+                  <span class="pill warn">burns rewards</span>
                 {:else if money?.payout_mode === PayoutMode.PowerUp}
                   <span class="pill ok">100% minted</span>
                 {/if}
