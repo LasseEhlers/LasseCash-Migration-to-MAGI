@@ -130,10 +130,18 @@
     BTC: btcBal,
   }));
 
-  /** Balances we can actually check — BTC from its own mapping read. */
+  /**
+   * Balances we can actually check — BTC from its own mapping read.
+   *
+   * HBD is capped by hbdSpendableUnits, not the raw balance: paying with HBD
+   * here draws it from the same MAGI ledger that IS the RC meter, so Max
+   * offering the full balance is the exact @daneamanda shape (found live
+   * 2026-09-04 — a 126.458 HBD Max-filled swap was signed, then refused
+   * on-chain for RC, not HBD). HIVE and BTC don't touch RC capacity.
+   */
   const swapBalance = $derived.by(() => {
     if (!me) return null;
-    if (swapFrom === "HBD") return Number(me.hbd) / 100_000_000;
+    if (swapFrom === "HBD") return Number(hbdSpendableUnits) / 100_000_000;
     if (swapFrom === "HIVE") return Number(me.hive) / 100_000_000;
     if (swapFrom === "BTC") return btcBal !== null ? Number(btcBal) : null;
     return null;
@@ -276,19 +284,18 @@
     Number(bridgeAsset === "HBD" ? (me?.hbd ?? 0) : (me?.hive ?? 0)) > 0,
   );
 
-  // --- RC-aware Max for the bridge's withdraw side --------------------------
+  // --- RC-aware Max for anything that spends HBD off MAGI -------------------
   //
-  // Withdrawing HBD off MAGI draws down the very balance that IS the RC
-  // meter (capacity = HBD milli + 10,000 free — CLAUDE.md's "HBD AND RC ARE
-  // ONE POT"). vscWithdraw is not one of our own contract calls, but it
-  // draws from the same MAGI ledger against the same capacity formula, so a
-  // naive "Max = full balance" button here would reproduce the @daneamanda
-  // bug in a new place (found via the swap panel's Max having the same gap,
-  // 2026-09-04). HIVE and BTC do not touch RC capacity at all — only HBD
-  // does — so only HBD's withdraw Max needs the cap.
+  // Both the bridge withdrawal and the swap (paying with HBD) draw down the
+  // very balance that IS the RC meter (capacity = HBD milli + 10,000 free —
+  // CLAUDE.md's "HBD AND RC ARE ONE POT"). Neither goes through our own
+  // contract's sizeRc preflight, so a naive "Max = full balance" button on
+  // either would reproduce the @daneamanda bug in a new place — found live
+  // 2026-09-04 exactly this way on the swap panel. HIVE and BTC do not touch
+  // RC capacity at all — only HBD does — so only HBD's Max needs the cap.
   const RC_RESERVE_MILLI = 5_500;
   const MILLI = 100_000n;
-  const hbdWithdrawSpendableUnits = $derived.by(() => {
+  const hbdSpendableUnits = $derived.by(() => {
     const balanceUnits = BigInt(Math.trunc(Number(me?.hbd ?? 0)));
     if (!magiRc) return balanceUnits; // meter unreadable: do not block
     const spendableMilli = BigInt(Math.max(0, Math.trunc(magiRc.amount) - RC_RESERVE_MILLI));
@@ -304,7 +311,7 @@
       return;
     }
     hbdAmount = bridgeAsset === "HBD"
-      ? fromUnits(hbdWithdrawSpendableUnits)
+      ? fromUnits(hbdSpendableUnits)
       : fromUnits(BigInt(Math.trunc(Number(me?.hive ?? 0))));
   }
 </script>
