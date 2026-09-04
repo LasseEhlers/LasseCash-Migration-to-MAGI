@@ -263,6 +263,25 @@
         </p>
       </div>
 
+      {#if hasStake && !matured}
+        <!-- This is the ONLY claim shape that creates a mint and can contend
+             for a board seat, so it is the only one that can ask for more RC
+             than a brand-new account's free 10,000 covers. Found live
+             2026-09-04: a zero-HBD account was refused needing ~10,468. Say
+             it up front rather than let a first-time claimant hit a refusal
+             with no HBD in hand to fix it. -->
+        <p class="deadline dim">
+          This claim creates a mint and can briefly compete for a governing
+          seat, which sometimes needs slightly more than a brand-new
+          account's free resource credits. If you have no HBD on MAGI yet,
+          depositing even <strong>1 HBD</strong> first (Wallet → Move funds
+          between Hive and MAGI) guarantees this goes through on the first
+          try — if you skip it and it refuses, the message tells you exactly
+          how much more to add. Stuck getting HBD? Ask in #help-and-bugs on
+          <a href="https://discord.gg/wNhQrG44DC" target="_blank" rel="noopener">Discord</a>.
+        </p>
+      {/if}
+
       <button onclick={claim} disabled={chain.busy}>
         {chain.busy ? "Claiming…" : "Claim"}
       </button>

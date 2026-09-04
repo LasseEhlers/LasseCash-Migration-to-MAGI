@@ -1010,9 +1010,17 @@ export class AiohaSigner implements Signer {
 
   /** The one wording for "you are out of RC", so every path explains the meter. */
   static rcRefusal(needed: number, avail: number): TxResult {
+    // 1 RC == 1 milli-HBD in capacity terms (capacity = HBD milli + 10,000
+    // free), so the gap converts to an exact HBD figure — telling someone
+    // "you need ~10,468" means nothing if they have never touched HBD;
+    // "deposit about 0.47 more HBD" is something they can actually go do.
+    const gapHbd = (Math.ceil((needed - avail) / 10) / 100).toFixed(2);
     return {
       ok: false, height: 0,
-      msg: `Not enough resource credits: needs ~${needed.toLocaleString()}, you have ${avail.toLocaleString()}. More HBD on MAGI fixes it instantly.`,
+      msg: `Not enough resource credits (needs ~${needed.toLocaleString()}, you have `
+        + `${avail.toLocaleString()}). Deposit about ${gapHbd} more HBD to your MAGI `
+        + `balance — Wallet → Move funds between Hive and MAGI — then try again; it `
+        + `takes effect immediately.`,
     };
   }
 
