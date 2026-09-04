@@ -59,6 +59,19 @@ export const MAGI_POOLS: MagiPool[] = [
   },
 ];
 
+/**
+ * Mapped assets live in their own MAPPING CONTRACT, and a swap that SPENDS
+ * one needs that contract's allowance for the router — read off the chain
+ * like everything else here: @lasseehlers's working BTC sell rode on an
+ * `increaseAllowance` some other client had left standing, and a fresh
+ * account's sell died with "allowance (0) insufficient for spend"
+ * (2026-09-03). Selling a mapped asset bundles an exact-amount
+ * increaseAllowance in front of the swap, in the same transaction.
+ */
+export const MAPPING_CONTRACTS: Record<string, string> = {
+  BTC: "vsc1BdrQ6EtbQ64rq2PkPd21x4MaLnVRcJj85d",
+};
+
 /** The pool that trades this pair, either way round. */
 export function poolFor(a: string, b: string): MagiPool | null {
   return MAGI_POOLS.find(

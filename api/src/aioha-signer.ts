@@ -519,12 +519,15 @@ export class AiohaWallet {
 
   /** Several contract calls in one signed transaction (a user's call + side calls). */
   async broadcastCalls(
-    calls: { action: string; payload: string; rcLimit: number; intents: unknown[] }[],
+    calls: { action: string; payload: string; rcLimit: number; intents: unknown[]; contractId?: string }[],
     contractId: string,
     keyType: KeyTypes,
     hiveOps: unknown[] = [],
   ): Promise<TxResult> {
-    return this.#broadcast([...hiveOps, ...calls.map((c) => this.#vscOp(c, contractId, keyType))], keyType);
+    // A call may name its own contract — one signature can then carry, e.g.,
+    // a mapping contract's increaseAllowance beside the router's swap.
+    return this.#broadcast(
+      [...hiveOps, ...calls.map((c) => this.#vscOp(c, c.contractId ?? contractId, keyType))], keyType);
   }
 
   #vscOp(
@@ -852,14 +855,19 @@ export class AiohaSigner implements Signer {
    */
   async magiSwap(input: {
     router: string; payload: string; intents: unknown[]; rcLimit: number;
+    approve?: { contractId: string; payload: string; rcLimit: number };
   }): Promise<TxResult> {
     const user = this.wallet.aioha.getCurrentUser();
     if (!user) throw new BackendError("not signed in");
-    return this.wallet.broadcastCalls(
-      [{ action: "execute", payload: input.payload, rcLimit: input.rcLimit, intents: input.intents }],
-      input.router,
-      KeyTypes.Active,
-    );
+    const calls: { action: string; payload: string; rcLimit: number; intents: unknown[]; contractId?: string }[] = [];
+    if (input.approve) {
+      calls.push({
+        action: "increaseAllowance", payload: input.approve.payload,
+        rcLimit: input.approve.rcLimit, intents: [], contractId: input.approve.contractId,
+      });
+    }
+    calls.push({ action: "execute", payload: input.payload, rcLimit: input.rcLimit, intents: input.intents });
+    return this.wallet.broadcastCalls(calls, input.router, KeyTypes.Active);
   }
 
   /** Bridging HBD is the wallet's job; the signer just exposes it. */

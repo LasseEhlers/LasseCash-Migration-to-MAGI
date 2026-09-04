@@ -86,6 +86,23 @@ export function describeCall(action: string, payload: string): string {
       : `${amount} ${unit} to ${who(to)}`;
   }
 
+  // MAPPED-ASSET calls (the BTC mapping contract) carry JSON, not our pipe
+  // format — a raw {"amount":"1690","to":…} rendered as "LASSECASH to {…}"
+  // until 2026-09-03. Sats, not 1e8: BTC is the only mapped asset today.
+  if (payload.startsWith("{")) {
+    try {
+      const j = JSON.parse(payload) as Record<string, string>;
+      if (action === "transfer" && j.to && j.amount) {
+        return `Sent ${unitsToDecimal(BigInt(j.amount), 100_000_000n)} BTC to ${who(j.to)}`;
+      }
+      if (action === "increaseAllowance" && j.spender && j.amount) {
+        // The spender is a contract id; naming it reads as noise. In practice
+        // it is MAGI's swap router — the approve our BTC-sell bundles.
+        return `Allowed MAGI's swap contract to draw ${unitsToDecimal(BigInt(j.amount), 100_000_000n)} BTC`;
+      }
+    } catch { /* not JSON after all: fall through to the cases below */ }
+  }
+
   switch (action) {
     // Field 2 is the memo — ignored by the contract, permanent in the payload.
     case "transfer":     return `${amt(f[1])} LASSECASH to ${who(f[0])}`

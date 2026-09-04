@@ -40,6 +40,9 @@ export interface Signer {
    */
   magiSwap?(input: {
     router: string; payload: string; intents: unknown[]; rcLimit: number;
+    /** Spending a MAPPED asset needs its mapping contract's allowance for
+     *  the router — sent as an increaseAllowance op in the same transaction. */
+    approve?: { contractId: string; payload: string; rcLimit: number };
   }): Promise<TxResult>;
   /**
    * Content-layer writes. Present on wallet signers only: the simulator keeps

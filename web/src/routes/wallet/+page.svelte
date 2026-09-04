@@ -56,6 +56,10 @@
     hbdMsg = `Sent ${sent} to ${btcAddress.slice(0, 10)}… — Bitcoin confirmation takes its own time.`;
     hbdAmount = ""; btcAddress = "";
     await loadOps();
+    // The BTC tile reads the mapping contract, which chain.refresh never
+    // touches — without this the balance sat stale until a manual reload
+    // (Lasse, 2026-09-03: "after the swap the btc amount does not update").
+    void loadMeters();
   }
 
   async function moveHbd(dir: "in" | "out") {
@@ -126,12 +130,16 @@
     BTC: btcBal,
   }));
 
-  /** Balances we can actually check. BTC is not in the account view. */
+  /** Balances we can actually check — BTC from its own mapping read. */
   const swapBalance = $derived.by(() => {
     if (!me) return null;
     if (swapFrom === "HBD") return Number(me.hbd) / 100_000_000;
+    if (swapFrom === "HIVE") return Number(me.hive) / 100_000_000;
+    if (swapFrom === "BTC") return btcBal !== null ? Number(btcBal) : null;
     return null;
   });
+  /** BTC shows all eight decimals; a 3dp BTC reads as zero. */
+  const swapBalanceDp = $derived(swapFrom === "BTC" ? 8 : 3);
   const swapOverBalance = $derived(
     swapBalance !== null && Number(swapAmount || "0") > swapBalance,
   );
@@ -158,6 +166,10 @@
     swapMsg = `Swapped ${paid} for ${swapTo}.`;
     swapAmount = "";
     await loadOps();
+    // The BTC tile reads the mapping contract, which chain.refresh never
+    // touches — without this the balance sat stale until a manual reload
+    // (Lasse, 2026-09-03: "after the swap the btc amount does not update").
+    void loadMeters();
   }
 
   // --- sending, any asset this account holds on MAGI --------------------
@@ -186,6 +198,10 @@
     sendAmount = "";
     sendMemo = "";
     await loadOps();
+    // The BTC tile reads the mapping contract, which chain.refresh never
+    // touches — without this the balance sat stale until a manual reload
+    // (Lasse, 2026-09-03: "after the swap the btc amount does not update").
+    void loadMeters();
   }
 
   // --- recent activity ------------------------------------------------------
@@ -408,8 +424,8 @@
           <div class="leghead">
             <span>You pay</span>
             {#if swapBalance !== null}
-              <button class="maxbtn" onclick={() => (swapAmount = String(swapBalance))}>
-                {swapBalance.toFixed(3)} {swapFrom} · max
+              <button class="maxbtn" onclick={() => (swapAmount = swapBalance.toFixed(swapBalanceDp))}>
+                {swapBalance.toFixed(swapBalanceDp)} {swapFrom} · max
               </button>
             {/if}
           </div>
@@ -629,7 +645,9 @@
         <input inputmode="decimal" placeholder="0.000" bind:value={sendAmount} disabled={chain.busy} />
       </label>
       {#if sendBalances[sendAsset]}
-        <small class="dim">
+        <!-- Its own block with air below: jammed against the button it read
+             as part of it (Lasse, 2026-09-03). -->
+        <small class="dim sendbal">
           Balance {sendBalances[sendAsset]} {sendAsset}
           <button class="maxbtn" onclick={() => (sendAmount = sendBalances[sendAsset] ?? "")}>use max</button>
         </small>
@@ -739,6 +757,7 @@
   .swapcard { display: grid; gap: 0.35rem; margin: 0.8rem 0 0.2rem; position: relative; }
   .leg { background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--r-sm); padding: 0.7rem 0.85rem; }
   .leghead { display: flex; justify-content: space-between; align-items: baseline; font-family: var(--mono); font-size: var(--t-micro); letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); margin-bottom: 0.45rem; }
+  .sendbal { display: block; margin: 0.15rem 0 0.9rem; }
   .maxbtn { background: none; border: 0; padding: 0; color: var(--gold-dim); font-family: var(--mono); font-size: var(--t-micro); letter-spacing: 0.06em; cursor: pointer; text-transform: none; }
   .maxbtn:hover { color: var(--gold); }
   .legrow { display: flex; align-items: center; gap: 0.6rem; }

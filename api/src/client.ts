@@ -18,7 +18,7 @@ import type {
   ResourceCredits, SwapDirection, SwapQuote, TrancheView, TxResult, Window,
 } from "./types.js";
 import { commentPermlink } from "./hive-metadata.js";
-import {
+import { MAPPING_CONTRACTS,
   ASSET_SCALE, BTC_DUST_SATS, BTC_MAPPING_CONTRACT, decimalToUnits, poolFor, qualifyAddress,
   quoteMagiSwap, swapIntent, swapPayload, unitsToDecimal, type MagiPool, type MagiQuote,
 } from "./magi-pools.js";
@@ -803,6 +803,20 @@ export class LasseCashClient {
       // 3,000 is the same order as our own swap limit and errs high, since a
       // refused call freezes the limit exactly as a successful one does.
       rcLimit: 3_000,
+      // Selling a MAPPED asset: the router pulls it from the mapping
+      // contract, which requires this account's allowance. Granted for the
+      // exact amount, in the same transaction, every time — additive
+      // semantics make that idempotent for the swap that follows.
+      approve: MAPPING_CONTRACTS[assetIn]
+        ? {
+            contractId: MAPPING_CONTRACTS[assetIn]!,
+            payload: JSON.stringify({
+              spender: `contract:${q.pool.router}`,
+              amount: q.amountInUnits.toString(),
+            }),
+            rcLimit: 800,
+          }
+        : undefined,
     });
   }
 
