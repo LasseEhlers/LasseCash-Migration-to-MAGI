@@ -95,7 +95,18 @@
 
     <nav>
       {#each navLinks as [href, label] (href)}
-        <a {href} aria-current={page.url.pathname === href ? "page" : undefined}>{label}</a>
+        <!-- Exact match is not enough: /about has sub-routes (/about/short,
+             /about/full), and an exact-only check left it permanently unlit
+             the moment you were on either tab (found live 2026-09-04). Every
+             other nav target is a single page with no sub-routes today, so
+             this only ever WIDENS the match for /about; guard on href !== "/"
+             so Feed's "/" does not light up for every page on the site. -->
+        <a
+          {href}
+          aria-current={page.url.pathname === href ||
+            (href !== "/" && page.url.pathname.startsWith(href + "/"))
+            ? "page" : undefined}
+        >{label}</a>
       {/each}
     </nav>
 
