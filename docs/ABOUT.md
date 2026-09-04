@@ -87,7 +87,7 @@ on it. The transactions are all still there for anyone to look up.
 | 26 May 2019 | 33,252,936 | **LASSECASH** is created at the 51,000,000 cap, 8 decimals; LASSE holders are re-issued **1:1** under the memo *"Hardfork of Lasse Token"* |
 | 28 Jun 2019 | 34,197,998 | *"Introduction to LASSECASH (New social media)"* — lassecash.com opens as a tribe, and posting starts earning |
 | 3 Apr 2020 | 42,219,353 | Two weeks after Hive forks from Steem, LASSECASH is re-created on Hive-Engine — same cap, same precision, same holders |
-| later | — | The site becomes an Outpost: a new layout, more features, NFTs — an experiment that never took off |
+| 6 Aug 2021 | 56,294,433 | The site relaunches as *"LasseCash first Outpost in history"* — the first Outpost ever, with a new layout, more features and NFTs (first one minted 29 Aug 2021; that experiment never took off) |
 | 31 Aug 2026 | 109,512,118 | MAGI genesis — the tokenomics stop being an announcement and become enforced code |
 
 Three names, three chains, and one number that has not moved since 5 May 2019.
