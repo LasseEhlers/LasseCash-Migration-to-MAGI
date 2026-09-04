@@ -807,16 +807,18 @@ export class LasseCashClient {
       // contract, which requires this account's allowance. Granted for the
       // exact amount, in the same transaction, every time — additive
       // semantics make that idempotent for the swap that follows.
-      approve: MAPPING_CONTRACTS[assetIn]
+      ...(MAPPING_CONTRACTS[assetIn]
         ? {
-            contractId: MAPPING_CONTRACTS[assetIn]!,
-            payload: JSON.stringify({
-              spender: `contract:${q.pool.router}`,
-              amount: q.amountInUnits.toString(),
-            }),
-            rcLimit: 800,
+            approve: {
+              contractId: MAPPING_CONTRACTS[assetIn]!,
+              payload: JSON.stringify({
+                spender: `contract:${q.pool.router}`,
+                amount: q.amountInUnits.toString(),
+              }),
+              rcLimit: 800,
+            },
           }
-        : undefined,
+        : {}),
     });
   }
 
