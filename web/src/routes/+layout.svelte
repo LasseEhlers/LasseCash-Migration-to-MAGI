@@ -83,6 +83,26 @@
     if (as) void chain.signIn(as);
     else restoreSession();
   });
+
+  // Nothing polled chain.info before this — a tab just froze at whatever the
+  // reserves were on its last load, no matter how much trading happened
+  // elsewhere, with no visual sign anything was stale. Found live, 2026-09-04:
+  // a Pool tab left open showed a swap quote against reserves that were two
+  // large sells (150,000 LC) out of date. A 30s poll fixes the steady case;
+  // the visibilitychange listener fixes the worse one — switching back to a
+  // tab that sat backgrounded for an hour now refreshes immediately instead
+  // of waiting up to 30s more on top of however long it was already stale.
+  onMount(() => {
+    function tick() {
+      if (document.visibilityState === "visible") void chain.refresh();
+    }
+    const interval = setInterval(tick, 30_000);
+    document.addEventListener("visibilitychange", tick);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", tick);
+    };
+  });
 </script>
 
 <div class="shell">
