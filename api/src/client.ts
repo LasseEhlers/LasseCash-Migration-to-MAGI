@@ -549,6 +549,35 @@ export class LasseCashClient {
     return this.#send(Entrypoint.ClaimMint, args(mintId), { preCalls: await this.catchUp() });
   }
 
+  /**
+   * Claim (= close) every MATURED mint in one signed transaction where the
+   * signer supports it; loops individually on the dev chain.
+   *
+   * SAFETY: only `mature === true` mints are ever included. claim_mint on a
+   * mint that has not matured is an EARLY END, not a claim — it slashes the
+   * principal and forfeits all yield. This filter is load-bearing; never
+   * pass an unfiltered id list to Signer.claimAllOf for this entrypoint.
+   *
+   * Known gap: unlike claimMint(), the bundled path does not run catchUp()
+   * first — if accrual has fallen behind, affected ids are skipped by the
+   * per-id RC dry run (reported as "refused") rather than caught up
+   * automatically. Not expected to bite this early post-genesis; revisit if
+   * "claimed 0 of N" reports start showing up.
+   */
+  async claimAllMintRewards(): Promise<TxResult> {
+    const signer = this.#requireSigner();
+    const mints = await this.mintsNeedingAttention(signer.account);
+    const ids = mints.filter((m) => m.mature).map((m) => m.id);
+    if (ids.length === 0) return { ok: false, height: 0, msg: "nothing to claim" };
+    if (signer.claimAllOf) return signer.claimAllOf(Entrypoint.ClaimMint, ids);
+    let last: TxResult = { ok: false, height: 0, msg: "nothing to claim" };
+    for (const id of ids) {
+      last = await this.claimMint(id);
+      if (!last.ok) return last;
+    }
+    return last;
+  }
+
   /** Arm tax deferral. Only in the 30 days before maturity, never after. */
   async armGoodAccounting(mintId: number): Promise<TxResult> {
     return this.#send(Entrypoint.GoodAccounting, args(mintId));
@@ -704,6 +733,25 @@ export class LasseCashClient {
 
   async claimPoolRewards(trancheId: number): Promise<TxResult> {
     return this.#send(Entrypoint.ClaimPool, args(trancheId));
+  }
+
+  /**
+   * Claim every open tranche's pending reward. One signed transaction on a
+   * real wallet (Signer.claimAllOf); loops individually on the dev chain,
+   * which has no signature to save by bundling.
+   */
+  async claimAllPoolRewards(): Promise<TxResult> {
+    const signer = this.#requireSigner();
+    const tranches = await this.openTranches(signer.account);
+    const ids = tranches.filter((t) => Number(t.pending_reward) > 0).map((t) => t.id);
+    if (ids.length === 0) return { ok: false, height: 0, msg: "nothing to claim" };
+    if (signer.claimAllOf) return signer.claimAllOf(Entrypoint.ClaimPool, ids);
+    let last: TxResult = { ok: false, height: 0, msg: "nothing to claim" };
+    for (const id of ids) {
+      last = await this.claimPoolRewards(id);
+      if (!last.ok) return last;
+    }
+    return last;
   }
 
   /**

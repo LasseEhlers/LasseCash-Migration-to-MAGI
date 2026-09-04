@@ -487,6 +487,11 @@
     // Rewards are LASSECASH, not HBD — nothing to wait on in the ledger.
     lpError = await chain.submit(() => client.claimPoolRewards(id));
   }
+  async function claimAll() {
+    lpError = await chain.submit(() => client.claimAllPoolRewards());
+  }
+  /** Only worth its own button once there is more than one to save a click on. */
+  const claimableTrancheCount = $derived(tranches.filter((t) => !isZero(t.pending_reward)).length);
   async function exit(id: number) {
     lpError = await chain.submit(() => client.removeLiquidity(id), { movesHbd: true });
   }
@@ -726,7 +731,14 @@
   </div>
 
   <section class="panel">
-    <h2>Your tranches</h2>
+    <div class="thead">
+      <h2>Your tranches</h2>
+      {#if claimableTrancheCount > 1}
+        <button class="ghost small" onclick={claimAll} disabled={chain.busy}>
+          Claim all ({claimableTrancheCount})
+        </button>
+      {/if}
+    </div>
     {#if !chain.account}
       <p class="empty">Sign in to see your positions.</p>
     {:else if tranches.length === 0}
@@ -845,6 +857,7 @@
   dl { display: grid; grid-template-columns: 1fr auto; gap: 0.45rem 1rem; margin: 0 0 0.7rem; }
   dt { color: var(--dim); font-size: 0.85rem; }
   dd { margin: 0; text-align: right; }
+  .thead { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
   .scroll { overflow-x: auto; }
   td.actions { text-align: right; white-space: nowrap; }
   td.actions button + button { margin-left: 0.35rem; }

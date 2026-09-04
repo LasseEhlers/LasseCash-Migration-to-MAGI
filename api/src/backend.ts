@@ -69,6 +69,14 @@ export interface Signer {
   commentAndRegister?(input: {
     permlink: string; body: string; parentAuthor: string; parentPermlink: string; payoutMode: number;
   }): Promise<TxResult>;
+  /**
+   * "Claim All" — several calls to the SAME entrypoint (one `<id>` arg each)
+   * in one signed transaction, e.g. every pool tranche's claim_pool, or
+   * every matured mint's claim_mint. Optional: bundling several calls into
+   * one signature is a wallet-signer thing; the dev chain has no signature
+   * to save, so client.ts falls back to looping individual calls there.
+   */
+  claimAllOf?(entrypoint: string, ids: number[]): Promise<TxResult>;
 }
 
 /** Per-call overrides a caller may pass when it knows more than the table. */

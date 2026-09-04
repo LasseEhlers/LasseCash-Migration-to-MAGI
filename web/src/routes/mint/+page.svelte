@@ -38,6 +38,17 @@
 
   const height = $derived(chain.info?.height ?? 0);
 
+  let claimAllError = $state<string | null>(null);
+  /**
+   * Claim (= close) every matured mint at once. Safe by construction:
+   * claimableNow is already filtered to mature === true, the same predicate
+   * "Next payday" uses, so nothing here can accidentally early-end a mint
+   * that has not matured yet.
+   */
+  async function claimAllMints() {
+    claimAllError = await chain.submit(() => client.claimAllMintRewards());
+  }
+
   /**
    * Today's mint rewards: the L-Share slice of today's emission — a constant
    * within an era — and the caller's cut of it at the current share split.
@@ -288,10 +299,18 @@
 
   <div class="row layout">
     <section class="mints panel">
-      <h2>
-        Your mints
-        {#if matured.length}<span class="pill warn">{matured.length} ready to claim</span>{/if}
-      </h2>
+      <div class="mheader">
+        <h2>
+          Your mints
+          {#if matured.length}<span class="pill warn">{matured.length} ready to claim</span>{/if}
+        </h2>
+        {#if claimableNow.length > 1}
+          <button class="ghost small" onclick={claimAllMints} disabled={chain.busy}>
+            Claim all ({claimableNow.length})
+          </button>
+        {/if}
+      </div>
+      {#if claimAllError}<p class="err">{claimAllError}</p>{/if}
 
       {#if !chain.account}
         <p class="empty">
@@ -407,6 +426,8 @@
   }
   .layout { align-items: flex-start; }
   .mints { flex: 1 1 620px; }
+  .mheader { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+  .err { color: var(--red); font-size: var(--t-sm); margin: 0 0 0.6rem; }
   .side { flex: 0 1 340px; display: flex; flex-direction: column; gap: 1rem; }
   .mintlist { display: grid; gap: 0.8rem; }
   h2 { display: flex; align-items: center; gap: 0.6rem; }

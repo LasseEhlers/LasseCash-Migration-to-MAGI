@@ -1024,6 +1024,54 @@ export class AiohaSigner implements Signer {
     };
   }
 
+  /**
+   * Claim several of the SAME entrypoint (one `<id>` argument each) in one
+   * signed transaction — "Claim All" for pool tranches or matured mints.
+   * Each id is dry-run and sized on its own, same discipline as preCalls: an
+   * id that would be refused stops the batch there rather than aborting
+   * everything already confirmed affordable, so a partial claim is honest
+   * about exactly how far it got. Capped at MaxClaimAllBatch, a sanity bound
+   * — nobody has hundreds of tranches or mints today, and if that changes
+   * this can loop calls rather than needing raising blindly.
+   *
+   * SAFETY: the caller is responsible for `ids` containing ONLY positions
+   * that are actually safe to close right now (e.g. `mature === true` for
+   * mints) — this function has no opinion on that, and claim_mint on a mint
+   * that has not matured is an EARLY END, not a claim: it slashes principal
+   * and forfeits yield. Never pass an id here on the caller's behalf without
+   * that filter already applied.
+   */
+  static readonly MaxClaimAllBatch = 12;
+
+  async claimAllOf(entrypoint: string, ids: number[]): Promise<TxResult> {
+    const keyType = AiohaSigner.ACTIVE_OPS.has(entrypoint) ? KeyTypes.Active : KeyTypes.Posting;
+    const tableLimit = AiohaSigner.RC_LIMITS[entrypoint] ?? this.rcLimit;
+    const batch = ids.slice(0, AiohaSigner.MaxClaimAllBatch);
+
+    const calls: { action: string; payload: string; rcLimit: number; intents: unknown[] }[] = [];
+    let firstRefusal: TxResult | null = null;
+    for (const id of batch) {
+      const payload = String(id);
+      const lim = await this.sizeRc(entrypoint, payload, [], tableLimit);
+      if (typeof lim !== "number") {
+        if (calls.length === 0) firstRefusal = lim; // nothing affordable at all
+        break; // stop here: send what is confirmed affordable, claim the rest later
+      }
+      calls.push({ action: entrypoint, payload, rcLimit: lim, intents: [] });
+    }
+
+    if (calls.length === 0) {
+      return firstRefusal ?? { ok: false, height: 0, msg: "nothing to claim" };
+    }
+    const res = await this.wallet.broadcastCalls(calls, this.contractId, keyType);
+    const skipped = ids.length - calls.length;
+    if (res.ok && skipped > 0) {
+      return { ...res, msg: `claimed ${calls.length} of ${ids.length} — the rest ` +
+        `refused for RC and can be claimed once it recovers, or after depositing more HBD` };
+    }
+    return res;
+  }
+
   async submit(entrypoint: string, args: string, opts?: SubmitOptions): Promise<TxResult> {
     const keyType = AiohaSigner.ACTIVE_OPS.has(entrypoint)
       ? KeyTypes.Active
