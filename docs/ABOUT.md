@@ -165,7 +165,7 @@ The burn is recorded **per account**, not as an anonymous lump: anyone may call 
 
 Every account in the snapshot — qualifying and burned — is a leaf in a Merkle tree, hashed as `sha256("lassecash-migration-leaf-v1" + hive:account + liquid + staked + m or b)` with pipe separators. The **root** is committed on-chain in one owner transaction and can never change; the **full leaf list is published** in the repository and by root hash in a Hive post, so anyone can prove forever what any account held and whether it migrated or burned. You claim by presenting your leaf and its proof; a bad proof writes nothing.
 
-The pre-launch draft snapshot, re-taken at the announced block: **2,260 accounts qualify** (1,985 with a non-zero balance), **13,728,741.07919908 LASSECASH** migrates to its owners, **17,265,456.59325241** goes to `hive:null`, and the full snapshot totals **30,994,197.67245149** across 9,924 leaves.
+The snapshot committed on-chain at genesis, 31 August 2026: **353 accounts qualify**, **11,730,692.24746305 LASSECASH** migrates to its owners, **18,688,809.72711925** goes to `hive:null`, and the full snapshot totals **30,419,501.97458230** across 11,238 leaves.
 
 ### The Hive-Engine supply discrepancy
 
@@ -428,7 +428,7 @@ Nothing here need be taken on trust. The full source — engine, contract, simul
 
 https://github.com/LasseEhlers/LasseCash-Migration-to-MAGI
 
-The contract id is `[contract id at launch]`. Anyone can read its state through the MAGI GraphQL endpoint at `https://api.vsc.eco/api/v1/graphql` with `getStateByKeys`, and run any call read-only — no broadcast, no cost — with `simulateContractCalls`. The migration record is the Merkle root committed on-chain at `cfg_migroot`, the leaf list published in the repository, and the announcement post carrying the root, commit hash, totals and leaf count.
+The contract id is `vsc1Be4TTjUiHgzhHAfqFn6s3PDAExH2X59fXV`. Anyone can read its state through the MAGI GraphQL endpoint at `https://api.vsc.eco/api/v1/graphql` with `getStateByKeys`, and run any call read-only — no broadcast, no cost — with `simulateContractCalls`. The migration record is the Merkle root committed on-chain at `cfg_migroot`, the leaf list published in the repository, and the announcement post carrying the root, commit hash, totals and leaf count.
 
 These public state keys are frozen permanently and readable by any contract or tool:
 
@@ -468,4 +468,4 @@ Unchanged: **8 decimals**, the **51,000,000 hard cap**, the **20,000,000 emissio
 
 ---
 
-Last updated: 2026-08-22 · version 2.0 (pre-launch draft)
+Last updated: 2026-09-04 · version 2.1 (live since the 31 August migration)
