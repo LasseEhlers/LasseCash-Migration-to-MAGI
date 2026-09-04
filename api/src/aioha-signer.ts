@@ -407,7 +407,9 @@ export class AiohaWallet {
    * before the wallet: a call the chain would refuse ("insufficient balance")
    * is reported here, and no Keychain popup is ever shown for it.
    */
-  async simulate(account: string, action: string, payload: string, intents: unknown[]): Promise<
+  async simulate(
+    account: string, action: string, payload: string, intents: unknown[], probeRcLimit = 100_000,
+  ): Promise<
     { ok: true; gas: number } | { ok: false; msg: string; gasLimitHit: boolean }
   > {
     // ⚠️ QUALIFY THE NAME, exactly as availableRc below must. Aioha hands us
@@ -418,6 +420,19 @@ export class AiohaWallet {
     // run off, and every call goes out at its table value. That is how three
     // registering votes (real cost ~4,800 RC) died at the vote table's 4,000
     // on 2026-09-02 — and how their targets then vanished from the feed.
+    //
+    // ⚠️ probeRcLimit POISONS THE HBD-DRAW CHECK IF LEFT AT THE DEFAULT. Traced
+    // in the real node source (execution-context.go PullBalance, 2026-09-04):
+    // an HBD-drawing call reserves `exclusion = requestedRcLimit -
+    // freeRcRemaining` ON TOP OF the draw, before checking the balance covers
+    // it — so probing at 100,000 (no real HBD-drawing call ever needs that
+    // much) manufactures a huge phantom reservation with nothing to do with
+    // the real call. Proved on-chain: the SAME 5.302 HBD swap failed
+    // "insufficient balance" probed at 100,000 and succeeded cleanly probed
+    // at 3,000. sizeRc passes a small probeRcLimit for HBD_DRAW_OPS; every
+    // other caller keeps the generous default, which genuinely-expensive
+    // calls (a big mint, a long accrual walk) still need to avoid a false
+    // gasLimitHit.
     const addr = qualifyAuth(account);
     const res = await fetch(this.#chainUrl, {
       method: "POST",
@@ -427,7 +442,7 @@ export class AiohaWallet {
           simulateContractCalls(input: $i) { success err_msg gas_used } }`,
         variables: { i: {
           tx_id: "sim", required_auths: addr,
-          calls: [{ contract_id: this.#contractId, action, payload, rc_limit: 100_000, intents }],
+          calls: [{ contract_id: this.#contractId, action, payload, rc_limit: probeRcLimit, intents }],
         } },
       }),
     });
@@ -951,8 +966,13 @@ export class AiohaSigner implements Signer {
    */
   async sizeRc(entrypoint: string, args: string, intents: unknown[], tableLimit: number): Promise<number | TxResult> {
     let sim: Awaited<ReturnType<AiohaWallet["simulate"]>>;
+    // HBD-drawing calls: probe at RC_CEILING (30,000), not the 100,000 default.
+    // No real rc_limit is ever sized above RC_CEILING, and probing higher than
+    // that only manufactures a bigger phantom exclusion against the HBD draw
+    // for no benefit — see the warning on AiohaWallet.simulate.
+    const probeRcLimit = entrypoint in AiohaSigner.HBD_DRAW_OPS ? AiohaSigner.RC_CEILING : undefined;
     try {
-      sim = await this.wallet.simulate(this.account, entrypoint, args, intents);
+      sim = await this.wallet.simulate(this.account, entrypoint, args, intents, probeRcLimit);
     } catch {
       // The node could not simulate, so the table is the only estimate — but
       // admission still checks rc_limit against AVAILABLE RC, so a broadcast
@@ -974,9 +994,7 @@ export class AiohaSigner implements Signer {
       if (entrypoint in AiohaSigner.HBD_DRAW_OPS && /insufficient balance/i.test(sim.msg)) {
         return {
           ok: false, height: 0,
-          msg: "your HBD covers this, but your meter does not — drawing HBD "
-            + "needs that much available RC on top of the call's own cost. "
-            + "RC recovers over 5 days, or instantly: hold more HBD on MAGI.",
+          msg: "Not enough RC — hold more HBD on MAGI, it's free RC.",
         };
       }
       return { ok: false, msg: sim.msg, height: 0 };

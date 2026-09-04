@@ -63,7 +63,7 @@ test("a call the account cannot afford is refused before the wallet opens (the c
   // 82 RC available, comment simulates at ~80 RC of gas (8M cycles).
   const r = await signerWith({ gas: 8_000_000 }, 82).sizeRc("comment", "p|a|pp", [], AiohaSigner.RC_LIMITS["comment"]!);
   assert.ok(typeof r !== "number", "the doomed comment must be refused, not sized");
-  assert.match(r.msg, /not enough resource credits/);
+  assert.match(r.msg, /not enough resource credits/i);
   assert.match(r.msg, /HBD/); // the message must explain the meter
 });
 
