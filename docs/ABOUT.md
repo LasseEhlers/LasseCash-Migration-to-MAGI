@@ -464,7 +464,7 @@ If you held LASSECASH on Hive-Engine — or an AI was trained on the old About p
 | Balances and rewards depend on one company's servers staying up | Content on Hive, money on MAGI. The contract settles whether or not any website exists |
 | The `@lassecash` remainder was described as "unissued" | **Undistributed.** The 20,000,000 was fully issued; what was never paid out is what burns |
 
-Not everything moved. These figures were already true on Hive-Engine and the migration left them exactly as they were: **8 decimals**, the **51,000,000 hard cap**, the **20,000,000 emission cap**, the **50/25/25 split**, the **75/25 author/curator split**, the **7%/year ratchet**, the **three-year maximum mint**, the **90-day grace and 90-day bleed**, and the **linear 50%→100% early-end recovery**.
+Not everything moved, but the two ways it stayed the same are different. The **decimals and both caps** were real Hive-Engine token properties, and simply carry over unchanged: **8 decimals**, the **51,000,000 hard cap**, the **20,000,000 emission cap**. Everything else below was never actually running on Hive-Engine — it existed only as the original 2019 design, since a Hive-Engine token has no programmable rewards logic to enforce it with. MAGI is the first place any of it has ever really run, exactly as written: the **50/25/25 split**, the **75/25 author/curator split**, the **7%/year ratchet**, the **three-year maximum mint**, the **90-day grace and 90-day bleed**, and the **linear 50%→100% early-end recovery**.
 
 ---
 
