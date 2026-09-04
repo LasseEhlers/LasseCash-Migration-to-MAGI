@@ -424,8 +424,9 @@
           <div class="leghead">
             <span>You pay</span>
             {#if swapBalance !== null}
+              <!-- One wording site-wide: "Balance <x> · Max", like the pool. -->
               <button class="maxbtn" onclick={() => (swapAmount = swapBalance.toFixed(swapBalanceDp))}>
-                {swapBalance.toFixed(swapBalanceDp)} {swapFrom} · max
+                Balance {swapBalance.toFixed(swapBalanceDp)} {swapFrom} · MAX
               </button>
             {/if}
           </div>
@@ -649,7 +650,7 @@
              as part of it (Lasse, 2026-09-03). -->
         <small class="dim sendbal">
           Balance {sendBalances[sendAsset]} {sendAsset}
-          <button class="maxbtn" onclick={() => (sendAmount = sendBalances[sendAsset] ?? "")}>use max</button>
+          <button class="maxbtn" onclick={() => (sendAmount = sendBalances[sendAsset] ?? "")}>MAX</button>
         </small>
       {/if}
 
