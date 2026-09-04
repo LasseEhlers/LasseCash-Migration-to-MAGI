@@ -159,8 +159,14 @@
     // Hive accepting the broadcast. Without it a refusal reads as success:
     // the first live swap was refused for a bad recipient and the page said
     // "Sent."
+    // movesHbd, ALWAYS: both of MAGI's pools have HBD on one side, so every
+    // swap here moves the node's LEDGER — a different store from contract
+    // state, landing a beat later. Without this the page stopped at the
+    // contract's verdict and the chips sat on pre-swap figures until a manual
+    // reload (Lasse, 2026-09-04, on the first HIVE swap).
     const refusal = await chain.submit(
       () => client.magiSwap(swapFrom, swapTo, swapAmount, swapSlip),
+      { movesHbd: true },
     );
     if (refusal) { swapErr = refusal; return; }
     swapMsg = `Swapped ${paid} for ${swapTo}.`;
