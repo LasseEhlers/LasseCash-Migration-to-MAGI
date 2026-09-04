@@ -50,6 +50,15 @@
     info ? (info.height - info.genesis_height) / (365 * 28_800) : 0,
   );
 
+  /** Block 32,322,581 — 24 Apr 2019, the `tokens_create` of LASSE on
+   *  Steem-Engine, LASSECASH's first ancestor (tx e35dac0912…07f8).
+   *  Steem, Hive and MAGI share one block numbering, so product age is a
+   *  single subtraction on the same height axis as everything else. */
+  const INCEPTION_HEIGHT = 32_322_581;
+  const productYears = $derived(
+    info ? (info.height - INCEPTION_HEIGHT) / (365 * 28_800) : 0,
+  );
+
 </script>
 
 <Seo
@@ -77,9 +86,10 @@
       <div class="sub">held by @null — the migration burn and every burn since, unspendable forever</div>
     </div>
     <div class="panel stat">
-      <div class="label">Chain age</div>
-      <div class="value">{yearsIn.toFixed(2)}y</div>
-      <div class="sub">height {info?.height.toLocaleString() ?? "—"}</div>
+      <div class="label">Product age</div>
+      <div class="value">{productYears.toFixed(2)}y</div>
+      <div class="sub">since block 32,322,581 — the LASSE token, 24 Apr 2019 · Steem → Hive → MAGI</div>
+      <div class="sub">on MAGI: <span class="mono">{yearsIn.toFixed(2)}y</span> · height {info?.height.toLocaleString() ?? "—"}</div>
     </div>
   </section>
 

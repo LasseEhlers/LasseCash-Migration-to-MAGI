@@ -72,7 +72,31 @@ The two caps are not arbitrary and they are not independent. The 2019 design set
 
 ## 3. The migration
 
-LASSECASH launched in June 2019 as a Steem-Engine token and moved to Hive-Engine in April 2020, two weeks after Hive forked from Steem. This migration moves it to MAGI, and it is not automatic: there is a snapshot, then you claim.
+### Seven years, one promise — the story, from the chain itself
+
+Every date below is read from the chain, not from memory. Steem, Hive and
+MAGI share one block numbering — Hive kept Steem's heights at the 2020 fork,
+and MAGI reads Hive's — so the whole life of this token sits on a single
+3-second clock, and the "product age" on the Chain page is one subtraction
+on it. The transactions are all still there for anyone to look up.
+
+| Date | Block | What happened |
+|---|---|---|
+| 24 Apr 2019 | 32,322,581 | **LASSE** is created on Steem-Engine — *"First personal TOKEN on the STEEM blockchain"* — and the airdrop posts start two hours later. This is the holder line that survives to today |
+| 5 May 2019 | 32,636,186 | **LAS, "Lasse token"** — the **51,000,000** cap appears for the first time. LAS itself is never distributed — an experiment set aside — but its cap is the number that never changed again |
+| 26 May 2019 | 33,252,936 | **LASSECASH** is created at the 51,000,000 cap, 8 decimals; LASSE holders are re-issued **1:1** under the memo *"Hardfork of Lasse Token"* |
+| 28 Jun 2019 | 34,197,998 | *"Introduction to LASSECASH (New social media)"* — lassecash.com opens as a tribe, and posting starts earning |
+| 3 Apr 2020 | 42,219,353 | Two weeks after Hive forks from Steem, LASSECASH is re-created on Hive-Engine — same cap, same precision, same holders |
+| later | — | The site becomes an Outpost: a new layout, more features, NFTs — an experiment that never took off |
+| 31 Aug 2026 | 109,512,118 | MAGI genesis — the tokenomics stop being an announcement and become enforced code |
+
+Three names, three chains, and one number that has not moved since 5 May
+2019. The dates people remember are the launches; the dates the chain
+remembers are the transactions — both are real, and now both are written
+down.
+
+This migration moves it to MAGI, and it is not automatic: there is a
+snapshot, then you claim.
 
 ### Who qualifies
 
