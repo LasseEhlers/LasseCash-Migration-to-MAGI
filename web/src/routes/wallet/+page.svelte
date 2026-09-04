@@ -275,6 +275,38 @@
   const canWithdraw = $derived(
     Number(bridgeAsset === "HBD" ? (me?.hbd ?? 0) : (me?.hive ?? 0)) > 0,
   );
+
+  // --- RC-aware Max for the bridge's withdraw side --------------------------
+  //
+  // Withdrawing HBD off MAGI draws down the very balance that IS the RC
+  // meter (capacity = HBD milli + 10,000 free — CLAUDE.md's "HBD AND RC ARE
+  // ONE POT"). vscWithdraw is not one of our own contract calls, but it
+  // draws from the same MAGI ledger against the same capacity formula, so a
+  // naive "Max = full balance" button here would reproduce the @daneamanda
+  // bug in a new place (found via the swap panel's Max having the same gap,
+  // 2026-09-04). HIVE and BTC do not touch RC capacity at all — only HBD
+  // does — so only HBD's withdraw Max needs the cap.
+  const RC_RESERVE_MILLI = 5_500;
+  const MILLI = 100_000n;
+  const hbdWithdrawSpendableUnits = $derived.by(() => {
+    const balanceUnits = BigInt(Math.trunc(Number(me?.hbd ?? 0)));
+    if (!magiRc) return balanceUnits; // meter unreadable: do not block
+    const spendableMilli = BigInt(Math.max(0, Math.trunc(magiRc.amount) - RC_RESERVE_MILLI));
+    const byRc = spendableMilli * MILLI;
+    return byRc < balanceUnits ? byRc : balanceUnits;
+  });
+
+  /** The bridge box's Max, direction-aware: deposit spends Hive, withdraw spends MAGI. */
+  function maxBridge(dir: "in" | "out") {
+    if (dir === "in") {
+      const side = bridgeAsset === "HBD" ? hiveHbd : hiveHive;
+      if (side !== null) hbdAmount = side;
+      return;
+    }
+    hbdAmount = bridgeAsset === "HBD"
+      ? fromUnits(hbdWithdrawSpendableUnits)
+      : fromUnits(BigInt(Math.trunc(Number(me?.hive ?? 0))));
+  }
 </script>
 
 <Seo
@@ -583,12 +615,20 @@
           <span class="slabel">on MAGI</span>
           <b class="mono">{lc(fromUnits(BigInt(Math.trunc(Number(bridgeAsset === "HBD" ? me.hbd : (me.hive ?? 0))))), 3)}</b>
           <span class="sunit">{bridgeAsset}</span>
+          {#if canWithdraw}
+            <!-- Withdrawal spends this side, so its Max sits here. -->
+            <button class="maxbtn" onclick={() => maxBridge("out")} disabled={hbdBusy}>MAX</button>
+          {/if}
         </div>
         <span class="arrow">↔</span>
         <div class="side">
           <span class="slabel">on Hive</span>
           <b class="mono">{(bridgeAsset === "HBD" ? hiveHbd : hiveHive) === null ? "…" : lc((bridgeAsset === "HBD" ? hiveHbd : hiveHive)!, 3)}</b>
           <span class="sunit">{bridgeAsset}</span>
+          {#if canDeposit && (bridgeAsset === "HBD" ? hiveHbd : hiveHive) !== null}
+            <!-- Deposit spends this side, so its Max sits here. -->
+            <button class="maxbtn" onclick={() => maxBridge("in")} disabled={hbdBusy}>MAX</button>
+          {/if}
         </div>
       </div>
 
@@ -815,6 +855,7 @@
   .slabel { display: block; font-family: var(--mono); font-size: var(--t-micro); letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); }
   .side b { font-size: var(--t-lg); font-variant-numeric: tabular-nums; }
   .sunit { font-size: var(--t-micro); color: var(--dimmer); margin-left: 0.25rem; }
+  .side .maxbtn { display: block; margin-top: 0.15rem; }
   .arrow { color: var(--dimmer); font-size: 1.2rem; }
   .note.hint { color: var(--gold); margin-top: 0.5rem; }
 
