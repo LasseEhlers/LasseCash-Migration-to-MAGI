@@ -11,6 +11,8 @@ it with sharp at native size (not downscaled), so edges are crisp at 32px.
 | `lassecash-512.png` | CoinGecko / CoinMarketCap / CoinPaprika / LiveCoinWatch upload (they downscale) |
 | `lassecash-256.png` · `lassecash-200.png` · `lassecash-128.png` | forms that cap the upload size |
 | `lassecash-64.png` · `lassecash-32.png` | wallets, list rows |
+| `lassecash-800.png` | YouTube channel avatar (their recommended size) |
+| `lassecash-glow-{512,800,1024}.png` · `lassecash-mark-glow.svg` | the same mark with the header's gold glow — for DARK surfaces only (Discord, YouTube, share cards); on a white page the halo looks dirty, use the flat one |
 | `lassecash-mark.svg` | the vector; give this to anyone who asks for "the logo" |
 | `lassecash-roundel-legacy-512.png` | the pre-2026 gold coin roundel Hive-Engine served as the token icon — reference only, not for new listings |
 
@@ -21,6 +23,8 @@ gets one that will not move:
 - https://lassecash.com/logo/lassecash-256.png
 - https://lassecash.com/logo/lassecash-200.png
 - https://lassecash.com/logo/lassecash-mark.svg
+- https://lassecash.com/logo/lassecash-800.png (YouTube avatar size)
+- https://lassecash.com/logo/lassecash-glow-512.png (dark surfaces)
 
 Corners are transparent (the square is rounded), so it sits cleanly on light or
 dark backgrounds. Sites that mask logos to a circle will clip the border's
