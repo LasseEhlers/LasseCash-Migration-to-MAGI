@@ -1071,9 +1071,11 @@ allows itself, stated in its header. `backend.chain()` must NOT be called
 server-side: it ranks the consensus group through the engine and threw on
 the first run; the module reads the two reserve keys raw instead.
 
-**Logo files for the forms**: `brand/logo/` (README there), generated with
-sharp from the 623px gold-L roundel master in `brand/archive/` — the icon
-Hive-Engine served for the token, transparent background. Also served at
+**Logo files for the forms**: `brand/logo/` (README there). **The logo is the
+square mark** — the site header/favicon geometry — DECIDED by Lasse
+2026-09-05: the new mark everywhere, not the old gold coin roundel (kept once
+as `lassecash-roundel-legacy-512.png`, reference only). PNGs are rendered from
+`lassecash-mark.svg` with sharp at native size, and served at
 `lassecash.com/logo/lassecash-{512,256,200}.png` and `/logo/lassecash-mark.svg`
 for forms that want a URL. (Found on the way: `favicon.svg` had a `--` inside
 an XML comment, which browsers forgive and librsvg refuses; fixed.)
