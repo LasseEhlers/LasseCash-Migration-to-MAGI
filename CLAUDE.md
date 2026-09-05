@@ -756,6 +756,21 @@ This is the wall every new LP walks into — deposit HBD, claim, swap, then find
 the pool refuses the balance the page is showing. 53 LP letters went out the
 same night.
 
+**THE EXACT MECHANISM, FROM THE NODE SOURCE — 2026-09-04.** `execution-context.go`
+`PullBalance` (go-vsc-node, `~/.lassecash-deployer/src/modules/contract/`):
+on an HBD draw by the RC payer, the ledger transfer carries
+`exclusion = rcLimit − rcFreeRemaining` — the part of the REQUESTED rc_limit
+the free tier does not cover is reserved out of the HBD balance before the
+draw is checked. So the rule above is really `HBD balance ≥ draw + (rc_limit
+− free RC remaining)`, and **the requested rc_limit itself shrinks what can
+be drawn.** Consequence found live: `AiohaWallet.simulate()` probed every
+dry run at `rc_limit: 100_000` to measure gas — no HBD-drawing call needs a
+fraction of that — which manufactured a phantom reservation and refused a
+5.302 HBD swap that succeeded probed at 3,000. `sizeRc` now probes
+`HBD_DRAW_OPS` at `RC_CEILING` (30,000). Every "insufficient balance" reading
+on an HBD-drawing call before that fix was taken against a poisoned probe;
+the real ceilings were higher than the site reported.
+
 ## ⚠️ A BARE NAME IN `transfer` STRANDED 1,030 LC — FIXED 2026-09-01
 
 Lasse sent 1,000 LC to his daughter's account and it never arrived. The call
