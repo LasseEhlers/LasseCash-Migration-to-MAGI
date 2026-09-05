@@ -51,13 +51,15 @@ function env(name: string): string {
   return runtime || ((import.meta.env as Record<string, string | undefined>)[name] ?? "");
 }
 
-const CONTRACT_ID = env("VITE_CONTRACT_ID");
+export const CONTRACT_ID = env("VITE_CONTRACT_ID");
 const CHAIN_URL = env("VITE_CHAIN_URL") || "http://localhost:8080";
 
 /** True when the server is pointed at a real MAGI node. */
 export const WALLET_MODE = CONTRACT_ID !== "";
 
 let backend: Backend | undefined;
+/** The server's one backend — shared with the market endpoints. */
+export function serverBackend(): Backend { return chain(); }
 function chain(): Backend {
   if (!backend) {
     backend = WALLET_MODE

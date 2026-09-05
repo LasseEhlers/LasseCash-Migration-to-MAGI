@@ -1012,6 +1012,47 @@ CoinGecko / TradingView readiness, pays nobody ever). Design:
   DB, making deep history browsable for the first time. Purely additive,
   never touches the contract.
 
+### ✅ Listing-readiness API — BUILT 2026-09-05
+
+The CMC/CoinGecko-shaped public API from the plan above, live on
+lassecash.com, no database yet (the trade count is tiny; the D1 indexer is
+the scale step, not the first step):
+
+| CoinGecko shape | CoinMarketCap shape |
+|---|---|
+| `/api/market/pairs` | `/api/cmc/summary` |
+| `/api/market/tickers` | `/api/cmc/assets` |
+| `/api/market/orderbook?ticker_id=LASSECASH_HBD` | `/api/cmc/ticker` |
+| `/api/market/historical_trades?ticker_id=…&type=&limit=&start_time=&end_time=` | `/api/cmc/orderbook/LASSECASH_HBD` · `/api/cmc/trades/LASSECASH_HBD` |
+
+**How it gets the trades WITHOUT the engine** (the Worker has none, by
+design): every pool call's RETURN VALUE carries the settled figure —
+`swapped for <out> HBD`, `added <lc> LC and <hbd> HBD`, `withdrew …` — and
+`findContractOutput` serves them in bulk, joined to their transactions by id
+and matched to calls BY INDEX (a transaction can carry a settle beside a
+swap). That is the chain's own account of what it did, not a second
+implementation of the pool math. `api/src/market.ts` (pure, tested),
+`MagiBackend.poolLedger()`, `web/src/lib/server/market.ts` (one snapshot
+per minute, shared by every endpoint, CORS open). **First live run: 48
+events, 0 unmatched, replay reserves equal to live `amm_lc`/`amm_hbd` to the
+base unit.** `reconciled` is published on the ticker; the API serves either
+way and says which.
+
+Two deliberate limits. **The order book is ONE marginal level** with the
+reserves as size — depth at size IS `SwapOut`, which stays in Go. **The
+ticker price is the reserve ratio**, integer-floored: the definition of a
+constant-product pool's marginal price and the same figure the Pool page's
+PRICE tile shows, not a payout formula — the one division this module
+allows itself, stated in its header. `backend.chain()` must NOT be called
+server-side: it ranks the consensus group through the engine and threw on
+the first run; the module reads the two reserve keys raw instead.
+
+`assets` carries HBD's UCID **5375** (read off its CMC page) and `null` for
+LASSECASH — never invent an id. Still needed for an actual listing, none of
+it code: CMC wants sixty days of operation (that is 30 October), both want
+the application forms filled, and both judge on volume and liquidity — the
+same day-30 question as everything else.
+
 ## Visual design — DECIDED 2026-08-20
 
 **Anarcho-capitalist cyberpunk.** Direction chosen by Lasse from three options;

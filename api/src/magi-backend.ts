@@ -13,7 +13,7 @@
  *   - `localNodeInfo.last_processed_block` is the Hive height (3s per unit)
  */
 import { MAPPED_BALANCE_PREFIX } from "./magi-pools.js";
-import { BackendError, type AccountActivity, type AccountOp, type PoolOp, type Backend, type Signer } from "./backend.js";
+import { BackendError, type AccountActivity, type AccountOp, type PoolOp, type PoolLedgerEntry, type Backend, type Signer } from "./backend.js";
 import * as engine from "./engine.js";
 import { toUnits } from "./amount.js";
 import type { TxStatus } from "./types.js";
@@ -1021,6 +1021,105 @@ export class MagiBackend implements Backend {
       if (page.length < PAGE) break; // reached the beginning of history
     }
     // The node answers newest-first; a replay needs the opposite.
+    return out.reverse();
+  }
+
+  /**
+   * Pool calls joined to their contract OUTPUTS, oldest first — what each call
+   * actually settled, in the contract's own words (`swapped for <out> HBD`).
+   *
+   * Two paged walks, one join. `findTransaction` gives the calls and their
+   * signers; `findContractOutput` gives, per output, the transaction ids it
+   * covers (`inputs`) and one `{ok, ret}` per contract call, in call order.
+   * An output usually covers one transaction, but a transaction can carry
+   * several calls (a settle riding beside a vote), so results are matched to
+   * calls BY INDEX among that transaction's `call` ops — never by action name.
+   * A multi-input output concatenates its inputs' results in input order; it
+   * is only split when every input is a transaction this walk fetched, since
+   * the split needs each one's call count. Anything unmatched surfaces as
+   * `ok:false, ret:""` rather than a guess.
+   */
+  async poolLedger(limit = 500): Promise<PoolLedgerEntry[]> {
+    const wanted = new Set(["add_liquidity", "remove_liquidity", "swap_lc_hbd", "swap_hbd_lc"]);
+    const PAGE = 100;
+
+    type Tx = {
+      id: string; anchr_ts: string; anchr_height: number; status: string;
+      required_auths: string[]; required_posting_auths: string[];
+      ops: { type: string; data: { action?: string; payload?: string } }[];
+    };
+    const txs: Tx[] = [];
+    for (let offset = 0; offset < limit; offset += PAGE) {
+      const data = await this.query<{ findTransaction: Tx[] | null }>(
+        `query($c: String!, $o: Int!, $l: Int!) { findTransaction(filterOptions: {byContract: $c, offset: $o, limit: $l}) {
+          id anchr_ts anchr_height status required_auths required_posting_auths ops { type data } } }`,
+        { c: this.#contractId, o: offset, l: PAGE },
+      );
+      const page = data.findTransaction ?? [];
+      txs.push(...page);
+      if (page.length < PAGE) break;
+    }
+    if (txs.length === 0) return [];
+
+    const callCount = new Map<string, number>();
+    for (const tx of txs) callCount.set(tx.id, (tx.ops ?? []).filter((o) => o.type === "call").length);
+    const oldestHeight = Math.min(...txs.map((t) => Number(t.anchr_height) || 0));
+
+    // Outputs land a beat after their transactions, so walk until the page is
+    // older than the oldest transaction fetched (or history ends).
+    const resultsByTx = new Map<string, { ok: boolean; ret: string }[]>();
+    const maxPages = Math.ceil(limit / PAGE) + 2;
+    for (let p = 0; p < maxPages; p++) {
+      const data = await this.query<{
+        findContractOutput: { block_height: number; inputs: string[]; results: { ok: boolean; ret: string | null }[] }[] | null;
+      }>(
+        `query($c: String!, $o: Int!, $l: Int!) { findContractOutput(filterOptions: {byContract: $c, offset: $o, limit: $l}) {
+          block_height inputs results { ok ret } } }`,
+        { c: this.#contractId, o: p * PAGE, l: PAGE },
+      );
+      const page = data.findContractOutput ?? [];
+      let reachedOlder = false;
+      for (const out of page) {
+        const results = (out.results ?? []).map((r) => ({ ok: !!r.ok, ret: r.ret ?? "" }));
+        const inputs = out.inputs ?? [];
+        if (inputs.length === 1) {
+          resultsByTx.set(inputs[0]!, results);
+        } else if (inputs.every((id) => callCount.has(id))) {
+          let at = 0;
+          for (const id of inputs) {
+            const n = callCount.get(id)!;
+            resultsByTx.set(id, results.slice(at, at + n));
+            at += n;
+          }
+        }
+        if (Number(out.block_height) < oldestHeight) reachedOlder = true;
+      }
+      if (page.length < PAGE || reachedOlder) break;
+    }
+
+    const out: PoolLedgerEntry[] = [];
+    for (const tx of txs) {
+      if (tx.status !== "CONFIRMED") continue;
+      const results = resultsByTx.get(tx.id) ?? [];
+      let callIdx = 0;
+      for (const op of tx.ops ?? []) {
+        if (op.type !== "call") continue;
+        const i = callIdx++;
+        const action = op.data?.action;
+        if (!action || !wanted.has(action)) continue;
+        const r = results[i];
+        out.push({
+          time: tx.anchr_ts,
+          height: Number(tx.anchr_height) || 0,
+          action: action as PoolOp["action"],
+          payload: op.data?.payload ?? "",
+          signer: (tx.required_auths ?? [])[0] ?? (tx.required_posting_auths ?? [])[0] ?? "",
+          txId: tx.id,
+          ok: r?.ok ?? false,
+          ret: r?.ret ?? "",
+        });
+      }
+    }
     return out.reverse();
   }
 

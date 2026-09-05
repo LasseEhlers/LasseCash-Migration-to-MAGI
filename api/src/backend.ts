@@ -132,6 +132,20 @@ export interface AccountActivity {
   lastSeen: string;
 }
 
+/**
+ * A pool call together with what the contract RETURNED for it. The return
+ * value is the settled figure — `swapped for <out> HBD`, `added <lc> LC and
+ * <hbd> HBD` — so a reader with no engine can still know exactly what each
+ * call moved. `ok:false` entries moved nothing (a refused call's `ret` is
+ * empty) and are kept so a consumer can count them.
+ */
+export interface PoolLedgerEntry extends PoolOp {
+  /** The Hive transaction id, the trade's permanent public identifier. */
+  txId: string;
+  ok: boolean;
+  ret: string;
+}
+
 export interface PoolOp {
   /** ISO 8601, UTC — when the transaction was anchored. */
   time: string;
@@ -178,6 +192,12 @@ export interface Backend {
    * constant-product formula a second time in TypeScript.
    */
   poolOps(limit?: number): Promise<PoolOp[]>;
+  /**
+   * Pool calls joined to their contract outputs, oldest first. Optional: only
+   * a real node keeps outputs; the simulator's market data is the engine
+   * replay in the browser.
+   */
+  poolLedger?(limit?: number): Promise<PoolLedgerEntry[]>;
   /** Confirmed contract calls grouped by signer. Optional: the simulator keeps
    *  no transaction log, so it cannot answer this. */
   activity?(limit?: number): Promise<AccountActivity[]>;
