@@ -11,7 +11,11 @@ it with sharp at native size (not downscaled), so edges are crisp at 32px.
 | `lassecash-512.png` | CoinGecko / CoinMarketCap / CoinPaprika / LiveCoinWatch upload (they downscale) |
 | `lassecash-256.png` · `lassecash-200.png` · `lassecash-128.png` | forms that cap the upload size |
 | `lassecash-64.png` · `lassecash-32.png` | wallets, list rows |
-| `lassecash-circle-{512,800,1024}.png` · `lassecash-mark-circle.svg` | **the same mark in a round frame — for anywhere that crops avatars to a circle: YouTube channel avatars, Discord server icon and profile pictures.** A square mark cropped to a circle loses its border corners; this keeps the full ring. Use `-800` for YouTube |
+| `lassecash-circle-{512,800,1024}.png` · `lassecash-mark-circle.svg` | **the same mark in a round frame — for anywhere that crops avatars to a circle: the LasseCash YouTube channel avatar, the LasseCash Discord server icon and profile pictures.** A square mark cropped to a circle loses its border corners; this keeps the full ring. Use `-800` for YouTube |
+
+**Scope: LasseCash only.** Lasse Music (@lassemusiclive, lassemusic.com) is a
+separate brand with its own logo and its own look — none of these files apply
+to it.
 | `lassecash-800.png` | the square mark at YouTube's recommended size, for the rare surface that keeps a square |
 | `lassecash-glow-{512,800,1024}.png` · `lassecash-mark-glow.svg` | the same mark with the header's gold glow — for DARK surfaces only (Discord, YouTube, share cards); on a white page the halo looks dirty, use the flat one |
 | `lassecash-mark.svg` | the vector; give this to anyone who asks for "the logo" |
