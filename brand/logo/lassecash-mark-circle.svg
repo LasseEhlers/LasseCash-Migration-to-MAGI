@@ -2,6 +2,6 @@
   <circle cx="16" cy="16" r="16" fill="#07090d"/>
   <circle cx="16" cy="16" r="13.5" fill="none" stroke="#ffd23f" stroke-width="2.5"/>
   <!-- The L, centred: bounding box 10.5 x 15.5 placed on the canvas centre,
-       nudged 0.5 up and 0.25 right because an L's mass sits low and left. -->
-  <path d="M11 7.75 h4 v11.5 h6.5 v4 h-10.5 z" fill="#ffd23f"/>
+       lifted 0.5 and shifted 1.25 right: an L is bottom-left-heavy, and in a round frame the empty upper-right quadrant shows unless the mass, not the box, is what sits on centre (decision B2, compare-circle-2026-09-05.png). -->
+  <path d="M12 7.75 h4 v11.5 h6.5 v4 h-10.5 z" fill="#ffd23f"/>
 </svg>
