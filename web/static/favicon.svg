@@ -9,5 +9,5 @@
   <!-- Drawn as a path rather than <text>: a glyph would render in whatever
        font the viewer's OS substitutes, and JetBrains Mono is not installed
        on most of them. -->
-  <path d="M11.5 8.5 h4 v11.5 h6.5 v4 h-10.5 z" fill="#ffd23f"/>
+  <path d="M11 7.75 h4 v11.5 h6.5 v4 h-10.5 z" fill="#ffd23f"/>
 </svg>

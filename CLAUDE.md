@@ -1074,7 +1074,11 @@ the first run; the module reads the two reserve keys raw instead.
 **Logo files for the forms**: `brand/logo/` (README there). **The logo is the
 square mark** — the site header/favicon geometry — DECIDED by Lasse
 2026-09-05: the new mark everywhere, not the old gold coin roundel (kept once
-as `lassecash-roundel-legacy-512.png`, reference only). PNGs are rendered from
+as `lassecash-roundel-legacy-512.png`, reference only). The L is CENTRED
+(option D on `brand/logo/compare-2026-09-05.png`): the favicon's hand-placed
+path sat a unit left and two low, and Lasse saw it the moment it became a
+512px avatar — favicon.svg, favicon.png and every logo file now share the one
+path, measured to within 0.1px of the header's text L. PNGs are rendered from
 `lassecash-mark.svg` with sharp at native size, and served at
 `lassecash.com/logo/lassecash-{512,256,200}.png` and `/logo/lassecash-mark.svg`
 for forms that want a URL. (Found on the way: `favicon.svg` had a `--` inside

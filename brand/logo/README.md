@@ -38,4 +38,11 @@ dark backgrounds. Sites that mask logos to a circle will clip the border's
 corners; if that ever bothers, render a circular variant from the same SVG
 rather than reaching for the old roundel.
 
+**Geometry, decided 2026-09-05 (`compare-2026-09-05.png`, option D):** the L's
+bounding box sits on the canvas centre, lifted 0.5 and shifted 0.25 right on
+the 32-unit grid — measured to land within 0.1px of where the site header's
+text L sits. The favicon, the square files, the glow and the round variant all
+share this one path: `M11 7.75 h4 v11.5 h6.5 v4 h-10.5 z`. The old roundel
+was rejected for the YouTube avatar in the same decision.
+
 Regenerate from the SVG with sharp; do not edit the PNGs by hand.
