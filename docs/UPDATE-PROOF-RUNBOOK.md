@@ -163,6 +163,30 @@ the MAINNET build (`contract/artifacts/main.wasm`, same HEAD) on production
 activating Monday evening. Sunday's first payouts land between the two, so
 anything they teach can still fold in before the production queue.
 
+## ROUND 2 VERDICT — 2026-09-05, 21:50 CPH: PASS, the mechanism is proven end to end
+
+Activated on schedule at 109,656,821. Checked at head 109,657,282:
+
+- `findPendingContractUpdates` → empty; `findContract.code` →
+  `bafkreifxgszcwisnbcxapt2pq2ia2lcilgvxo27wivmdc6xgawqm7qomfe`, the round-2
+  CID exactly.
+- **State diff: PASS.** `t9r2-before.json` → `t9r2-after.json`, 25 keys
+  byte-identical across 58,113 blocks.
+- **Sweep: exactly ONE changed row** against round 1's after-sweep
+  (`t9r2-sweep-after.txt`): `transfer` with a bare name flipped from
+  "transferred" to **"recipient must be a full address, e.g. hive:alice"**.
+  The qualified transfer still succeeds. Every other row identical (the
+  `swap_lc_hbd: HBD transfer failed` line was already in the baseline — it is
+  the sweep probing without an HBD intent, not a change). The sweep flags the
+  transfer row as "worth a look" because its expectation table predates the
+  guard; that flag IS the expected result.
+- The 30-day default is not sweep-observable, as documented above.
+
+So: a queued update sits publicly visible for 48 hours, activates at the
+announced height, preserves every byte of state, and carries exactly the
+code it was built from — proven twice, the second time with the corrected
+artifact. What remains is doing it once on production, before 10 October.
+
 **Lesson for every future update: pin the artifact to a commit at queue
 time.** Record `git rev-parse HEAD` and the WASM sha256 beside the queue tx,
 and rebuild immediately before queueing — never queue an artifact that has
