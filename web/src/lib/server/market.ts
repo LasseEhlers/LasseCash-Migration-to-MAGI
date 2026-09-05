@@ -16,8 +16,8 @@
 import { error } from "@sveltejs/kit";
 import { CONTRACT_ID, CONTENT_CACHE, serverBackend } from "./content.js";
 import {
-  buildMarketTrades, marketTicker, reconciles,
-  type MarketReplay, type MarketTicker,
+  buildMarketTrades, marketTicker, reconciles, supplyFigures, SUPPLY_KEYS,
+  type MarketReplay, type MarketTicker, type SupplyFigures,
 } from "$api/index.js";
 
 export interface MarketSnapshot {
@@ -65,6 +65,28 @@ export async function marketSnapshot(): Promise<MarketSnapshot> {
     );
   }
   return inflight;
+}
+
+let supplyCached: { at: number; figures: SupplyFigures } | undefined;
+
+/** Raw supply keys, cached a minute. Works on the dev chain too: no outputs needed. */
+export async function supplySnapshot(): Promise<SupplyFigures> {
+  if (supplyCached && Date.now() - supplyCached.at < TTL_MS) return supplyCached.figures;
+  const raw = await serverBackend().state(SUPPLY_KEYS);
+  const figures = supplyFigures(raw);
+  supplyCached = { at: Date.now(), figures };
+  return figures;
+}
+
+/** A bare number, as CMC's "circulating supply URL" field expects. */
+export function plainText(body: string): Response {
+  return new Response(body, {
+    headers: {
+      "Content-Type": "text/plain; charset=utf-8",
+      "Cache-Control": CONTENT_CACHE,
+      "Access-Control-Allow-Origin": "*",
+    },
+  });
 }
 
 /** JSON for aggregators: cached a minute, and readable cross-origin. */

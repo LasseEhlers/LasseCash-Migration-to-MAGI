@@ -10,7 +10,8 @@ import type { PoolLedgerEntry } from "./backend.js";
 import {
   buildMarketTrades, cmcAssets, cmcOrderbook, cmcSummary, cmcTicker, cmcTrades,
   geckoHistoricalTrades, geckoOrderbook, geckoPairs, geckoTickers, HBD_UCID,
-  marketTicker, parseLedgerEntry, percentChange, reconciles, reservePrice, utcIso,
+  marketTicker, parseLedgerEntry, percentChange, reconciles, reservePrice, supplyFigures,
+  supplyJson, utcIso,
 } from "./market.js";
 
 const T0 = Date.UTC(2026, 8, 1, 12, 0, 0); // 2026-09-01T12:00:00Z
@@ -167,6 +168,28 @@ test("the CoinMarketCap shapes carry the fields their spec names", () => {
   assert.equal(tr[0]!.trade_id, "tx2", "newest first");
   for (const k of ["trade_id", "price", "base_volume", "quote_volume", "timestamp", "type"])
     assert.ok(k in tr[0]!, `trades.${k}`);
+});
+
+test("supply figures follow the supply identity: total = migrated + emitted, burned stays inside it", () => {
+  const s = supplyFigures({
+    sup_migrated: "3041950197458230", // 30,419,501.97 — the whole snapshot, burn included
+    sup_emitted: "12345678900000",    // 123,456.789
+    "bal_hive:null": "1868880972711925", // 18,688,809.73 burned, held by null
+    cfg_migtotal: "1173069224746305",
+    sup_claimed: "1000000000000000",
+  });
+  assert.equal(s.total, 3041950197458230n + 12345678900000n);
+  assert.equal(s.circulating, s.total - 1868880972711925n);
+  assert.equal(s.burned, 1868880972711925n);
+  assert.equal(s.unclaimedMigration, 1173069224746305n - 1000000000000000n);
+  assert.equal(s.max, 51_000_000n * 100_000_000n);
+  const j = supplyJson(s);
+  assert.equal(j.max_supply, "51000000.00000000");
+  assert.match(j.circulating_supply, /^\d+\.\d{8}$/);
+  // Missing keys read as zero, never throw — a fresh contract has no sup_emitted yet.
+  const fresh = supplyFigures({});
+  assert.equal(fresh.total, 0n);
+  assert.equal(fresh.unclaimedMigration, 0n);
 });
 
 test("node timestamps without a zone are read as UTC", () => {

@@ -1039,6 +1039,15 @@ the scale step, not the first step):
 | `/api/market/tickers` | `/api/cmc/assets` |
 | `/api/market/orderbook?ticker_id=LASSECASH_HBD` | `/api/cmc/ticker` |
 | `/api/market/historical_trades?ticker_id=…&type=&limit=&start_time=&end_time=` | `/api/cmc/orderbook/LASSECASH_HBD` · `/api/cmc/trades/LASSECASH_HBD` |
+| `/api/supply` (JSON) · `/api/supply/circulating` · `/total` · `/max` (bare numbers — CMC's "circulating supply URL") | |
+
+Supply follows the identity `total = migrated + emitted`; burned value is HELD by
+hive:null, so it stays inside total and out of circulating. Max is the 51M
+hardcap as listing metadata (no state key holds it; the chain enforces it in
+Go). The GitHub issue for the MAGI team — index contract pools in Altera,
+request GeckoTerminal chain support — is drafted in
+`docs/MAGI-INDEXER-ISSUE-DRAFT.md`; vaultec (the vsc.gateway recovery
+account) is the one to reach, TibFox is not on the team.
 
 **How it gets the trades WITHOUT the engine** (the Worker has none, by
 design): every pool call's RETURN VALUE carries the settled figure —

@@ -358,6 +358,67 @@ export function cmcTrades(trades: MarketTrade[], limit = 500) {
   }));
 }
 
+// --- Supply --------------------------------------------------------------------
+//
+// Every listing form asks for total / circulating / max supply, and CMC wants
+// a URL it can poll for the circulating figure. All of it is raw state; the
+// supply identity is "sum of all holdings = migrated + emitted", and burned
+// value is HELD by hive:null rather than destroyed, so circulating is what
+// is held by anyone who can spend it.
+
+/**
+ * The historic hardcap — 51,000,000 LASSECASH, and no key exists that could
+ * change it. Listing METADATA, not an enforced bound: the chain enforces its
+ * cap in Go (`CreditMigration`, pinned by tokenomics_check.py); this figure
+ * only tells an aggregator what "max supply" to print, and there is no state
+ * key to read it from.
+ */
+export const MAX_SUPPLY_UNITS = 51_000_000n * UNIT;
+
+export interface SupplyFigures {
+  /** Held by anybody at all, hive:null included: migrated + emitted. */
+  total: bigint;
+  /** Total less what hive:null holds — everything a key can still move. */
+  circulating: bigint;
+  burned: bigint;
+  emitted: bigint;
+  /** Committed to the snapshot but not yet claimed by its owner. */
+  unclaimedMigration: bigint;
+  max: bigint;
+}
+
+export function supplyFigures(raw: Record<string, string | undefined>): SupplyFigures {
+  const n = (k: string) => BigInt(raw[k] || "0");
+  const migrated = n("sup_migrated");
+  const emitted = n("sup_emitted");
+  const burned = n("bal_hive:null");
+  const total = migrated + emitted;
+  const unclaimed = n("cfg_migtotal") - n("sup_claimed");
+  return {
+    total,
+    circulating: total - burned,
+    burned,
+    emitted,
+    unclaimedMigration: unclaimed > 0n ? unclaimed : 0n,
+    max: MAX_SUPPLY_UNITS,
+  };
+}
+
+export const SUPPLY_KEYS = ["sup_migrated", "sup_emitted", "bal_hive:null", "cfg_migtotal", "sup_claimed"];
+
+export function supplyJson(s: SupplyFigures) {
+  return {
+    symbol: MARKET_PAIR.base,
+    total_supply: amt(s.total),
+    circulating_supply: amt(s.circulating),
+    max_supply: amt(s.max),
+    burned: amt(s.burned),
+    emitted_since_genesis: amt(s.emitted),
+    unclaimed_migration: amt(s.unclaimedMigration),
+    note: "burned value is held by hive:null (no keys exist), so it stays inside total_supply and out of circulating_supply",
+  };
+}
+
 /** Swaps only, newest first, optionally filtered — the rows both specs call "trades". */
 function tradeRows(
   trades: MarketTrade[],
