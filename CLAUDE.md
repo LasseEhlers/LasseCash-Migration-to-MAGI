@@ -1071,6 +1071,13 @@ allows itself, stated in its header. `backend.chain()` must NOT be called
 server-side: it ranks the consensus group through the engine and threw on
 the first run; the module reads the two reserve keys raw instead.
 
+**Logo files for the forms**: `brand/logo/` (README there), generated with
+sharp from the 623px gold-L roundel master in `brand/archive/` — the icon
+Hive-Engine served for the token, transparent background. Also served at
+`lassecash.com/logo/lassecash-{512,256,200}.png` and `/logo/lassecash-mark.svg`
+for forms that want a URL. (Found on the way: `favicon.svg` had a `--` inside
+an XML comment, which browsers forgive and librsvg refuses; fixed.)
+
 `assets` carries HBD's UCID **5375** (read off its CMC page) and `null` for
 LASSECASH — never invent an id. Still needed for an actual listing, none of
 it code: CMC wants sixty days of operation (that is 30 October), both want

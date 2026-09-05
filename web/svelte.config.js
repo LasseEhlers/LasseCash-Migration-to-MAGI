@@ -54,6 +54,8 @@ export default {
           "/favicon.*",
           // Coin logos: static files on every wallet render.
           "/coins/*",
+          // The token's own logo, hosted for listing sites and link unfurlers.
+          "/logo/*",
         ],
       },
     }),
