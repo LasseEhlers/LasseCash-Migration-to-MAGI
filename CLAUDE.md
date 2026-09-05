@@ -1915,6 +1915,21 @@ Draft: `docs/ANNOUNCEMENT-DRAFT.md` (technical parts written; Lasse's voice and
 closing line to add; criteria section still says 12 months and five months —
 update to 6 and seven).
 
+## ⏳ PRODUCTION CONTRACT UPDATE QUEUED — 2026-09-05 (read before touching the contract)
+
+The one and only production code update is in its 48-hour public window:
+**activates Monday 2026-09-07 at 22:01 CPH (20:01:21 UTC), height
+109,715,055**, on `vsc1Be4TTjUiHgzhHAfqFn6s3PDAExH2X59fXV`. It carries exactly
+three changes — `fund`, the bare-name `transfer` refusal, the 30-day monthly
+mint default — proven twice on throwaway #9 (round 2 activated 5 Sep 21:21
+CPH: state byte-identical, exactly the intended sweep change). The queued CID
+`bafkreieh7bs…5baa` is the content hash of the local `main.wasm` (sha256
+`87f865ab…9fa100`, HEAD `a9de1b7`), verified by recomputing it. **After
+activation, run the two checks in docs/UPDATE-PROOF-RUNBOOK.md "PRODUCTION
+QUEUED"** — diff against `prod-before.json`, sweep against
+`prod-sweep-before.txt` — and only then merge `duration-default-30`. The key
+burn on 10 October then closes the door with all three inside.
+
 ## STATE OF PLAY — end of 2026-08-22 session (read this first)
 
 - **Site is LIVE: https://lassecash.pages.dev** (Cloudflare Pages, project

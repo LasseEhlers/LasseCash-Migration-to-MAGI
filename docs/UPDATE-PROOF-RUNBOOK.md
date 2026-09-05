@@ -187,6 +187,44 @@ announced height, preserves every byte of state, and carries exactly the
 code it was built from — proven twice, the second time with the corrected
 artifact. What remains is doing it once on production, before 10 October.
 
+## PRODUCTION QUEUED — 2026-09-05, 22:00 CPH
+
+Lasse ran `CONTRACT_ID=vsc1Be4TTjUiHgzhHAfqFn6s3PDAExH2X59fXV ./deploy.sh update`
+(the harness refuses to let Claude spend from the key, correctly).
+
+| | |
+|---|---|
+| Contract | `vsc1Be4TTjUiHgzhHAfqFn6s3PDAExH2X59fXV` — PRODUCTION |
+| New code CID | `bafkreieh7bs2x44xk22sqtf4sb5bj63dloao2olqd6uyxeqbj3vt5h5baa` |
+| Artifact | `contract/artifacts/main.wasm`, 96,275 bytes, sha256 `87f865abf39756b5284cbc907a14fb635b80ed39701fa98b92014eeb3e9fa100` |
+| Built from | HEAD `a9de1b7` (last contract-source commit `c27ef68`); rebuilt immediately before queueing, byte-identical to the 3 Sep build |
+| Queued at height | 109,657,455 |
+| **Activates at height** | **109,715,055 — 2026-09-07 20:01:21 UTC (22:01 CPH, Monday)** — 57,600 blocks exactly |
+| BEFORE snapshot | `prod-before.json`, 83 keys, head 109,657,325 |
+| Sweep baseline | `prod-sweep-before.txt` (4 Sep) |
+
+The CID is a content hash: computing CIDv1/raw/sha2-256 over the local
+`main.wasm` reproduces it exactly, so the chain holds this file and no other.
+This is the artifact pin the round-1 lesson asked for.
+
+**After 22:01 CPH Monday** — the same two checks, against production:
+
+```bash
+python3 tools/state-snapshot.py grab vsc1Be4TTjUiHgzhHAfqFn6s3PDAExH2X59fXV \
+    deploy-data/update-proof/prod-after.json
+python3 tools/state-snapshot.py diff \
+    deploy-data/update-proof/prod-before.json deploy-data/update-proof/prod-after.json
+python3 tools/entrypoint-sweep/sweep.py --contract vsc1Be4TTjUiHgzhHAfqFn6s3PDAExH2X59fXV \
+    > deploy-data/update-proof/prod-sweep-after.txt
+```
+
+Expected: diff PASS (only the height-driven keys move; balances byte-identical
+— production has real holders now, so this is the check that matters), and
+against `prod-sweep-before.txt` exactly two changed rows: `fund` answers, and
+the bare-name `transfer` is refused. Then merge `duration-default-30` (the
+frontend half of the 30-day default), and the key burn on 10 October closes
+the door with all three fixes inside.
+
 **Lesson for every future update: pin the artifact to a commit at queue
 time.** Record `git rev-parse HEAD` and the WASM sha256 beside the queue tx,
 and rebuild immediately before queueing — never queue an artifact that has
