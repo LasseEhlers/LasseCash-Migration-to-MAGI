@@ -86,6 +86,8 @@ export class AiohaWallet {
 
   readonly #netId: string;
   readonly #chainUrl: string;
+  #tokenContractId: string | undefined;
+  #tokenChecked = false;
 
   constructor(opts: AiohaOptions) {
     this.aioha = new Aioha();
@@ -704,6 +706,42 @@ export class AiohaWallet {
     return body.url;
   }
 
+  /**
+   * The magi_token holding LASSECASH, or undefined while the ledger is still
+   * `bal_` rows in our own contract.
+   *
+   * Read from the chain ONCE and cached for the page's life: `cfg_token` is
+   * written a single time, by the owner, and can never change afterwards —
+   * there is no path in the frozen contract to move it. Undefined until the
+   * switch, which is what makes every allowance path inert today.
+   *
+   * A failed lookup caches `undefined` rather than retrying forever: the
+   * worst case is that a call goes out without an allowance and the chain
+   * refuses it, which is visible, rather than the page hanging.
+   */
+  async tokenContract(): Promise<string | undefined> {
+    if (this.#tokenChecked) return this.#tokenContractId;
+    this.#tokenChecked = true;
+    try {
+      const res = await fetch(this.#chainUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          query: `query($id: String!) { getStateByKeys(contractId: $id, keys: ["cfg_token"]) }`,
+          variables: { id: this.#contractId },
+        }),
+      });
+      const body = (await res.json()) as {
+        data?: { getStateByKeys?: Record<string, string> | null };
+      };
+      const id = body.data?.getStateByKeys?.["cfg_token"];
+      this.#tokenContractId = id && id !== "" ? id : undefined;
+    } catch {
+      this.#tokenContractId = undefined;
+    }
+    return this.#tokenContractId;
+  }
+
   /** A Signer bound to this wallet, for contract calls. */
   signer(): Signer {
     const user = this.user;
@@ -857,6 +895,34 @@ export class AiohaSigner implements Signer {
     add_liquidity: 1, // <lcAmount>|<maxHbd>
     swap_hbd_lc: 0, //   <hbdIn>|<minOut>
   };
+
+  /**
+   * Operations that DEBIT the caller's LASSECASH, and the argument holding
+   * the amount — the mirror of HBD_DRAW_OPS, for the other side of the pot.
+   *
+   * With a standard magi_token ledger the contract cannot simply write a
+   * smaller number into a row: it has to call `transferFrom` on the token,
+   * which spends an allowance the holder granted. So each of these needs an
+   * `increaseAllowance` in the SAME signed transaction, sized to exactly the
+   * call's own argument and never broader — the same discipline the HBD
+   * intents follow, and for the same reason: the allowance is what the user's
+   * wallet shows them.
+   *
+   * Ops that only CREDIT are deliberately absent (claim_mint, claim_pool,
+   * claim_migration, remove_liquidity, good_accounting), as is swap_hbd_lc,
+   * which spends HBD rather than LASSECASH.
+   */
+  static readonly TOKEN_DEBIT_OPS: Record<string, number> = {
+    transfer: 1, //      <to>|<amount>
+    burn: 0, //          <amount>
+    mint: 0, //          <amount>|<days>
+    promote_post: 2, //  <author>|<permlink>|<amount>
+    add_liquidity: 0, // <lcAmount>|<maxHbd>
+    swap_lc_hbd: 0, //   <amountIn>|<minOut>
+  };
+
+  /** Measured on the devnet 2026-09-06: a cross-contract token call is ~301 RC. */
+  static readonly ALLOWANCE_RC = 1_000;
 
   /**
    * A swap on one of MAGI's own pools.
@@ -1113,7 +1179,32 @@ export class AiohaSigner implements Signer {
           ];
 
     // Accrual catch-up slices go FIRST, each its own MAGI transaction.
-    const pre: { action: string; payload: string; rcLimit: number; intents: unknown[] }[] = [];
+    const pre: {
+      action: string; payload: string; rcLimit: number; intents: unknown[];
+      contractId?: string;
+    }[] = [];
+
+    // The LASSECASH allowance, when the ledger is a token. Goes ahead of
+    // everything else and against the TOKEN, not our contract — one signed
+    // transaction either way, so the user still sees a single confirm.
+    const debitArg = AiohaSigner.TOKEN_DEBIT_OPS[entrypoint];
+    const tokenContractId =
+      debitArg === undefined ? undefined : await this.wallet.tokenContract();
+    if (tokenContractId && debitArg !== undefined) {
+      const amount = (args.split("|")[debitArg] ?? "0").trim();
+      if (/^\d+$/.test(amount) && amount !== "0") {
+        pre.push({
+          action: "increaseAllowance",
+          payload: JSON.stringify({
+            spender: `contract:${this.contractId}`,
+            amount,
+          }),
+          rcLimit: AiohaSigner.ALLOWANCE_RC,
+          intents: [],
+          contractId: tokenContractId,
+        });
+      }
+    }
     for (const pc of opts?.preCalls ?? []) {
       const lim = await this.sizeRc(pc.entrypoint, pc.args, [], AiohaSigner.RC_LIMITS[pc.entrypoint] ?? this.rcLimit);
       if (typeof lim !== "number") break; // cannot afford more slices: send what we can
