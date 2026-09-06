@@ -111,3 +111,9 @@ token" line is not true before then. The comment path needs the POSTING key in
 
 Costs: comments free; memos 0.001 HBD each, so at most 0.07 HBD for the 70
 and 0.325 HBD for all 325.
+
+**SENT 6 Sep 21:19–21:27 CPH: 70 of 70.** 64 as comments on the holder's
+latest post, 6 as memos to accounts with nothing to reply to. First three
+verified on Hive by reading the comments back. Progress in
+`deploy-data/outreach-progress.json` under `round2`. The 255 smaller holders
+(`--all`) were not included.
