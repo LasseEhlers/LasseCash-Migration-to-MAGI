@@ -1,0 +1,94 @@
+# Could LASSECASH be a standard `magi_token`? — spike, 2026-09-06
+
+Prompted by TibFox (MAGI, vsc-devs) on 6 Sep: *"if you would have used the
+tools we have nobody had to do anything to make your pool or token work with
+our indexer or the altera interface and the cross-chain swaps. btc to
+lassecash would have been a simple flag we had to turn on."*
+
+Fair, and the 20 Aug decision never evaluated `vsc-eco/magi_token-contract`.
+This is what the SOURCE says, before any measurement. Read at
+`vsc-eco/magi_token-contract` (main, Sep 2026) and go-vsc-node
+`modules/contract/execution-context/execution-context.go`.
+
+## ✅ A contract CAN own and drive a magi_token — confirmed from source
+
+1. **A cross-contract call re-labels the caller.** `ContractCall` builds the
+   child environment with `Caller: "contract:" + ctx.env.ContractId` and
+   `Sender: ctx.env.Sender` — so inside the token, `msg.caller` is the CALLING
+   CONTRACT, while the original human stays as `sender`. Recursion depth is
+   capped at 20 (`CONTRACT_CALL_MAX_RECURSION_DEPTH`).
+2. **The token's owner check is `stored owner == msg.caller`** (`getOwner()`
+   in `contract/main.go`), and `ChangeOwner` validates only length and the
+   absence of `|` — so `contract:vsc1…` is a perfectly good owner.
+3. **Therefore:** deploy the token, `init` it as `hive:lassecashmagi` (init
+   requires `msg.caller == contract.owner`), then `changeOwner` to
+   `contract:<core id>`. From then on the core mints as owner, and no human
+   can.
+
+So the mechanism exists. The cost is in the shape.
+
+## ⚠️ What the standard does NOT do, and it matters for THIS contract
+
+| | |
+|---|---|
+| **`mint` credits the OWNER, not an address** — `incBalance(owner, amount)` | Paying a user is **two** cross-contract calls: mint to core, then transfer core → user. Our current payout is one state write. |
+| **Taking a user's tokens needs `approve` then `transferFrom`** (allowance keyed by `msg.caller` as spender) | Every value-TAKING action (mint/lock, promote, add_liquidity) becomes approve + action. Bundleable in one Hive transaction — the site already does exactly that for the BTC swap (`increaseAllowance` + `execute`) — but it is still two calls, both charged. |
+| **No batch anything.** Entrypoints are init, mint, burn, transfer, transferFrom, approve, increase/decreaseAllowance, changeOwner, pause, unpause + 6 read-only | Our contract moves LASSECASH in BULK: the migration import (50/call), curation drains, `MaxRetirePerWalk=200` expiry retires, `registerMints`. Each becomes N separate cross-contract calls, and **each call spins a fresh WASM runtime** (`wasm_runtime_ipc.New(); w.Init()`). The Aug batch measurement already found a 50-account staked batch impossible against the 10B gas ceiling. |
+| **JSON + `big.Int`** throughout | Heavier per call than our pipe-delimited fixed-point. Gas is charged to the user's RC. |
+
+## 🔴 THE NUMBER THAT DECIDES IT — not yet measured
+
+**What does a `claim_migration` cost in RC once the balance lives in another
+contract?** Today it is 4,017–5,892 RC, inside a fresh account's free 10,000,
+and *that is the whole premise of claim-based migration*: every holder claims
+their own leaf paying nothing. A claim credits liquid AND creates a mint, so
+on the new shape it is core state + mint call + transfer call, each with JSON
+and big.Int.
+
+**If it crosses 10,000, fresh accounts can no longer claim for free and the
+migration model breaks.** 2,692,167 LASSECASH is still unclaimed by people who
+will claim exactly that way. Measure before anything else; the local devnet
+(`tools/devnet/`) does it for free.
+
+Second measurement, same run: a monthly PoB payout and a `settle` walk, which
+are the bulk paths.
+
+## 🔴 The frozen-dependency problem, sharpened
+
+If the core owns the token and the core's key burns, `changeOwner` can never
+be called again — by anyone. The core can only speak v1's interface with v1's
+payloads. **If MAGI ships a token v2 and their indexer keys on it, we are
+frozen on v1 with no migration path.** Partial mitigation: keep the token's
+contract id in a STATE key rather than hardcoded, so a compatible redeploy can
+be pointed at. A breaking v2 remains unfixable — which is the same class of
+risk that kept the pool in-contract, and this time it is structural rather
+than a preference.
+
+## What is NOT in question
+
+The pool stays ours regardless. Their router charges 0.08% (our 0% is a
+hardcoded promise), and their LP tokens are fungible and ageless — no tranche,
+no loyalty curve, no 180-day eviction, so the 25% emission slice could not be
+paid through them. Mints, Proof-of-Brain, thresholds and the claim tree have
+no standard at all. TibFox is not claiming otherwise; his point is the LEDGER,
+and on the ledger he is right.
+
+## Options, and what each really buys
+
+| | Recovers | Costs |
+|---|---|---|
+| **Hardfork to a standard ledger before the burn** | everything, natively, no second token | A rewrite of the money layer of a live contract; owner-push import of ~353 accounts (cheap at this size, rehearsed in Aug); 2 LPs re-add manually; burn date moves ~November; the RC risk above; the frozen-v1 weld |
+| **Wrapper dApp after the burn** — own key, holds LASSECASH on our ledger, issues a 1:1 `magi_token` | Altera, their indexer, token-sdk wallets, the BTC flag — for the WRAPPED token | Two tokens for the core's life; an unwrap step (bundleable into the next action); wrapped pool is thin unless seeded |
+| **Do nothing** | — | Invisible to their tools; no BTC route |
+
+**Lasse's position (6 Sep): the wrapper is a last resort — with 4 days of
+history a hardfork is at its cheapest, and he wants it right the first time.
+Agreed on the principle; the RC measurement decides whether it is possible.**
+
+## Next
+
+1. TibFox: can a magi_token be a router pool asset against HBD, and is that
+   what turns on the cross-chain-swap flag? Is v1 what the indexer keys on?
+   (Asked 6 Sep.)
+2. Devnet: measure a claim, a payout and a settle walk on the cross-contract
+   shape. This is the go/no-go.
