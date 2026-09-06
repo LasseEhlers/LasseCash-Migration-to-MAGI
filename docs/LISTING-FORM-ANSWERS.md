@@ -37,7 +37,7 @@ that is 30 October. Same answers apply when the day comes.
 | Website | https://lassecash.com |
 | Whitepaper / docs | https://lassecash.com/about (the canonical document; also https://lassecash.com/about.md) |
 | Source code | https://github.com/LasseEhlers/LasseCash-Migration-to-MAGI (engine, contract, indexer, this API — all open) |
-| Explorer | MAGI has no public contract-page explorer yet. Use https://lassecash.com/chain (supply, pools, consensus group, pending code updates — read live from the node), and for raw verification the node's GraphQL at https://api.vsc.eco/api/v1/graphql, e.g. `{ getStateByKeys(contractId:"vsc1Be4TTjUiHgzhHAfqFn6s3PDAExH2X59fXV", keys:["amm_lc","amm_hbd","sup_migrated","sup_emitted"]) }` |
+| Explorer | **https://vsc.techcoderx.com/contract/vsc1Be4TTjUiHgzhHAfqFn6s3PDAExH2X59fXV** (techcoderx's MAGI explorer — contract page, transactions, per-address history; found by Lasse 2026-09-06). Secondary: https://lassecash.com/chain (supply, pools, consensus group, pending code updates — read live from the node), and for raw verification the node's GraphQL at https://api.vsc.eco/api/v1/graphql, e.g. `{ getStateByKeys(contractId:"vsc1Be4TTjUiHgzhHAfqFn6s3PDAExH2X59fXV", keys:["amm_lc","amm_hbd","sup_migrated","sup_emitted"]) }` |
 | Logo | https://lassecash.com/logo/lassecash-512.png (also -256, -200; vector https://lassecash.com/logo/lassecash-mark.svg; local files in `brand/logo/`) |
 | Max supply | 51,000,000 LASSECASH — hard cap, enforced in the contract, cannot be changed |
 | Total supply | LIVE → https://lassecash.com/api/supply/total (27,763,864.24 on 2026-09-06; grows with emission, see below) |
