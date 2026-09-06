@@ -117,3 +117,11 @@ CoinGecko and CoinMarketCap help-centre pages refuse scripted fetches (403)
 but open normally in a browser. If one 404s later, the site's footer
 "Request form" / "Request a coin" link is the same page. Record the ticket
 numbers you get back in this file under a "Submitted" heading, with the date.
+
+---
+
+## Submitted
+
+| Date | Site | What | Reference |
+|---|---|---|---|
+| 2026-09-06 10:19 CPH | LiveCoinWatch | exchange request — URL https://lassecash.com/pool (the form is a single URL field) | "Request received!" — no ticket number issued |

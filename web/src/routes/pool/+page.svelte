@@ -823,9 +823,21 @@
       </div>
     {/if}
   </section>
+
+  <p class="apinote dim">
+    Market data for listing sites and bots — this pool's own figures in the
+    CoinGecko and CoinMarketCap shapes, read from the chain, open to anyone:
+    <a href="/api/market/tickers">/api/market/tickers</a> ·
+    <a href="/api/cmc/summary">/api/cmc/summary</a> ·
+    <a href="/api/supply">/api/supply</a>
+    <span class="mono">(<a href="/api/supply/circulating">/api/supply/circulating</a> is the bare number)</span>
+  </p>
 </div>
 
 <style>
+  .apinote { font-size: .78rem; margin: 1.5rem 0 0; padding-top: 1rem; border-top: 1px solid var(--rule); }
+  .apinote a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+  .apinote a:hover { color: var(--gold); }
   .allt { margin-top: 2rem; padding-top: 1.25rem; border-top: 1px solid var(--rule); }
   .allnote { font-size: .78rem; margin: 0 0 .75rem; }
   /* Your own rows, findable without hunting for your name. */
