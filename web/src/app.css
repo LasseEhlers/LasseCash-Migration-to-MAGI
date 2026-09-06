@@ -102,7 +102,10 @@ header::after {
   border: 2px solid var(--gold); border-radius: var(--r-sm);
   color: var(--gold); font-weight: 800; font-size: 0.9rem;
   font-family: var(--mono);
-  box-shadow: var(--glow-gold);
+  /* A touch above --glow-gold, for the mark only: at 28px the standard glow
+     reads dimmer than the same mark at avatar size (Lasse, 2026-09-06). Hero
+     numbers keep the standard. */
+  box-shadow: 0 0 14px rgba(255, 210, 63, 0.62), 0 0 40px rgba(255, 210, 63, 0.24);
 }
 .brand .name {
   font-family: var(--mono); font-weight: 700;
