@@ -39,3 +39,4 @@ tools/memo-fill/
 # Measurement artifacts for the standard-token spike (rebuild with build.sh / the token repo)
 contract/artifacts/probe.wasm
 contract/artifacts/magi-token.wasm
+contract/artifacts/main-tokenledger.wasm
