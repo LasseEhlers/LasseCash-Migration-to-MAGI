@@ -12,6 +12,10 @@ mainnet witnesses may run a different node version than our checkout.
 
 ## Cost and the reason to only do this once
 
+**A retry costs 10, not 20.** The token is vsc-eco's code, unmodified — any
+bug found will be in OUR core, so only the core is redeployed. The token
+deploy is a one-time cost.
+
 Two deploys at 10 HBD each = **20 HBD**, from @lassecashmagi's **Hive L1**
 balance (31.898 HBD on 2026-09-06 — the fee is an L1 transfer; MAGI HBD
 cannot pay it). That leaves ~12, which is not enough for a second attempt.
@@ -41,7 +45,7 @@ devnet proof is what caught this; the plan originally had it backwards.
 
 | | why the devnet cannot answer it |
 |---|---|
-| **One Keychain confirm signs `increaseAllowance` on the TOKEN and `mint` on the CORE** | there is no wallet on the devnet. This is the single largest untested assumption in the design |
+| ~~One Keychain confirm signs an allowance on one contract and a call on another~~ | ✅ **ALREADY PROVEN ON MAINNET** — Lasse's BTC swap of 2026-09-03 was CONFIRMED carrying `increaseAllowance` -> `vsc1BdrQ6Etb…` and `execute` -> `vsc1Brvi4YZ…`, two calls to two different contracts in one confirm. That was the single largest assumption in the design and it was retired by an ordinary swap. What remains is confirming OUR specific flow, not whether the mechanism exists |
 | A real `claim_migration` from a fresh account's free 10,000 RC | mainnet FREEZES the full `rc_limit` for 5 days; the devnet charges only what is used |
 | `state-snapshot.py diff` across a code update | the update timelock is a mainnet mechanism |
 | `entrypoint-sweep/sweep.py` — every entrypoint answers as before, plus the two new ones | consensus behaviour |
