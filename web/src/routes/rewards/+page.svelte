@@ -1,0 +1,229 @@
+<script lang="ts">
+  /**
+   * Reward pools — where every emitted LASSECASH actually goes.
+   *
+   * The Chain page shows supply against the cap. This shows the FOUR POOLS
+   * that supply flows through, what is sitting in each right now, how fast it
+   * is filling, and what it is being divided among. Asked for by Lasse
+   * 2026-09-06: "I would like a page where I can see what actually happens in
+   * the reward pools".
+   *
+   * Nothing here is computed by this page. Balances are chain state; the
+   * daily split comes from `dailyRewards` in the engine, which is the same
+   * closed-form function the contract runs. The one thing this page does that
+   * the chain does not is WATCH: it records each pool's balance on load and
+   * shows the movement since, which is the only way to see a pool actually
+   * being drained rather than merely being large.
+   */
+  import { chain } from "$lib/chain.svelte.js";
+  import { lc } from "$lib/format.js";
+  import { dailyRewards, fromUnits, toUnits } from "$api/index.js";
+  import Seo from "$lib/Seo.svelte";
+  import { SITE_OG_IMAGE, SITE_URL } from "$lib/site.js";
+
+  const info = $derived(chain.info);
+
+  /** Today's emission, split exactly as the contract splits it. */
+  const daily = $derived(
+    chain.ready && info && info.genesis_height
+      ? dailyRewards(info.genesis_height, info.height)
+      : null,
+  );
+
+  /**
+   * Is emission actually flowing? The accrual walk credits pools through the
+   * last COMPLETE day it has settled. If `settled` lags the head by more than
+   * a day, nothing is arriving and every "per day" figure below is what the
+   * chain WOULD pay once someone calls advance — not what it is paying.
+   */
+  const behindHeights = $derived(info ? info.height - info.settled_height : 0);
+  const behindDays = $derived(Math.floor(behindHeights / 28_800));
+
+  /** Balances as they were when this page opened, so movement is visible. */
+  let opened = $state<Record<string, bigint> | null>(null);
+  let openedAt = $state(0);
+  $effect(() => {
+    if (info && !opened) {
+      opened = {
+        viral: toUnits(info.pool_viral),
+        deep: toUnits(info.pool_deep),
+        lshare: toUnits(info.pool_lshare),
+        liq: toUnits(info.pool_liquidity),
+      };
+      openedAt = Date.now();
+    }
+  });
+
+  const pools = $derived.by(() => {
+    if (!info) return [];
+    return [
+      {
+        key: "viral",
+        name: "Proof-of-Brain — viral",
+        share: "12.5% of every block",
+        balance: info.pool_viral,
+        perDay: daily?.viral ?? null,
+        dividedLabel: "rshares voted on open 7-day posts",
+        divided: info.rsh_viral,
+        drains: "paid out when a post's 7-day window is settled",
+      },
+      {
+        key: "deep",
+        name: "Proof-of-Brain — deep",
+        share: "37.5% of every block",
+        balance: info.pool_deep,
+        perDay: daily?.deep ?? null,
+        dividedLabel: "rshares voted on open 30-day posts",
+        divided: info.rsh_deep,
+        drains: "paid out when a post's 30-day window is settled",
+      },
+      {
+        key: "lshare",
+        name: "L-Share yield",
+        share: "25% of every block",
+        balance: info.pool_lshare,
+        perDay: daily?.lshare ?? null,
+        dividedLabel: "active L-Shares earning",
+        divided: info.total_shares,
+        drains: "paid when a mint is claimed — and it is the ONLY pool that also RECEIVES, from every early-end slash, every day of bleed and every swept position",
+      },
+      {
+        key: "liq",
+        name: "Liquidity",
+        share: "25% of every block",
+        balance: info.pool_liquidity,
+        perDay: daily?.liquidity ?? null,
+        dividedLabel: "loyalty-weighted pool shares",
+        divided: info.amm_weight,
+        drains: "paid when an LP claims or withdraws",
+      },
+    ];
+  });
+
+  function moved(key: string, now: string): bigint | null {
+    if (!opened) return null;
+    return toUnits(now) - (opened[key] ?? 0n);
+  }
+
+  /** Per unit of whatever divides the pool — the number that decides a payout. */
+  function perUnit(perDay: string | null, divided: string): string | null {
+    if (!perDay) return null;
+    const d = toUnits(divided);
+    if (d <= 0n) return null;
+    // Scaled by 1e8 so a per-share figure is readable rather than all zeros.
+    return fromUnits((toUnits(perDay) * 100_000_000n) / d);
+  }
+</script>
+
+<Seo
+  title="Reward pools"
+  description="Where every emitted LASSECASH goes: the four reward pools, what is in each, how fast they fill and what divides them."
+  canonical={`${SITE_URL}/rewards`}
+  image={SITE_OG_IMAGE}
+/>
+
+<div class="grid">
+  <section class="panel intro">
+    <h1>Reward pools</h1>
+    <p class="note">
+      Every block reward is split four ways before anyone is paid. This is what is
+      sitting in each pool right now, how fast it fills, and what it gets divided
+      among. Balances are chain state; the split is the engine's own function —
+      the same one the contract runs.
+    </p>
+    {#if info}
+      <div class="ticks">
+        <span>height <b class="mono">{info.height.toLocaleString()}</b></span>
+        <span>settled <b class="mono">{info.settled_height.toLocaleString()}</b></span>
+        {#if behindDays >= 1}
+          <span class="warn">
+            accrual is {behindDays} day{behindDays > 1 ? "s" : ""} behind — nothing is
+            arriving until someone calls advance
+          </span>
+        {:else}
+          <span class="ok">accrual current</span>
+        {/if}
+      </div>
+    {/if}
+  </section>
+
+  {#if !info}
+    <section class="panel"><p class="note">Reading the chain…</p></section>
+  {:else}
+    {#if daily}
+      <section class="panel">
+        <div class="label">Emitted per day, at this height</div>
+        <div class="value gold mono">{lc(daily.total)}</div>
+        <p class="note">
+          Halves every three years. Split 50% Proof-of-Brain (a quarter of that
+          viral, three quarters deep), 25% L-Share yield, 25% liquidity.
+        </p>
+      </section>
+    {/if}
+
+    <div class="cards">
+      {#each pools as p (p.key)}
+        {@const delta = moved(p.key, p.balance)}
+        {@const unit = perUnit(p.perDay, p.divided)}
+        <section class="panel pool">
+          <div class="label">{p.name}</div>
+          <div class="value gold mono">{lc(p.balance)}</div>
+          <div class="sub">{p.share}</div>
+
+          <dl>
+            <div><dt>filling at</dt><dd class="mono">{p.perDay ? lc(p.perDay) : "—"} / day</dd></div>
+            <div><dt>{p.dividedLabel}</dt><dd class="mono">{lc(p.divided)}</dd></div>
+            {#if unit}
+              <div>
+                <dt>per unit per day</dt>
+                <dd class="mono">{unit} <small class="dim">×1e-8</small></dd>
+              </div>
+            {/if}
+            {#if delta !== null}
+              <div>
+                <dt>since you opened this page</dt>
+                <dd class="mono" class:up={delta > 0n} class:down={delta < 0n}>
+                  {delta > 0n ? "+" : ""}{fromUnits(delta)}
+                </dd>
+              </div>
+            {/if}
+          </dl>
+          <p class="note drain">{p.drains}</p>
+        </section>
+      {/each}
+    </div>
+
+    <section class="panel">
+      <p class="note">
+        <b>Why a pool can sit still.</b> A pool only pays when something claims from
+        it: a post's window closing, a mint being claimed, an LP claiming. Between
+        those it just grows. The L-Share pool is the exception in the other
+        direction — it also collects every slashed early end, every day of bleed and
+        every swept dead position, which is what funds rewards after emission ends
+        in year 75.
+      </p>
+      {#if openedAt}
+        <p class="note dim">
+          Watching since {new Date(openedAt).toLocaleTimeString()}. The page re-reads
+          the chain every 30 seconds.
+        </p>
+      {/if}
+    </section>
+  {/if}
+</div>
+
+<style>
+  .grid { display: flex; flex-direction: column; gap: 1rem; }
+  .intro h1 { margin: 0 0 0.4rem; font-size: 1.4rem; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem; }
+  .ticks { display: flex; flex-wrap: wrap; gap: 0.9rem; margin-top: 0.6rem; font-size: var(--t-micro); }
+  .ticks .ok { color: var(--green); }
+  .ticks .warn { color: var(--gold); }
+  .pool dl { margin: 0.9rem 0 0; display: flex; flex-direction: column; gap: 0.4rem; }
+  .pool dl > div { display: flex; justify-content: space-between; gap: 0.8rem; align-items: baseline; }
+  .pool dt { color: var(--dim); font-size: var(--t-micro); }
+  .pool dd { margin: 0; font-size: var(--t-sm); }
+  .pool dd.up { color: var(--green); }
+  .pool dd.down { color: var(--gold); }
+  .drain { margin-top: 0.8rem; padding-top: 0.7rem; border-top: 1px solid var(--line-soft); }
+</style>
