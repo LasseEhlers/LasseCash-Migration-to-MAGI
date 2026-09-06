@@ -67,9 +67,23 @@ func TestFuzzEconomy(t *testing.T) {
 	}
 }
 
+// fuzzChain builds the economy on whichever ledger is under test.
+func fuzzChain(t *testing.T) keyedStore {
+	t.Helper()
+	if os.Getenv("FUZZ_TOKEN") == "1" {
+		ts := NewMemTokenStore()
+		if r := Init(ts, genesis); !r.OK {
+			t.Fatalf("init failed: %s", r.Msg)
+		}
+		return ts
+	}
+	ms, _ := newChain(t)
+	return ms
+}
+
 func fuzzOneEconomy(t *testing.T, seed int64) {
 	r := rand.New(rand.NewSource(seed))
-	s, _ := newChain(t)
+	s := fuzzChain(t)
 	// Real HBD custody. The pool is the ONLY place in the contract that holds
 	// somebody else's actual money, and until 2026-08-23 the 500k fuzzer never
 	// touched it — no AddLiquidity, no Swap, no ClaimPoolRewards, no
@@ -248,7 +262,89 @@ func fuzzOneEconomy(t *testing.T, seed int64) {
 // auditEconomy is auditSupply as a reusable check: every base unit must be in
 // a balance, a pool, a live principal, pending, or a curator pot — and the
 // total must equal migrated + emitted - burned exactly. Returns "" when sound.
-func auditEconomy(s *MemStore) string {
+// auditEconomy dispatches on which ledger the economy is running.
+//
+// FUZZ_TOKEN=1 runs every round against a magi_token instead of `bal_` rows.
+// Fuzzing only the legacy path would prove nothing about the ledger we are
+// actually shipping.
+
+// keyedStore is any in-memory store the audits can enumerate. Both MemStore
+// and MemTokenStore satisfy it, so one audit serves both ledgers.
+type keyedStore interface {
+	Store
+	Keys() []string
+}
+
+func auditEconomy(s Store) string {
+	if ts, ok := s.(*MemTokenStore); ok {
+		return auditTokenEconomy(ts)
+	}
+	return auditLegacyEconomy(s.(*MemStore))
+}
+
+// auditTokenEconomy is the same identity, checked against an outside source of
+// truth instead of only against ourselves — and it can assert one thing the
+// legacy audit cannot.
+//
+//  1. The token's total supply equals migrated+emitted. Every base unit
+//     counted has actually been issued, and none has been issued that was not
+//     counted.
+//  2. THE CORE HOLDS EXACTLY WHAT IT OWES: its own token balance must equal
+//     the pools, pending balances, open mint principals and parked curator
+//     pots. If the core ever holds more than it owes it has quietly taken
+//     someone's money; if it holds less, a payout it has promised will fail.
+//     There is no equivalent check today, because today the core holds
+//     nothing — the numbers were just rows.
+func auditTokenEconomy(s *MemTokenStore) string {
+	var all engine.Amount
+	for _, v := range s.Bal {
+		all += v
+	}
+	if all != s.Sup {
+		return "TOKEN INTERNALLY INCONSISTENT: balances " + fmtRaw(all) +
+			" != totalSupply " + fmtRaw(s.Sup)
+	}
+	want := MigratedSupply(s) + TotalEmitted(s)
+	if s.Sup != want {
+		return "SUPPLY LEAK: token supply " + fmtRaw(s.Sup) +
+			" != migrated+emitted " + fmtRaw(want) +
+			" (diff " + fmtRaw(s.Sup-want) + ")"
+	}
+	owed := coreObligations(s)
+	if got := s.Bal[s.Self]; got != owed {
+		return "CORE FLOAT WRONG: holds " + fmtRaw(got) +
+			" but owes " + fmtRaw(owed) + " (diff " + fmtRaw(got-owed) + ")"
+	}
+	return ""
+}
+
+// coreObligations is every claim on the tokens the core holds: the four
+// reward pools, the AMM's LASSECASH reserve, pending Proof-of-Brain balances,
+// the principal inside open mints, and curator pots parked on posts.
+func coreObligations(s keyedStore) engine.Amount {
+	var owed engine.Amount
+	for _, k := range s.Keys() {
+		switch {
+		case strings.HasPrefix(k, "pool_"), k == keyPoolLC:
+			owed += getAmount(s, k)
+		case strings.HasPrefix(k, "pend_"):
+			f := strings.Split(*s.Get(k), "|")
+			owed += engine.Amount(decI64(f[0]))
+		case strings.HasPrefix(k, "mint_"):
+			f := strings.Split(*s.Get(k), "|")
+			if len(f) >= 6 && !decBool(f[5]) {
+				owed += engine.Amount(decI64(f[0]))
+			}
+		case strings.HasPrefix(k, "post_"):
+			if p, ok := decodePost(*s.Get(k)); ok {
+				owed += p.CuratorPot
+			}
+		}
+	}
+	return owed
+}
+
+func auditLegacyEconomy(s *MemStore) string {
 	var held engine.Amount
 	for _, k := range s.Keys() {
 		switch {
@@ -306,7 +402,7 @@ func fmtRaw(a engine.Amount) string { return strconv.FormatInt(int64(a), 10) }
 //     reserves already spent.
 //
 // Returns "" when sound.
-func auditPoolCustody(s *MemStore, a *MemAssets) string {
+func auditPoolCustody(s keyedStore, a *MemAssets) string {
 	lcRes, hbdRes := PoolReserves(s)
 
 	if int64(hbdRes) != a.Held {
@@ -340,7 +436,7 @@ func auditPoolCustody(s *MemStore, a *MemAssets) string {
 // did: reserves of ~1e13 each multiply to ~1e26, which wrapped negative and
 // made every economy fail with "k SHRANK: 0 -> -4305396175147829280". The
 // fuzzer caught the checker, which is the right order for that to happen in.
-func productK(s *MemStore) *big.Int {
+func productK(s keyedStore) *big.Int {
 	lcRes, hbdRes := PoolReserves(s)
 	return new(big.Int).Mul(big.NewInt(int64(lcRes)), big.NewInt(int64(hbdRes)))
 }
