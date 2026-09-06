@@ -2009,8 +2009,12 @@ Both 6 September deploys are done, 20 HBD from @lassecashmagi's L1 balance
 3. `set_token` on the core
 4. `migrate_ledger`, batches of 50, rc_limit 50,000 (~822 RC/account, LINEAR)
 5. merge `duration-default-30`
-6. announce the new burn height; 10 October is not reachable with this done
-   properly
+6. **the key burn stays 10 October** (day 40, height 110,664,118). The
+   ledger is live from 8 Sep — 31 days before the burn, across the day-30
+   cliff and the 1 Oct monthly mint, which is what day 40 was chosen to
+   observe. A fix update still fits until 8 Oct 18:00 UTC. ⚠️ An earlier
+   line here said the date moves; that was written when this looked like
+   weeks of work, and it was wrong — Lasse caught it 6 Sep.
 
 ⚠️ **Until activation, production still runs the ORIGINAL launch code.** The
 contract-side bare-name `transfer` refusal is NOT live; `client.transfer`'s

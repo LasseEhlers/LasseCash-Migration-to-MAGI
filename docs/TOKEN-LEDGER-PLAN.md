@@ -218,12 +218,16 @@ Steps 1 and 3 spend 10 HBD each from @lassecashmagi's **Hive L1** balance
 MAGI HBD: at 150 HBD parked the meter is ~160,000, and consumed RC thaws over
 five days.
 
-**The burn date moves.** 10 October is not reachable with this done properly.
-Announce the new height once the production update has activated and the sweep
-is complete. The genesis post promised the burn and the reason for it; the
-honest framing is *"before freezing forever, LASSECASH adopts MAGI's token
-standard, so it can be traded and held everywhere on the network."*
-Announcement debt is cheaper than a frozen mistake.
+**The burn date does NOT move — 10 October stands.** This paragraph used to
+say the opposite, written on 6 Sep morning when the ledger looked like weeks
+of work. It took a day: activation is 8 Sep, the sweep is one call for 21
+accounts, and the ledger then runs live for 31 days before the burn — across
+the day-30 cliff (30 Sep) and the first monthly PoB mint (1 Oct), which is
+precisely what day 40 was chosen to observe. A corrective update still fits
+until 8 Oct 18:00 UTC. Lasse caught the stale line the same evening, after it
+had already been copied into two other documents and an outreach
+recommendation. Lesson: a date is a conclusion from a plan, and it has to be
+re-derived when the plan shrinks, not carried forward.
 
 ## One open question, to settle during the build
 

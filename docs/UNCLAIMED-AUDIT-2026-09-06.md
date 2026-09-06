@@ -49,30 +49,22 @@ Top of the list: `airanmilian` 413,066 · `aggroed` 308,855 · `eonwarped`
 everything unclaimed. Full ranked list with contact status:
 `tools/unclaimed-2026-09-06.json`.
 
-## ⚠️ Something in round 1 is now FALSE and is owed a correction
+## ~~Something in round 1 is now FALSE~~ — RETRACTED the same evening
 
-The letter that went to those 70 accounts says, in as many words:
-
-> "The keys burn on 10 October — after that nobody can alter the contract,
-> including me."
-
-**That date no longer holds.** The token-ledger work moved it, and
-`docs/TOKEN-LEDGER-PLAN.md` already records that 10 October is not reachable
-with this done properly. Seventy people were told a specific date by a project
-whose entire pitch is that it becomes unchangeable on that date.
-
-That is a real reason to write again, and a better one than repeating a
-deadline they have already ignored. It is also the kind of thing that costs
-much more when someone else notices it first. It should go out with the burn
-announcement rather than before it, so the message carries the new height
-instead of an apology with a blank where the date goes.
+This section claimed the round-1 letter's "keys burn on 10 October" was now
+wrong. **It is not. 10 October stands.** The claim rested on a stale line in
+the plan written when the ledger looked like weeks of work; Lasse caught it
+within the hour. Nothing in the letter needs correcting, and nobody should be
+written to about a date change. Kept here struck through rather than deleted
+so the record shows what was nearly sent.
 
 ## What the second round should actually say
 
 Not "claim your tokens" again. Three things they do not know:
 
-1. **The burn date moved, and why** — LASSECASH adopted MAGI's token standard
-   first, so it works with their wallets, indexer and cross-chain swaps.
+1. **LASSECASH is now a standard MAGI token** — it works with MAGI's own
+   wallets, indexer and cross-chain swaps, and the 10 October burn is
+   unchanged.
 2. **30 September is now three weeks away**, not four, and it is the line
    between a position that earns and one that merely exists.
 3. **Claiming costs nothing** — it fits inside the free resource allowance

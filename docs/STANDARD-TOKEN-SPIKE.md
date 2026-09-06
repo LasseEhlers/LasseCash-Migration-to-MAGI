@@ -206,7 +206,7 @@ and on the ledger he is right.
 
 | | Recovers | Costs |
 |---|---|---|
-| **Hardfork to a standard ledger before the burn** | everything, natively, no second token | A rewrite of the money layer of a live contract; owner-push import of ~353 accounts (cheap at this size, rehearsed in Aug); 2 LPs re-add manually; burn date moves ~November; the RC risk above; the frozen-v1 weld |
+| **Hardfork to a standard ledger before the burn** | everything, natively, no second token | A rewrite of the money layer of a live contract; owner-push import of ~353 accounts (cheap at this size, rehearsed in Aug); 2 LPs re-add manually; ~~burn date moves ~November~~ (it did not — done in a day, 10 Oct stands); the RC risk above; the frozen-v1 weld |
 | **Wrapper dApp after the burn** — own key, holds LASSECASH on our ledger, issues a 1:1 `magi_token` | Altera, their indexer, token-sdk wallets, the BTC flag — for the WRAPPED token | Two tokens for the core's life; an unwrap step (bundleable into the next action); wrapped pool is thin unless seeded |
 | **Do nothing** | — | Invisible to their tools; no BTC route |
 
