@@ -1953,20 +1953,42 @@ Draft: `docs/ANNOUNCEMENT-DRAFT.md` (technical parts written; Lasse's voice and
 closing line to add; criteria section still says 12 months and five months —
 update to 6 and seven).
 
-## ⏳ PRODUCTION CONTRACT UPDATE QUEUED — 2026-09-05 (read before touching the contract)
+## ⏳ PRODUCTION CONTRACT UPDATE — CANCELLED 2026-09-06, superseded by the token ledger
 
-The one and only production code update is in its 48-hour public window:
-**activates Monday 2026-09-07 at 22:01 CPH (20:01:21 UTC), height
-109,715,055**, on `vsc1Be4TTjUiHgzhHAfqFn6s3PDAExH2X59fXV`. It carries exactly
-three changes — `fund`, the bare-name `transfer` refusal, the 30-day monthly
-mint default — proven twice on throwaway #9 (round 2 activated 5 Sep 21:21
-CPH: state byte-identical, exactly the intended sweep change). The queued CID
-`bafkreieh7bs…5baa` is the content hash of the local `main.wasm` (sha256
-`87f865ab…9fa100`, HEAD `a9de1b7`), verified by recomputing it. **After
-activation, run the two checks in docs/UPDATE-PROOF-RUNBOOK.md "PRODUCTION
-QUEUED"** — diff against `prod-before.json`, sweep against
-`prod-sweep-before.txt` — and only then merge `duration-default-30`. The key
-burn on 10 October then closes the door with all three inside.
+**There is NO pending update on `vsc1Be4TTjUiHgzhHAfqFn6s3PDAExH2X59fXV`.**
+The 5 September update (queue tx `44334c0b…d2016f`, CID `bafkreieh7bs…5baa`,
+due to activate Mon 7 Sep 22:01 CPH) was **cancelled on 6 Sep at 21:2x CPH**
+by `vsc.cancel_contract_update` — cancel tx
+`2c394c62d2987e7452f126071a7b550889e24619`. Verified after the broadcast:
+`findPendingContractUpdates` returns empty and the live code is still
+`bafkreifnneb…e3fm`, the original launch build. Nothing activated.
+
+**Why it was cancelled, not allowed to land.** It carried exactly three
+changes — `fund`, the bare-name `transfer` refusal, the 30-day monthly mint
+default — and **all three are already inside the token-ledger build**, which
+is a strict superset. Letting it activate would have put a code version live
+for 47 hours before the token-ledger update superseded it, costing a second
+activation to verify on a second evening and buying nothing. The 10 HBD
+already paid is not refunded either way, so both paths cost the same 20 HBD in
+fees; cancelling buys a day. Lasse's call, 6 Sep, with the burn on 10 October
+as the reason the day matters more than the fee.
+
+**Consequences that must not be missed:**
+- The "PRODUCTION QUEUED" checks in `docs/UPDATE-PROOF-RUNBOOK.md` do NOT run
+  on 7 September. They run after the TOKEN-LEDGER update activates, against
+  the same `prod-before.json` / `prod-sweep-before.txt` baselines.
+- `duration-default-30` (frontend only — it makes the site read the contract's
+  30-day default instead of assuming 1,095) still merges only AFTER an update
+  carrying the contract-side default is live. That is now the token-ledger
+  update, not the 7 September one.
+- Production is still running the ORIGINAL launch code, so the bare-name
+  `transfer` refusal is NOT live on chain. The client-side qualification in
+  `client.transfer` is the only guard until the token-ledger update activates.
+  Do not describe the contract-side refusal as shipped before then.
+
+Next production sequence: deploy the `magi_token` (10 HBD), queue the core
+token-ledger update (10 HBD, 48h), `changeOwner`, `set_token`, then the sweep
+at 50 accounts per call. The key burn on 10 October closes the door.
 
 ## STATE OF PLAY — end of 2026-08-22 session (read this first)
 
