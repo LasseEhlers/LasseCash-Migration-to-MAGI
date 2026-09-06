@@ -80,6 +80,38 @@ This account is mine; the transfer history shows it. — Lasse`;
 // thing that quietly omits it.
 const LP_MEMO = `LasseCash has moved from Hive-Engine to MAGI — the first substantial contract on that chain. As someone who provides liquidity you may find it interesting: the pool is funded by 25% of every block reward, not by trading fees, and the swap fee is zero and can never be changed. The keys burn on 10 October — after that nobody can alter the contract, including me. Every account that ever held LASSECASH is published at lassecash.com/check. Have a look: lassecash.com/pool — Lasse (this account is mine)`;
 
+// ---------------------------------------------------------------- ROUND 2
+//
+// Written 6 Sep. 325 of 353 claimable accounts had not claimed; every one
+// holding >= 1,000 LASSECASH had already received round 1 and not acted. So
+// this is not the same letter again. It says the three things they were not
+// told: what RC is, that the free allowance covers the claim but little after
+// it (measured on production 6 Sep: a claim costs 7,100-7,600 of the free
+// 10,000), and that LASSECASH is now a standard MAGI token.
+//
+// SEND AFTER the token-ledger update has activated (Tue 8 Sep 21:23 CPH) —
+// the standard-token line is not true before then. The burn date is 10
+// October, unchanged, and the letter says so.
+//
+// Register matches round 1 deliberately: this account's outreach voice is
+// clean prose signed by Lasse, and a change of register is what reads as
+// outsourced, not polish.
+const COMMENT2_BODY = `**Your LASSECASH is still unclaimed, and 30 September is three weeks away.**
+
+Until then your position is a live mint that earns from the day you claim. After 30 September it still pays out in full but stops earning, and from 30 October it starts to shrink. Claim at **lassecash.com** — it takes one signature with any Hive wallet.
+
+**One thing the first letter should have explained.** MAGI, where LasseCash now runs, has no fees. What it has is resource credits, and your meter is simply your HBD balance on MAGI plus a free 10,000. The HBD is not spent — it just sits there and can be withdrawn any time. The free 10,000 is enough to claim, but a claim uses most of it, so posting or minting straight afterwards can fail until it refills over five days. If you want to do more than claim, parking one or two HBD on MAGI is the whole fix. That is not a fee; it is a balance you keep.
+
+Also new this week: LASSECASH is now a standard MAGI token, the same kind their own wallets and indexer understand, so it works everywhere on that chain.
+
+The keys burn on 10 October as announced. After that nobody can change the contract, including me.
+
+Details and the full snapshot: **${POST}**
+
+This account is mine; the transfer history shows it. — Lasse`;
+
+const MEMO2 = `Your LASSECASH is still unclaimed — claim at lassecash.com before 30 Sept while it still earns; it shrinks from 30 Oct. MAGI has no fees: the free 10,000 RC covers the claim, but to post or mint afterwards park 1-2 HBD on MAGI (kept, not spent, withdraw any time). Keys burn 10 Oct as announced. Details: ${POST} — this account is mine, Lasse.`;
+
 const MEMO = `LasseCash migrated to MAGI — your tokens are claimable at lassecash.com. Claim before 30 Sept while the position still earns. Details: ${POST} — this account is mine, Lasse.`;
 
 // ---------------------------------------------------------------- progress
@@ -103,7 +135,7 @@ async function latestPost(account) {
   return posts && posts.length ? posts[0] : null;
 }
 
-async function sendComment(account) {
+async function sendComment(account, body = COMMENT_BODY) {
   const parent = await latestPost(account);
   if (!parent) throw new Error("no posts to reply to");
   const permlink = `re-lassecash-${parent.permlink}`.slice(0, 200).toLowerCase()
@@ -114,7 +146,7 @@ async function sendComment(account) {
     author: ACCOUNT,
     permlink,
     title: "",
-    body: COMMENT_BODY,
+    body,
     // Deliberately NOT tagged `lassecash`: a tag would put 35 identical notices
     // into our own feed. This is outreach, not content.
     json_metadata: JSON.stringify({ app: "lassecash/2.0" }),
@@ -133,16 +165,28 @@ async function sendMemo(account, memo = MEMO) {
 
 async function main() {
   const mode = process.argv[2];
-  if (mode !== "comment" && mode !== "memo" && mode !== "lp") {
-    console.error("usage: node tools/outreach.js <comment|memo|lp> [--limit N] [--dry]");
+  if (!["comment", "memo", "lp", "round2"].includes(mode)) {
+    console.error("usage: node tools/outreach.js <comment|memo|lp|round2> [--limit N] [--dry] [--all]");
+    console.error("  round2: unclaimed holders from tools/unclaimed-2026-09-06.json, >= 1,000 LASSECASH");
+    console.error("          (--all includes the 255 smaller ones). Tries a comment on their latest");
+    console.error("          post; if they have none, sends the memo instead. Own progress bucket.");
     process.exit(1);
   }
   const dry = process.argv.includes("--dry");
   const li = process.argv.indexOf("--limit");
   const limit = li > -1 ? parseInt(process.argv[li + 1], 10) : Infinity;
 
-  const listFile = mode === "lp" ? "lp-outreach-list.json" : "outreach-list.json";
-  const split = JSON.parse(fs.readFileSync(`${ROOT}/tools/${listFile}`, "utf8"));
+  let split;
+  if (mode === "round2") {
+    // The audit file is ranked by value and records who got round 1. Every
+    // account >= 1,000 did; that is the point of writing to them again.
+    const all = JSON.parse(fs.readFileSync(`${ROOT}/tools/unclaimed-2026-09-06.json`, "utf8"));
+    const floor = process.argv.includes("--all") ? 0 : 1000;
+    split = { round2: all.filter((r) => r.lassecash >= floor).map((r) => r.account) };
+  } else {
+    const listFile = mode === "lp" ? "lp-outreach-list.json" : "outreach-list.json";
+    split = JSON.parse(fs.readFileSync(`${ROOT}/tools/${listFile}`, "utf8"));
+  }
   const progress = loadProgress();
   // A mode added after the file was first written has no bucket in it yet.
   if (!progress[mode]) progress[mode] = {};
@@ -150,7 +194,8 @@ async function main() {
 
   console.log(`${mode}: ${split[mode].length} on the list, ${todo.length} still to send`);
   if (dry) {
-    const body = mode === "memo" ? MEMO : mode === "lp" ? LP_MEMO : COMMENT_BODY;
+    const body = mode === "memo" ? MEMO : mode === "lp" ? LP_MEMO
+      : mode === "round2" ? `${COMMENT2_BODY}\n\n--- memo fallback ---\n${MEMO2}` : COMMENT_BODY;
     console.log(`\n--- body ---\n${body}\n---`);
     console.log(`\nwould send to: ${todo.slice(0, limit).join(", ")}`);
     return;
@@ -166,8 +211,18 @@ async function main() {
     if (tried >= limit) break;
     tried++;
     try {
-      const where = mode === "comment" ? await sendComment(account)
-        : await sendMemo(account, mode === "lp" ? LP_MEMO : MEMO);
+      let where;
+      if (mode === "round2") {
+        // Comment where there is something to reply to — it reads best and
+        // costs nothing — otherwise the memo, so nobody is skipped for being
+        // quiet on Hive. Progress records which one happened.
+        const parent = await latestPost(account);
+        where = parent ? `comment ${await sendComment(account, COMMENT2_BODY)}`
+                       : `memo ${await sendMemo(account, MEMO2)}`;
+      } else {
+        where = mode === "comment" ? await sendComment(account)
+          : await sendMemo(account, mode === "lp" ? LP_MEMO : MEMO);
+      }
       progress[mode][account] = { at: new Date().toISOString(), where };
       saveProgress(progress);
       sent++;

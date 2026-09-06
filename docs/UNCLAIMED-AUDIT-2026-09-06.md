@@ -88,3 +88,26 @@ and the one group we know received a letter is exactly the group that did not
 act. Whatever is stopping them, it is not that they were not told.
 
 Worth answering before 30 September rather than after.
+
+---
+
+## Round 2 — BUILT 6 Sep, send after Tuesday's activation
+
+`node tools/outreach.js round2 --dry` shows the letter and the 70 targets
+(every unclaimed holder of ≥ 1,000; `--all` widens to all 325). It tries a
+comment on the account's latest post and falls back to a 0.001 HBD memo when
+there is nothing to reply to, so nobody is skipped for being quiet. Own
+progress bucket, so round 1's records do not make it skip everyone.
+
+**Measured on production, 6 Sep, by simulating three real unclaimed proofs:**
+a claim costs 7,142–7,563 RC. The free 10,000 covers it, and leaves ~2,500 —
+not enough to post or mint straight after. That figure is why the letter says
+what it says about parking HBD. It is the wall imfarhad and silvertop hit.
+
+**Send it AFTER Tue 8 Sep 21:23 CPH**, once the token-ledger update has
+activated and the checks pass: the letter's "LASSECASH is now a standard MAGI
+token" line is not true before then. The comment path needs the POSTING key in
+`deploy-data/postingKey.txt`. Lasse presses send; the tool is resumable.
+
+Costs: comments free; memos 0.001 HBD each, so at most 0.07 HBD for the 70
+and 0.325 HBD for all 325.
