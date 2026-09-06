@@ -1,5 +1,8 @@
 # Draft: GitHub issue for the MAGI team (vsc-eco) — 2026-09-05, refreshed 09-06
 
+**POSTED 2026-09-06 10:13 CPH by Lasse: https://github.com/vsc-eco/altera-app/issues/144**
+(open; check it for replies before touching the indexer question again.)
+
 **Post it on https://github.com/vsc-eco/altera-app/issues/new** — checked
 2026-09-06: issues are enabled there and it is where users file Altera
 requests (101 issues so far); `magi-mongo-indexer` and `go-vsc-node` are
