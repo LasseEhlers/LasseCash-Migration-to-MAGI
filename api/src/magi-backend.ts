@@ -99,6 +99,50 @@ export class MagiBackend implements Backend {
   }
 
   /**
+   * An account's LASSECASH when the ledger lives in a standard magi_token.
+   *
+   * ⚠️ IT HAS TO BE A SIMULATED `balanceOf`, NOT A STATE READ. The token
+   * stores balances as big-endian unsigned bytes, and the node's GraphQL
+   * replaces every byte that is not valid UTF-8 with U+FFFD — 50,000,000,000
+   * comes back as "\u000b\ufffd;t\u0000" and the number is gone. Measured
+   * 2026-09-06; not our bug and not fixable from here. The CONTRACT reads the
+   * same key byte-exactly (ContractStateGet does a plain string(bytes)), so
+   * only outside readers are affected.
+   *
+   * Simulations cost no RC, so this is a round trip, not money.
+   */
+  async tokenBalance(tokenId: string, account: string): Promise<string> {
+    const acct = account.includes(":") ? account : "hive:" + account;
+    const data = await this.query<{
+      simulateContractCalls: { success: boolean; ret?: string | null }[] | null;
+    }>(
+      `query($i: SimulateContractCallsInput!) {
+         simulateContractCalls(input: $i) { success err_msg ret }
+       }`,
+      {
+        i: {
+          tx_id: "balanceOf",
+          required_auths: acct,
+          calls: [{
+            contract_id: tokenId,
+            action: "balanceOf",
+            payload: JSON.stringify({ account: acct }),
+            rc_limit: 10_000,
+            intents: [],
+          }],
+        },
+      },
+    );
+    const row = data.simulateContractCalls?.[0];
+    if (!row?.success || !row.ret) return "0";
+    try {
+      return (JSON.parse(row.ret) as { balance?: string }).balance ?? "0";
+    } catch {
+      return "0";
+    }
+  }
+
+  /**
    * The chain's verdict on a broadcast call.
    *
    * `findTransaction` reports PENDING until a MAGI block includes the call;
