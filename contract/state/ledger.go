@@ -45,7 +45,17 @@ func Schedule(s Store) engine.EmissionSchedule {
 // --- balances -------------------------------------------------------------
 
 // Balance returns an account's liquid balance.
-func Balance(s Store, account string) engine.Amount { return getAmount(s, balKey(account)) }
+//
+// With a token ledger the answer is the token's balance PLUS any legacy row
+// not yet migrated — both are the account's money, and during the sweep an
+// account may briefly have one of each. Reading is a cheap state read (17 RC
+// measured), not a contract call.
+func Balance(s Store, account string) engine.Amount {
+	if t, has := tokensOf(s); has {
+		return t.TokenBalance(account) + getAmount(s, balKey(account))
+	}
+	return getAmount(s, balKey(account))
+}
 
 // credit adds to a liquid balance. Callers must have sourced the amount from
 // somewhere that was debited, or from emission.
@@ -54,6 +64,21 @@ func credit(s Store, account string, amt engine.Amount) bool {
 		return false
 	}
 	if amt == 0 {
+		return true
+	}
+	if t, has := tokensOf(s); has {
+		// The core holds the float and hands it over. It does NOT mint here:
+		// minting happens only where supply legitimately grows (mintSupply),
+		// so the token's totalSupply can never drift from migrated+emitted.
+		// A short float means an accounting leak, and failing loudly is the
+		// correct response to one.
+		if !ensureMigrated(s, t, account) {
+			return false
+		}
+		if !t.TokenTransfer(account, amt) {
+			return false
+		}
+		noteAccount(s, account)
 		return true
 	}
 	cur := Balance(s, account)
@@ -70,6 +95,15 @@ func credit(s Store, account string, amt engine.Amount) bool {
 func debit(s Store, account string, amt engine.Amount) bool {
 	if amt < 0 {
 		return false
+	}
+	if t, has := tokensOf(s); has {
+		if !ensureMigrated(s, t, account) {
+			return false
+		}
+		if t.TokenBalance(account) < amt {
+			return false
+		}
+		return t.TokenTransferFrom(account, amt)
 	}
 	cur := Balance(s, account)
 	if cur < amt {

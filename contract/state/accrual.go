@@ -334,7 +334,9 @@ func accrueWalk(s Store, toHeight uint64, maxDays int, retireBudget int) bool {
 		addPool(s, keyPoolDeep, deep)
 		addPool(s, keyPoolLiquidity, engine.Split(totalEmitted).Liquidity)
 		addPool(s, keyPoolLShare, lshareTotal)
-		setAmount(s, keyEmitted, getAmount(s, keyEmitted)+totalEmitted)
+		if !mintSupply(s, keyEmitted, totalEmitted) {
+			return
+		}
 	}
 
 	setU64(s, keyAccPerShare, uint64(acc))
