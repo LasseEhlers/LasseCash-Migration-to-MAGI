@@ -86,6 +86,27 @@ with. Mitigated by the fact that this is **ERC-20's interface** — `transfer`,
 and their contract has been unchanged since 19 May 2026 with an external audit
 behind it.
 
+## ⚠️ TOKEN BALANCES CANNOT BE READ THROUGH GraphQL — measured 2026-09-06
+
+A magi_token stores balances as **big-endian unsigned bytes**, and the node's
+GraphQL layer replaces any byte that is not valid UTF-8 with U+FFFD. Asking
+`getStateByKeys` for `bal|hive:null` when it holds 50,000,000,000 returns
+`"\u000b\ufffd;t\u0000"` — the `0xA4` is destroyed and the number is
+unrecoverable. This is not our bug and not fixable from our side.
+
+**The contract path is fine**, and that is what matters for correctness:
+`ContractStateGet` does a plain `string(bytes)` with no validation. Proven on
+the devnet with a probe contract that reads the token and returns what it
+sees: **`len=5 value=50000000000`**, exact.
+
+**Consequence for the site and the API, and it is not optional:** anything
+outside the chain must read balances by calling the token's **`balanceOf`**
+through `simulateContractCalls`, which answers `{"balance":"50000000000"}` as
+a decimal string. Simulations cost no RC, so this is a latency cost, not a
+money one. Affects `MagiBackend.account()`, the `/api/supply` burned figure
+(hive:null's balance moves into the token) and anything else that reads
+`bal_`.
+
 ## Two properties inherent to a standard token, to state publicly
 
 1. **Anyone can call the token directly**, bypassing our site — including
