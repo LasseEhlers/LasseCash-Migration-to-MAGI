@@ -109,7 +109,7 @@ is read from the chain.
 |---|---|---|
 | LiveCoinWatch — exchange | https://www.livecoinwatch.com/requests/exchange | Free. Do this one first of all |
 | LiveCoinWatch — coin | https://www.livecoinwatch.com/requests/coin | Free; they say ~72 h. Name "LasseCash Pool" as the market |
-| CoinPaprika | https://coinpaprika.com/add/ — one request form; choose the exchange/market option first, then the coin | Free. Wants the CoinGecko- or CMC-shaped API |
+| CoinPaprika | https://coinpaprika.com/add/ → Add a new project → **Normal Track** (free, ~1 month) | **Exchange: pay-walled** — "Normal track unavailable for New Exchanges", Fast Track only ($1,000–2,000). Refused 2026-09-06; do not pay, do not retry. Asset: pick **Coin**, not Token — the Token path auto-validates the contract address on chains they support and a `vsc1…` address fails it |
 | CoinGecko | Self-serve "Partners Platform": log in on coingecko.com → Request & Listing → New Request. Directory of forms: https://support.coingecko.com/hc/en-us/articles/23960919544345-Support-Directory-CoinGecko-Request-Forms · new-chain request (this is the MAGI ask): https://support.coingecko.com/hc/en-us/articles/53285925784345-How-to-Request-a-New-Chain-Listing-Asset-Platform | Coin must trade on an exchange CoinGecko already tracks → exchange/chain first. Free "Regular Pass"; ignore Fast Pass |
 | CoinMarketCap | https://coinmarketcap.com/request/ → "[New Listing] Add exchange", then "[New Listing] Add cryptoasset" (direct: https://support.coinmarketcap.com/hc/en-us/requests/new?ticket_form_id=360000493112) | Not before 30 October 2026 (60-day rule). UCID for HBD is 5375. CMC says the form is the ONLY route — anyone offering a paid "listing service" is lying |
 
