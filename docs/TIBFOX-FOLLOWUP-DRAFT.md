@@ -34,25 +34,51 @@ something easy to say yes to.
 
 ## The message
 
-> you were right, and it only took a day to fix, so thanks for saying it
-> straight rather than being polite about it.
+Written in Lasse's own register, not in clean prose. That is deliberate — see
+"Why it reads rough" below. Every identifier inside it is exact and was
+re-verified against the chain on 6 Sep.
+
+> ok its live... LASSECASH is a standard magi_token now.
 >
-> LASSECASH is a standard magi_token as of tonight. I didn't write my own —
-> I deployed yours, `vsc-eco/magi_token-contract` at `ee21119`, unmodified.
+> and I didnt write my own, I deployed yours... vsc-eco/magi_token-contract at
+> ee21119, no changes.
 >
 > token: `vsc1BUDsVccMPGycTmpc98WsQYSKyTBsZqFq4h`
-> core: `vsc1Be4TTjUiHgzhHAfqFn6s3PDAExH2X59fXV` — it owns the token, so every
-> balance moves through the standard `transfer` / `transferFrom`.
+> core: `vsc1Be4TTjUiHgzhHAfqFn6s3PDAExH2X59fXV`
 >
-> so there's no custom logic for anyone to write on the token side. `init`
-> emits `init_magi_token`, which is what your indexer discovers on. if it
-> hasn't shown up, tell me what's wrong on my end and I'll fix it.
+> the core owns the token so balances move with the normal transfer /
+> transferFrom... nothing custom left for anybody to write :)
 >
-> the one thing I can't do myself is `register_token` on the router, since
-> that's owner-only on your side. that's the flag you mentioned for btc →
-> lassecash. no rush at all. happy to do whatever part of it is mine.
+> init emits init_magi_token so your indexer should pick it up by itself. if it
+> doesnt show, tell me whats wrong on my end and I fix it.
+>
+> the one thing I cant do myself is register_token on the router, thats owner
+> only on your side... the flag you mentioned for btc to lassecash. no rush.
+> happy to do whatever part is mine.
+>
+> you were right by the way... took a day to fix. thanks for saying it straight
+> instead of being polite.
 
----
+## Why it reads rough
+
+An earlier version of this draft was clean prose — balanced clauses, full
+punctuation, no ellipses. It was replaced, because pasting that into a channel
+where Lasse has posted in fragments for a year is the giveaway, not the fix.
+
+**The tell is not polish, it is a change of register.** Nobody notices a rough
+message from someone who always writes roughly. People notice when a person who
+writes in bursts suddenly produces three balanced paragraphs. Keep the voice
+constant and let the care vary with the context: a GitHub issue is tighter than
+a Discord line because that is what everyone does, and that is not suspicious.
+
+**But the roughness stops at the facts.** Loose sentences, exact identifiers. A
+contract id with one character wrong reads as careless about the engineering,
+which is the precise impression this message exists to undo. The two contract
+ids and the commit hash above were each re-queried before this was written.
+
+**Do not manufacture errors.** Leaving natural roughness alone is free.
+Inserting mistakes overshoots, and deliberately sloppy writing next to a precise
+technical claim reads worse than either would alone.
 
 ## What is deliberately NOT in it
 
