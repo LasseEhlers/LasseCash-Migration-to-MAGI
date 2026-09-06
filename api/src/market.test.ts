@@ -197,3 +197,26 @@ test("node timestamps without a zone are read as UTC", () => {
   assert.equal(utcIso("2026-09-05T16:13:09Z"), "2026-09-05T16:13:09Z");
   assert.equal(utcIso("2026-09-05T16:13:09+00:00"), "2026-09-05T16:13:09+00:00");
 });
+
+test("supply: the burned figure can come from the token ledger", () => {
+  // Once LASSECASH lives in a magi_token, hive:null's balance is a row in
+  // THAT contract and getStateByKeys cannot return it — the node destroys
+  // non-UTF-8 bytes. The caller reads it via balanceOf and passes it in.
+  const raw = {
+    sup_migrated: "27763864243199590",
+    sup_emitted: "3652967923200",
+    "bal_hive:null": "0", // the legacy row is gone after migration
+    cfg_migtotal: "0",
+    sup_claimed: "0",
+  };
+  const stale = supplyFigures(raw);
+  assert.equal(stale.burned, 0n, "without the override the burn reads as zero");
+
+  const fromToken = supplyFigures(raw, 1868891072711925n);
+  assert.equal(fromToken.burned, 1868891072711925n);
+  assert.equal(
+    fromToken.circulating,
+    fromToken.total - 1868891072711925n,
+    "burned value stays inside total and out of circulating",
+  );
+});
