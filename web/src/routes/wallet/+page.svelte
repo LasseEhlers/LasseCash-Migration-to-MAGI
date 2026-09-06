@@ -176,9 +176,23 @@
     swapFrom = t; swapTo = f; swapAmount = "";
   }
 
+  /** What client.magiSwap reserves on MAGI's router (api/src/client.ts). */
+  const MAGI_SWAP_RC = 3_000;
+
   async function doMagiSwap() {
     if (!quote) return;
     swapErr = null; swapMsg = null;
+    // Their pool, but OUR user's meter. The router call reserves MAGI_SWAP_RC
+    // and the node refuses below it with "minimum RC requirement is not met"
+    // — say so before the wallet opens, with the numbers (2026-09-06:
+    // @angeloextreme sent his HBD away, the meter fell to 3 of 10,000, and
+    // the next swap died with no reason on screen).
+    if (magiRc && magiRc.amount < MAGI_SWAP_RC) {
+      swapErr = `Not enough resource credits on MAGI: ${Math.trunc(magiRc.amount).toLocaleString()} of `
+        + `${Math.trunc(magiRc.max).toLocaleString()} available, and a swap reserves ${MAGI_SWAP_RC.toLocaleString()}. `
+        + "Spent credits recover over five days; HBD held on MAGI raises the meter immediately.";
+      return;
+    }
     const paid = `${swapAmount} ${swapFrom}`;
     // chain.submit follows the call to the CONTRACT's verdict, not just to
     // Hive accepting the broadcast. Without it a refusal reads as success:
@@ -219,10 +233,35 @@
     BTC: btcBal,
   }));
 
+  /**
+   * Sending HBD off the account SHRINKS the RC meter by the same amount —
+   * capacity is HBD milli + 10,000 free — and credits already spent stay
+   * spent. @angeloextreme sent his 8.000 HBD to Lasse with ~13,450 RC used
+   * against an 18,000 meter; the meter became 10,000, available clamped to
+   * zero, and every action was refused for five days (2026-09-06). The send
+   * is legitimate, so it is not blocked: the first press explains, the second
+   * press with the same figures goes through.
+   */
+  let sendWarnedFor = $state("");
+  const SEND_RC_FLOOR = 1_000;
+
   async function doSend() {
     sendErr = null; sendMsg = null;
     const what = `${sendAmount} ${sendAsset}`;
     const to = sendTo.trim().replace(/^@/, "");
+    if (sendAsset === "HBD" && magiRc) {
+      const milli = Math.round(Number(sendAmount || "0") * 1000);
+      const left = Math.trunc(magiRc.amount) - milli;
+      const key = `${sendAsset}|${sendAmount}|${to}`;
+      if (Number.isFinite(milli) && milli > 0 && left < SEND_RC_FLOOR && sendWarnedFor !== key) {
+        sendWarnedFor = key;
+        sendErr = `Sending ${sendAmount} HBD also lowers your resource credits by ${milli.toLocaleString()} — `
+          + `you would have ${Math.max(0, left).toLocaleString()} left, and claims, swaps, posts and votes on MAGI `
+          + "would be refused until credits recover (about five days), or until HBD is deposited again. "
+          + "Press Send again to do it anyway.";
+        return;
+      }
+    }
     const refusal = await chain.submit(() => client.sendAsset(sendAsset, to, sendAmount, sendMemo));
     if (refusal) { sendErr = refusal; return; }
     sendMsg = `Sent ${what} to @${to}.`;
@@ -278,6 +317,19 @@
     btcBal = await client.btcBalance().catch(() => null);
   }
   onMount(() => { void loadMeters(); void loadOps(); });
+  // The layout refreshes chain state every 30 s; the meters and Hive-side
+  // balances are this page's own reads and used to stay at their mount-time
+  // values — an action taken in another tab (a Send of all HBD) left the RC
+  // bar reading 4,548 / 18,000 against a live 3 / 10,000 (2026-09-06).
+  let metersAt = 0;
+  $effect(() => {
+    const h = chain.info?.height;
+    if (!h || !meters) return;
+    const now = Date.now();
+    if (now - metersAt < 25_000) return;
+    metersAt = now;
+    void loadMeters();
+  });
   // Signing in on this page should fill the meters without a reload.
   $effect(() => { if (chain.account && !meters) void loadMeters(); });
 

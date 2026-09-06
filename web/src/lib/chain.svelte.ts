@@ -275,6 +275,15 @@ class ChainStore {
         try { verdict = await client.txStatus(txId); } catch { /* node hiccup: keep waiting */ }
         if (verdict.status === "CONFIRMED" || verdict.status === "FAILED") break;
       }
+      // FAILED lands a beat BEFORE the output DAG that carries errMsg. Stopping
+      // at the first FAILED read gave "The chain refused this call." for a
+      // swap whose recorded reason was "minimum RC requirement is not met.
+      // RCs available: 0" — the one sentence the user needed (2026-09-06,
+      // @angeloextreme). Ask again a few times for the reason before giving up.
+      for (let i = 0; i < 3 && verdict.status === "FAILED" && !verdict.error; i++) {
+        await new Promise((r) => setTimeout(r, 10_000));
+        try { verdict = await client.txStatus(txId); } catch { /* keep the FAILED we have */ }
+      }
       await this.refresh();
       if (verdict.status === "FAILED") {
         return chainRefusal(verdict.error);

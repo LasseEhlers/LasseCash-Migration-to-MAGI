@@ -780,6 +780,17 @@ fraction of that — which manufactured a phantom reservation and refused a
 on an HBD-drawing call before that fix was taken against a poisoned probe;
 the real ceilings were higher than the site reported.
 
+**Corollary, seen live 2026-09-06: SENDING HBD AWAY SHRINKS THE METER, and
+spent credits stay spent.** @angeloextreme had ~13,450 RC consumed against
+an 18,000 meter (8 HBD), sent the 8 HBD to @lasseehlers, and the meter
+became 10,000 with 13,450 used — available clamped to 0, every call refused
+("minimum RC requirement is not met. RCs available: 0") until the five-day
+thaw or a fresh deposit. The Send form now warns on the first press when an
+HBD send would leave under 1,000 RC; the MAGI-pool swap preflights the
+3,000 it reserves; the wallet meters follow the 30 s tick; and
+`awaitVerdict` re-asks for a FAILED transaction's reason, because the
+output DAG (which carries `errMsg`) lands a beat after the status flips.
+
 ## ⚠️ A BARE NAME IN `transfer` STRANDED 1,030 LC — FIXED 2026-09-01
 
 Lasse sent 1,000 LC to his daughter's account and it never arrived. The call
