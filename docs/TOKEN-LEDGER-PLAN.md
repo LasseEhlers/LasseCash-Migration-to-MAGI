@@ -173,25 +173,52 @@ Nothing reaches production until all of this passes on a throwaway:
 6. A real `claim_migration` on the throwaway from a fresh account with the
    free 10,000 RC, confirming the projected 4,221–6,096.
 
-## Sequence
+## Sequence — the production run
 
-| | |
-|---|---|
-| 1 | **Mon 7 Sep 22:01 CPH** — the already-queued production update activates; run the diff + sweep in `UPDATE-PROOF-RUNBOOK.md`, merge `duration-default-30`. **Unrelated to this work and unchanged.** |
-| 2 | Build: token deploy tooling, `credit`/`debit` through the token, `ensureMigrated`, `migrate_ledger`, the invariant, the site's allowance bundling |
-| 3 | Throwaway #10 — the six checks above |
-| 4 | Deploy the production token (10 HBD), owned by `hive:lassecashmagi` |
-| 5 | Queue the core update — 48h public timelock, visible on `/chain` the whole time |
-| 6 | On activation, IN THIS ORDER: `changeOwner` on the token to the core, then `set_token` on the core, then `migrate_ledger` in batches. **The handover comes FIRST** — migrating mints, and only the owner can mint. (The plan said the reverse; writing the proof caught it.) Recoverable throughout: the core's key is not burned yet |
-| 7 | Ask MAGI for `register_token` + `register_pool` (both owner-only on their router) — the BTC route. **Not on the critical path**; it can come any time after |
-| 8 | **Burn the key**, at a height announced with the reason |
+**Step 0 is done: the 7 September update was CANCELLED on 6 Sep** (cancel tx
+`2c394c62d2987e7452f126071a7b550889e24619`). `findPendingContractUpdates` is
+empty, production still runs the original launch code `bafkreifnneb…e3fm`, and
+its three changes all live inside the token-ledger build anyway. See the
+CLAUDE.md section "PRODUCTION CONTRACT UPDATE — CANCELLED 2026-09-06".
+
+**The artifact is verified.** Throwaway #10's on-chain code CID
+`bafkreihztepfwl5noydp3qab7odgsfvtfetupozxytbxw4uorxqdm5nrsu` is byte-identical
+to the local `contract/artifacts/main-tokenledger.wasm`. What was proven on
+mainnet is the exact file that goes to production. Recompute any time with
+`tools/cid.py` (CIDv1 + raw codec + sha256, base32) — it reproduces the
+old queued CID from `main.wasm` exactly, which is how the method was checked.
+
+| # | Step | Command | Cost |
+|---|---|---|---|
+| 1 | Deploy the production token | `WASM=contract/artifacts/magi-token.wasm NAME=LASSECASH DESC="LASSECASH — the token ledger of the LasseCash core contract" ./deploy.sh deploy` | 10 HBD (L1) |
+| 2 | `init` the token | `node tools/chain-test/call.js <TOKEN> init '{"name":"LasseCash","symbol":"LASSECASH","decimals":8,"maxSupply":"5100000000000000"}'` | RC |
+| 3 | Queue the core update | `WASM=contract/artifacts/main-tokenledger.wasm CONTRACT_ID=vsc1Be4TTjUiHgzhHAfqFn6s3PDAExH2X59fXV ./deploy.sh update` | 10 HBD (L1) |
+| 4 | Wait out the 48-hour public timelock | visible on `/chain` and via `findPendingContractUpdates` the whole time | — |
+| 5 | On activation: run the diff + sweep | `docs/UPDATE-PROOF-RUNBOOK.md` "PRODUCTION QUEUED" — against `prod-before.json` and `prod-sweep-before.txt` | free |
+| 6 | Hand the token to the core | `changeOwner` -> `contract:vsc1Be4TTj…` | RC |
+| 7 | Point the core at the token | `set_token <TOKEN>` | RC |
+| 8 | Sweep the legacy rows | `migrate_ledger` in batches of **50**, rc_limit **50,000** | ~822 RC/account |
+| 9 | Merge `duration-default-30` | frontend only; only after step 5 passes | — |
+| 10 | Ask MAGI for `register_token` + `register_pool` | owner-only on their router — the BTC route. NOT on the critical path | — |
+| 11 | **Burn the key**, at an announced height | | |
+
+**Step 6 comes BEFORE step 7 and 8, and that order is load-bearing.** The
+sweep mints, and only the owner can mint — so the core must own the token
+before `migrate_ledger` can move a single row. Proven on throwaway #10, where
+@lassecashmagi was refused with "Must be owner to mint" the moment the handover
+landed.
+
+Steps 1 and 3 spend 10 HBD each from @lassecashmagi's **Hive L1** balance
+(26.898 HBD as of 6 Sep — enough, leaving ~6.9). Step 8 spends RC, which is
+MAGI HBD: at 150 HBD parked the meter is ~160,000, and consumed RC thaws over
+five days.
 
 **The burn date moves.** 10 October is not reachable with this done properly.
-Announce the new height once step 3 passes — realistically early November.
-The genesis post promised the burn and the reason for it; the honest framing
-is *"before freezing forever, LASSECASH adopts MAGI's token standard, so it
-can be traded and held everywhere on the network."* Announcement debt is
-cheaper than a frozen mistake.
+Announce the new height once the production update has activated and the sweep
+is complete. The genesis post promised the burn and the reason for it; the
+honest framing is *"before freezing forever, LASSECASH adopts MAGI's token
+standard, so it can be traded and held everywhere on the network."*
+Announcement debt is cheaper than a frozen mistake.
 
 ## One open question, to settle during the build
 
@@ -207,8 +234,17 @@ supply, and outside tools never disagree with `/api/supply`.
 If the migration fails part-way, the state is consistent by construction:
 migrated accounts have tokens and no `bal_`, unmigrated ones have `bal_` and
 no tokens, and `ensureMigrated` handles both. The sweep can be re-run; it is
-idempotent. The one irreversible step is `changeOwner` to the core, which
-happens LAST, after the rows are all across and verified.
+idempotent, and a half-finished sweep is a working chain — an unmigrated row
+migrates itself the next time its owner is touched.
+
+⚠️ **This paragraph used to end "the one irreversible step is `changeOwner`,
+which happens LAST, after the rows are all across" — that was WRONG and it
+contradicted the sequence above.** `changeOwner` must come FIRST: the sweep
+mints into the token, and only the owner can mint, so no row can cross until
+the core owns the token. The stale sentence survived the correction that fixed
+the numbered list, which is exactly how an operational document gets someone to
+do the wrong thing at midnight. `changeOwner` is still the irreversible step —
+it just happens early, and everything after it is re-runnable.
 
 
 ---
