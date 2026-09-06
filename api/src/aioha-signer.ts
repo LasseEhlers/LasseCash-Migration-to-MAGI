@@ -411,6 +411,17 @@ export class AiohaWallet {
    */
   async simulate(
     account: string, action: string, payload: string, intents: unknown[], probeRcLimit = 100_000,
+    /**
+     * A call that will be broadcast IMMEDIATELY BEFORE this one, in the same
+     * transaction, against a possibly different contract.
+     *
+     * Without this the dry run is a lie for anything that spends a token
+     * allowance: `mint` on its own has no allowance to spend, so it simulates
+     * as "Insufficient allowance" and the signer refuses to open the wallet
+     * for a call that would have succeeded. Found on throwaway #10,
+     * 2026-09-06, the first time a real mint was attempted on a token ledger.
+     */
+    precall?: { contractId: string; action: string; payload: string },
   ): Promise<
     { ok: true; gas: number } | { ok: false; msg: string; gasLimitHit: boolean }
   > {
@@ -444,14 +455,31 @@ export class AiohaWallet {
           simulateContractCalls(input: $i) { success err_msg gas_used } }`,
         variables: { i: {
           tx_id: "sim", required_auths: addr,
-          calls: [{ contract_id: this.#contractId, action, payload, rc_limit: probeRcLimit, intents }],
+          calls: [
+            ...(precall
+              ? [{
+                  contract_id: precall.contractId, action: precall.action,
+                  payload: precall.payload, rc_limit: probeRcLimit, intents: [],
+                }]
+              : []),
+            { contract_id: this.#contractId, action, payload, rc_limit: probeRcLimit, intents },
+          ],
         } },
       }),
     });
     const body = (await res.json()) as {
       data?: { simulateContractCalls?: { success: boolean; err_msg?: string | null; gas_used: number }[] };
     };
-    const r = body.data?.simulateContractCalls?.[0];
+    const rows = body.data?.simulateContractCalls ?? [];
+    // The USER'S call is the last one; anything before it is the allowance we
+    // prepended. A failed call aborts the rest of the batch, so a short result
+    // list means the precall itself was refused — report that, not silence.
+    const first = rows[0];
+    if (precall && first && !first.success) {
+      const m = first.err_msg ?? "the allowance call was refused";
+      return { ok: false, msg: m, gasLimitHit: /gas_limit|cost limit/i.test(m) };
+    }
+    const r = rows[rows.length - 1];
     if (!r) throw new BackendError("simulation returned nothing");
     if (r.success) return { ok: true, gas: r.gas_used };
     const msg = r.err_msg ?? "refused";
@@ -1037,8 +1065,15 @@ export class AiohaSigner implements Signer {
     // that only manufactures a bigger phantom exclusion against the HBD draw
     // for no benefit — see the warning on AiohaWallet.simulate.
     const probeRcLimit = entrypoint in AiohaSigner.HBD_DRAW_OPS ? AiohaSigner.RC_CEILING : undefined;
+    // The allowance rides with the real call, so it must ride with the dry run
+    // too — otherwise `transferFrom` has nothing to spend and a perfectly good
+    // call simulates as "Insufficient allowance".
+    const precall = await this.allowanceCall(entrypoint, args);
     try {
-      sim = await this.wallet.simulate(this.account, entrypoint, args, intents, probeRcLimit);
+      sim = await this.wallet.simulate(
+        this.account, entrypoint, args, intents, probeRcLimit,
+        precall && { contractId: precall.contractId, action: precall.action, payload: precall.payload },
+      );
     } catch {
       // The node could not simulate, so the table is the only estimate — but
       // admission still checks rc_limit against AVAILABLE RC, so a broadcast
@@ -1156,6 +1191,32 @@ export class AiohaSigner implements Signer {
     return res;
   }
 
+  /**
+   * The `increaseAllowance` that must accompany any call debiting the caller's
+   * LASSECASH, or undefined when the ledger is still `bal_` rows.
+   *
+   * ONE builder, used by both the dry run and the broadcast. They diverged
+   * once — the broadcast carried the allowance and the simulation did not —
+   * and the result was a refusal for a call that would have worked.
+   */
+  private async allowanceCall(
+    entrypoint: string, args: string,
+  ): Promise<{ action: string; payload: string; rcLimit: number; intents: unknown[]; contractId: string } | undefined> {
+    const debitArg = AiohaSigner.TOKEN_DEBIT_OPS[entrypoint];
+    if (debitArg === undefined) return undefined;
+    const tokenContractId = await this.wallet.tokenContract();
+    if (!tokenContractId) return undefined;
+    const amount = (args.split("|")[debitArg] ?? "0").trim();
+    if (!/^\d+$/.test(amount) || amount === "0") return undefined;
+    return {
+      action: "increaseAllowance",
+      payload: JSON.stringify({ spender: `contract:${this.contractId}`, amount }),
+      rcLimit: AiohaSigner.ALLOWANCE_RC,
+      intents: [],
+      contractId: tokenContractId,
+    };
+  }
+
   async submit(entrypoint: string, args: string, opts?: SubmitOptions): Promise<TxResult> {
     const keyType = AiohaSigner.ACTIVE_OPS.has(entrypoint)
       ? KeyTypes.Active
@@ -1187,24 +1248,8 @@ export class AiohaSigner implements Signer {
     // The LASSECASH allowance, when the ledger is a token. Goes ahead of
     // everything else and against the TOKEN, not our contract — one signed
     // transaction either way, so the user still sees a single confirm.
-    const debitArg = AiohaSigner.TOKEN_DEBIT_OPS[entrypoint];
-    const tokenContractId =
-      debitArg === undefined ? undefined : await this.wallet.tokenContract();
-    if (tokenContractId && debitArg !== undefined) {
-      const amount = (args.split("|")[debitArg] ?? "0").trim();
-      if (/^\d+$/.test(amount) && amount !== "0") {
-        pre.push({
-          action: "increaseAllowance",
-          payload: JSON.stringify({
-            spender: `contract:${this.contractId}`,
-            amount,
-          }),
-          rcLimit: AiohaSigner.ALLOWANCE_RC,
-          intents: [],
-          contractId: tokenContractId,
-        });
-      }
-    }
+    const allowance = await this.allowanceCall(entrypoint, args);
+    if (allowance) pre.push(allowance);
     for (const pc of opts?.preCalls ?? []) {
       const lim = await this.sizeRc(pc.entrypoint, pc.args, [], AiohaSigner.RC_LIMITS[pc.entrypoint] ?? this.rcLimit);
       if (typeof lim !== "number") break; // cannot afford more slices: send what we can

@@ -345,6 +345,10 @@ export class MagiBackend implements Backend {
     const acct = name.includes(":") ? name : "hive:" + name;
     const base = await this.state([
       "bal_" + acct, "shr_" + acct, "pend_" + acct, "mseq_" + acct,
+      // Where LASSECASH lives. Empty until the ledger moves into a standard
+      // magi_token; set afterwards, and then `bal_` is the legacy row that has
+      // not migrated yet rather than the whole balance.
+      "cfg_token",
       "set_" + acct + "_days", "acc_per", "acc_day", "cfg_genesis",
       "gov_board",
       // vote meters (absent = never voted = FULL; the contract's
@@ -355,6 +359,22 @@ export class MagiBackend implements Backend {
       "pool_liq", "amm_accseen", "amm_accheld", "amm_acc", "amm_weight",
     ]);
     const height = await this.height();
+    /**
+     * The balance, from wherever it actually is.
+     *
+     * With a token ledger it is the token's balance PLUS any `bal_` row not
+     * yet swept — both are the account's money, and during the migration an
+     * account can briefly hold one of each, exactly as `state.Balance` does
+     * on-chain. It has to come from `balanceOf`, not a state read: the node's
+     * GraphQL destroys the token's raw bytes (see tokenBalance).
+     */
+    const tokenId = base["cfg_token"];
+    const liquid = tokenId
+      ? (
+          BigInt(await this.tokenBalance(tokenId, acct)) +
+          BigInt(base["bal_" + acct] || "0")
+        ).toString()
+      : base["bal_" + acct];
     const seq = num(base["mseq_" + acct]);
 
     const mintKeys: string[] = [];
@@ -493,7 +513,7 @@ export class MagiBackend implements Backend {
 
     return {
       account: acct,
-      balance: units(base["bal_" + acct]),
+      balance: units(liquid),
       shares: units(base["shr_" + acct]),
       pending: units((base["pend_" + acct] ?? "0").split("|")[0]),
       pending_curation: 0, // informational only; needs the queue cursors
