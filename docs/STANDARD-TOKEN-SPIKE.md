@@ -53,7 +53,49 @@ migration, which we run ourselves and can cut into batches of ten. **The live
 contract never needs a batch transfer.** This was the strongest objection to
 the whole idea and it does not survive contact with the code.
 
-## 🟡 THE NUMBER — being measured, and no longer a veto
+## ✅ MEASURED ON THE DEVNET, 2026-09-06 — it is cheap, and ownership works
+
+`tools/devnet/measure-token-ledger.sh`, against a real `magi_token` built from
+vsc-eco's source and a probe contract that does *n* of one thing, so the fixed
+entry cost cancels in the subtraction `(gas(n=5) − gas(n=1)) / 4`.
+
+| one operation | marginal gas | RC | |
+|---|---|---|---|
+| local state write (what a credit costs today) | 9,701,766 | **97** | |
+| **cross-contract `transfer` into the token** | 30,131,556 | **301** | 3.1x a local write |
+| cross-contract state READ | 1,700,778 | **17** | cheaper than a local write |
+| entry/parse floor (`noop`) | 0 | 0 | |
+
+**A balance movement costs +204 RC.** Projected onto real actions:
+
+| | today | with a token ledger |
+|---|---|---|
+| `claim_migration` | 4,017–5,892 RC | **4,221–6,096 RC** |
+| `mint` (lock: approve + transferFrom) | 1,976 RC | ~2,385 RC |
+| `transfer` | 285 RC | ~489 RC |
+
+**A claim still fits a fresh account's free 10,000 RC with ~3,900 to spare.**
+The concern that opened this spike does not materialise — nobody has to buy
+HBD to claim. (Lasse had already ruled it a non-blocker either way; it turns
+out not to be a cost at all.)
+
+Reads being cheaper than local writes is a design lever: the core can read
+balances straight out of the token (`ContractStateGet`, 17 RC) and pay the
+301 only when it moves value.
+
+### ✅ A CONTRACT CAN OWN THE TOKEN — proven on-chain, not inferred
+
+`changeOwner` to `contract:vsc1BcHL18…` was CONFIRMED; the token's `owner`
+key then read `contract:vsc1BcHL18…`, and the previous human owner was
+refused: **`Must be owner to mint`**. That is the load-bearing claim of the
+whole design, and it holds against a running node.
+
+⚠️ Devnet caveat (CLAUDE.md): the devnet charges ACTUAL RC while mainnet
+freezes the full `rc_limit`. Gas is the trustworthy figure here, and RC is
+derived from it at the fixed 100,000 gas = 1 RC. Re-validate budgets on a
+mainnet throwaway before committing.
+
+## 🟡 The original framing — no longer a veto
 
 **Lasse's call, 2026-09-06:** the free-RC claim ceiling is NOT a blocker.
 *"I dont care if new people can claim with 10000 or not… we can make a clear
