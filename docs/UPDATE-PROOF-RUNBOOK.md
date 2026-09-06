@@ -187,43 +187,94 @@ announced height, preserves every byte of state, and carries exactly the
 code it was built from — proven twice, the second time with the corrected
 artifact. What remains is doing it once on production, before 10 October.
 
-## PRODUCTION QUEUED — 2026-09-05, 22:00 CPH
+## ❌ PRODUCTION UPDATE #1 — QUEUED 2026-09-05, CANCELLED 2026-09-06
 
-Lasse ran `CONTRACT_ID=vsc1Be4TTjUiHgzhHAfqFn6s3PDAExH2X59fXV ./deploy.sh update`
-(the harness refuses to let Claude spend from the key, correctly).
+The `fund` + bare-name-`transfer` + 30-day-default update (CID
+`bafkreieh7bs…5baa`, queue tx `44334c0b…d2016f`) was **cancelled before it
+activated** — cancel tx `2c394c62d2987e7452f126071a7b550889e24619`, verified by
+`findPendingContractUpdates` returning empty with the live code still
+`bafkreifnneb…e3fm`.
+
+All three of its changes are inside the token-ledger build below, which is a
+strict superset, so letting it land would have meant verifying two activations
+on two evenings for one outcome. Its baselines `prod-before.json` (head
+109,657,325) and `prod-sweep-before.txt` are **superseded** — the chain has had
+a day of real user activity since, so diffing against them would report that
+activity as though the update caused it. Use the token-ledger baselines below.
+
+---
+
+## ⏳ PRODUCTION UPDATE #2 — THE TOKEN LEDGER, QUEUED 2026-09-06 21:23 CPH
 
 | | |
 |---|---|
 | Contract | `vsc1Be4TTjUiHgzhHAfqFn6s3PDAExH2X59fXV` — PRODUCTION |
-| New code CID | `bafkreieh7bs2x44xk22sqtf4sb5bj63dloao2olqd6uyxeqbj3vt5h5baa` |
-| Artifact | `contract/artifacts/main.wasm`, 96,275 bytes, sha256 `87f865abf39756b5284cbc907a14fb635b80ed39701fa98b92014eeb3e9fa100` |
-| Built from | HEAD `a9de1b7` (last contract-source commit `c27ef68`); rebuilt immediately before queueing, byte-identical to the 3 Sep build |
-| Queued at height | 109,657,455 |
-| **Activates at height** | **109,715,055 — 2026-09-07 20:01:21 UTC (22:01 CPH, Monday)** — 57,600 blocks exactly |
-| BEFORE snapshot | `prod-before.json`, 83 keys, head 109,657,325 |
-| Sweep baseline | `prod-sweep-before.txt` (4 Sep) |
+| New code CID | `bafkreihztepfwl5noydp3qab7odgsfvtfetupozxytbxw4uorxqdm5nrsu` |
+| Artifact | `contract/artifacts/main-tokenledger.wasm`, 105,066 bytes, sha256 `f9991e5b2fad7606fdc001fb866916b3292747bb37c4c37b728e8de03675b195` |
+| Built from | HEAD `bdb29db`; last contract-source commit `c1e3e6a` |
+| Queue tx | `a06aa172752a0b25397f781d485483f5e6717eeb` |
+| Queued at height | 109,685,424 |
+| **Activates at height** | **109,743,024 — 2026-09-08 19:23:12 UTC (21:23 CPH, Tuesday)** — 57,600 blocks exactly |
+| BEFORE snapshot | `prod-before-tokenledger.json`, 83 keys, head 109,685,473 |
+| Sweep baseline | `prod-sweep-before-tokenledger.txt` (6 Sep, with the three new rows) |
+| The token it will drive | `vsc1BUDsVccMPGycTmpc98WsQYSKyTBsZqFq4h`, deployed and `init`-ed 6 Sep, owner still `hive:lassecashmagi` |
 
-The CID is a content hash: computing CIDv1/raw/sha2-256 over the local
-`main.wasm` reproduces it exactly, so the chain holds this file and no other.
-This is the artifact pin the round-1 lesson asked for.
+**The artifact is not merely pinned, it is the one that was proven.** This CID
+is byte-identical to the code throwaway #10 has been running on mainnet all
+day — the contract that proved the core can own a magi_token, that
+`ensureMigrated` moves a row on first touch, and that the sweep is exact to a
+1-base-unit balance. Recompute any time with `python3 tools/cid.py
+contract/artifacts/main-tokenledger.wasm`.
 
-**After 22:01 CPH Monday** — the same two checks, against production:
+### What this update carries
+
+Everything update #1 carried — `fund`, the bare-name `transfer` refusal, the
+30-day monthly-mint default — plus the standard token ledger: `set_token`,
+`migrate_ledger`, and `credit`/`debit` routed through a real magi_token with
+self-marking migration of every legacy `bal_` row.
+
+### After 21:23 CPH Tuesday — the same two checks
 
 ```bash
 python3 tools/state-snapshot.py grab vsc1Be4TTjUiHgzhHAfqFn6s3PDAExH2X59fXV \
-    deploy-data/update-proof/prod-after.json
+    deploy-data/update-proof/prod-after-tokenledger.json
 python3 tools/state-snapshot.py diff \
-    deploy-data/update-proof/prod-before.json deploy-data/update-proof/prod-after.json
+    deploy-data/update-proof/prod-before-tokenledger.json \
+    deploy-data/update-proof/prod-after-tokenledger.json
 python3 tools/entrypoint-sweep/sweep.py --contract vsc1Be4TTjUiHgzhHAfqFn6s3PDAExH2X59fXV \
-    > deploy-data/update-proof/prod-sweep-after.txt
+    > deploy-data/update-proof/prod-sweep-after-tokenledger.txt
+diff deploy-data/update-proof/prod-sweep-before-tokenledger.txt \
+     deploy-data/update-proof/prod-sweep-after-tokenledger.txt
 ```
 
-Expected: diff PASS (only the height-driven keys move; balances byte-identical
-— production has real holders now, so this is the check that matters), and
-against `prod-sweep-before.txt` exactly two changed rows: `fund` answers, and
-the bare-name `transfer` is refused. Then merge `duration-default-30` (the
-frontend half of the 30-day default), and the key burn on 10 October closes
-the door with all three fixes inside.
+**Expected — and this differs from update #1, so do not reuse its
+expectations:**
+
+| Check | Expected |
+|---|---|
+| State diff | Height-driven keys move; **every balance byte-identical**. The update swaps the WASM; it does NOT switch the ledger. Nothing moves until `set_token` is called |
+| `fund` | was "wasm function not found" -> now answers |
+| `set_token` | was "wasm function not found" -> now answers (owner-only refusal) |
+| `migrate_ledger` | was "wasm function not found" -> now answers |
+| bare-name `transfer` | was "transferred" -> now refused, naming the address |
+| everything else | unchanged |
+
+⚠️ **Production is LIVE and holders transact.** The baseline was taken at head
+109,685,473; genuine user activity between then and activation will show in the
+diff and is not a fault. What matters is that no balance changes for a reason
+you cannot name. If the diff is noisy, re-grab a baseline shortly before
+activation.
+
+### Then, and only then — the handover, in this order
+
+1. `changeOwner` on the token -> `contract:vsc1Be4TTjUiHgzhHAfqFn6s3PDAExH2X59fXV`
+2. `set_token vsc1BUDsVccMPGycTmpc98WsQYSKyTBsZqFq4h` on the core
+3. `migrate_ledger` in batches of 50, rc_limit 50,000 (~822 RC/account)
+4. merge `duration-default-30`
+
+**Step 1 before step 2 and 3 is load-bearing**: the sweep mints, only the owner
+can mint, so no row crosses until the core owns the token. See
+`docs/TOKEN-LEDGER-PLAN.md` for the full sequence and the rollback position.
 
 **Lesson for every future update: pin the artifact to a commit at queue
 time.** Record `git rev-parse HEAD` and the WASM sha256 beside the queue tx,

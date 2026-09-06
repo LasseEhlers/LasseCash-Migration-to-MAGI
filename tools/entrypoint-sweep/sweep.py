@@ -66,6 +66,13 @@ CALLS = [
     # Absent until the update lands: "wasm function not found" is the CONTROL
     # that proves this sweep can see an entrypoint appear.
     ("fund",             "pob|100000000",                     "not found"),
+    # THE TOKEN LEDGER, queued 2026-09-06, activating 8 Sep 21:23 CPH. Both are
+    # "wasm function not found" on the live contract today and must ANSWER
+    # afterwards — the same appear-an-entrypoint control `fund` provides.
+    # set_token is owner-only, so the expected answer is a refusal, not a set;
+    # simulation never writes, but the refusal is what proves the guard exists.
+    ("set_token",        "vsc1BUDsVccMPGycTmpc98WsQYSKyTBsZqFq4h", "not found"),
+    ("migrate_ledger",   "hive:nobody",                       "not found"),
     # mints
     ("mint",             "100000000|30",                      "minted"),
     ("claim_mint",       "9999",                              "no such mint"),
