@@ -191,16 +191,21 @@ old queued CID from `main.wasm` exactly, which is how the method was checked.
 | # | Step | Command | Cost |
 |---|---|---|---|
 | 1 | Deploy the production token | `WASM=contract/artifacts/magi-token.wasm NAME=LASSECASH DESC="LASSECASH — the token ledger of the LasseCash core contract" ./deploy.sh deploy` | 10 HBD (L1) |
-| 2 | `init` the token | `node tools/chain-test/call.js <TOKEN> init '{"name":"LasseCash","symbol":"LASSECASH","decimals":8,"maxSupply":"5100000000000000"}'` | RC |
+| 2 | `init` the token | `CONTRACT_ID=<TOKEN> node tools/chain-test/call.js init '{"name":"LasseCash","symbol":"LASSECASH","decimals":8,"maxSupply":"5100000000000000"}' 3000` | RC |
 | 3 | Queue the core update | `WASM=contract/artifacts/main-tokenledger.wasm CONTRACT_ID=vsc1Be4TTjUiHgzhHAfqFn6s3PDAExH2X59fXV ./deploy.sh update` | 10 HBD (L1) |
 | 4 | Wait out the 48-hour public timelock | visible on `/chain` and via `findPendingContractUpdates` the whole time | — |
 | 5 | On activation: run the diff + sweep | `docs/UPDATE-PROOF-RUNBOOK.md` "PRODUCTION QUEUED" — against `prod-before.json` and `prod-sweep-before.txt` | free |
-| 6 | Hand the token to the core | `changeOwner` -> `contract:vsc1Be4TTj…` | RC |
-| 7 | Point the core at the token | `set_token <TOKEN>` | RC |
-| 8 | Sweep the legacy rows | `migrate_ledger` in batches of **50**, rc_limit **50,000** | ~822 RC/account |
+| 6 | Hand the token to the core | `CONTRACT_ID=<TOKEN> node tools/chain-test/call.js changeOwner '{"newOwner":"contract:vsc1Be4TTjUiHgzhHAfqFn6s3PDAExH2X59fXV"}' 3000` | RC |
+| 7 | Point the core at the token | `CONTRACT_ID=vsc1Be4TTjUiHgzhHAfqFn6s3PDAExH2X59fXV node tools/chain-test/call.js set_token <TOKEN> 3000` | RC |
+| 8 | Sweep the legacy rows | `CONTRACT_ID=vsc1Be4TTjUiHgzhHAfqFn6s3PDAExH2X59fXV node tools/chain-test/call.js migrate_ledger 'hive:a\|hive:b\|…' 50000` — batches of **50** | ~822 RC/account |
 | 9 | Merge `duration-default-30` | frontend only; only after step 5 passes | — |
 | 10 | Ask MAGI for `register_token` + `register_pool` | owner-only on their router — the BTC route. NOT on the critical path | — |
 | 11 | **Burn the key**, at an announced height | | |
+
+⚠️ **Always set `CONTRACT_ID` explicitly.** `tools/chain-test/call.js` falls
+back to throwaway #9 when the variable is unset, so a forgotten export does not
+fail — it silently sends a production call to a dead test contract, reports
+success, and leaves you believing a step ran.
 
 **Step 6 comes BEFORE step 7 and 8, and that order is load-bearing.** The
 sweep mints, and only the owner can mint — so the core must own the token
