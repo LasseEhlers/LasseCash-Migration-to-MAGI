@@ -28,7 +28,26 @@ function esc(s: string): string {
  */
 function safeUrl(url: string): string | null {
   const u = url.trim();
-  return /^https?:\/\/[^\s<>"']+$/i.test(u) ? u : null;
+  // A backslash is never part of a URL; one that reaches here is a markdown
+  // escape nobody unescaped, and emitting it means a 404 (see DEST below).
+  return /^https?:\/\/[^\s<>"'\\]+$/i.test(u) ? u : null;
+}
+
+/**
+ * A markdown link destination, escapes included: `(?:\\.|[^)\s])+`.
+ *
+ * Markdown lets a backslash escape any punctuation INSIDE a destination, and
+ * real editors use it: Waivio writes `![x (1).JPG](https://…/x%20\(1\).JPG)`
+ * and escapes underscores as `\_`. A pattern that stops at the first `)`
+ * cuts that URL off at the escaped paren and hands the browser
+ * `…%20\(1\` — a 404 and a broken cover on every card. Found 2026-09-06 on
+ * @barski's "Onion grief". Always pair DEST with unescapeDest().
+ */
+const DEST = String.raw`((?:\\.|[^)\s])+)`;
+
+/** Drop the backslash from every escaped punctuation char in a destination. */
+function unescapeDest(dest: string): string {
+  return dest.replace(/\\([!-\/:-@\[-`{-~])/g, "$1");
 }
 
 /** Extract a YouTube video id from any of its URL shapes. */
@@ -46,11 +65,11 @@ export function youtubeId(url: string): string | null {
  * thumbnail — a video post should not appear in the feed as a wall of text.
  */
 export function coverImage(body: string): string | null {
-  const md = body.match(/!\[[^\]]*\]\((https?:\/\/[^\s)]+)\)/);
-  if (md?.[1]) return safeUrl(md[1]);
+  const md = body.match(new RegExp(String.raw`!\[[^\]]*\]\(` + DEST + String.raw`\)`));
+  if (md?.[1]) return safeUrl(unescapeDest(md[1]));
 
   const bare = body.match(/https?:\/\/\S+\.(?:png|jpe?g|gif|webp|avif)(?:\?\S*)?/i);
-  if (bare?.[0]) return safeUrl(bare[0]);
+  if (bare?.[0]) return safeUrl(unescapeDest(bare[0]));
 
   const yt = body.match(/\S*(?:youtube\.com|youtu\.be)\/\S+/);
   if (yt?.[0]) {
@@ -74,8 +93,8 @@ export function excerpt(body: string, max = 180): string {
     // otherwise be quoted verbatim as the summary.
     .replace(/<!--[\s\S]*?-->/g, " ")
     .replace(/<[^>]*>/g, " ")
-    .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
-    .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/!\[[^\]]*\]\((?:\\.|[^)])*\)/g, "")
+    .replace(/\[([^\]]*)\]\((?:\\.|[^)])*\)/g, "$1")
     .replace(/https?:\/\/\S+/g, "")
     .replace(/[#*>`_~-]/g, "")
     .replace(/\s+/g, " ")
@@ -194,8 +213,8 @@ export function renderMarkdown(md: string): string {
   };
 
   // Markdown images.
-  src = src.replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, (m, alt: string, url: string) => {
-    const safe = safeUrl(url);
+  src = src.replace(new RegExp(String.raw`!\[([^\]]*)\]\(` + DEST + String.raw`\)`, "g"), (m, alt: string, url: string) => {
+    const safe = safeUrl(unescapeDest(url));
     return safe ? hold(`<img src="${safe}" alt="${alt}" loading="lazy" />`) : m;
   });
 
@@ -240,7 +259,7 @@ function slug(text: string): string {
   src = src.replace(
     /^[ \t]*(https?:\/\/\S+\.(?:png|jpe?g|gif|webp|avif)(?:\?\S*)?)[ \t]*$/gim,
     (m, url: string) => {
-      const safe = safeUrl(url);
+      const safe = safeUrl(unescapeDest(url));
       return safe ? hold(`<img src="${safe}" alt="" loading="lazy" />`) : m;
     },
   );
@@ -259,8 +278,8 @@ function slug(text: string): string {
     .replace(/`([^`\n]+)`/g, "<code>$1</code>");
 
   // Explicit links, then bare links.
-  src = src.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (m, text: string, url: string) => {
-    const safe = safeUrl(url);
+  src = src.replace(new RegExp(String.raw`\[([^\]]+)\]\(` + DEST + String.raw`\)`, "g"), (m, text: string, url: string) => {
+    const safe = safeUrl(unescapeDest(url));
     return safe
       ? `<a href="${safe}" target="_blank" rel="noopener noreferrer nofollow">${text}</a>`
       : m;

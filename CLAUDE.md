@@ -719,6 +719,15 @@ vector otherwise. Never move an escape after a tag insertion.
 Feed cards derive a cover image from the body when the author supplied none,
 falling back to a YouTube thumbnail, so a video post is not a wall of text.
 
+**Link destinations carry markdown ESCAPES — honour them (found 2026-09-06).**
+Waivio writes `![x (1).JPG](https://…/x%20\(1\).JPG)` and `\_` for
+underscores. Every URL-parsing regex used to stop at the first `)`, so the
+cover became `…%20\(1\` — a 404 and a broken image on @barski's card, and
+the same truncated URL would have gone into `og:image`. `markdown.ts` now
+matches destinations as `DEST` (escapes included) and runs `unescapeDest()`
+before `safeUrl()`, which additionally rejects any backslash; the indexer's
+`firstImage()` applies the same rule. Both renderers must keep agreeing.
+
 ## ⚠️ HBD AND RC ARE ONE POT — the deposit rule, MEASURED 2026-09-01
 
 @daneamanda held 3.443 HBD on MAGI, tried to add 1,000 LC of liquidity

@@ -1966,10 +1966,15 @@ export function permlinkFor(title: string): string {
 
 /** The first image in a markdown body — the cover for og:image and the feed. */
 function firstImage(body: string): string | null {
-  const md = /!\[[^\]]*\]\((https?:\/\/[^\s)]+)\)/i.exec(body);
-  if (md) return md[1] ?? null;
+  // The destination may carry markdown escapes (`\(`, `\_`) — Waivio writes
+  // them — so it is matched escapes-included and unescaped afterwards, the
+  // same rule as web/src/lib/markdown.ts coverImage(). A pattern stopping at
+  // the first `)` truncated `…%20\(1\).JPG` to `…%20\(1\` (2026-09-06).
+  const md = /!\[[^\]]*\]\(((?:\\.|[^)\s])+)\)/i.exec(body);
+  const unescape = (d: string) => d.replace(/\\([!-\/:-@\[-`{-~])/g, "$1");
+  if (md?.[1]) return unescape(md[1]);
   const bare = /^(https?:\/\/\S+\.(?:png|jpe?g|gif|webp))\s*$/im.exec(body);
-  return bare?.[1] ?? null;
+  return bare?.[1] ? unescape(bare[1]) : null;
 }
 
 /** One contract transaction as discovery reads it, status included. */
