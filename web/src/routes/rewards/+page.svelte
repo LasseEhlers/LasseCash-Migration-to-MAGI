@@ -16,8 +16,10 @@
    * being drained rather than merely being large.
    */
   import { chain } from "$lib/chain.svelte.js";
-  import { lc } from "$lib/format.js";
+  import { client } from "$lib/chain.svelte.js";
+  import { lc, displayName } from "$lib/format.js";
   import { dailyRewards, fromUnits, toUnits } from "$api/index.js";
+  import type { PostView } from "$api/index.js";
   import Seo from "$lib/Seo.svelte";
   import { SITE_OG_IMAGE, SITE_URL } from "$lib/site.js";
 
@@ -99,6 +101,39 @@
       },
     ];
   });
+
+  /**
+   * Every open post and what it would take from its pool RIGHT NOW.
+   *
+   * `pending_payout` is engine-computed against the live pool — the same
+   * `Pool.Claim` the contract runs at settlement: balance x this post's
+   * rshares / the window's total. So this is not an estimate of a formula,
+   * it is the formula, run against today's balance.
+   *
+   * It moves for two reasons and both are honest: the pool grows every day,
+   * and every new vote anywhere in the window changes the denominator.
+   */
+  let posts = $state<PostView[]>([]);
+  let postsLoaded = $state(false);
+  $effect(() => {
+    if (!chain.ready) return;
+    void (async () => {
+      try {
+        posts = await client.posts(100);
+      } catch {
+        posts = [];
+      }
+      postsLoaded = true;
+    })();
+  });
+
+  const open = $derived(
+    posts
+      .filter((p) => !p.paid_out && toUnits(p.pending_payout) > 0n)
+      .sort((a, b) => (toUnits(b.pending_payout) > toUnits(a.pending_payout) ? 1 : -1)),
+  );
+  const owed = $derived(open.reduce((t, p) => t + toUnits(p.pending_payout), 0n));
+  const payableNow = $derived(open.filter((p) => p.payable));
 
   function moved(key: string, now: string): bigint | null {
     if (!opened) return null;
@@ -194,6 +229,55 @@
     </div>
 
     <section class="panel">
+      <div class="label">Open posts and what they would take right now</div>
+      {#if !postsLoaded}
+        <p class="note">Reading posts…</p>
+      {:else if open.length === 0}
+        <p class="note">
+          Nothing is currently owed: no open post has any votes on it, so the two
+          Proof-of-Brain pools have nobody to divide among and simply keep growing.
+        </p>
+      {:else}
+        <p class="note">
+          <b class="mono">{lc(fromUnits(owed))}</b> of the two Proof-of-Brain pools
+          is already spoken for by {open.length} open post{open.length > 1 ? "s" : ""}.
+          {#if payableNow.length > 0}
+            <b class="warn">{payableNow.length} can be settled now</b> — the window
+            has closed and anyone may trigger the payout.
+          {/if}
+          Each figure is the contract's own formula against today's balance, so it
+          moves as the pool fills and as new votes change the denominator.
+        </p>
+        <div class="scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>post</th><th>pool</th><th class="num">rshares</th>
+                <th class="num">would take</th><th>settles</th>
+              </tr>
+            </thead>
+            <tbody>
+              {#each open.slice(0, 30) as p (p.author + "/" + p.permlink)}
+                <tr>
+                  <td>
+                    <a href="/@{p.author}/{p.permlink}">{p.title || p.permlink}</a>
+                    <span class="dim">@{displayName(p.author)}</span>
+                  </td>
+                  <td><span class="pill">{p.window}</span></td>
+                  <td class="num mono">{lc(p.rshares, 0)}</td>
+                  <td class="num mono gold">{lc(p.pending_payout)}</td>
+                  <td class:warn={p.payable}>
+                    {p.payable ? "ready now" : p.payout_time.slice(0, 10)}
+                  </td>
+                </tr>
+              {/each}
+            </tbody>
+          </table>
+        </div>
+      {/if}
+    </section>
+
+    <section class="panel">
       <p class="note">
         <b>Why a pool can sit still.</b> A pool only pays when something claims from
         it: a post's window closing, a mint being claimed, an LP claiming. Between
@@ -225,5 +309,7 @@
   .pool dd { margin: 0; font-size: var(--t-sm); }
   .pool dd.up { color: var(--green); }
   .pool dd.down { color: var(--gold); }
+  .pill { font-size: var(--t-micro); border: 1px solid var(--line); border-radius: 4px; padding: 0.05rem 0.3rem; }
+  .warn { color: var(--gold); }
   .drain { margin-top: 0.8rem; padding-top: 0.7rem; border-top: 1px solid var(--line-soft); }
 </style>
