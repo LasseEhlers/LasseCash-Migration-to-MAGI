@@ -33,10 +33,42 @@ So the mechanism exists. The cost is in the shape.
 |---|---|
 | **`mint` credits the OWNER, not an address** — `incBalance(owner, amount)` | Paying a user is **two** cross-contract calls: mint to core, then transfer core → user. Our current payout is one state write. |
 | **Taking a user's tokens needs `approve` then `transferFrom`** (allowance keyed by `msg.caller` as spender) | Every value-TAKING action (mint/lock, promote, add_liquidity) becomes approve + action. Bundleable in one Hive transaction — the site already does exactly that for the BTC swap (`increaseAllowance` + `execute`) — but it is still two calls, both charged. |
-| **No batch anything.** Entrypoints are init, mint, burn, transfer, transferFrom, approve, increase/decreaseAllowance, changeOwner, pause, unpause + 6 read-only | Our contract moves LASSECASH in BULK: the migration import (50/call), curation drains, `MaxRetirePerWalk=200` expiry retires, `registerMints`. Each becomes N separate cross-contract calls, and **each call spins a fresh WASM runtime** (`wasm_runtime_ipc.New(); w.Init()`). The Aug batch measurement already found a 50-account staked batch impossible against the 10B gas ceiling. |
+| **No batch anything.** Entrypoints are init, mint, burn, transfer, transferFrom, approve, increase/decreaseAllowance, changeOwner, pause, unpause + 6 read-only | ⚠️ **MEASURED 2026-09-06 AND LARGELY WITHDRAWN — see below.** Only ONE balance movement in the whole contract sits inside a loop. |
 | **JSON + `big.Int`** throughout | Heavier per call than our pipe-delimited fixed-point. Gas is charged to the user's RC. |
 
-## 🔴 THE NUMBER THAT DECIDES IT — not yet measured
+## ✅ THE BULK WORRY IS WITHDRAWN — checked 2026-09-06
+
+Every `credit()`/`debit()` call site was examined for an enclosing loop. There
+are 22 (11 outside `ledger.go`, across four files) and **exactly one is inside
+a loop: `CreditMigrationBatch` (ledger.go:418)** — the owner-only push import.
+
+Every runtime path — payout, claim, mint, claim_mint, transfer, burn, swap,
+add/remove liquidity, claim_pool — moves **one account's balance per call**.
+Curation drains, `SettlePending` and the expiry walk work on *pending
+balances* and *shares*, which are core-internal state and would not move to
+the token at all.
+
+So "no batch transfer" bites exactly one thing: the one-time ledger
+migration, which we run ourselves and can cut into batches of ten. **The live
+contract never needs a batch transfer.** This was the strongest objection to
+the whole idea and it does not survive contact with the code.
+
+## 🟡 THE NUMBER — being measured, and no longer a veto
+
+**Lasse's call, 2026-09-06:** the free-RC claim ceiling is NOT a blocker.
+*"I dont care if new people can claim with 10000 or not… we can make a clear
+message to make them buy hbd if they want to claim… having the token as
+native is much more important than that temporary claim process."* He is
+right on the weighting: the claim window closes ~March 2027
+(`MigrationMintDays 30 + GraceDays 90 + BleedDays 90` from genesis), so it is
+a temporary friction on a shrinking group, against a permanent property of
+the token. Recorded so it is not re-litigated.
+
+The measurement still runs, because the cost of every ordinary action (post,
+vote, mint, swap) is a real UX price worth knowing — but it is a price to
+accept or reject, not a viability test.
+
+### Original framing, kept for the record
 
 **What does a `claim_migration` cost in RC once the balance lives in another
 contract?** Today it is 4,017–5,892 RC, inside a fresh account's free 10,000,
