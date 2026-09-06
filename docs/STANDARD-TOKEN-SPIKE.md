@@ -95,6 +95,61 @@ freezes the full `rc_limit`. Gas is the trustworthy figure here, and RC is
 derived from it at the fixed 100,000 gas = 1 RC. Re-validate budgets on a
 mainnet throwaway before committing.
 
+## ✅ BOTH QUESTIONS FOR MAGI — ANSWERED FROM THEIR SOURCE, 2026-09-06
+
+Rather than wait on a Discord reply, `vsc-eco/dex-contracts` and
+`vsc-eco/magi-mongo-indexer` were read directly.
+
+### The indexer needs NOTHING from them — it auto-discovers
+
+`internal/config/events/magi_token_mappings.yaml`:
+
+> *"This mapping uses discoverEvent instead of a static address. The indexer
+> scans ALL contract logs for the `init_magi_token` event. When found, that
+> contract is automatically registered and all its events (transfers,
+> approvals, etc.) are indexed from that point on."*
+
+No allowlist, no request, no permission. **Deploy a magi_token, call `init`,
+and their indexer picks it up by itself** — and with it everything downstream
+that reads the indexer.
+
+### The DEX router explicitly supports MAGI-native tokens
+
+- `dex-router-v2/utils.go`: `chainMAGI = "MAGI"`, accepted in `main.go:89`.
+  `register_token`'s own comment: *"Chains: HIVE (for HIVE/HBD native), MAGI
+  (for MAGI native tokens), BTC, ETH, etc."*
+- A registered non-Hive asset becomes a `MappedAsset` whose "mapping
+  contract" is the token itself, and the router moves it with exactly:
+  - `transferFrom` ← `{"amount","to","from"}`
+  - `transfer` ← `{"amount","to"}`
+- magi_token's `TransferFromPayload` reads `from`/`to`/`amount` and
+  `TransferPayload` reads `to`/`amount`. **Wire-compatible on both sides,
+  verified field by field. No adapter, no custom logic, nothing to write.**
+
+### 🔑 The ONE thing that needs MAGI: `register_token` is owner-only
+
+```go
+ownerPtr := sdk.GetEnvKey("contract.owner")
+if ownerPtr == nil || env.Caller.String() != *ownerPtr {
+    ce.CustomAbort(... "action must be performed by the contract owner")
+}
+```
+
+The router's OWNER must call `register_token`
+(`{"name":"lassecash","chain":"MAGI","mapping_contract":"<token id>","decimals":8}`),
+then `register_pool` for LASSECASH:HBD. **That is precisely TibFox's "simple
+flag we had to turn on."** It is one owner-only call against their own
+standard — not a request for custom contract logic, which is what he
+(rightly) refused.
+
+### v2 risk: low
+
+`magi_token-contract` main has been unchanged since **19 May 2026** (the last
+commits are external-audit remediations, TOKEN-01…), no open issues, and only
+one other branch (`binary-state`). It looks settled, not in flight. Still
+worth confirming before the weld, since after the burn `changeOwner` is
+unreachable forever.
+
 ## 🟡 The original framing — no longer a veto
 
 **Lasse's call, 2026-09-06:** the free-RC claim ceiling is NOT a blocker.
