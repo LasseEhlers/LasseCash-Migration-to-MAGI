@@ -99,6 +99,50 @@ export class MagiBackend implements Backend {
   }
 
   /**
+   * An account's LASSECASH when the ledger lives in a standard magi_token.
+   *
+   * ⚠️ IT HAS TO BE A SIMULATED `balanceOf`, NOT A STATE READ. The token
+   * stores balances as big-endian unsigned bytes, and the node's GraphQL
+   * replaces every byte that is not valid UTF-8 with U+FFFD — 50,000,000,000
+   * comes back as "\u000b\ufffd;t\u0000" and the number is gone. Measured
+   * 2026-09-06; not our bug and not fixable from here. The CONTRACT reads the
+   * same key byte-exactly (ContractStateGet does a plain string(bytes)), so
+   * only outside readers are affected.
+   *
+   * Simulations cost no RC, so this is a round trip, not money.
+   */
+  async tokenBalance(tokenId: string, account: string): Promise<string> {
+    const acct = account.includes(":") ? account : "hive:" + account;
+    const data = await this.query<{
+      simulateContractCalls: { success: boolean; ret?: string | null }[] | null;
+    }>(
+      `query($i: SimulateContractCallsInput!) {
+         simulateContractCalls(input: $i) { success err_msg ret }
+       }`,
+      {
+        i: {
+          tx_id: "balanceOf",
+          required_auths: acct,
+          calls: [{
+            contract_id: tokenId,
+            action: "balanceOf",
+            payload: JSON.stringify({ account: acct }),
+            rc_limit: 10_000,
+            intents: [],
+          }],
+        },
+      },
+    );
+    const row = data.simulateContractCalls?.[0];
+    if (!row?.success || !row.ret) return "0";
+    try {
+      return (JSON.parse(row.ret) as { balance?: string }).balance ?? "0";
+    } catch {
+      return "0";
+    }
+  }
+
+  /**
    * The chain's verdict on a broadcast call.
    *
    * `findTransaction` reports PENDING until a MAGI block includes the call;
@@ -301,6 +345,10 @@ export class MagiBackend implements Backend {
     const acct = name.includes(":") ? name : "hive:" + name;
     const base = await this.state([
       "bal_" + acct, "shr_" + acct, "pend_" + acct, "mseq_" + acct,
+      // Where LASSECASH lives. Empty until the ledger moves into a standard
+      // magi_token; set afterwards, and then `bal_` is the legacy row that has
+      // not migrated yet rather than the whole balance.
+      "cfg_token",
       "set_" + acct + "_days", "acc_per", "acc_day", "cfg_genesis",
       "gov_board",
       // vote meters (absent = never voted = FULL; the contract's
@@ -311,6 +359,22 @@ export class MagiBackend implements Backend {
       "pool_liq", "amm_accseen", "amm_accheld", "amm_acc", "amm_weight",
     ]);
     const height = await this.height();
+    /**
+     * The balance, from wherever it actually is.
+     *
+     * With a token ledger it is the token's balance PLUS any `bal_` row not
+     * yet swept — both are the account's money, and during the migration an
+     * account can briefly hold one of each, exactly as `state.Balance` does
+     * on-chain. It has to come from `balanceOf`, not a state read: the node's
+     * GraphQL destroys the token's raw bytes (see tokenBalance).
+     */
+    const tokenId = base["cfg_token"];
+    const liquid = tokenId
+      ? (
+          BigInt(await this.tokenBalance(tokenId, acct)) +
+          BigInt(base["bal_" + acct] || "0")
+        ).toString()
+      : base["bal_" + acct];
     const seq = num(base["mseq_" + acct]);
 
     const mintKeys: string[] = [];
@@ -449,7 +513,7 @@ export class MagiBackend implements Backend {
 
     return {
       account: acct,
-      balance: units(base["bal_" + acct]),
+      balance: units(liquid),
       shares: units(base["shr_" + acct]),
       pending: units((base["pend_" + acct] ?? "0").split("|")[0]),
       pending_curation: 0, // informational only; needs the queue cursors
