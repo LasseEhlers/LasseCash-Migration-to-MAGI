@@ -65,6 +65,23 @@
   async function moveHbd(dir: "in" | "out") {
     const n = Number(hbdAmount);
     if (!Number.isFinite(n) || n <= 0) { hbdErr = "Enter an amount"; return; }
+    // Each direction spends a DIFFERENT balance. Say which, here, before the
+    // wallet opens: Hive's own refusal reads "Insufficient HBD balance" with
+    // no side named, and MAX under "on MAGI" followed by "Deposit to MAGI" is
+    // the natural slip (seen 2026-09-06: 1.079 typed against 0.180 on Hive).
+    const hiveSide = bridgeAsset === "HBD" ? hiveHbd : hiveHive;
+    const magiSide = fromUnits(BigInt(Math.trunc(Number(bridgeAsset === "HBD" ? (me?.hbd ?? 0) : (me?.hive ?? 0)))));
+    const eps = 1e-9;
+    if (dir === "in" && hiveSide !== null && n > Number(hiveSide) + eps) {
+      hbdErr = `A deposit spends your Hive ${bridgeAsset} — you have ${lc(hiveSide, 3)} there.`
+        + (n <= Number(magiSide) + eps ? ` ${lc(hbdAmount, 3)} is on your MAGI side: to move it to Hive, press Withdraw to Hive.` : "");
+      return;
+    }
+    if (dir === "out" && n > Number(magiSide) + eps) {
+      hbdErr = `A withdrawal spends your MAGI ${bridgeAsset} — you have ${lc(magiSide, 3)} there.`
+        + (hiveSide !== null && n <= Number(hiveSide) + eps ? ` ${lc(hbdAmount, 3)} is on your Hive side: to move it to MAGI, press Deposit to MAGI.` : "");
+      return;
+    }
     hbdBusy = true; hbdErr = null; hbdMsg = null;
     try {
       const res = dir === "in"
@@ -533,7 +550,7 @@
         {swapOverBalance ? `Not enough ${swapFrom}` : chain.busy ? "Signing…" : `Swap ${swapFrom} → ${swapTo}`}
       </button>
 
-      <p class="note out">
+      <p class="note trust">
         <b>Ours becomes unchangeable on 10 October</b> — the LASSECASH:HBD pool above, no
         owner key, no fee. These two are MAGI's own contracts and charge 0.08%.
         <a href="/about#what-you-are-trusting-layer-by-layer">What you are trusting →</a>
@@ -892,7 +909,9 @@
   .route:hover { border-color: var(--gold-dim); }
   .route strong { display: block; font-family: var(--mono); color: var(--gold); letter-spacing: 0.06em; }
   .route span { display: block; margin-top: 0.3rem; font-size: var(--t-micro); color: var(--dim); }
-  .note.out { margin-top: 0.9rem; max-width: 76ch; }
+  /* NOT `.note.out` — `.out` is the swap output figure (t-xl, gold) and a
+     note sharing the class rendered as a hero number (found 2026-09-06). */
+  .note.trust { margin-top: 0.9rem; max-width: 76ch; }
 
 
   .warn { margin: 1rem 0 0; font-size: var(--t-sm); color: var(--gold); line-height: 1.6; }
