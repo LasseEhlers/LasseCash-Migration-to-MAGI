@@ -87,30 +87,31 @@ const LP_MEMO = `LasseCash has moved from Hive-Engine to MAGI — the first subs
 // this is not the same letter again. It says the three things they were not
 // told: what RC is, that the free allowance covers the claim but little after
 // it (measured on production 6 Sep: a claim costs 7,100-7,600 of the free
-// 10,000), and that LASSECASH is now a standard MAGI token.
+// 10,000).
 //
-// SEND AFTER the token-ledger update has activated (Tue 8 Sep 21:23 CPH) —
-// the standard-token line is not true before then. The burn date is 10
-// October, unchanged, and the letter says so.
+// Lasse's call 6 Sep: send NOW, and write it for normies — no "resource
+// credits", no "mint", no "snapshot". The standard-token line was dropped so
+// nothing in it depends on Tuesday's activation. The burn is 10 October,
+// unchanged, and the letter says so.
 //
 // Register matches round 1 deliberately: this account's outreach voice is
 // clean prose signed by Lasse, and a change of register is what reads as
 // outsourced, not polish.
-const COMMENT2_BODY = `**Your LASSECASH is still unclaimed, and 30 September is three weeks away.**
+const COMMENT2_BODY = `**Your LasseCash tokens are still waiting for you. Collecting them is free.**
 
-Until then your position is a live mint that earns from the day you claim. After 30 September it still pays out in full but stops earning, and from 30 October it starts to shrink. Claim at **lassecash.com** — it takes one signature with any Hive wallet.
+Go to **lassecash.com**, log in with your Hive wallet (Keychain, PeakVault or HiveAuth — the same one you use for Hive) and press **Claim**. One click, one signature, done.
 
-**One thing the first letter should have explained.** MAGI, where LasseCash now runs, has no fees. What it has is resource credits, and your meter is simply your HBD balance on MAGI plus a free 10,000. The HBD is not spent — it just sits there and can be withdrawn any time. The free 10,000 is enough to claim, but a claim uses most of it, so posting or minting straight afterwards can fail until it refills over five days. If you want to do more than claim, parking one or two HBD on MAGI is the whole fix. That is not a fee; it is a balance you keep.
+**Please do it before 30 September.** Until then your tokens earn from the day you collect them. After 30 September you still get all of them, but they stop earning. From 30 October they slowly start to shrink — so sooner really is better.
 
-Also new this week: LASSECASH is now a standard MAGI token, the same kind their own wallets and indexer understand, so it works everywhere on that chain.
+**One thing that confuses everyone, explained properly this time.** LasseCash now runs on MAGI, and MAGI has no fees. Instead, every account gets a free energy allowance (the site calls it RC). That free allowance is enough to collect your tokens. But it does not stretch much further — if you try to post or stake right after collecting, it may say you have run out, and it takes about five days to refill. The fix is simple: keep one or two HBD in your MAGI wallet. It is not a fee and it is never taken from you — it just sits there, works as your energy, and you can withdraw it whenever you like.
 
-The keys burn on 10 October as announced. After that nobody can change the contract, including me.
+The keys burn on 10 October, as promised. After that nobody can change anything, including me.
 
-Details and the full snapshot: **${POST}**
+More details: **${POST}**
 
-This account is mine; the transfer history shows it. — Lasse`;
+This account is mine — the transfer history shows it. — Lasse`;
 
-const MEMO2 = `Your LASSECASH is still unclaimed — claim at lassecash.com before 30 Sept while it still earns; it shrinks from 30 Oct. MAGI has no fees: the free 10,000 RC covers the claim, but to post or mint afterwards park 1-2 HBD on MAGI (kept, not spent, withdraw any time). Keys burn 10 Oct as announced. Details: ${POST} — this account is mine, Lasse.`;
+const MEMO2 = `Your LasseCash tokens are still waiting — collecting is free: log in at lassecash.com with your Hive wallet and press Claim. Do it before 30 Sept while they still earn; from 30 Oct they slowly shrink. Tip: keep 1-2 HBD in your MAGI wallet as energy (never taken, withdraw any time) or posting after claiming may fail. Details: ${POST} — this account is mine, Lasse.`;
 
 const MEMO = `LasseCash migrated to MAGI — your tokens are claimable at lassecash.com. Claim before 30 Sept while the position still earns. Details: ${POST} — this account is mine, Lasse.`;
 
