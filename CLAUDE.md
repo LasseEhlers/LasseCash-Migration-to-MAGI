@@ -1986,9 +1986,39 @@ as the reason the day matters more than the fee.
   `client.transfer` is the only guard until the token-ledger update activates.
   Do not describe the contract-side refusal as shipped before then.
 
-Next production sequence: deploy the `magi_token` (10 HBD), queue the core
-token-ledger update (10 HBD, 48h), `changeOwner`, `set_token`, then the sweep
-at 50 accounts per call. The key burn on 10 October closes the door.
+## ⏳ TOKEN LEDGER QUEUED ON PRODUCTION — 2026-09-06 21:23 CPH
+
+Both 6 September deploys are done, 20 HBD from @lassecashmagi's L1 balance
+(~6.9 left).
+
+| | |
+|---|---|
+| **LASSECASH token** | `vsc1BUDsVccMPGycTmpc98WsQYSKyTBsZqFq4h` — deployed, `init`-ed, owner still `hive:lassecashmagi`. Code CID `bafkreiggvrp…auem` = local `magi-token.wasm` |
+| **Core update queued** | tx `a06aa172752a0b25397f781d485483f5e6717eeb`, CID `bafkreihztep…nrsu` = local `main-tokenledger.wasm` **and the exact code throwaway #10 proved on mainnet** |
+| **Activates** | height 109,743,024 — **Tue 2026-09-08 21:23 CPH** (19:23:12 UTC) |
+| Baselines | `deploy-data/update-proof/prod-{before,sweep-before}-tokenledger.*`, head 109,685,473 |
+
+**After activation, in this order** (full detail in
+`docs/UPDATE-PROOF-RUNBOOK.md` "PRODUCTION UPDATE #2" and
+`docs/TOKEN-LEDGER-PLAN.md`):
+
+1. state diff + entrypoint sweep — **every balance must be byte-identical**;
+   the update swaps the WASM, it does NOT switch the ledger
+2. `changeOwner` on the token to `contract:vsc1Be4TTj…` — **FIRST**, because
+   the sweep mints and only the owner can mint
+3. `set_token` on the core
+4. `migrate_ledger`, batches of 50, rc_limit 50,000 (~822 RC/account, LINEAR)
+5. merge `duration-default-30`
+6. announce the new burn height; 10 October is not reachable with this done
+   properly
+
+⚠️ **Until activation, production still runs the ORIGINAL launch code.** The
+contract-side bare-name `transfer` refusal is NOT live; `client.transfer`'s
+qualification is the only guard. Do not describe it as shipped before Tuesday.
+
+⚠️ **Always set `CONTRACT_ID` explicitly** with `tools/chain-test/call.js` — it
+falls back to throwaway #9 when unset, so a forgotten export sends a production
+call to a dead test contract and reports success.
 
 ## STATE OF PLAY — end of 2026-08-22 session (read this first)
 
