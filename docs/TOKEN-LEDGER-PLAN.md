@@ -223,9 +223,43 @@ happens LAST, after the rows are all across and verified.
 | **Self-migration** (`ensureMigrated`) | PROVEN ON A CHAIN: 500 LASSECASH in a legacy row, a 1 LASSECASH transfer, and the row is gone with 499 in the token and 1 delivered |
 | **The owner sweep** (`migrate_ledger`) | PROVEN ON A CHAIN: rows deleted, token balances exact **including a 1-base-unit account** |
 | **Supply conservation** | `sup_migrated` == token `totalSupply`, to the base unit |
+| **Batch scaling of the sweep** | LINEAR, measured on the devnet at n = 1, 2, 4, 8 — see below |
 
 **Measured RC, mainnet:** claim 2,109 · mint 3,138 · transfer 1,965 · burn 1,368 ·
 claim_mint 1,115 · remove_liquidity 1,145 · **sweep ~823 per account**.
+
+### The sweep is LINEAR in batch size — MEASURED 2026-09-06
+
+`tools/devnet/prove-sweep-scaling.sh`, eight seeded liquid-only accounts on the
+local devnet, `migrate_ledger` simulated at every batch size:
+
+| n | gas | RC | RC / account |
+|---|---|---|---|
+| 1 | 93,381,639 | 934 | 933.8 |
+| 2 | 175,547,353 | 1,755 | 877.7 |
+| 4 | 339,878,552 | 3,399 | 849.7 |
+| 8 | 668,540,795 | 6,685 | 835.7 |
+
+`gas = 11.2M + 82.2M x n`, which reproduces every measured row to three
+significant figures — **no n^2 term**, unlike August's `migrate_batch`. RC per
+account FALLS slightly with n because the 112-RC fixed cost amortises; the
+marginal account is **822 RC**, matching the mainnet figure above.
+
+**Production batch size: 50.** That is 41,200 RC of real cost, so an rc_limit of
+50,000 carries a 20% margin and still sits well under MAGI's hard 100,000
+ceiling. 100 would technically fit (82,300 RC) with no margin left, which is not
+worth the saving — mainnet FREEZES the whole rc_limit for the five-day thaw, so
+an oversized limit costs throughput directly.
+
+⚠️ **The first run of this test was a false pass, and the lesson generalises.**
+Every owner call ran from node 1, whose 10,000-RC devnet meter ran out during
+the deploys. `migrate_batch` and `set_token` both returned `ok=false`, the
+script never checked, and `migrate_ledger` was measured against accounts holding
+nothing with no token configured. It printed gas flat at ~1.0M and RC/account
+falling from 10.2 to 0.6 — which reads as an excellent result. A sweep
+measurement that has not verified its own seed is measuring argument parsing.
+The script now splits the owner calls across nodes, aborts on any `ok=false`,
+and reads `bal_hive:k00` and `cfg_token` back before printing a single number.
 
 A transfer costs ~7x what it did (285 -> 1,965). That is the real price of a
 standard ledger, and a large part of it is the per-call allowance — a frontend
