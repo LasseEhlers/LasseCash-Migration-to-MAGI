@@ -209,3 +209,32 @@ migrated accounts have tokens and no `bal_`, unmigrated ones have `bal_` and
 no tokens, and `ensureMigrated` handles both. The sweep can be re-run; it is
 idempotent. The one irreversible step is `changeOwner` to the core, which
 happens LAST, after the rows are all across and verified.
+
+
+---
+
+## ✅ VALIDATION COMPLETE — 2026-09-06
+
+| | |
+|---|---|
+| **500,000-round fuzz** on the token ledger | PASSED, 2h45m, zero failures — with the stricter audit that also asserts the core holds exactly what it owes |
+| **Every LASSECASH path** simulated against live throwaway #10 | claim_mint, claim_pool, remove_liquidity, settle, advance succeed outright; transfer, burn, mint succeed with the allowance bundled |
+| **Wallet flows on MAINNET** | claim, mint, transfer, add liquidity — all signed through Keychain by Lasse |
+| **Self-migration** (`ensureMigrated`) | PROVEN ON A CHAIN: 500 LASSECASH in a legacy row, a 1 LASSECASH transfer, and the row is gone with 499 in the token and 1 delivered |
+| **The owner sweep** (`migrate_ledger`) | PROVEN ON A CHAIN: rows deleted, token balances exact **including a 1-base-unit account** |
+| **Supply conservation** | `sup_migrated` == token `totalSupply`, to the base unit |
+
+**Measured RC, mainnet:** claim 2,109 · mint 3,138 · transfer 1,965 · burn 1,368 ·
+claim_mint 1,115 · remove_liquidity 1,145 · **sweep ~823 per account**.
+
+A transfer costs ~7x what it did (285 -> 1,965). That is the real price of a
+standard ledger, and a large part of it is the per-call allowance — a frontend
+choice that can later become approve-once, which is what every ERC-20 app does
+and which is safe here because only the frozen contract can spend it and it
+only ever debits its own caller.
+
+**Not rehearsed, and accepted:** the UPDATE path combined with the ledger
+switch. Both halves are proven separately — updates preserve state
+byte-identically (twice on #9, once on production) and the switch works
+against populated state (above) — and they do not interact: an update swaps
+the WASM, the switch is a state flag.
