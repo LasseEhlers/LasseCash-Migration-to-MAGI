@@ -105,13 +105,13 @@ Go to **lassecash.com**, log in with your Hive wallet (Keychain, PeakVault or Hi
 
 **One thing that confuses everyone, explained properly this time.** LasseCash now runs on MAGI, and MAGI has no fees. Instead, every account gets a free energy allowance (the site calls it RC). That free allowance is enough to collect your tokens. But it does not stretch much further — if you try to post or stake right after collecting, it may say you have run out, and it takes about five days to refill. The fix is simple: keep one or two HBD in your MAGI wallet. It is not a fee and it is never taken from you — it just sits there, works as your energy, and you can withdraw it whenever you like.
 
-The keys burn on 10 October, as promised. After that nobody can change anything, including me.
+The admin keys burn on 10 October, as promised. After that nobody can change anything on the core, including me — what gets built on top later is a separate story.
 
 More details: **${POST}**
 
 This account is mine — the transfer history shows it. — Lasse`;
 
-const MEMO2 = `Your LasseCash tokens are still waiting — collecting is free: log in at lassecash.com with your Hive wallet and press Claim. Do it before 30 Sept while they still earn; from 30 Oct they slowly shrink. Tip: keep 1-2 HBD in your MAGI wallet as energy (never taken, withdraw any time) or posting after claiming may fail. Details: ${POST} — this account is mine, Lasse.`;
+const MEMO2 = `Your LasseCash tokens are still waiting — collecting is free: log in at lassecash.com with your Hive wallet and press Claim. Do it before 30 Sept while they still earn; from 30 Oct they slowly shrink. Tip: keep 1-2 HBD in your MAGI wallet as energy (never taken, withdraw any time) or posting after claiming may fail. Admin keys burn 10 Oct as promised; the core can never be changed after. Details: ${POST} — this account is mine, Lasse.`;
 
 const MEMO = `LasseCash migrated to MAGI — your tokens are claimable at lassecash.com. Claim before 30 Sept while the position still earns. Details: ${POST} — this account is mine, Lasse.`;
 
