@@ -106,7 +106,36 @@ behind it.
   *"it might be a little hard for people to understand, but the site explains
   the rewards clearly."*
 
-## The proof, before production
+## ✅ PROVEN END TO END ON A REAL CHAIN — devnet, 2026-09-06
+
+`tools/devnet/prove-token-ledger.sh`. Not a test double: a deployed
+`magi_token` built from vsc-eco's source, and the real contract with the
+token ledger compiled in.
+
+| step | result |
+|---|---|
+| Deploy token + core, init both | ok |
+| **`changeOwner` the token to `contract:vsc1BX7EY…`** | CONFIRMED; `owner` reads the core |
+| **The human deployer tries to mint** | **REFUSED — `Must be owner to mint`** |
+| `set_token` on the core | `token ledger set to vsc1BgFF2xh…` |
+| `set_snapshot` with a 500 LASSECASH burn total | ok |
+| **Token `totalSupply`** | **50,000,000,000 = 500.00000000** |
+| **Token `balanceOf(hive:null)`** | **50,000,000,000 = 500.00000000** |
+| **Core `sup_migrated`** | **50,000,000,000** |
+| **A real `claim_migration` at a fresh account's free 10,000 RC** | **success, 2,072 RC used** |
+
+All three supply figures agree exactly: the burn committed at snapshot became
+REAL TOKENS at hive:null, readable by any standard explorer, and the token's
+total supply equals the core's own accounting to the base unit.
+
+And the claim — the path 2.69M unclaimed still depends on — costs 2,072 RC
+against the free 10,000. The question that opened this whole spike is
+answered on-chain, not projected.
+
+⚠️ Devnet charges ACTUAL RC; mainnet freezes the full `rc_limit`. Gas is the
+trustworthy figure; re-validate the budget on a mainnet throwaway.
+
+## The remaining proof, before production
 
 Nothing reaches production until all of this passes on a throwaway:
 
@@ -132,7 +161,7 @@ Nothing reaches production until all of this passes on a throwaway:
 | 3 | Throwaway #10 — the six checks above |
 | 4 | Deploy the production token (10 HBD), owned by `hive:lassecashmagi` |
 | 5 | Queue the core update — 48h public timelock, visible on `/chain` the whole time |
-| 6 | On activation: `migrate_ledger` in batches, then `changeOwner` on the token to the core. The core is now the only minter |
+| 6 | On activation, IN THIS ORDER: `changeOwner` on the token to the core, then `set_token` on the core, then `migrate_ledger` in batches. **The handover comes FIRST** — migrating mints, and only the owner can mint. (The plan said the reverse; writing the proof caught it.) Recoverable throughout: the core's key is not burned yet |
 | 7 | Ask MAGI for `register_token` + `register_pool` (both owner-only on their router) — the BTC route. **Not on the critical path**; it can come any time after |
 | 8 | **Burn the key**, at a height announced with the reason |
 
