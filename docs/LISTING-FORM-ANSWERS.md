@@ -43,6 +43,7 @@ that is 30 October. Same answers apply when the day comes.
 | Total supply | LIVE → https://lassecash.com/api/supply/total (27,763,864.24 on 2026-09-06; grows with emission, see below) |
 | Circulating supply | LIVE → https://lassecash.com/api/supply/circulating (9,074,953.52 on 2026-09-06). This is the URL forms ask for — it returns a bare number |
 | Supply JSON | https://lassecash.com/api/supply |
+| Locked / team addresses | **`hive:null` only.** Industry standard (CMC methodology, copied by the rest): circulating excludes only what CANNOT trade — burned, vesting-locked, foundation treasury. A founder's own unrestricted wallet circulates (Bitcoin counts Satoshi's coins; Ethereum counts Vitalik's) and staked tokens circulate (all of ETH's staked supply does). So `hive:lasseehlers` is NOT listed, and `/api/supply/circulating` = total − hive:null is already the standard figure — every site shows the same number. Decided 2026-09-06 |
 | Burned | 18,688,910.73 held by `hive:null` (no keys exist for it — provably unspendable, visible forever). Counted inside total, outside circulating |
 | Emission | 20,000,000 over 75 years: 10,000,000 in the first 3-year era, halving every 3 years (era 1: 3.17097910 per 30-second MAGI block ≈ 3,333,333/year). Split 50% Proof-of-Brain (creators + curators), 25% L-Share yield (minters), 25% liquidity providers |
 | Premine / ICO | None. No ICO, no presale, no VC. Supply migrated 1:1 from Hive-Engine holders who claimed within the window; everything unclaimed by inactive holders was burned to `hive:null` |
@@ -125,3 +126,4 @@ numbers you get back in this file under a "Submitted" heading, with the date.
 | Date | Site | What | Reference |
 |---|---|---|---|
 | 2026-09-06 10:19 CPH | LiveCoinWatch | exchange request — URL https://lassecash.com/pool (the form is a single URL field) | "Request received!" — no ticket number issued |
+| 2026-09-06 10:28 CPH | LiveCoinWatch | coin request — full form (supply APIs, explorer, logo, notes), locked address hive:null only | "Success!" — no ticket number; they quote ~72 h |
