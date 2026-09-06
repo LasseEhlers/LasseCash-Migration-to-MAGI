@@ -135,6 +135,41 @@
   const owed = $derived(open.reduce((t, p) => t + toUnits(p.pending_payout), 0n));
   const payableNow = $derived(open.filter((p) => p.payable));
 
+  /**
+   * Settle a closed window from here, instead of hunting the post.
+   *
+   * `payout` is permissionless — it pays the AUTHOR and their curators, never
+   * the caller, so pressing this is pure housekeeping at your own RC cost.
+   * The site normally does it for free by riding up to two settlements along
+   * with anyone's vote; this is for when nobody has voted lately and a
+   * backlog has built up.
+   *
+   * NOT frozen by the key burn: `payout` itself is, but who calls it and when
+   * is a web page, changeable forever.
+   */
+  let settling = $state<string | null>(null);
+  let settleErr = $state<string | null>(null);
+  let settled = $state(0);
+
+  async function settle(p: PostView) {
+    const key = p.author + "/" + p.permlink;
+    settling = key;
+    settleErr = null;
+    try {
+      const refusal = await chain.submit(() => client.payout(p.author, p.permlink));
+      if (refusal) {
+        settleErr = refusal;
+      } else {
+        settled += 1;
+        posts = await client.posts(100);
+      }
+    } catch (e) {
+      settleErr = e instanceof Error ? e.message : String(e);
+    } finally {
+      settling = null;
+    }
+  }
+
   function moved(key: string, now: string): bigint | null {
     if (!opened) return null;
     return toUnits(now) - (opened[key] ?? 0n);
@@ -248,12 +283,22 @@
           Each figure is the contract's own formula against today's balance, so it
           moves as the pool fills and as new votes change the denominator.
         </p>
+        {#if !chain.account}
+          <p class="note dim">Sign in to settle a closed window from here.</p>
+        {/if}
+        {#if settleErr}<p class="err">{settleErr}</p>{/if}
+        {#if settled > 0}
+          <p class="note ok">
+            Settled {settled} post{settled > 1 ? "s" : ""}. The author and their
+            curators are paid; you paid only the resource credits.
+          </p>
+        {/if}
         <div class="scroll">
           <table>
             <thead>
               <tr>
                 <th>post</th><th>pool</th><th class="num">rshares</th>
-                <th class="num">would take</th><th>settles</th>
+                <th class="num">would take</th><th>settles</th><th></th>
               </tr>
             </thead>
             <tbody>
@@ -268,6 +313,17 @@
                   <td class="num mono gold">{lc(p.pending_payout)}</td>
                   <td class:warn={p.payable}>
                     {p.payable ? "ready now" : p.payout_time.slice(0, 10)}
+                  </td>
+                  <td>
+                    {#if p.payable && chain.account}
+                      <button
+                        class="small"
+                        onclick={() => settle(p)}
+                        disabled={chain.busy || settling !== null}
+                      >
+                        {settling === p.author + "/" + p.permlink ? "Settling…" : "Settle"}
+                      </button>
+                    {/if}
                   </td>
                 </tr>
               {/each}
@@ -309,6 +365,8 @@
   .pool dd { margin: 0; font-size: var(--t-sm); }
   .pool dd.up { color: var(--green); }
   .pool dd.down { color: var(--gold); }
+  .err { color: var(--red); font-size: var(--t-sm); margin: 0.5rem 0 0; }
+  .ok { color: var(--green); }
   .pill { font-size: var(--t-micro); border: 1px solid var(--line); border-radius: 4px; padding: 0.05rem 0.3rem; }
   .warn { color: var(--gold); }
   .drain { margin-top: 0.8rem; padding-top: 0.7rem; border-top: 1px solid var(--line-soft); }
