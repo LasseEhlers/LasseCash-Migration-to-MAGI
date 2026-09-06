@@ -1066,8 +1066,26 @@ hive:null, so it stays inside total and out of circulating. Max is the 51M
 hardcap as listing metadata (no state key holds it; the chain enforces it in
 Go). The GitHub issue for the MAGI team — index contract pools in Altera,
 request GeckoTerminal chain support — is drafted in
-`docs/MAGI-INDEXER-ISSUE-DRAFT.md`; vaultec (the vsc.gateway recovery
-account) is the one to reach, TibFox is not on the team.
+`docs/MAGI-INDEXER-ISSUE-DRAFT.md`; posted as vsc-eco/altera-app#144 on
+2026-09-06. **TibFox IS on the team (vsc-devs role)** — the earlier "not on
+the team" note was wrong.
+
+**⚠️ HIS ANSWER, 2026-09-06, AND IT IS FAIR:** *"we do not need to write
+custom logic anywhere … you decided to code everything of your contract
+custom. if you would have used the tools we have nobody had to do anything
+to make your pool or token work … we will not add custom contract logic to
+our general indexers."* The 20 Aug decision checked the contract SDK (no
+pool/token primitives) and stopped there; it never evaluated vsc-eco's
+`magi_token-contract` (ERC-20-style standard, May 2026) or `dex-contracts`
+(the unified router, June 2026), and the SDK has `ContractCall`, so a
+standard token owned and driven by our economics contract WAS possible.
+The economics could never have been standard; the ledger and the pool
+could. Cost: Altera and their indexers/token-sdk wallets do not see
+LASSECASH. Not fatal and NOT to be rushed before the burn: a wrapper dApp
+after 10 Oct can hold LASSECASH on our ledger (`transfer` accepts
+`contract:…` recipients) and issue a standard `magi_token` 1:1 — the
+"dApp reads core" pattern below. Open question that decides its value:
+does the DEX router accept a magi_token as a pool asset?
 
 **How it gets the trades WITHOUT the engine** (the Worker has none, by
 design): every pool call's RETURN VALUE carries the settled figure —
