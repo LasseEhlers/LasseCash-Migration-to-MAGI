@@ -1,9 +1,22 @@
-# Draft: GitHub issue for the MAGI team (vsc-eco) — 2026-09-05
+# Draft: GitHub issue for the MAGI team (vsc-eco) — 2026-09-05, refreshed 09-06
 
-Post on `vsc-eco/magi-mongo-indexer` (or `go-vsc-node` if that is where they
-triage), and drop the link to @vaultec in the MAGI Discord. It is written as a
-chain benefit with two concrete asks, not a favour. Adjust the voice; keep the
-numbers — they are all verifiable.
+**Post it on https://github.com/vsc-eco/altera-app/issues/new** — checked
+2026-09-06: issues are enabled there and it is where users file Altera
+requests (101 issues so far); `magi-mongo-indexer` and `go-vsc-node` are
+infrastructure repos with no user traffic. Then drop the issue link to
+@vaultec in the MAGI Discord. It is written as a chain benefit with two
+concrete asks, not a favour. Adjust the voice; keep the numbers — they are all
+verifiable, and were re-checked live on 2026-09-06 (37 swaps plus every
+add/withdraw, `reconciled: true`).
+
+`gh` is logged in as LasseEhlers on this machine, so the whole thing can also
+go up with one command once the text below is final:
+
+```bash
+gh issue create -R vsc-eco/altera-app \
+  --title "Contract-managed pools: index them in Altera, and put MAGI on GeckoTerminal" \
+  --body-file /tmp/issue-body.md
+```
 
 ---
 
@@ -28,8 +41,10 @@ settled result in the contract output — `swapped for <out> HBD`,
 `withdrew <lc> LC and <hbd> HBD` (`findContractOutput`, one result per call,
 in call order). No engine or contract-specific code is needed to replay it:
 we replay it exactly that way ourselves, and the replay lands on the live
-reserves to the base unit (48 events at the time of writing, zero unmatched).
-If it helps, I can write the adapter against your indexer's shape.
+reserves to the base unit (every event since genesis — 37 swaps plus the
+liquidity adds and withdrawals as of 6 September — zero unmatched; the
+ticker publishes `reconciled: true` when the replay and the live reserves
+agree). If it helps, I can write the adapter against your indexer's shape.
 
 **2. Request GeckoTerminal / DEX-screener chain support for MAGI.**
 That is where small-token discovery happens now, and it has to come from
@@ -47,6 +62,6 @@ Happy to do whatever part of this is ours to do.
 
 ---
 
-**Before posting, check:** the endpoint URLs answer 200 (they are deployed as
-of tonight); the event count line is still true or update it from
-`/api/cmc/trades/LASSECASH_HBD`.
+**Before posting, check:** the endpoint URLs answer 200 (verified 2026-09-06)
+and the event count line is still true — the swap count is
+`curl -s https://lassecash.com/api/cmc/trades/LASSECASH_HBD | python3 -c 'import sys,json;print(len(json.load(sys.stdin)))'`.
