@@ -329,14 +329,22 @@ func accrueWalk(s Store, toHeight uint64, maxDays int, retireBudget int) bool {
 	}
 
 	if totalEmitted > 0 {
+		// MINT BEFORE CREDITING ANY POOL. The emission only exists once the
+		// token has issued it, so a failure must not leave pools credited
+		// against supply that was never minted.
+		//
+		// On the real chain this cannot return false: the SDK aborts and
+		// unwinds the whole transaction on a failed contract call, the same
+		// convention `assets.Draw` documents for HiveDraw. False is reachable
+		// only from MemTokenStore.Fail, which exists to prove callers check.
+		if !mintSupply(s, keyEmitted, totalEmitted) {
+			return false
+		}
 		viral, deep := engine.SplitPoB(engine.Split(totalEmitted).ProofOfBrain)
 		addPool(s, keyPoolViral, viral)
 		addPool(s, keyPoolDeep, deep)
 		addPool(s, keyPoolLiquidity, engine.Split(totalEmitted).Liquidity)
 		addPool(s, keyPoolLShare, lshareTotal)
-		if !mintSupply(s, keyEmitted, totalEmitted) {
-			return
-		}
 	}
 
 	setU64(s, keyAccPerShare, uint64(acc))

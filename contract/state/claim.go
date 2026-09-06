@@ -70,8 +70,17 @@ func SetSnapshot(s Store, rootHex string, qualifierTotal, burnTotal engine.Amoun
 	setAmount(s, keyMigTotal, qualifierTotal)
 	setAmount(s, keyMigBurn, burnTotal)
 	if burnTotal > 0 {
-		burn(s, burnTotal)
-		setAmount(s, keyMigrated, MigratedSupply(s)+burnTotal)
+		// MINT BEFORE BURNING. Crediting null is a credit like any other, and
+		// on a token ledger the core pays it out of a float that has to exist
+		// first. The burn's return was also being discarded — a swallowed
+		// failure here would leave the counter raised against value nobody
+		// holds. Both found by TestClaimOnATokenLedgerPaysTheSameAsLegacy.
+		if !mintSupply(s, keyMigrated, burnTotal) {
+			return fail("supply mint failed")
+		}
+		if !burn(s, burnTotal) {
+			return fail("burn failed")
+		}
 	}
 	return ok("snapshot committed")
 }
@@ -152,12 +161,17 @@ func ClaimMigration(s Store, ctx Ctx, liquid, staked engine.Amount, proofHex []s
 		}
 	}
 
+	// MINT BEFORE CREDITING. On a token ledger the core pays out of its own
+	// float, so the claimed supply has to exist before the claimant can be
+	// paid. Invisible on the legacy ledger, load-bearing on the token one.
+	if !mintSupply(s, keyMigrated, liquid+staked) {
+		return fail("supply mint failed")
+	}
 	if liquid+toOwner > 0 && !credit(s, ctx.Sender, liquid+toOwner) {
 		return fail("credit failed")
 	}
 	Recycle(s, recycled)
 	setAmount(s, keyMigClaimed, next)
-	setAmount(s, keyMigrated, MigratedSupply(s)+liquid+staked)
 	s.Set(migDoneKey(ctx.Sender), migrationRecord(liquid, staked))
 	return ok("claimed " + encI64(int64(liquid+toOwner)) + " liquid")
 }
@@ -203,7 +217,9 @@ func SweepUnclaimed(s Store, ctx Ctx) Result {
 	}
 	remainder := getAmount(s, keyMigTotal) - getAmount(s, keyMigClaimed)
 	if remainder > 0 {
-		setAmount(s, keyMigrated, MigratedSupply(s)+remainder)
+		if !mintSupply(s, keyMigrated, remainder) {
+			return fail("supply mint failed")
+		}
 		Recycle(s, remainder)
 	}
 	s.Set(keyMigSwept, "1")
