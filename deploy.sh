@@ -8,6 +8,10 @@
 #   ./deploy.sh deploy    deploy the contract          <-- COSTS 10 HBD
 #   ./deploy.sh update    push a new version to an existing contract
 #
+# WASM=, NAME=, DESC=, OWNER= and CONTRACT_ID= override the defaults, e.g.
+#   WASM=contract/artifacts/magi-token.wasm NAME=LASSECASH ./deploy.sh deploy
+#   WASM=contract/artifacts/main-tokenledger.wasm CONTRACT_ID=vsc1... ./deploy.sh update
+#
 # COSTS 10 HBD from the deploying account's Hive (L1) balance, and needs that
 # account's ACTIVE key.
 #
@@ -27,6 +31,13 @@ DEPLOYER="$DEPLOYER_DIR/contract-deployer"
 #   WASM=contract/artifacts/main-testwindows.wasm ./deploy.sh deploy
 #
 WASM="${WASM:-contract/artifacts/main.wasm}"
+# Contract NAME and DESCRIPTION are permanent on-chain metadata — they are what
+# explorers and MAGI's indexer show, and they cannot be edited later. They must
+# be overridable, because this script deploys two different contracts now: the
+# core, and the magi_token the core owns. Deploying the token under the name
+# "LasseCash core" would mislabel it forever.
+NAME="${NAME:-LasseCash}"
+DESC="${DESC:-LasseCash core — L-Shares, Proof-of-Brain, LASSECASH:HBD pool}"
 GO_IMAGE=golang:1.25
 
 build_deployer() {
@@ -149,8 +160,8 @@ EOF
     out=$(run_deployer \
       -data-dir /repo/deploy-data \
       -wasmPath "/repo/$WASM" \
-      -name "LasseCash" \
-      -description "LasseCash core — L-Shares, Proof-of-Brain, LASSECASH:HBD pool" \
+      -name "$NAME" \
+      -description "$DESC" \
       ${OWNER:+-owner "$OWNER"} 2>&1) || true
     echo "$out"
     echo
