@@ -33,10 +33,10 @@ defaults are what is in force.
 | | |
 |---|---|
 | **Wed 30 Sep 18:00 UTC** | day 30. Claim BEFORE this and the staked half is a real earning, voting mint |
-| **Fri 30 Oct 18:00 UTC** | day 60. Between the two dates you still get every token, just no yield |
-| **Thu 28 Jan 2027** | day 150. After this, claiming is refused forever |
+| **Tue 29 Dec 18:00 UTC** | day 120. Between the two dates you still get every token, just no yield |
+| **Mon 29 Mar 2027** | day 210. After this, claiming is refused forever |
 
-Between 30 Oct and 28 Jan the unclaimed amount **bleeds away linearly**. So the
+Between 29 Dec and 29 Mar the unclaimed amount **bleeds away linearly**. So the
 three who have not claimed have three weeks to get the good version, and then
 they start losing value. A claim costs about 2,100 RC and a fresh account has
 10,000 free, so none of them need to spend anything to do it.
@@ -50,7 +50,7 @@ they start losing value. A claim costs about 2,100 RC and a fresh account has
 > waiting for you at https://lassecash.com
 >
 > worth doing before 30 september, thats when it turns from an earning position
-> into just tokens. and after 30 october it slowly bleeds away, which I would
+> into just tokens. and from late december it slowly bleeds away, which I would
 > hate for you.
 >
 > it costs you nothing, a claim fits inside the free allowance every hive
@@ -62,7 +62,7 @@ they start losing value. A claim costs about 2,100 RC and a fresh account has
 >
 > https://lassecash.com ... it costs nothing, the free allowance covers it.
 >
-> before 30 september is best, after 30 october it starts bleeding away.
+> before 30 september is best, from late december it starts bleeding away.
 
 ### @erica005 — asked "how does it work?", and has 23,173 waiting
 > good question, and there is a reason to ask it now... you have 23.173

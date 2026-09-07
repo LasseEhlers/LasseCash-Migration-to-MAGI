@@ -101,7 +101,7 @@ const COMMENT2_BODY = `**Your LasseCash tokens are still waiting for you. Collec
 
 Go to **lassecash.com**, log in with your Hive wallet (Keychain, PeakVault or HiveAuth — the same one you use for Hive) and press **Claim**. One click, one signature, done.
 
-**Please do it before 30 September.** Until then your tokens earn from the day you collect them. After 30 September you still get all of them, but they stop earning. From 30 October they slowly start to shrink — so sooner really is better.
+**Please do it before 30 September.** Until then your tokens earn from the day you collect them. After 30 September you still get all of them, but they stop earning. From 29 December they slowly start to shrink, and after 29 March 2027 they can no longer be claimed at all — so sooner really is better.
 
 **One thing that confuses everyone, explained properly this time.** LasseCash now runs on MAGI, and MAGI has no fees. Instead, every account gets a free energy allowance (the site calls it RC). That free allowance is enough to collect your tokens. But it does not stretch much further — if you try to post or stake right after collecting, it may say you have run out, and it takes about five days to refill. The fix is simple: keep one or two HBD in your MAGI wallet. It is not a fee and it is never taken from you — it just sits there, works as your energy, and you can withdraw it whenever you like.
 
@@ -111,7 +111,7 @@ More details: **${POST}**
 
 This account is mine — the transfer history shows it. — Lasse`;
 
-const MEMO2 = `Your LasseCash tokens are still waiting — collecting is free: log in at lassecash.com with your Hive wallet and press Claim. Do it before 30 Sept while they still earn; from 30 Oct they slowly shrink. Tip: keep 1-2 HBD in your MAGI wallet as energy (never taken, withdraw any time) or posting after claiming may fail. Admin keys burn 10 Oct as promised; the core can never be changed after. Details: ${POST} — this account is mine, Lasse.`;
+const MEMO2 = `Your LasseCash tokens are still waiting — collecting is free: log in at lassecash.com with your Hive wallet and press Claim. Do it before 30 Sept while they still earn; from 29 Dec they slowly shrink, and after 29 Mar 2027 they are gone. Tip: keep 1-2 HBD in your MAGI wallet as energy (never taken, withdraw any time) or posting after claiming may fail. Admin keys burn 10 Oct as promised; the core can never be changed after. Details: ${POST} — this account is mine, Lasse.`;
 
 const MEMO = `LasseCash migrated to MAGI — your tokens are claimable at lassecash.com. Claim before 30 Sept while the position still earns. Details: ${POST} — this account is mine, Lasse.`;
 
@@ -162,10 +162,48 @@ async function sendMemo(account, memo = MEMO) {
   return "0.001 HBD";
 }
 
+// ---------------------------------------------------------------- round-2 fix
+//
+// The letter sent 6 Sep said the unclaimed position "starts to shrink from
+// 30 October". Wrong: grace is 90 days (engine.GraceDays), so the bleed starts
+// day 120 = 29 December and the claim is refused after day 210 = 29 March
+// 2027. The date came from a stale table that predates the grace widening.
+// Hive lets an author edit a comment, so the 64 comments are rewritten in
+// place with the corrected body; the 6 memos cannot be edited.
+async function fixRound2(dry) {
+  const progress = loadProgress();
+  const sent = Object.entries(progress.round2 || {})
+    .filter(([, v]) => String(v.where).startsWith("comment "));
+  progress.round2fix = progress.round2fix || {};
+  const todo = sent.filter(([a]) => !progress.round2fix[a]);
+  console.log(`round2-fix: ${sent.length} comments sent, ${todo.length} still to correct`);
+  if (dry) { console.log(`would edit: ${todo.map(([a]) => a).join(", ")}`); return; }
+  let ok = 0, fail = 0;
+  for (const [account, v] of todo) {
+    const [parent_author, parent_permlink] = String(v.where).slice("comment ".length).split("/");
+    const permlink = `re-lassecash-${parent_permlink}`.slice(0, 200).toLowerCase()
+      .replace(/[^a-z0-9-]/g, "-");
+    try {
+      await client.broadcast.comment({
+        parent_author, parent_permlink, author: ACCOUNT, permlink, title: "",
+        body: COMMENT2_BODY, json_metadata: JSON.stringify({ app: "lassecash/2.0" }),
+      }, postingKey());
+      progress.round2fix[account] = { at: new Date().toISOString() };
+      saveProgress(progress); ok++;
+      console.log(`  ok    @${account}`);
+    } catch (e) {
+      fail++; console.log(`  FAIL  @${account}  ${(e.message || e).toString().slice(0, 100)}`);
+    }
+    await sleep(3_000);
+  }
+  console.log(`\ndone: ${ok} corrected, ${fail} failed`);
+}
+
 // ---------------------------------------------------------------- main
 
 async function main() {
   const mode = process.argv[2];
+  if (mode === "round2-fix") return fixRound2(process.argv.includes("--dry"));
   if (!["comment", "memo", "lp", "round2"].includes(mode)) {
     console.error("usage: node tools/outreach.js <comment|memo|lp|round2> [--limit N] [--dry] [--all]");
     console.error("  round2: unclaimed holders from tools/unclaimed-2026-09-06.json, >= 1,000 LASSECASH");

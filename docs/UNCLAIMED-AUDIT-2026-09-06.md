@@ -117,3 +117,17 @@ latest post, 6 as memos to accounts with nothing to reply to. First three
 verified on Hive by reading the comments back. Progress in
 `deploy-data/outreach-progress.json` under `round2`. The 255 smaller holders
 (`--all`) were not included.
+
+---
+
+## ⚠️ CORRECTION 7 Sep — the letter's bleed date was wrong
+
+The round-2 letter said the unclaimed position "starts to shrink from 30
+October". Grace is 90 days (`engine.GraceDays`), so the bleed starts **day 120
+= 29 December** and the claim is refused after **day 210 = 29 March 2027**. The
+30 October figure came from a stale claim table in CLAUDE.md that predated the
+grace widening of 22 Aug; the genesis post itself has always been right. The
+error is conservative — it urged people earlier than necessary — but it is a
+false statement under Lasse's name to 70 holders. `node tools/outreach.js
+round2-fix` rewrites the 64 sent comments in place with the corrected body;
+the 6 memos cannot be edited.

@@ -391,9 +391,9 @@ genesis whether or not claimed — identical economics to push:
 | claim on | the staked part |
 |---|---|
 | day 0–30 | a real 30-day mint, earning and voting from the claim onward |
-| day 30–60 (grace) | the full minted amount, straight to liquid, no yield |
-| day 60–150 (bleed) | the surviving fraction; the bled part recycles to the L-Share pool |
-| after day 150 | refused; `sweep_unclaimed` (permissionless, once) recycles ALL unclaimed — stake and liquid — to the L-Share pool (Lasse chose pool over null: it is the tail of the same bleed) |
+| day 30–120 (grace, 90 days since 08-22) | the full minted amount, straight to liquid, no yield |
+| day 120–210 (bleed) | the surviving fraction; the bled part recycles to the L-Share pool |
+| after day 210 | refused; `sweep_unclaimed` (permissionless, once) recycles ALL unclaimed — stake and liquid — to the L-Share pool (Lasse chose pool over null: it is the tail of the same bleed) |
 
 Liquid is always credited in full on claim. Nobody earns or votes before
 claiming (Lasse: fine). `ClaimDeadlineHeight = genesis + (30+30+90) days` —
