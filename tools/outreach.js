@@ -194,7 +194,11 @@ async function fixRound2(dry) {
     } catch (e) {
       fail++; console.log(`  FAIL  @${account}  ${(e.message || e).toString().slice(0, 100)}`);
     }
-    await sleep(3_000);
+    // Hive allows ONE comment edit per block per account. At a 3 s gap two
+    // edits landed in the same block whenever the node was slow: 11 of 64
+    // failed on 7 Sep with "one comment edit per block" and its mirror image,
+    // "duplicate transaction". Two blocks of margin.
+    await sleep(6_500);
   }
   console.log(`\ndone: ${ok} corrected, ${fail} failed`);
 }
