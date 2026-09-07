@@ -30,7 +30,7 @@ const MEMO = `Hallo, this is a serious message, even if it comes in a memo... I 
 
 No fees. A hardcap of 51M written down in 2019 and now enforced by the contract, with emission halving every 3 years. Mints inspired by HEX's certificates of deposit, and your mint is also your voting weight on posts and thresholds. The pool has zero swap fee, hardcoded, and the LPs are paid in LASSECASH from emission instead. It is a core design, built so other things can be built on top. We burn the admin key 40 days in, on 10 October, and then the rules are immutable forever. The first big application contract on MAGI, and everything in it is unique.
 
-Everyone in the snapshot got a 30-day mint, so on day 30 (30 September) the whole migrated supply unlocks at once... that is where real price discovery happens, and right after it there will be very few mints, so the first new minters share the whole reward pool between them for a while.
+Everyone in the snapshot got a 30-day mint, so on day 30 (30 September) the whole migrated supply unlocks at once... that is where real price discovery happens. With that much suddenly liquid the price might go real low for a while, so for the brave there could be monster buying opportunities... and right after it there will be very few mints, so the first new minters share the whole reward pool between them for a while.
 
 To be clear, these are real opportunities in the beginning phase after day 30: almost no mints means the first new minters take most of the L-Share reward pool, and the pool pays 25% of all emission to its liquidity providers while there is still very little liquidity in it, so the return per HBD is at its highest right now. Neither lasts. Both are on the chain for anyone to check.
 
