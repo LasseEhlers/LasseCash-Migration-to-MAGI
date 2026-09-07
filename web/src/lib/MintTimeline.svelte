@@ -8,7 +8,7 @@
    * exactly when it matters most. The marker is positioned proportionally
    * *within* its own phase, so it still tells the truth about where you are.
    */
-  import { durationWords } from "$lib/format.js";
+  import { durationWords, shortDate } from "$lib/format.js";
   import { constants } from "$api/index.js";
   import { chain } from "$lib/chain.svelte.js";
   import type { MintView } from "$api/index.js";
@@ -19,7 +19,9 @@
   const HEIGHTS_PER_DAY = 28_800;
 
   const graceDays = $derived(
-    mint.good_accounting ? (C?.goodAcctGrace ?? 1095) : (C?.graceDays ?? 30),
+    // Fallbacks only apply before the engine loads. 30 was the pre-2026-08-22
+    // grace and was three weeks stale here.
+    mint.good_accounting ? (C?.goodAcctGrace ?? 1095) : (C?.graceDays ?? 90),
   );
   const bleedDays = $derived(C?.bleedDays ?? 90);
 
@@ -57,7 +59,19 @@
   const label = $derived.by(() => {
     if (liquidated) return "liquidated — nothing left";
     if (pos.phase === "lock") return `${durationWords(maturity - height)} to maturity`;
-    if (pos.phase === "grace") return `safe for ${durationWords(graceEnd - height)}`;
+    // A DATE, not just a duration. "safe for 3 years" tells you nothing you
+    // can put in a calendar, and this is the deadline that decides whether a
+    // position survives — Lasse asked for it 2026-09-07. When Good Accounting
+    // is armed the label says so, because once a mint matures the armed state
+    // has nowhere else to show.
+    if (pos.phase === "grace") {
+      const until = shortDate(
+        new Date(Date.now() + (graceEnd - height) * 3_000).toISOString(),
+      );
+      return mint.good_accounting
+        ? `Good Accounting — safe until ${until}, then it bleeds`
+        : `safe until ${until}, then it bleeds`;
+    }
     return `bleeding — zero in ${durationWords(zeroAt - height)}`;
   });
 </script>
