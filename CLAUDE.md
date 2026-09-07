@@ -598,6 +598,25 @@ exists to bound. Retest after ~8 September, once early viral posts cross day
 7 and some accounts have a genuinely payable backlog — ideally on an account
 whose queue is at or near depth 20, not extrapolated from a smaller one.
 
+**BASELINE TAKEN 2026-09-07 08:00 CPH, ready for the comparison.** Queue
+depths on production: @lasseehlers **13**, @silvertop 4, @angeloextreme 4,
+@elizabethbit 3, @zaxan 2, @tom45p 1 — so @lasseehlers at 13 is the deepest
+queue that will ever be measurable before the day-30 cliff. Simulated on the
+CHEAP path (nothing payable yet, every entry skipped):
+
+| call | RC | gas |
+|---|---|---|
+| `settle_pending` at depth 13 | **2,467** | 246,627,997 |
+| `settle` | 100 | 3,855,112 |
+| `payout` on an open post | 109 | correctly refused, "window still open" |
+
+**The first window closes 2026-09-07 ~13:00 CPH** (`lassecash-is-live-on-magi`,
+viral, 4 votes). From that moment `settle_pending` on @lasseehlers walks the
+EXPENSIVE credit-and-write path for the entries that became payable, and the
+difference from 2,467 is the real per-entry cost `MaxCurationDrain` exists to
+bound. Re-run the same three simulations then; no broadcast needed, simulation
+is free.
+
 **Who calls it — three layers, in order of how much they matter:**
 
 1. **Piggyback on the voter's own transaction** (`PiggybackDrain = 3`). Voting
