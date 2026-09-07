@@ -12,6 +12,7 @@
   import MintTimeline from "$lib/MintTimeline.svelte";
   import Hbd from "$lib/Hbd.svelte";
   import type { MintView } from "$api/index.js";
+  import { constants } from "$api/index.js";
 
   let { mint }: { mint: MintView } = $props();
 
@@ -32,6 +33,14 @@
    * once. Found on production 2026-09-07.
    */
   const waiting = $derived(mint.mature && !mint.claimable);
+  // Read the windows from the engine, never retype them. This tooltip said
+  // "from 30 days" and "the 30-day grace" long after GraceDays was widened
+  // 30 -> 90 on 2026-08-22, so it told every reader the wrong deadline for
+  // the one action that cannot be taken late.
+  // constants() throws until the engine WASM has loaded, and this card can
+  // render on a cold page, so it is guarded like /chain does it.
+  const grace = $derived(chain.ready ? constants().graceDays : 90);
+  const bleed = $derived(chain.ready ? constants().bleedDays : 90);
 
   async function close() {
     error = null;
@@ -118,7 +127,7 @@
         class="ghost small"
         onclick={arm}
         disabled={chain.busy}
-        title="Good Accounting — tax planning. Extends the grace period after maturity from 30 days to 3 years, so you can choose which tax year to realise the payout in. Only you can arm it, and only during the 30-day grace after maturity — once the bleed has started it is too late. The ordinary 90-day bleed still follows the extended grace."
+        title={`Good Accounting — tax planning. Extends the grace period after maturity from ${grace} days to 3 years, so you can choose which tax year to realise the payout in. Only you can arm it, and only during the ${grace}-day grace after maturity — once the bleed has started it is too late. The ordinary ${bleed}-day bleed still follows the extended grace.`}
       >Good Accounting</button>
     {/if}
     {#if confirming}
