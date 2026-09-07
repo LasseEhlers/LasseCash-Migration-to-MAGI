@@ -456,6 +456,9 @@ type MintView struct {
 	MaturityHeight uint64 `json:"maturity_height"`
 	MaturityTime   string `json:"maturity_time"`
 	Mature         bool   `json:"mature"`
+	// Claimable is Mature AND the maturity day has closed. The contract
+	// refuses claim_mint until then, so the UI must gate on this, not Mature.
+	Claimable bool `json:"claimable"`
 	GoodAccounting bool   `json:"good_accounting"`
 	CanArm         bool   `json:"can_arm_good_accounting"`
 	Ended          bool   `json:"ended"`
@@ -537,6 +540,7 @@ func (c *Chain) Account(account string) AccountView {
 			MaturityHeight: m.MaturityHeight(),
 			MaturityTime:   c.timeAt(m.MaturityHeight()).Format(time.RFC3339),
 			Mature:         m.IsMature(h),
+			Claimable:      m.IsMature(h) && state.AccruedDays(c.store) > state.DayOf(c.store, m.MaturityHeight()),
 			GoodAccounting: m.GoodAccounting,
 			CanArm:         m.CanArmGoodAccounting(h),
 			Ended:          m.Ended,

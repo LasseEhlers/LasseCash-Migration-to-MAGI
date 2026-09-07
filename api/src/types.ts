@@ -52,6 +52,19 @@ export interface MintView {
   maturity_height: number;
   maturity_time: string;
   mature: boolean;
+  /**
+   * Mature AND the maturity day has CLOSED, which is what the chain actually
+   * requires. `mature` alone is height >= maturity, and on the maturity day
+   * itself `claim_mint` is refused: "the day has not closed yet". The refusal
+   * is deliberate (contract/state/mint.go, 2026-08-23) — claiming before the
+   * day's checkpoint is written would hand one mint the whole day's emission.
+   *
+   * Show "ready to claim" and enable the button from THIS, never from
+   * `mature`. Found 2026-09-07 on production, where mint #2 displayed "ready
+   * to claim" and the chain refused it. It matters most on day 30, when every
+   * migration mint matures together and the whole community presses at once.
+   */
+  claimable: boolean;
   good_accounting: boolean;
   can_arm_good_accounting: boolean;
   ended: boolean;

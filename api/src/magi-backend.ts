@@ -423,6 +423,9 @@ export class MagiBackend implements Backend {
       const maturity = start + nDays * hpd;
       const matDay = Math.floor((maturity - genesis) / hpd);
       const mature = height >= maturity;
+      // The chain refuses a claim until the maturity DAY has closed, so the
+      // UI must not promise one. See MintView.claimable.
+      const claimable = mature && accDay > matDay;
       // Matured but today's checkpoint isn't written yet (accDay <= matDay):
       // a real claim_mint is refused outright, not partially paid (see
       // contract/state/mint.go endMint, fixed 2026-08-23). accEnd = accStart
@@ -452,6 +455,7 @@ export class MagiBackend implements Backend {
         maturity_time: new Date(
           Date.now() + (maturity - height) * 3_000).toISOString(),
         mature,
+        claimable,
         good_accounting: ga === "1",
         // From the ENGINE, never a formula here: this line used to carry the
         // superseded "7 days before maturity" rule while the engine had moved
