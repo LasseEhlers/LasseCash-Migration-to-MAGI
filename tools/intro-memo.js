@@ -31,6 +31,13 @@ const KEY = PrivateKey.fromString(cfg.HiveActiveKey);
 const LIST = process.env.LIST || `${ROOT}/tools/snapshot/data/hive_actives_2026-09-07.json`;
 const REP = parseFloat(process.env.REP || "25");
 const LEAVES = `${ROOT}/web/static/migration/leaves.json`;
+// Named exclusions (bots, services, protocol accounts): one per line, # comments.
+// A posting-rate rule cannot do this — the most prolific posters are mostly
+// prolific humans — so the list is explicit and reviewable.
+const EXCLUDE = `${ROOT}/tools/intro-memo-exclude.txt`;
+// --with-lps adds the 53 liquidity providers written to on 1 Sep; only 3 of
+// them posted in the last 30 days, and the pool paragraph is written for them.
+const LPS = `${ROOT}/tools/lp-outreach-list.json`;
 const PROGRESS = `${ROOT}/deploy-data/intro-memo-progress.json`;
 
 const MEMO = `Hallo, this is a serious message, even if it comes in a memo... I created something I believe is amazing, it might be the best cryptocurrency product ever::: LasseCash on MAGI.
@@ -58,6 +65,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 async function main() {
   const dry = process.argv.includes("--dry");
   const li = process.argv.indexOf("--limit");
+  // flags: --dry  --limit N  --with-lps   env: REP=25  LIST=path
   const limit = li > -1 ? parseInt(process.argv[li + 1], 10) : Infinity;
 
   const bytes = Buffer.byteLength(MEMO, "utf8");
@@ -66,10 +74,22 @@ async function main() {
   const raw = JSON.parse(fs.readFileSync(LIST, "utf8"));
   const claimable = new Set(JSON.parse(fs.readFileSync(LEAVES, "utf8"))
     .filter((L) => !L[3]).map((L) => L[0].replace("hive:", "")));
-  const list = raw.recipients
+  const excluded = new Set(fs.existsSync(EXCLUDE)
+    ? fs.readFileSync(EXCLUDE, "utf8").split("\n").map((l) => l.trim()).filter((l) => l && !l.startsWith("#"))
+    : []);
+  let list = raw.recipients
     ? raw.recipients
     : Object.entries(raw.accounts).filter(([a, v]) => v.rep >= REP && !claimable.has(a))
         .sort(([, x], [, y]) => y.rep - x.rep).map(([a]) => a);
+  list = list.filter((a) => !excluded.has(a));
+  if (process.argv.includes("--with-lps")) {
+    const lp = JSON.parse(fs.readFileSync(LPS, "utf8"));
+    const names = Array.isArray(lp) ? lp : (lp.lp || Object.values(lp).flat());
+    const add = names.filter((a) => !list.includes(a) && !claimable.has(a) && !excluded.has(a));
+    console.log(`--with-lps: +${add.length} liquidity providers`);
+    list = list.concat(add);
+  }
+  console.log(`excluded by name: ${excluded.size}`);
   let progress = {};
   try { progress = JSON.parse(fs.readFileSync(PROGRESS, "utf8")); } catch {}
   const todo = list.filter((a) => !progress[a]);
