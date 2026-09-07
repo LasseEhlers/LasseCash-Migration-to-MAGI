@@ -73,10 +73,16 @@
            closed. Saying "ready" here sends the user into a refusal, and on
            day 30 it would send the whole community into one at once. -->
       <span class="pill info">matures today · claimable tomorrow</span>
-    {:else if mint.good_accounting}
-      <span class="pill info">good accounting</span>
     {:else}
       <span class="pill ok">{durationWords(mint.maturity_height - height)} left</span>
+    {/if}
+    {#if mint.good_accounting && !gone}
+      <!-- A SECOND pill, not a branch. Armed state must stay visible after
+           maturity, which is exactly when it is doing something, and it used
+           to sit below `mature` in the chain above so it vanished the moment
+           it took effect. Putting it in the chain also made the countdown
+           show on bleeding and claimable mints. -->
+      <span class="pill info">3y grace</span>
     {/if}
   </header>
 
