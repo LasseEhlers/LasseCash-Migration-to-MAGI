@@ -24,6 +24,14 @@
   );
   const gone = $derived(mint.bleed_remaining_pct === "0.00000000");
   const early = $derived(!mint.mature);
+  /**
+   * Matured, but the maturity day has not closed, so `claim_mint` is refused.
+   * Deliberate on the chain: settling before the day's checkpoint exists would
+   * hand one mint the whole day's emission. The button must not offer a call
+   * the chain will reject — on day 30 every migration mint is in this state at
+   * once. Found on production 2026-09-07.
+   */
+  const waiting = $derived(mint.mature && !mint.claimable);
 
   async function close() {
     error = null;
@@ -49,8 +57,13 @@
       <span class="pill bad">liquidated</span>
     {:else if bleeding}
       <span class="pill bad">bleeding · {fractionPct(mint.bleed_remaining_pct)} left</span>
-    {:else if mint.mature}
+    {:else if mint.claimable}
       <span class="pill warn">ready to claim</span>
+    {:else if mint.mature}
+      <!-- Matured, but the chain refuses a claim until the maturity DAY has
+           closed. Saying "ready" here sends the user into a refusal, and on
+           day 30 it would send the whole community into one at once. -->
+      <span class="pill info">matures today · claimable tomorrow</span>
     {:else if mint.good_accounting}
       <span class="pill info">good accounting</span>
     {:else}
@@ -116,11 +129,15 @@
       class:danger={early}
       class:urgent={bleeding}
       onclick={close}
-      disabled={chain.busy || gone}
+      disabled={chain.busy || gone || waiting}
+      title={waiting
+        ? "This mint matured today. The chain will not settle it until the day has closed, so that everyone maturing today is paid from the same checkpoint. Claimable tomorrow — nothing is lost by waiting."
+        : undefined}
     >
       {#if gone}Nothing left
       {:else if confirming}Confirm — lose {lc(mint.slashed_if_claimed_now)}
       {:else if early}End early
+      {:else if waiting}Claimable tomorrow
       {:else}Claim{/if}
     </button>
   </footer>
