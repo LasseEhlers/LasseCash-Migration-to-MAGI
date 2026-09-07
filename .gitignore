@@ -31,6 +31,8 @@ __pycache__/
 
 # Private product planning — never publish
 docs/DAPPs build on LasseCash in the future possibly.md
+# Private product planning — the dApp roadmap and what each needs from the frozen core.
+docs/DAPP-CORE-DEPENDENCIES.md
 docs/private-names.txt
 tools/lp-targets/data/
 tools/lp-outreach-list.json
