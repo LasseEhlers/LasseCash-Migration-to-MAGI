@@ -122,8 +122,14 @@ export function durationWords(heights: number): string {
   const plural = (n: number, unit: string) => `${n} ${unit}${n === 1 ? "" : "s"}`;
   const days = Math.floor(heights / 28_800);
   if (days >= 365) {
-    const years = Math.floor(days / 365);
-    const months = Math.floor((days % 365) / 30);
+    // A year is 365 days but a month was 30, so the remainder could reach 12
+    // months and the label read "2 years 12 months" — arithmetically
+    // impossible, and Lasse caught it on a 1,094-day mint (2026-09-07). The
+    // same bug turned 364 days into "0 years 12 months". Carrying the twelfth
+    // month into the year keeps the two units consistent with each other.
+    let years = Math.floor(days / 365);
+    let months = Math.floor((days % 365) / 30);
+    if (months >= 12) { years += 1; months = 0; }
     return months >= 1 ? `${plural(years, "year")} ${plural(months, "month")}` : plural(years, "year");
   }
   if (days >= 1) return plural(days, "day");
