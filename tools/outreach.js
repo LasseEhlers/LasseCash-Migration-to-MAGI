@@ -199,11 +199,37 @@ async function fixRound2(dry) {
   console.log(`\ndone: ${ok} corrected, ${fail} failed`);
 }
 
+// A memo cannot be edited, so the 6 who got one get a second memo that says
+// what was wrong and what is right, and nothing else.
+const MEMO_FIX = `Correction to my memo of 6 Sept: your unclaimed LasseCash starts to shrink from 29 December (not 30 October), and can no longer be claimed after 29 March 2027. Before 30 September it still earns. Claim at lassecash.com — sorry for the wrong date. This account is mine, Lasse.`;
+
+async function fixMemos(dry) {
+  const progress = loadProgress();
+  const got = Object.entries(progress.round2 || {})
+    .filter(([, v]) => String(v.where).startsWith("memo ")).map(([a]) => a);
+  progress.memofix = progress.memofix || {};
+  const todo = got.filter((a) => !progress.memofix[a]);
+  console.log(`memo-fix: ${got.length} got a memo, ${todo.length} still to correct`);
+  console.log(`\n--- memo ---\n${MEMO_FIX}\n---`);
+  if (dry) { console.log(`\nwould send to: ${todo.join(", ")}`); return; }
+  let ok = 0, fail = 0;
+  for (const account of todo) {
+    try {
+      await sendMemo(account, MEMO_FIX);
+      progress.memofix[account] = { at: new Date().toISOString() };
+      saveProgress(progress); ok++; console.log(`  ok    @${account}`);
+    } catch (e) { fail++; console.log(`  FAIL  @${account}  ${(e.message || e).toString().slice(0, 100)}`); }
+    await sleep(3_000);
+  }
+  console.log(`\ndone: ${ok} sent, ${fail} failed`);
+}
+
 // ---------------------------------------------------------------- main
 
 async function main() {
   const mode = process.argv[2];
   if (mode === "round2-fix") return fixRound2(process.argv.includes("--dry"));
+  if (mode === "memo-fix") return fixMemos(process.argv.includes("--dry"));
   if (!["comment", "memo", "lp", "round2"].includes(mode)) {
     console.error("usage: node tools/outreach.js <comment|memo|lp|round2> [--limit N] [--dry] [--all]");
     console.error("  round2: unclaimed holders from tools/unclaimed-2026-09-06.json, >= 1,000 LASSECASH");
