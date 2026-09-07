@@ -58,7 +58,16 @@ export class MagiBackend implements Backend {
         signal: ctrl.signal,
       });
     } catch (cause) {
-      throw new BackendError(`MAGI node unreachable at ${this.#url}`, undefined, cause);
+      // Say WHY. Seen live 2026-09-07 04:08 and 04:19: a red "unreachable"
+      // banner with the cause thrown away, so a 15 s timeout, a dropped wifi
+      // link and a CORS refusal all read the same and nothing could be
+      // diagnosed afterwards. The name is what distinguishes them:
+      // AbortError = our timeout, TypeError = the browser could not connect.
+      const c = cause as { name?: string; message?: string } | undefined;
+      const why = c?.name === "AbortError"
+        ? `no answer within ${this.#timeoutMs / 1000}s`
+        : c?.message ? `${c.name ?? "error"}: ${c.message}` : "no response";
+      throw new BackendError(`MAGI node unreachable at ${this.#url} (${why})`, undefined, cause);
     } finally {
       clearTimeout(timer);
     }
