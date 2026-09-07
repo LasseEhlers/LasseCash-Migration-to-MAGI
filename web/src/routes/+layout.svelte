@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { page } from "$app/state";
-  import { chain, restoreSession } from "$lib/chain.svelte.js";
+  import { chain, restoreSession, WALLET_MODE } from "$lib/chain.svelte.js";
   import { hbdPref } from "$lib/hbd.svelte.js";
   import SignIn from "$lib/SignIn.svelte";
   import { displayName } from "$lib/format.js";
@@ -178,10 +178,15 @@
       <span class="dot"></span> Signed — waiting for MAGI to confirm. The figures update by themselves.
     </div>
   {/if}
-  {#if chain.error}
+  {#if chain.outage}
     <div class="banner error">
-      <strong>Chain unreachable.</strong> {chain.error}
-      <span class="hint">Start it with <code>./build.sh node</code></span>
+      {#if WALLET_MODE}
+        <strong>MAGI's node is not answering.</strong>
+        {chain.info ? "Showing the last figures loaded — retrying every 30 seconds." : "Retrying every 30 seconds."}
+      {:else}
+        <strong>Chain unreachable.</strong> {chain.error}
+        <span class="hint">Start it with <code>./build.sh node</code></span>
+      {/if}
     </div>
   {:else if !chain.ready}
     <div class="banner">Loading engine…</div>

@@ -103,6 +103,19 @@ class ChainStore {
   /** True once the browser engine is callable — previews stay disabled until then. */
   ready = $state(false);
   error = $state<string | null>(null);
+  /**
+   * Consecutive failed refreshes. Seen live 2026-09-07 04:08: one 30-second
+   * poll to api.vsc.eco failed, the page still showed every balance and mint
+   * it had loaded seconds earlier, and the layout painted a red "Chain
+   * unreachable" banner across it — with a `./build.sh node` hint meant for
+   * developers. The node was fine on the next request. A single missed poll
+   * with data already on screen is not an outage; the banner waits for two.
+   */
+  failures = $state(0);
+  /** True only when the failure is worth alarming a reader about. */
+  get outage(): boolean {
+    return this.error !== null && (this.info === null || this.failures >= 2);
+  }
   busy = $state(false);
   /**
    * True while a signed call has left the wallet but the chain has not yet
@@ -156,8 +169,10 @@ class ChainStore {
       this.info = await client.chain();
       if (this.account) this.me = await client.accountOf(this.account);
       this.error = null;
+      this.failures = 0;
     } catch (e) {
       this.error = e instanceof Error ? e.message : String(e);
+      this.failures++;
     }
     this.#maybeSettleForNewMonth();
   }
