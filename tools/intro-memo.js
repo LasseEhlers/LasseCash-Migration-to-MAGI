@@ -76,7 +76,15 @@ async function main() {
       if (sent % 25 === 0 || sent <= 3) console.log(`  ok    @${account}   (${sent} sent)`);
     } catch (e) {
       failed++;
-      console.log(`  FAIL  @${account}  ${(e.message || e).toString().slice(0, 120)}`);
+      const msg = (e.message || e).toString();
+      console.log(`  FAIL  @${account}  ${msg.slice(0, 120)}`);
+      // Hive RC exhausted: every further send fails the same way, and at one
+      // attempt per 3 s that is hours of noise. Stop; rerunning later resumes.
+      if (/needs \d+ RC/.test(msg)) {
+        console.log("\nHive RC on the sender is exhausted. It refills ~20% per day; " +
+                    "delegate more HP to it or wait, then run the same command again.");
+        break;
+      }
     }
     await sleep(3_000);
   }
