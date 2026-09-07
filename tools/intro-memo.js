@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * The introduction letter: one 0.001 HBD memo from @lassecashmagi to every
- * active Hive account on the 23 Aug list (4,443), the first time LasseCash as
+ * active Hive account — posted in the last 30 days, measured 7 Sep, the first time LasseCash as
  * it now exists is described to people who never used it.
  *
  * Lasse's letter, 7 Sep. Sent to all 4,443 including the 1,510 who got the
@@ -23,7 +23,14 @@ const ROOT = `${__dirname}/..`;
 const cfg = JSON.parse(fs.readFileSync(`${ROOT}/deploy-data/config/identityConfig.json`, "utf8"));
 const FROM = cfg.HiveUsername;
 const KEY = PrivateKey.fromString(cfg.HiveActiveKey);
-const LIST = `${ROOT}/tools/snapshot/data/hive_active_users_2026-08.json`;
+// The FRESH list: every account that published a root post in the last 30
+// days, walked from the chain on 7 Sep by tools/snapshot/hive_actives.py.
+// Filters: reputation floor (REP, default 25 — drops brand-new and spam
+// accounts) and the 353 claimable LasseCash holders, who already received
+// two letters this week. LIST= overrides the file.
+const LIST = process.env.LIST || `${ROOT}/tools/snapshot/data/hive_actives_2026-09-07.json`;
+const REP = parseFloat(process.env.REP || "25");
+const LEAVES = `${ROOT}/web/static/migration/leaves.json`;
 const PROGRESS = `${ROOT}/deploy-data/intro-memo-progress.json`;
 
 const MEMO = `Hallo, this is a serious message, even if it comes in a memo... I created something I believe is amazing, it might be the best cryptocurrency product ever::: LasseCash on MAGI.
@@ -56,7 +63,13 @@ async function main() {
   const bytes = Buffer.byteLength(MEMO, "utf8");
   if (bytes > 2048) throw new Error(`memo is ${bytes} bytes; Hive allows 2048`);
 
-  const list = JSON.parse(fs.readFileSync(LIST, "utf8")).recipients;
+  const raw = JSON.parse(fs.readFileSync(LIST, "utf8"));
+  const claimable = new Set(JSON.parse(fs.readFileSync(LEAVES, "utf8"))
+    .filter((L) => !L[3]).map((L) => L[0].replace("hive:", "")));
+  const list = raw.recipients
+    ? raw.recipients
+    : Object.entries(raw.accounts).filter(([a, v]) => v.rep >= REP && !claimable.has(a))
+        .sort(([, x], [, y]) => y.rep - x.rep).map(([a]) => a);
   let progress = {};
   try { progress = JSON.parse(fs.readFileSync(PROGRESS, "utf8")); } catch {}
   const todo = list.filter((a) => !progress[a]);
