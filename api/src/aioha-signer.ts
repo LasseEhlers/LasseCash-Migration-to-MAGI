@@ -574,6 +574,43 @@ export class AiohaWallet {
     return this.broadcastCalls([{ action, payload, rcLimit, intents: [], contractId }], contractId, KeyTypes.Active);
   }
 
+  /**
+   * Deposit into the NATIVE LASSECASH/HBD pool (vsc-eco `dex` contract, see
+   * docs/NATIVE-POOL-PLAN.md) in ONE signed transaction: the token allowance
+   * for the pool, then `add_liquidity` with an HBD intent sized to the milli.
+   * The pool draws both sides from the CALLER (its `DrawAssetFrom` refuses
+   * anyone else), so the depositor is the signer and the LP goes to them.
+   * `asset0` is HBD in milli, `asset1` LASSECASH in 1e8 units — the pool
+   * normalises its pair alphabetically. Simulated end to end before the first
+   * real deposit (2026-09-09: allowance 404 RC, add_liquidity 1,197 RC).
+   */
+  async seedNativePool(poolId: string, lcBaseUnits: string, hbdMilli: number): Promise<TxResult> {
+    const tokenContractId = await this.tokenContract();
+    if (!tokenContractId) return { ok: false, height: 0, msg: "token contract unknown" };
+    const user = this.aioha.isLoggedIn() ? this.aioha.getCurrentUser() : null;
+    if (!user) return { ok: false, height: 0, msg: "not signed in" };
+    if (!/^\d+$/.test(lcBaseUnits) || lcBaseUnits === "0" || !(hbdMilli > 0)) {
+      return { ok: false, height: 0, msg: "amounts must be positive" };
+    }
+    const limit = `${Math.floor(hbdMilli / 1000)}.${String(hbdMilli % 1000).padStart(3, "0")}`;
+    return this.broadcastCalls([
+      {
+        action: "increaseAllowance",
+        payload: JSON.stringify({ spender: `contract:${poolId}`, amount: lcBaseUnits }),
+        rcLimit: 1_500, intents: [], contractId: tokenContractId,
+      },
+      {
+        action: "add_liquidity",
+        payload: JSON.stringify({
+          amount0: String(hbdMilli), amount1: lcBaseUnits, recipient: `hive:${user}`, min_lp_out: "0",
+        }),
+        rcLimit: 4_000,
+        intents: [{ type: "transfer.allow", args: { token: "hbd", limit } }],
+        contractId: poolId,
+      },
+    ], poolId, KeyTypes.Active);
+  }
+
   /** Several contract calls in one signed transaction (a user's call + side calls). */
   async broadcastCalls(
     calls: { action: string; payload: string; rcLimit: number; intents: unknown[]; contractId?: string }[],

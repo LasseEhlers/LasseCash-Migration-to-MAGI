@@ -17,7 +17,7 @@
    */
   import { chain, client, wallet } from "$lib/chain.svelte.js";
   import { lc, displayName } from "$lib/format.js";
-  import { dailyRewards, fromUnits, toUnits } from "$api/index.js";
+  import { dailyRewards, fromUnits, toUnits, estimateLiquidity, toBaseUnitArg } from "$api/index.js";
   import type { PostView } from "$api/index.js";
   import Seo from "$lib/Seo.svelte";
   import { SITE_OG_IMAGE, SITE_URL } from "$lib/site.js";
@@ -189,6 +189,49 @@
     }
   }
 
+  /**
+   * Seed the NATIVE LASSECASH/HBD pool (vsc1BrBFAw…, vsc-eco dex code,
+   * owner lassecashdapps — docs/NATIVE-POOL-PLAN.md). The HBD side is
+   * whatever the CORE pool asks for the same LASSECASH right now, via the
+   * engine's own liquidity quote, so both pools open at one price and nobody
+   * gets a free arbitrage. Rounded UP to the milli-HBD (the draw's unit).
+   */
+  const NATIVE_POOL = "vsc1BrBFAwZ3Mr8L4ijRqT9RPEPvhK9FWDaYSr";
+  let seedLc = $state("27000");
+  let seedBusy = $state(false);
+  let seedMsg = $state<string | null>(null);
+  let seedErr = $state<string | null>(null);
+  const seedQuote = $derived.by(() => {
+    if (!info || !chain.ready) return null;
+    try {
+      const lcBase = toBaseUnitArg(seedLc || "0");
+      if (lcBase === "0") return null;
+      const q = estimateLiquidity(lcBase, toBaseUnitArg(info.amm_lc), toBaseUnitArg(info.amm_hbd), toBaseUnitArg(info.amm_shares));
+      if (!q.ok || q.isFirstDeposit) return null;
+      const milli = Number((toUnits(q.hbdNeeded) + 99_999n) / 100_000n);
+      return { lcBase, milli, hbd: `${Math.floor(milli / 1000)}.${String(milli % 1000).padStart(3, "0")}` };
+    } catch {
+      return null;
+    }
+  });
+  async function seedNative() {
+    if (!wallet || !seedQuote) return;
+    const q = seedQuote;
+    seedBusy = true; seedMsg = null; seedErr = null;
+    try {
+      const refusal = await chain.submit(
+        () => (wallet as { seedNativePool: (p: string, lc: string, m: number) => Promise<{ ok: boolean; msg: string }> })
+          .seedNativePool(NATIVE_POOL, q.lcBase, q.milli),
+        { movesHbd: true });
+      if (refusal) seedErr = refusal;
+      else seedMsg = `deposited ${seedLc} LASSECASH + ${q.hbd} HBD into the native pool`;
+    } catch (e) {
+      seedErr = e instanceof Error ? e.message : String(e);
+    } finally {
+      seedBusy = false;
+    }
+  }
+
   async function fund(key: string) {
     const amt = (fundAmt[key] || "").trim();
     if (!amt) return;
@@ -305,6 +348,23 @@
     {/if}
 
     {#if chain.account && wallet}
+      <section class="panel rawcall">
+        <div class="label">Seed the native LASSECASH/HBD pool</div>
+        <p class="note">
+          MAGI's own DEX pool (<span class="mono">{NATIVE_POOL.slice(0, 16)}…</span>), empty until seeded.
+          The HBD side follows the core pool's price at the moment you press, so both pools open at one price.
+          One confirm: token allowance + deposit.
+        </p>
+        <form class="raw" onsubmit={(e) => { e.preventDefault(); seedNative(); }}>
+          <div class="row">
+            <input class="mono" placeholder="LASSECASH" bind:value={seedLc} disabled={seedBusy} />
+            <span class="mono note">+ {seedQuote ? seedQuote.hbd : "—"} HBD</span>
+            <button class="small" disabled={seedBusy || !seedQuote}>{seedBusy ? "Seeding…" : "Seed"}</button>
+          </div>
+        </form>
+        {#if seedMsg}<p class="ok">{seedMsg}</p>{/if}
+        {#if seedErr}<p class="err">{seedErr}</p>{/if}
+      </section>
       <section class="panel rawcall">
         <div class="label">Raw contract call — operator only</div>
         <p class="note">
