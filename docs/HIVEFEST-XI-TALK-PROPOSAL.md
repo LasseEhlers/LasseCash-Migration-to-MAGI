@@ -94,6 +94,22 @@ Summary: the abstract below, plus this closing line:
 `Everything is shown live from the chain, not from slides — and the room
 moves the economy once, on stage.`
 
+## The talk itself — decisions 2026-09-09 (Lasse)
+
+- **Remote, 20 min, no slides.** One browser: `lassecash.com/hivefest?stage`
+  (the projector view: price, every trade as a tick, "chain says / repo
+  builds" CID check, owner / update queue / recovery, live countdown to
+  block 110,664,118, QR codes) and the ordinary site for the actions.
+- **Live actions, by Lasse as @lasseehlers via Keychain:** a mint, a vote on
+  a post, a buy on lassecash.com/pool and a buy on Altera (why two pools:
+  0% fee paid by emission vs MAGI's fee split), while the room trades from
+  the QR codes and the ticker fills.
+- **NOT on stage: `fund` and the /rewards page** — Lasse: "a kind of private
+  function… I just want to show the end product." /rewards is not in the nav;
+  keep it that way.
+- Reproducibility verified 2026-09-09: a fresh TinyGo build from HEAD gives
+  `bafkreihztepf…` = the live contract's code CID.
+
 ## The proposal
 
 **Title:** Freezing an economy: what it takes to put a real token on MAGI and
