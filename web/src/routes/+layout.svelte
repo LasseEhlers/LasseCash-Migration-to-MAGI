@@ -102,14 +102,31 @@
     return (h - g) / 28_800 >= CLIFF_DAY;
   });
   const showDay30 = $derived(WALLET_MODE && !dismissedDay30 && !day30Passed);
+  /**
+   * Dismissal LAPSES after three days, it is not permanent.
+   *
+   * The note explains why every figure on the site looks the way it does, and
+   * it only exists until 30 September. A permanent dismissal means someone who
+   * closes it on day 8 never sees it again while it is still the explanation
+   * for everything they are reading; showing it every visit is nagging. Three
+   * days is quiet enough to respect the click and short enough that the note
+   * is on screen again as the cliff approaches. Lasse asked 2026-09-08 after
+   * dismissing it and finding no way back.
+   */
+  const DAY30_SNOOZE_MS = 3 * 24 * 60 * 60 * 1000;
   function dismissDay30() {
     dismissedDay30 = true;
-    try { localStorage.setItem("lc_day30_note", "1"); } catch { /* fine */ }
+    try { localStorage.setItem("lc_day30_note", String(Date.now())); } catch { /* fine */ }
   }
 
   onMount(async () => {
     try { showMobileNote = !localStorage.getItem("lc_mobile_note"); } catch { showMobileNote = true; }
-    try { dismissedDay30 = !!localStorage.getItem("lc_day30_note"); } catch { /* fine */ }
+    try {
+      const at = Number(localStorage.getItem("lc_day30_note") || 0);
+      // A pre-existing "1" from the first build parses to 1 ms since epoch,
+      // which is long lapsed — so those browsers simply see it once more.
+      dismissedDay30 = at > 0 && Date.now() - at < DAY30_SNOOZE_MS;
+    } catch { /* fine */ }
     document.addEventListener("input", decimalComma, true);
     hbdPref.restore();
     await chain.init();
