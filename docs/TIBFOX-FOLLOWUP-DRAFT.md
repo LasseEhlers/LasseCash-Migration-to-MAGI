@@ -93,3 +93,17 @@ technical claim reads worse than either would alone.
   re-litigate the original criticism.
 - **No deadline.** The key burn is our constraint, not his. Attaching urgency
   to a favour is how favours get declined.
+
+---
+
+## 9 Sep — reply to "you deploy the pool contract and we whitelist it"
+
+He was right, and it is the better model: the pool is ours, on their code;
+they only register. Reply (no rush — he said he'd come back tomorrow):
+
+> You're right, I read the dex-contracts repo: one router, one pool contract
+> per pair, deployed by whoever wants the pair. So I'll deploy your `dex`
+> contract for LASSECASH/HBD, init it with the token as the mapping contract
+> (it answers transferFrom/transfer, so no adapter needed) and the router id,
+> seed it, and send you the pool id. Then it's just register_token +
+> register_pool on your side whenever the team is ready. Thanks Tibby.
