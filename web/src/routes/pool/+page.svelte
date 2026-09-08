@@ -494,6 +494,17 @@
   }
   /** Only worth its own button once there is more than one to save a click on. */
   const claimableTrancheCount = $derived(tranches.filter((t) => !isZero(t.pending_reward)).length);
+  /** Column totals — sums of figures the chain computed, nothing derived. */
+  const trancheTotals = $derived.by(() => {
+    const sum = (pick: (t: (typeof tranches)[number]) => string) =>
+      fromUnits(tranches.reduce((acc, t) => acc + toUnits(pick(t)), 0n));
+    return {
+      shares: sum((t) => t.shares),
+      value_lc: sum((t) => t.value_lc),
+      value_hbd: sum((t) => t.value_hbd),
+      pending_reward: sum((t) => t.pending_reward),
+    };
+  });
   async function exit(id: number) {
     trancheError = await chain.submit(() => client.removeLiquidity(id), { movesHbd: true });
   }
@@ -735,11 +746,6 @@
   <section class="panel">
     <div class="thead">
       <h2>Your tranches</h2>
-      {#if claimableTrancheCount > 1}
-        <button class="ghost small" onclick={claimAll} disabled={chain.busy}>
-          Claim all ({claimableTrancheCount})
-        </button>
-      {/if}
     </div>
     {#if trancheError}<p class="err">{trancheError}</p>{/if}
     {#if !chain.account}
@@ -793,6 +799,28 @@
               </tr>
             {/each}
           </tbody>
+          {#if tranches.length > 1}
+            <tfoot>
+              <tr class="totals">
+                <td class="mono dim">total</td>
+                <td class="num">{lc(trancheTotals.shares)}</td>
+                <td></td><td></td>
+                <td class="num">{lc(trancheTotals.value_lc)} LASSECASH <small class="dim">+ {lc(trancheTotals.value_hbd, 3)} HBD</small></td>
+                <td class="num" class:gold={!isZero(trancheTotals.pending_reward)} class:dim={isZero(trancheTotals.pending_reward)}>
+                  {lc(trancheTotals.pending_reward, 3)}
+                  <Hbd amount={trancheTotals.pending_reward} decimals={6} block />
+                </td>
+                <td></td>
+                <td class="actions">
+                  {#if claimableTrancheCount > 1}
+                    <button class="ghost small" onclick={claimAll} disabled={chain.busy}>
+                      Claim all ({claimableTrancheCount})
+                    </button>
+                  {/if}
+                </td>
+              </tr>
+            </tfoot>
+          {/if}
         </table>
       </div>
     {/if}
@@ -945,4 +973,5 @@
     border: 1px solid var(--red); border-radius: 6px;
     background: rgba(255, 77, 77, 0.07);
   }
+  tr.totals td { border-top: 1px solid var(--gold); font-weight: 600; }
 </style>
