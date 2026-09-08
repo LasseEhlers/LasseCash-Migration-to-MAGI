@@ -15,8 +15,7 @@
    * shows the movement since, which is the only way to see a pool actually
    * being drained rather than merely being large.
    */
-  import { chain } from "$lib/chain.svelte.js";
-  import { client } from "$lib/chain.svelte.js";
+  import { chain, client, wallet } from "$lib/chain.svelte.js";
   import { lc, displayName } from "$lib/format.js";
   import { dailyRewards, fromUnits, toUnits } from "$api/index.js";
   import type { PostView } from "$api/index.js";
@@ -162,6 +161,34 @@
   let funding = $state<string | null>(null);
   let fundErr = $state<string | null>(null);
   let fundOk = $state<string | null>(null);
+  /**
+   * Raw contract call, operator only. Sends exactly what is typed, signed
+   * with the ACTIVE key by whoever is signed in, to any contract. Built for
+   * the native DEX pool's owner-only `init`, which lasseehlers must sign and
+   * no command-line tool here can. Simulate first; this does not.
+   */
+  let rawContract = $state("");
+  let rawAction = $state("");
+  let rawPayload = $state("");
+  let rawRc = $state("5000");
+  let rawBusy = $state(false);
+  let rawMsg = $state<string | null>(null);
+  let rawErr = $state<string | null>(null);
+  async function rawCall() {
+    if (!wallet) { rawErr = "wallet mode only"; return; }
+    rawBusy = true; rawMsg = null; rawErr = null;
+    try {
+      const refusal = await chain.submit(() =>
+        (wallet as { rawCall: (c: string, a: string, p: string, r: number) => Promise<{ ok: boolean; msg: string; txId?: string }> })
+          .rawCall(rawContract.trim(), rawAction.trim(), rawPayload.trim(), Number(rawRc) || 5000));
+      if (refusal) rawErr = refusal; else rawMsg = `${rawAction} sent to ${rawContract.slice(0, 14)}…`;
+    } catch (e) {
+      rawErr = e instanceof Error ? e.message : String(e);
+    } finally {
+      rawBusy = false;
+    }
+  }
+
   async function fund(key: string) {
     const amt = (fundAmt[key] || "").trim();
     if (!amt) return;
@@ -274,6 +301,27 @@
         </form>
         {#if fundOk}<p class="ok">Funded {fundOk}. Watch the balances above move by exactly that.</p>{/if}
         {#if fundErr}<p class="err">{fundErr}</p>{/if}
+      </section>
+    {/if}
+
+    {#if chain.account && wallet}
+      <section class="panel rawcall">
+        <div class="label">Raw contract call — operator only</div>
+        <p class="note">
+          Sends exactly what you type, signed with your ACTIVE key, to any contract.
+          No dry run and no allowance bundling. Simulate it first.
+        </p>
+        <form class="raw" onsubmit={(e) => { e.preventDefault(); rawCall(); }}>
+          <input class="mono" placeholder="contract id (vsc1…)" bind:value={rawContract} disabled={rawBusy} />
+          <input class="mono" placeholder="action (e.g. init)" bind:value={rawAction} disabled={rawBusy} />
+          <textarea class="mono" placeholder="payload" rows="3" bind:value={rawPayload} disabled={rawBusy}></textarea>
+          <div class="row">
+            <input class="mono rc" placeholder="rc_limit" bind:value={rawRc} disabled={rawBusy} />
+            <button class="small" disabled={rawBusy || !rawContract || !rawAction}>{rawBusy ? "Sending…" : "Send call"}</button>
+          </div>
+        </form>
+        {#if rawMsg}<p class="ok">{rawMsg}</p>{/if}
+        {#if rawErr}<p class="err">{rawErr}</p>{/if}
       </section>
     {/if}
 
@@ -430,6 +478,11 @@
   form.fund { display: flex; gap: 0.5rem; margin-top: 0.7rem; }
   form.fund input { flex: 1; min-width: 0; background: #0d1117; border: 1px solid var(--line); color: var(--fg); padding: 0.35rem 0.5rem; border-radius: 4px; }
   .fundall { margin-bottom: 1rem; }
+  .rawcall { margin-bottom: 1rem; border-color: color-mix(in srgb, var(--gold) 35%, var(--line)); }
+  form.raw { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.6rem; }
+  form.raw input, form.raw textarea { background: #0d1117; border: 1px solid var(--line); color: var(--fg); padding: 0.4rem 0.5rem; border-radius: 4px; width: 100%; box-sizing: border-box; }
+  form.raw .row { display: flex; gap: 0.5rem; }
+  form.raw .rc { max-width: 140px; }
   .ok { color: var(--green); }
   .pill { font-size: var(--t-micro); border: 1px solid var(--line); border-radius: 4px; padding: 0.05rem 0.3rem; }
   .warn { color: var(--gold); }

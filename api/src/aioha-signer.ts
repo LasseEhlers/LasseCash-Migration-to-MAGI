@@ -562,6 +562,18 @@ export class AiohaWallet {
     return this.#broadcast([...hiveOps, this.#vscOp(call, contractId, KeyTypes.Posting)], KeyTypes.Posting);
   }
 
+  /**
+   * One call to ANY contract, signed with the ACTIVE key, no dry run, no
+   * allowance bundling — the operator's raw tool. Exists because some calls
+   * must be signed by an account the command-line tools cannot sign for:
+   * the native DEX pool's `init` is owner-only and the pool's owner is
+   * @lasseehlers, whose key lives only in Keychain (2026-09-09). Simulate
+   * the call first (free) — this sends exactly what it is given.
+   */
+  async rawCall(contractId: string, action: string, payload: string, rcLimit: number): Promise<TxResult> {
+    return this.broadcastCalls([{ action, payload, rcLimit, intents: [], contractId }], contractId, KeyTypes.Active);
+  }
+
   /** Several contract calls in one signed transaction (a user's call + side calls). */
   async broadcastCalls(
     calls: { action: string; payload: string; rcLimit: number; intents: unknown[]; contractId?: string }[],

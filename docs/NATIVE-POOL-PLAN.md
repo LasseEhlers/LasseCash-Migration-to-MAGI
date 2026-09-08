@@ -85,23 +85,49 @@ Exports: init swap add_liquidity remove_liquidity get_pool claim_fees migrate.
   `sdk.HiveDraw`, i.e. milli-HBD. `add_liquidity {amount0, amount1, recipient,
   min_lp_out}` takes raw units per asset, assets normalised alphabetically
   (HBD < LASSECASH, so asset0 = HBD).
-- **The 0.08% goes to the pool's OWNER, claimable by the owner only**
-  (`claim_fees`); `migrate` (the pool's upgrade path) is owner-only too.
-  ⚠️ Therefore the owner must NOT be @lassecashmagi, whose keys burn on
-  10 Oct — fees would be stranded forever and the pool unupgradable.
-  **Deploy from @lassecashmagi (pays the 10 HBD, has the deploy config) with
-  `OWNER=hive:lasseehlers`.** Creator shows lassecashmagi on the explorer,
-  owner shows lasseehlers.
+- **What the pool's OWNER can do, read from `contracts/dex/main.go`
+  (2026-09-08):** exactly three things. `init` (once). `claim_fees` — the
+  network-share bucket of the 0.08% swap fee (the LP/network split is done
+  by the node's pendulum module, not the contract) is paid to the owner's
+  address and nobody else. `migrate` — a STATE-FORMAT upgrade step for new
+  pool code versions (renames keys, converts a timestamp); it moves no
+  funds. Plus the MAGI-level power every living owner has: queue a code
+  update behind the public 48h timelock. **The owner cannot touch the
+  reserves with the code as deployed**; swap, add_liquidity and
+  remove_liquidity are permissionless. If the owner's keys are LOST the
+  pool keeps working forever, fees pile up unclaimable, and no upgrade is
+  ever possible — i.e. it becomes immutable with stranded fees; LP money is
+  never at risk from key loss. Every native MAGI pool has this owner model
+  (theirs are owned by hive:vsc.dao); ours is theirs, unmodified.
+  ⚠️ The owner must NOT be @lassecashmagi (keys burn 10 Oct) and should not
+  be @lasseehlers (personal funds; its key would have to sit in a plaintext
+  deploy config for every owner call — ruled out long ago).
+  **DECIDED 2026-09-08: ONE dedicated key-holder account owns the pool and
+  every future dApp contract** — created from @lasseehlers (recovery
+  account = lasseehlers), name Lasse's choice; call it `<dapps>` below. Its
+  active key replaces lassecashmagi's in the deploy config after the burn;
+  until then it lives in a second identity file used via `IDENTITY_CONFIG=`
+  with `tools/chain-test/call.js`, or Keychain via the rewards-page raw-call
+  form. One account is enough until a dApp needs a different owner (handing
+  it to someone, its own thresholds) — the owner is per contract, chosen at
+  its deploy. Deploy from @lassecashmagi (pays the 10 HBD, has the deploy
+  config) with `OWNER=hive:<dapps>`. Creator shows lassecashmagi on the
+  explorer, owner shows `<dapps>`. Social proof does not argue for
+  lasseehlers: Altera shows the pool's registration and liquidity, not its
+  owner; the announcement names who seeded it.
 - Preflight passes at 499G Hive RC (rule changed to an absolute 5G floor).
 
 **The deploy command:**
 ```
 WASM=contract/artifacts/magi-dex-pool.wasm NAME="LASSECASH/HBD pool" \
   DESC="LASSECASH/HBD liquidity pool on MAGI's DEX — vsc-eco dex contract, unmodified" \
-  OWNER=hive:lasseehlers ./deploy.sh deploy
+  OWNER=hive:<dapps> ./deploy.sh deploy
 ```
 Then simulate `init` on the new id before broadcasting it (free), as with
-the token. Then send the pool id to TibFox with the register payloads above.
+the token; broadcast it as `<dapps>`:
+`IDENTITY_CONFIG=deploy-data/config/dapps.json CONTRACT_ID=<pool> node tools/chain-test/call.js init '<json>' 2000`
+(a fresh account's free 10,000 RC covers it). The owner is the only account the
+chain accepts `init` from — this is the one step lassecashmagi cannot do. Then send the pool id to TibFox with the register payloads above.
 
 ## Still open (after deploy)
 

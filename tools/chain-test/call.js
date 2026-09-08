@@ -21,7 +21,9 @@ const fs = require("fs");
 // 2026-09-06 for throwaway #10, which is TWO contracts (a magi_token and the
 // core that owns it) rather than one.
 const CONTRACT = process.env.CONTRACT_ID || "vsc1BV7EjeGGNCkA1yJ1iv2gzGkDjFGFwXv9Hi"; // throwaway #9 (deployed 2026-09-01 15:33): TESTWINDOWS, PRE-FUND build — the contract-update rehearsal (does an update preserve state?)
-const cfgPath = `${__dirname}/../../deploy-data/config/identityConfig.json`;
+// IDENTITY_CONFIG= points at another identity file (a second operator account, e.g. the
+// dApps key holder that owns the native pool) — the default is the deploy account.
+const cfgPath = process.env.IDENTITY_CONFIG || `${__dirname}/../../deploy-data/config/identityConfig.json`;
 
 async function main() {
   // rc_limit default is SMALL on purpose. MAGI freezes the FULL rc_limit for
