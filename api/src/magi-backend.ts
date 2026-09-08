@@ -424,9 +424,14 @@ export class MagiBackend implements Backend {
       const maturity = start + nDays * hpd;
       const matDay = Math.floor((maturity - genesis) / hpd);
       const mature = height >= maturity;
-      // The chain refuses a claim until the maturity DAY has closed, so the
-      // UI must not promise one. See MintView.claimable.
-      const claimable = mature && accDay > matDay;
+      // The chain refuses a claim until the maturity DAY has closed BY HEIGHT.
+      // Not "until the accrual walk has crossed it": the claim call performs
+      // that walk itself, so once the day boundary has passed the claim goes
+      // through even while acc_day still lags. The first version compared
+      // against accDay and showed "claimable in 22 hours" for a mint the
+      // chain accepted at that moment (Lasse, 2026-09-08 22:44).
+      const today = Math.floor((height - genesis) / hpd);
+      const claimable = mature && today > matDay;
       // Matured but today's checkpoint isn't written yet (accDay <= matDay):
       // a real claim_mint is refused outright, not partially paid (see
       // contract/state/mint.go endMint, fixed 2026-08-23). accEnd = accStart

@@ -542,7 +542,7 @@ func (c *Chain) Account(account string) AccountView {
 			MaturityHeight: m.MaturityHeight(),
 			MaturityTime:   c.timeAt(m.MaturityHeight()).Format(time.RFC3339),
 			Mature:         m.IsMature(h),
-			Claimable:      m.IsMature(h) && state.AccruedDays(c.store) > state.DayOf(c.store, m.MaturityHeight()),
+			Claimable:      m.IsMature(h) && state.DayOf(c.store, h) > state.DayOf(c.store, m.MaturityHeight()),
 			GoodAccounting: m.GoodAccounting,
 			CanArm:         m.CanArmGoodAccounting(h),
 			Ended:          m.Ended,
