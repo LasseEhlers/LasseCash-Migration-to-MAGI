@@ -2077,9 +2077,10 @@ reserves 0. What the owner can do, from source: `claim_fees` (network-share
 bucket, paid to the owner only), `migrate` (state-format step, moves no
 funds), and the 48h-timelocked code update — the reserves are untouchable
 with the deployed code; swap/add/remove are permissionless; key loss makes
-the pool immutable with stranded fees, never a risk to LPs. **Empty and
-unregistered until TibFox's team runs `register_token` + `register_pool`**
-(payloads in docs/NATIVE-POOL-PLAN.md); seed only after that.
+the pool immutable with stranded fees, never a risk to LPs. **Seeded 9 Sep 00:40 with 27,000 LASSECASH + 9.905 HBD at the core pool's
+price (tx `c509b429…`, reserves/custody/token balance all agree); unregistered
+until TibFox's team runs `register_token` + `register_pool`** (payloads in
+docs/NATIVE-POOL-PLAN.md) — that makes it visible, it already works.
 
 ⚠️ **Always set `CONTRACT_ID` explicitly** with `tools/chain-test/call.js` — it
 falls back to throwaway #9 when unset, so a forgotten export sends a production

@@ -150,8 +150,16 @@ register_token  {"name":"LASSECASH","chain":"MAGI","mapping_contract":"vsc1BUDsV
 register_pool   {"asset0":"LASSECASH","asset1":"HBD","dex_contract_id":"vsc1BrBFAwZ3Mr8L4ijRqT9RPEPvhK9FWDaYSr"}
 ```
 
-Seed liquidity only AFTER registration (decide size then; the core pool
-keeps the price — arbitrage links them).
+**SEEDED 2026-09-09 00:40 CPH, tx `c509b429e47a02b3…` CONFIRMED at 109,746,801**
+(one Keychain confirm from @lasseehlers via the /rewards seed panel:
+`increaseAllowance` on the token for `contract:<pool>` + `add_liquidity`
+with a 9.905 HBD intent). Read back from real state: `get_pool` reserve0
+9,905 milli HBD / reserve1 27,000.00000000 LASSECASH, total_lp 163,534,400;
+token `balanceOf(contract:pool)` = 27,000; the pool's MAGI HBD custody =
+9,905 milli — all three agree. Opened at the core pool's price at that
+instant (0.00036683 HBD/LASSECASH). The chain checked `add_liquidity`
+works directly on the pool: registration on the router is only what makes
+it VISIBLE (Altera, their wallets), not what makes it function.
 
 ## Still open (after deploy)
 

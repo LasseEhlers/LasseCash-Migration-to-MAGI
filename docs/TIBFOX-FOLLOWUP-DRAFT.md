@@ -116,7 +116,7 @@ id instead of a promise.** Send (Lasse's voice, one message):
 > register_token `{"name":"LASSECASH","chain":"MAGI","mapping_contract":"vsc1BUDsVccMPGycTmpc98WsQYSKyTBsZqFq4h","decimals":8,"description":"LasseCash"}`
 > register_pool `{"asset0":"LASSECASH","asset1":"HBD","dex_contract_id":"vsc1BrBFAwZ3Mr8L4ijRqT9RPEPvhK9FWDaYSr"}`
 >
-> I seed it right after. No hurry. Thanks Tibby.
+> It's already seeded: 27,000 LASSECASH + 9.905 HBD, same price as our core pool, so nothing waits on me. No hurry. Thanks Tibby.
 
 (Original draft, before the deploy:)
 
