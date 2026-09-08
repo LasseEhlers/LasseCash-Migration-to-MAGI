@@ -387,11 +387,22 @@ export interface SupplyFigures {
   max: bigint;
 }
 
-export function supplyFigures(raw: Record<string, string | undefined>): SupplyFigures {
+/**
+ * `burnedOverride` exists for the token ledger: once LASSECASH lives in a
+ * standard magi_token, hive:null's balance is a row in THAT contract, and it
+ * cannot be read through getStateByKeys at all — the node replaces every
+ * non-UTF-8 byte with U+FFFD and the number is destroyed (measured
+ * 2026-09-06). The caller reads it via the token's `balanceOf` instead and
+ * passes it in, so this stays a pure function of its inputs.
+ */
+export function supplyFigures(
+  raw: Record<string, string | undefined>,
+  burnedOverride?: bigint,
+): SupplyFigures {
   const n = (k: string) => BigInt(raw[k] || "0");
   const migrated = n("sup_migrated");
   const emitted = n("sup_emitted");
-  const burned = n("bal_hive:null");
+  const burned = burnedOverride ?? n("bal_hive:null");
   const total = migrated + emitted;
   const unclaimed = n("cfg_migtotal") - n("sup_claimed");
   return {
@@ -404,7 +415,7 @@ export function supplyFigures(raw: Record<string, string | undefined>): SupplyFi
   };
 }
 
-export const SUPPLY_KEYS = ["sup_migrated", "sup_emitted", "bal_hive:null", "cfg_migtotal", "sup_claimed"];
+export const SUPPLY_KEYS = ["sup_migrated", "sup_emitted", "bal_hive:null", "cfg_migtotal", "sup_claimed", "cfg_token"];
 
 export function supplyJson(s: SupplyFigures) {
   return {

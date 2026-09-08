@@ -72,8 +72,18 @@ let supplyCached: { at: number; figures: SupplyFigures } | undefined;
 /** Raw supply keys, cached a minute. Works on the dev chain too: no outputs needed. */
 export async function supplySnapshot(): Promise<SupplyFigures> {
   if (supplyCached && Date.now() - supplyCached.at < TTL_MS) return supplyCached.figures;
-  const raw = await serverBackend().state(SUPPLY_KEYS);
-  const figures = supplyFigures(raw);
+  const backend = serverBackend();
+  const raw = await backend.state(SUPPLY_KEYS);
+  // Once the ledger is a magi_token, hive:null's burn is a balance in that
+  // contract — and an unreadable one through state, so ask the token.
+  let burned: bigint | undefined;
+  const token = raw["cfg_token"];
+  const readToken = (backend as { tokenBalance?: (id: string, a: string) => Promise<string> })
+    .tokenBalance;
+  if (token && readToken) {
+    burned = BigInt(await readToken.call(backend, token, "hive:null"));
+  }
+  const figures = supplyFigures(raw, burned);
   supplyCached = { at: Date.now(), figures };
   return figures;
 }
