@@ -20,7 +20,7 @@
   const alarming = $derived(
     openMints.filter((m) => m.bleed_remaining_pct !== "1.00000000" && m.bleed_remaining_pct !== "0.00000000"),
   );
-  const matured = $derived(openMints.filter((m) => m.mature && m.bleed_remaining_pct === "1.00000000"));
+  const matured = $derived(openMints.filter((m) => m.claimable && m.bleed_remaining_pct === "1.00000000"));
 
   /**
    * The next mint to come due.
@@ -29,7 +29,14 @@
    * "no open mints" while a matured position sits in the table (as an earlier
    * version did) is worse than useless.
    */
-  const claimableNow = $derived(openMints.filter((m) => m.mature));
+  // `claimable`, not `mature`: the chain refuses a claim until the maturity
+  // DAY has closed, so a mint that matured today is not claimable yet. Using
+  // `mature` here made the tile read "Ready — 1 mint claimable now" while the
+  // card beneath it correctly said otherwise, and pointed Claim All at a call
+  // the chain would reject. Found by Lasse 2026-09-08.
+  const claimableNow = $derived(openMints.filter((m) => m.claimable));
+  /** Matured today, waiting only for the day to close. */
+  const closingToday = $derived(openMints.filter((m) => m.mature && !m.claimable));
   const nextUp = $derived.by(() => {
     const future = openMints.filter((m) => !m.mature);
     if (future.length === 0) return null;
@@ -37,11 +44,22 @@
   });
 
   const height = $derived(chain.info?.height ?? 0);
+  /**
+   * Height at which the current protocol day ends. A mint that matured today
+   * becomes claimable then — not "tomorrow", which overstated the wait by up
+   * to a full day.
+   */
+  const dayCloses = $derived.by(() => {
+    const g = chain.info?.genesis_height ?? 0;
+    if (!g || !height) return height;
+    const hpd = chain.ready ? Number(constants().heightsPerDay) : 28_800;
+    return g + (Math.floor((height - g) / hpd) + 1) * hpd;
+  });
 
   let claimAllError = $state<string | null>(null);
   /**
    * Claim (= close) every matured mint at once. Safe by construction:
-   * claimableNow is already filtered to mature === true, the same predicate
+   * claimableNow is already filtered to claimable === true, the same predicate
    * "Next payday" uses, so nothing here can accidentally early-end a mint
    * that has not matured yet.
    */
@@ -283,6 +301,14 @@
         <div class="value green">Ready</div>
         <div class="sub">
           {claimableNow.length} mint{claimableNow.length > 1 ? "s" : ""} claimable now
+        </div>
+      {:else if closingToday.length > 0}
+        <!-- Matured, waiting only for the day to close. Say WHEN, in hours,
+             rather than "tomorrow": the wait is until the next day boundary,
+             which is usually the same evening. -->
+        <div class="value green">{durationWords(dayCloses - height)}</div>
+        <div class="sub">
+          {closingToday.length} mint{closingToday.length > 1 ? "s" : ""} matured — claimable when today closes
         </div>
       {:else if nextUp}
         <div class="value green">{durationWords(nextUp.maturity_height - height)}</div>
