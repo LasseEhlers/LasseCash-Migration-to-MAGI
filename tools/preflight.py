@@ -168,11 +168,16 @@ def main() -> int:
     # 3. RC. MAGI has no fees, so RC is the entire cost of everything else.
     rc = rpc("rc_api.find_rc_accounts", {"accounts": [account]})["rc_accounts"][0]
     mx, cur = int(rc["max_rc"]), int(rc["rc_manabar"]["current_mana"])
-    pct = cur / mx * 100 if mx else 0
-    if pct >= 10:
-        print(f"{OK} RC {pct:.0f}% of {mx / 1e9:.1f}G")
+    pct = 100 * cur / mx if mx else 0
+    # A deploy is ONE L1 transaction, a billion or two of RC. The old rule was
+    # a percentage, which refused @lassecashmagi at 499G available (10% of a
+    # 5,125G ceiling swollen by delegation) on 2026-09-08 — hundreds of
+    # deploys' worth. Judge by what a deploy costs, not by the meter's shape.
+    FLOOR = 5_000_000_000  # 5G: several deploys of headroom
+    if cur >= FLOOR:
+        print(f"{OK} RC {cur / 1e9:.0f}G available ({pct:.0f}% of {mx / 1e9:.1f}G) — a deploy needs ~2G")
     else:
-        print(f"{BAD} RC {pct:.0f}% — too low to broadcast reliably")
+        print(f"{BAD} RC {cur / 1e9:.1f}G available — a deploy needs ~2G; wait for refill or delegate HP")
         failed.append("rc")
 
     print()
