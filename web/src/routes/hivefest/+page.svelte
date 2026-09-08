@@ -239,15 +239,15 @@
 
   <section class="qrs">
     <a class="qr" href="https://altera.magi.eco/swap" target="_blank" rel="noopener">
-      <img src="/hivefest/qr-altera.svg" alt="QR: trade on Altera" />
+      <img src="/qr/qr-altera.svg" alt="QR: trade on Altera" />
       <div><strong>Trade on Altera</strong><br /><span class="dim">MAGI's own DEX · altera.magi.eco</span></div>
     </a>
     <a class="qr" href="/pool" target="_blank" rel="noopener">
-      <img src="/hivefest/qr-pool.svg" alt="QR: trade on lassecash.com/pool" />
+      <img src="/qr/qr-pool.svg" alt="QR: trade on lassecash.com/pool" />
       <div><strong>Trade on lassecash.com/pool</strong><br /><span class="dim">Keychain · HBD on MAGI · 0% fee</span></div>
     </a>
     <a class="qr" href="https://hivefe.st/program.html#talks18/lasseehlers/hf26-talk-mttaa4c6-2ez" target="_blank" rel="noopener">
-      <img src="/hivefest/qr-talk.svg" alt="QR: this talk on hivefe.st" />
+      <img src="/qr/qr-talk.svg" alt="QR: this talk on hivefe.st" />
       <div><strong>This talk</strong><br /><span class="dim">♥ it on hivefe.st</span></div>
     </a>
   </section>
