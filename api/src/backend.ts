@@ -111,6 +111,16 @@ export interface SubmitOptions {
 /** Upper bound on side calls per transaction. A product constant, not a tunable. */
 export const MaxSideCalls = 2;
 
+/**
+ * Hive's own ceiling: an account may put at most FIVE custom_json operations
+ * into one block ("Account X already submitted N custom json operation(s)
+ * this block"). Every contract call is a custom_json, so no bundle the site
+ * signs may carry more than this many calls — found live 2026-09-09 when
+ * "Claim all" on seven tranches was refused by Hive before MAGI ever saw it.
+ * A vote's companion Hive `vote` op is not a custom_json and does not count.
+ */
+export const HiveCustomJsonPerBlock = 5;
+
 /** One pool-moving contract call, exactly as the chain recorded it. */
 /**
  * Every contract call one account has made, counted by action.

@@ -16,7 +16,7 @@
  * compromise cannot drain an account that only ever granted posting.
  */
 import { Aioha, Asset as HiveAsset, KeyTypes, Providers } from "@aioha/aioha";
-import { BackendError, MaxSideCalls, type Signer, type SubmitOptions } from "./backend.js";
+import { BackendError, HiveCustomJsonPerBlock, MaxSideCalls, type Signer, type SubmitOptions } from "./backend.js";
 import { commentMetadata, postMetadata } from "./hive-metadata.js";
 import type { TxResult } from "./types.js";
 
@@ -1170,6 +1170,12 @@ export class AiohaSigner implements Signer {
    * — nobody has hundreds of tranches or mints today, and if that changes
    * this can loop calls rather than needing raising blindly.
    *
+   * Hive accepts at most HiveCustomJsonPerBlock calls from one account per
+   * block, so the batch goes out in chunks of that size — one signed
+   * transaction (one wallet confirm) per chunk, the next chunk after the
+   * block turns. Seven tranches were refused by Hive in one transaction
+   * before this (2026-09-09).
+   *
    * SAFETY: the caller is responsible for `ids` containing ONLY positions
    * that are actually safe to close right now (e.g. `mature === true` for
    * mints) — this function has no opinion on that, and claim_mint on a mint
@@ -1199,10 +1205,22 @@ export class AiohaSigner implements Signer {
     if (calls.length === 0) {
       return firstRefusal ?? { ok: false, height: 0, msg: "nothing to claim" };
     }
-    const res = await this.wallet.broadcastCalls(calls, this.contractId, keyType);
-    const skipped = ids.length - calls.length;
-    if (res.ok && skipped > 0) {
-      return { ...res, msg: `claimed ${calls.length} of ${ids.length} — the rest ` +
+    let res: TxResult = { ok: false, height: 0, msg: "nothing to claim" };
+    let sent = 0;
+    for (let i = 0; i < calls.length; i += HiveCustomJsonPerBlock) {
+      if (i > 0) await new Promise((r) => setTimeout(r, 3500)); // next Hive block
+      const chunk = calls.slice(i, i + HiveCustomJsonPerBlock);
+      res = await this.wallet.broadcastCalls(chunk, this.contractId, keyType);
+      if (!res.ok) {
+        return sent > 0
+          ? { ...res, msg: `claimed ${sent} of ${ids.length}, then: ${res.msg}` }
+          : res;
+      }
+      sent += chunk.length;
+    }
+    const skipped = ids.length - sent;
+    if (skipped > 0) {
+      return { ...res, msg: `claimed ${sent} of ${ids.length} — the rest ` +
         `refused for RC and can be claimed once it recovers, or after depositing more HBD` };
     }
     return res;
@@ -1268,6 +1286,9 @@ export class AiohaSigner implements Signer {
     const allowance = await this.allowanceCall(entrypoint, args);
     if (allowance) pre.push(allowance);
     for (const pc of opts?.preCalls ?? []) {
+      // Leave room for the user's own call inside Hive's per-block ceiling;
+      // slices that do not fit are simply sent by the next press.
+      if (pre.length >= HiveCustomJsonPerBlock - 1) break;
       const lim = await this.sizeRc(pc.entrypoint, pc.args, [], AiohaSigner.RC_LIMITS[pc.entrypoint] ?? this.rcLimit);
       if (typeof lim !== "number") break; // cannot afford more slices: send what we can
       pre.push({ action: pc.entrypoint, payload: pc.args, rcLimit: lim, intents: [] });
@@ -1295,7 +1316,8 @@ export class AiohaSigner implements Signer {
     // is sized from its own dry run; one that would be refused is dropped —
     // it was never the user's call, so it must never block theirs.
     const side: { action: string; payload: string; rcLimit: number; intents: unknown[] }[] = [];
-    for (const sc of (opts?.sideCalls ?? []).slice(0, MaxSideCalls)) {
+    const sideRoom = Math.max(0, HiveCustomJsonPerBlock - 1 - pre.length);
+    for (const sc of (opts?.sideCalls ?? []).slice(0, Math.min(MaxSideCalls, sideRoom))) {
       const lim = await this.sizeRc(sc.entrypoint, sc.args, [], AiohaSigner.RC_LIMITS[sc.entrypoint] ?? this.rcLimit);
       if (typeof lim === "number") side.push({ action: sc.entrypoint, payload: sc.args, rcLimit: lim, intents: [] });
     }

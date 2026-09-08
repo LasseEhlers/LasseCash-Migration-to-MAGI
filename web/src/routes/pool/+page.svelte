@@ -23,6 +23,8 @@
   let slippagePct = $state(1);
   let swapError = $state<string | null>(null);
   let lpError = $state<string | null>(null);
+  // Tranche actions report under the tranches, not in the deposit form.
+  let trancheError = $state<string | null>(null);
 
   const info = $derived(chain.info);
   const me = $derived(chain.me);
@@ -485,15 +487,15 @@
   }
   async function claim(id: number) {
     // Rewards are LASSECASH, not HBD — nothing to wait on in the ledger.
-    lpError = await chain.submit(() => client.claimPoolRewards(id));
+    trancheError = await chain.submit(() => client.claimPoolRewards(id));
   }
   async function claimAll() {
-    lpError = await chain.submit(() => client.claimAllPoolRewards());
+    trancheError = await chain.submit(() => client.claimAllPoolRewards());
   }
   /** Only worth its own button once there is more than one to save a click on. */
   const claimableTrancheCount = $derived(tranches.filter((t) => !isZero(t.pending_reward)).length);
   async function exit(id: number) {
-    lpError = await chain.submit(() => client.removeLiquidity(id), { movesHbd: true });
+    trancheError = await chain.submit(() => client.removeLiquidity(id), { movesHbd: true });
   }
 
 </script>
@@ -739,6 +741,7 @@
         </button>
       {/if}
     </div>
+    {#if trancheError}<p class="err">{trancheError}</p>{/if}
     {#if !chain.account}
       <p class="empty">Sign in to see your positions.</p>
     {:else if tranches.length === 0}
