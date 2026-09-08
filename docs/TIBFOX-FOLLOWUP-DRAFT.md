@@ -101,6 +101,25 @@ technical claim reads worse than either would alone.
 He was right, and it is the better model: the pool is ours, on their code;
 they only register. Reply (no rush — he said he'd come back tomorrow):
 
+**SUPERSEDED the same night — the pool is deployed, so the reply carries the
+id instead of a promise.** Send (Lasse's voice, one message):
+
+> You were right, I read the dex-contracts repo: one router, one pool
+> contract per pair, deployed by whoever wants the pair. So it's done — your
+> `dex` contract, unmodified, deployed and initialised for LASSECASH/HBD:
+>
+> pool: `vsc1BrBFAwZ3Mr8L4ijRqT9RPEPvhK9FWDaYSr`
+> token (mapping contract, magi_token): `vsc1BUDsVccMPGycTmpc98WsQYSKyTBsZqFq4h`
+> router set to `vsc1Brvi4YZHLkocYNAFd7Gf1JpsPjzNnv4i45`, fee 8 bps, get_pool reads hbd/lassecash.
+>
+> Whenever the team is ready:
+> register_token `{"name":"LASSECASH","chain":"MAGI","mapping_contract":"vsc1BUDsVccMPGycTmpc98WsQYSKyTBsZqFq4h","decimals":8,"description":"LasseCash"}`
+> register_pool `{"asset0":"LASSECASH","asset1":"HBD","dex_contract_id":"vsc1BrBFAwZ3Mr8L4ijRqT9RPEPvhK9FWDaYSr"}`
+>
+> I seed it right after. No hurry. Thanks Tibby.
+
+(Original draft, before the deploy:)
+
 > You're right, I read the dex-contracts repo: one router, one pool contract
 > per pair, deployed by whoever wants the pair. So I'll deploy your `dex`
 > contract for LASSECASH/HBD, init it with the token as the mapping contract

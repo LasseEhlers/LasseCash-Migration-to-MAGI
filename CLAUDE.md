@@ -2066,6 +2066,21 @@ Your own pool stays inside the core and will never be indexed by them; a
 native pool would be a second, empty pool that splits liquidity. Decide after
 day 30.
 
+**NATIVE LASSECASH/HBD POOL DEPLOYED 2026-09-09 — `vsc1BrBFAwZ3Mr8L4ijRqT9RPEPvhK9FWDaYSr`.**
+vsc-eco's `dex` contract, unmodified (CID `bafkreiezp5u4…`), owner
+**`hive:lassecashdapps`** — the dedicated key-holder account that owns the
+pool and every future dApp contract (NOT lassecashmagi, whose keys burn; NOT
+lasseehlers, whose key never enters a plaintext config). Its identity file is
+`deploy-data/config/dapps.json`, used via `IDENTITY_CONFIG=` with `call.js`.
+`init` CONFIRMED (tx `35f99aa1…`); `get_pool` reads hbd/lassecash, fee 8,
+reserves 0. What the owner can do, from source: `claim_fees` (network-share
+bucket, paid to the owner only), `migrate` (state-format step, moves no
+funds), and the 48h-timelocked code update — the reserves are untouchable
+with the deployed code; swap/add/remove are permissionless; key loss makes
+the pool immutable with stranded fees, never a risk to LPs. **Empty and
+unregistered until TibFox's team runs `register_token` + `register_pool`**
+(payloads in docs/NATIVE-POOL-PLAN.md); seed only after that.
+
 ⚠️ **Always set `CONTRACT_ID` explicitly** with `tools/chain-test/call.js` — it
 falls back to throwaway #9 when unset, so a forgotten export sends a production
 call to a dead test contract and reports success.

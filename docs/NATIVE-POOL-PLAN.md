@@ -129,6 +129,30 @@ the token; broadcast it as `<dapps>`:
 (a fresh account's free 10,000 RC covers it). The owner is the only account the
 chain accepts `init` from — this is the one step lassecashmagi cannot do. Then send the pool id to TibFox with the register payloads above.
 
+## ✅ DEPLOYED AND INITIALISED — 2026-09-09 00:0x CPH
+
+| | |
+|---|---|
+| pool contract | **`vsc1BrBFAwZ3Mr8L4ijRqT9RPEPvhK9FWDaYSr`** |
+| code | `bafkreiezp5u4v3ku7acibljcb46v2na4bkrngsoviym22f63cshhnpeydq` = the pinned artifact (sha256 `997f69ca…`), vsc-eco `contracts/dex` @ e7033a7b65ce, unmodified |
+| owner | `hive:lassecashdapps` (created 8 Sep 21:45, recovery → lasseehlers in force 8 Oct; key in `deploy-data/config/dapps.json`, gitignored) |
+| deploy | tx `de7f95b2efad214fbf964ceed745009f3e4e1830`, creation height 109,746,051, 10 HBD from @lassecashmagi |
+| init | tx `35f99aa160fff4b702ac2822ae4c5cb24bc2aa61`, CONFIRMED at 109,746,110, signed by lassecashdapps via `IDENTITY_CONFIG=` |
+| `get_pool` (real state) | `{"asset0":"hbd","asset1":"lassecash","reserve0":"0","reserve1":"0","fee":8,"total_lp":"0"}` |
+
+Simulations before the broadcast: init as lassecashdapps 1,939 RC; init as
+lassecashmagi refused "owner only". The pool is EMPTY and UNREGISTERED — it
+does nothing until the router owner registers it. Paste-ready for the MAGI
+team (field names from `contracts/types/types.go`):
+
+```
+register_token  {"name":"LASSECASH","chain":"MAGI","mapping_contract":"vsc1BUDsVccMPGycTmpc98WsQYSKyTBsZqFq4h","decimals":8,"description":"LasseCash"}
+register_pool   {"asset0":"LASSECASH","asset1":"HBD","dex_contract_id":"vsc1BrBFAwZ3Mr8L4ijRqT9RPEPvhK9FWDaYSr"}
+```
+
+Seed liquidity only AFTER registration (decide size then; the core pool
+keeps the price — arbitrage links them).
+
 ## Still open (after deploy)
 
 - Does `fee_bps` accrue to LPs or to the router/vsc.dao? (`contracts/dex`)
