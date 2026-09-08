@@ -230,9 +230,10 @@
     <div class="day30" role="note">
       <span>
         <strong>The first 30 days are the migration itself, by design.</strong>
-        Every snapshot position is a 30-day mint, so almost nothing is liquid
-        and the pool yield looks extreme. On <strong>30 September</strong> they
-        all mature at once — that is where trading and a real price start.
+        Every snapshot position is a 30-day mint, so very little is liquid and
+        the pool yield looks high. On <strong>30 September</strong> they all
+        mature at once — that is where price discovery becomes effective. A 100%
+        free-market product.
         <a href="/about">How it works</a>
       </span>
       <button class="day30-dismiss" onclick={dismissDay30} aria-label="dismiss">×</button>
