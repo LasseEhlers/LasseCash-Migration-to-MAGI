@@ -79,6 +79,13 @@ def grab(contract, path):
     accounts = set(a for a in (state.get("gov_board") or "").split("|") if a)
     accounts |= {"hive:lasseehlers", "hive:lassecashmagi", "hive:angeloextreme",
                  "hive:null", "hive:tibfox"}
+    # Never cover LESS than a previous snapshot: union in every account any
+    # earlier file asked about, so the comparison set only ever grows.
+    for prev in sys.argv[3:]:
+        try:
+            accounts |= set(json.load(open(prev)).get("accounts") or [])
+        except Exception:
+            pass
     per = [p + a for a in sorted(accounts) for p in PER_ACCOUNT]
     per += [p + a + suf for a in sorted(accounts) for p, suf in PER_ACCOUNT_SUFFIX]
     state.update(read_keys(contract, per))
@@ -99,6 +106,12 @@ def grab(contract, path):
     head = gql("query{ localNodeInfo{ last_processed_block } }", {})
     snap = {"contract": contract,
             "head": head["localNodeInfo"]["last_processed_block"],
+            # WHICH accounts were asked about. The board ROTATES as people
+            # claim, so two snapshots taken days apart do not cover the same
+            # set — on 2026-09-08 five accounts fell off the board and the
+            # diff reported 25 keys "LOST" that were on chain the whole time,
+            # on the most important verification in the project.
+            "accounts": sorted(accounts),
             "state": state}
     with open(path, "w") as f:
         json.dump(snap, f, indent=1, sort_keys=True)
@@ -112,6 +125,25 @@ def diff(a_path, b_path):
     A, B = a["state"], b["state"]
 
     moved, vanished, appeared, expected = [], [], [], []
+    # A key missing from the newer snapshot usually means it was never ASKED
+    # for (the account list moved), not that the chain dropped it. Re-read the
+    # candidates live and only report the ones genuinely gone.
+    maybe = [k for k in A if k not in B]
+    if maybe:
+        live = {}
+        for i in range(0, len(maybe), BATCH):
+            live.update(read_keys(b["contract"], maybe[i:i + BATCH]))
+        still = [k for k in maybe if live.get(k) == A[k]]
+        if still:
+            print(f"NOT asked for in the newer snapshot, but READ BACK LIVE and "
+                  f"unchanged ({len(still)}) — not a loss:")
+            for k in still[:8]:
+                print(f"   {k}")
+            if len(still) > 8:
+                print(f"   ... and {len(still) - 8} more")
+            print()
+        B = dict(B)
+        B.update({k: v for k, v in live.items() if k in maybe})
     for k in sorted(set(A) | set(B)):
         if k not in B:
             vanished.append(k)
@@ -122,7 +154,21 @@ def diff(a_path, b_path):
 
     print(f"{a['contract']}")
     print(f"head {a['head']:,} -> {b['head']:,}  ({b['head'] - a['head']:,} blocks)")
-    print(f"{len(A)} keys before, {len(B)} after\n")
+    print(f"{len(A)} keys before, {len(B)} after")
+    try:
+        txs = gql("query($c:String!,$o:Int!){findTransaction(filterOptions:"
+                  "{byContract:$c,limit:100,offset:$o}){anchr_height}}",
+                  {"c": a["contract"], "o": 0}).get("findTransaction") or []
+        n = sum(1 for t in txs
+                if a["head"] <= (t.get("anchr_height") or 0) <= b["head"])
+        if n:
+            print(f"⚠️  {n}+ transactions hit the contract between these two reads. "
+                  f"On a LIVE chain the diff shows USER ACTIVITY as well as any "
+                  f"update effect — attribute every change below to a transaction "
+                  f"before calling it a fault.")
+    except Exception:
+        pass
+    print()
 
     if expected:
         print(f"MOVED, and should have ({len(expected)} — height-driven):")
