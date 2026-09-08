@@ -231,11 +231,13 @@
       <span>
         <strong>The first 30 days are the migration itself, by design.</strong>
         Every position from the snapshot is a 30-day mint that began on the same
-        block, so until then almost nothing is liquid, the pool is thin, and the
-        yield figures are extreme because very few L-Shares exist yet. On
-        <strong>30 September</strong> they all mature at once: everyone becomes
-        liquid the same day and decides fresh, which is where trading and a real
-        price start. <a href="/about">How it works</a>
+        block, so until then almost nothing is liquid and the pool is thin — which
+        is why the pool yield looks extreme: a quarter of all emission shared by
+        very little liquidity. On <strong>30 September</strong> those mints all
+        mature at once: everyone becomes liquid the same day and decides fresh,
+        which is where trading and a real price start, and where the first new
+        mints share the L-Share slice with almost nobody.
+        <a href="/about">How it works</a>
       </span>
       <button class="day30-dismiss" onclick={dismissDay30} aria-label="dismiss">×</button>
     </div>
