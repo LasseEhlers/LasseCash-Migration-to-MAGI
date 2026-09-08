@@ -389,6 +389,3 @@ code {
 }
 .rendered table code { white-space: nowrap; }
 .rendered table tr:last-child td { border-bottom: none; }
-
-/* /hivefest?stage — projector view: only the stage page, nothing around it. */
-.stage-mode header, .stage-mode footer, .stage-mode .day30 { display: none !important; }

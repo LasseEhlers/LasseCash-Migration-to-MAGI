@@ -96,7 +96,9 @@ moves the economy once, on stage.`
 
 ## The talk itself — decisions 2026-09-09 (Lasse)
 
-- **Remote, 20 min, no slides.** One browser: `lassecash.com/hivefest?stage`
+- **Remote, 20 min, no slides.** One browser: the stage page (REMOVED from the
+  live site 9 Sep on Lasse's request until the talk is scheduled — restore with
+  `git revert <this commit>`; it lived at commit 9108917) `lassecash.com/hivefest?stage`
   (the projector view: price, every trade as a tick, "chain says / repo
   builds" CID check, owner / update queue / recovery, live countdown to
   block 110,664,118, QR codes) and the ordinary site for the actions.
