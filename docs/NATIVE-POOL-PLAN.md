@@ -161,9 +161,25 @@ instant (0.00036683 HBD/LASSECASH). The chain checked `add_liquidity`
 works directly on the pool: registration on the router is only what makes
 it VISIBLE (Altera, their wallets), not what makes it function.
 
+## Where the native pool's fee goes — from the NODE source, 2026-09-09
+
+(`~/.lassecash-deployer/src/modules/incentive-pendulum/wasm/applier.go`;
+the pool contract delegates all fee math to `sdk.PendulumApplySwapFees`.)
+Every swap pays two legs: the **protocol fee** (the pool's 8 bps × a
+stabiliser multiplier between 1× and 2×) and a **slip fee** (≈ the swap's
+own price impact ÷ 16), clamped to 1% total. The node then splits the sum:
+- **25% "network share"** → the pool's system-fee bucket → `claim_fees` →
+  the pool's OWNER (lassecashdapps for ours, vsc.dao for theirs).
+- **75%** → divided between the LPs (stays in the reserves, so every LP
+  token is worth more) and MAGI's node/witness bucket, by the pendulum's
+  security state; once the LP floor activates LPs keep at least 25% of that
+  leg whatever the state.
+So LPs DO earn from fees — the largest, variable slice — but not all of it.
+Uniform across every native pool; not ours to change. The core pool is the
+other design on purpose: 0% fee, LPs paid from the 25% emission slice.
+
 ## Still open (after deploy)
 
-- Does `fee_bps` accrue to LPs or to the router/vsc.dao? (`contracts/dex`)
 - Exact add-liquidity / swap payloads of the pool, and whether swaps through
   the router need `router_contract` set (docs say yes for mapped assets — set
   it).
