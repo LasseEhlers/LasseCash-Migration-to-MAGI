@@ -440,8 +440,19 @@ export class MagiBackend implements Backend {
       // Found 2026-08-24: this line used to read `accPer` (the live,
       // still-growing accumulator) here, showing a plausible non-zero
       // preview for a claim the chain would refuse entirely.
+      // accEnd, the accumulator reading this mint stops earning at:
+      //  - not mature: the live accumulator (still earning)
+      //  - mature and the day's checkpoint is written: that checkpoint (exact)
+      //  - mature, day closed by height, checkpoint not yet written: the live
+      //    accumulator as an ESTIMATE. The claim will walk the day itself and
+      //    pay from the checkpoint it writes, which is at most accPer. The old
+      //    code showed 0.000 here — Lasse read that as "no yield at this size",
+      //    while the chain was about to pay 2.39 LASSECASH (2026-09-08).
+      //  - mature on the maturity day itself: zero, because the claim is
+      //    refused outright until the day closes (mint.go, 2026-08-23).
       const accEnd = !mature ? accPer
         : accDay > matDay ? (accAt["accAt_" + matDay] || "0")
+        : today > matDay ? accPer
         : accStart;
       const accrued = engine.entitlement(shares ?? "0", accStart, accEnd);
       const view = engine.previewMintClose(
