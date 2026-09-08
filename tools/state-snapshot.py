@@ -29,7 +29,7 @@ CONFIG = ["cfg_init", "cfg_genesis", "cfg_settled", "cfg_migroot",
 SUPPLY = ["sup_migrated", "sup_claimed", "sup_emitted", "shr_total"]
 POOLS  = ["pool_lshare", "pool_viral", "pool_deep", "pool_liq"]
 AMM    = ["amm_lc", "amm_hbd", "amm_acc", "amm_accheld", "amm_accseen"]
-ACCR   = ["acc_day", "acc_val", "acc_held"]
+ACCR   = ["acc_day", "acc_per", "acc_held"]  # acc_per is the accumulator; "acc_val" never existed
 MISC   = ["gov_board", "rsh_viral", "rsh_deep"]
 # "mnt_"/"mntn_"/"dur_" were GUESSES and match nothing — the real prefixes are
 # below (see contract/state/keys.go). They cost one dead read each and, worse,
@@ -46,7 +46,7 @@ MAX_MINTS_PER_ACCOUNT = 40
 # An update is instant relative to the chain, but not atomic with it: the two
 # reads straddle real blocks, so anything driven by HEIGHT is expected to move.
 # Everything else is load-bearing and must be byte-identical.
-EXPECTED_TO_MOVE = {"cfg_settled", "acc_day", "acc_val", "acc_held",
+EXPECTED_TO_MOVE = {"cfg_settled", "acc_day", "acc_per", "acc_held",
                     "sup_emitted", "pool_lshare", "pool_viral", "pool_deep",
                     "pool_liq"}
 
