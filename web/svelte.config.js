@@ -56,6 +56,8 @@ export default {
           "/coins/*",
           // The token's own logo, hosted for listing sites and link unfurlers.
           "/logo/*",
+          // QR codes for the HiveFest stage page — static SVGs.
+          "/qr/*",
         ],
       },
     }),
