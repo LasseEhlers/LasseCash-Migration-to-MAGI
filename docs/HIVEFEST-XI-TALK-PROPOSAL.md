@@ -66,6 +66,24 @@ voting know what they are voting for.
 
 ---
 
+## Roeland answered — 8 Sep 23:35 by mail
+
+> "Hi Lasse im not sure yet lets see! i think there is another remote
+> submission. feel free to indicate (remote)"
+
+So: SUBMIT, and mark it remote in the title so voters know. Field of play
+re-checked 9 Sep 01:00: still the same three proposals (howo 30, thebeedevs
+30, offgridlife 5) plus the opening. Tool metadata is `{hf:{day,type:"talk",
+title,summary,duration}}` — title and summary are what people read.
+
+**Submit exactly this in the tool (title / summary / 20 min):**
+
+Title: `Freezing an economy: a real token on MAGI, then the keys go in the fire — remote (video link)`
+
+Summary: the abstract below, plus this closing line:
+`Everything is shown live from the chain, not from slides — and the room
+moves the economy once, on stage.`
+
 ## The proposal
 
 **Title:** Freezing an economy: what it takes to put a real token on MAGI and
