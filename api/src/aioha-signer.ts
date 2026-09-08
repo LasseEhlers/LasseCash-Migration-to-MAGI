@@ -802,6 +802,9 @@ export class AiohaSigner implements Signer {
    */
   static readonly ACTIVE_OPS = new Set([
     "transfer", "burn", "mint", "claim_mint", "good_accounting",
+    // fund moves the caller's LASSECASH into a reward pool — value leaves
+    // the account, so it is ACTIVE like burn.
+    "fund",
     // promote_post BURNS the caller's LASSECASH. Posting authority must never
     // be able to destroy money — see CLAUDE.md, the key-type split.
     "promote_post",
@@ -868,6 +871,7 @@ export class AiohaSigner implements Signer {
   static readonly RC_LIMITS: Record<string, number> = {
     transfer: 2_500,      // mainnet 872. The devnet said 285 and 600 was not enough: @tibfox, 2026-09-01.
     burn: 600,            // mainnet 167
+    fund: 1_500,          // simulated 21.2M gas on production 2026-09-08 (~212 RC) + the allowance
     // MEASURED 1,271 gas-RC on mainnet 2026-09-02 with a VALID payload — the
     // earlier "38" came from a probe that refused before doing the accrual
     // walk, which is the same mistake that left set_param unable to succeed.
@@ -943,6 +947,7 @@ export class AiohaSigner implements Signer {
   static readonly TOKEN_DEBIT_OPS: Record<string, number> = {
     transfer: 1, //      <to>|<amount>
     burn: 0, //          <amount>
+    fund: 1, //          <target>|<amount>
     mint: 0, //          <amount>|<days>
     promote_post: 2, //  <author>|<permlink>|<amount>
     add_liquidity: 0, // <lcAmount>|<maxHbd>

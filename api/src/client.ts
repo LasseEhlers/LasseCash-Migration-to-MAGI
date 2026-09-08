@@ -452,6 +452,17 @@ export class LasseCashClient {
   }
 
   /**
+   * Feed a reward pool from the caller's own LASSECASH. Permissionless and
+   * unpaid: anyone may fund, nobody is rewarded for it. This is the door a
+   * future dApp's fee walks through — the user's transaction, not a dApp
+   * treasury, because `fund` debits whoever signed.
+   * target: "pob" | "viral" | "deep" | "liquidity" | "lshare" | "all".
+   */
+  async fund(target: string, amount: string): Promise<TxResult> {
+    return this.#send(Entrypoint.Fund, args(target, toBaseUnitArg(amount)));
+  }
+
+  /**
    * Claim this account's migration position.
    *
    * `liquidUnits` and `stakedUnits` are BASE UNITS exactly as they appear in

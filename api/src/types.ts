@@ -376,6 +376,8 @@ export type SwapDirection = "lc_hbd" | "hbd_lc";
 export const Entrypoint = {
   Transfer: "transfer",
   Burn: "burn",
+  /** fund <target>|<amount> — feed a reward pool from the caller's balance (target: pob|viral|deep|liquidity|lshare|all). */
+  Fund: "fund",
   Settle: "settle",
   Mint: "mint",
   ClaimMint: "claim_mint",

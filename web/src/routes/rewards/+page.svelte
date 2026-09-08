@@ -149,6 +149,33 @@
    */
   let settling = $state<string | null>(null);
   let settleErr = $state<string | null>(null);
+
+  /**
+   * Fund a pool from the signed-in account. This is the operator's proof
+   * that `fund` — the door future dApps feed the tokenomics through — works
+   * from a real wallet: the pool balance above must rise by exactly the
+   * amount, and the native token must debit the funder by the same. The
+   * signer bundles the token allowance ahead of the call, as for any debit.
+   */
+  const TARGET: Record<string, string> = { viral: "viral", deep: "deep", lshare: "lshare", liq: "liquidity" };
+  let fundAmt = $state<Record<string, string>>({ viral: "", deep: "", lshare: "", liq: "", all: "" });
+  let funding = $state<string | null>(null);
+  let fundErr = $state<string | null>(null);
+  let fundOk = $state<string | null>(null);
+  async function fund(key: string) {
+    const amt = (fundAmt[key] || "").trim();
+    if (!amt) return;
+    funding = key; fundErr = null; fundOk = null;
+    try {
+      const refusal = await chain.submit(() => client.fund(TARGET[key] ?? key, amt));
+      if (refusal) fundErr = refusal;
+      else { fundOk = `${amt} LASSECASH into ${TARGET[key] ?? key}`; fundAmt[key] = ""; }
+    } catch (e) {
+      fundErr = e instanceof Error ? e.message : String(e);
+    } finally {
+      funding = null;
+    }
+  }
   let settled = $state(0);
 
   async function settle(p: PostView) {
@@ -231,6 +258,25 @@
       </section>
     {/if}
 
+    {#if chain.account}
+      <section class="panel fundall">
+        <div class="label">Fund all four at the block split</div>
+        <p class="note">
+          One call, split 12.5% viral · 37.5% deep · 25% L-Share · 25% liquidity,
+          exactly as a block reward is. The L-Share slice absorbs any rounding.
+        </p>
+        <form class="fund" onsubmit={(e) => { e.preventDefault(); fund("all"); }}>
+          <input class="mono" inputmode="decimal" placeholder="LASSECASH" bind:value={fundAmt.all}
+            disabled={chain.busy || funding !== null} />
+          <button class="small" disabled={chain.busy || funding !== null || !fundAmt.all}>
+            {funding === "all" ? "Funding…" : "Fund all four"}
+          </button>
+        </form>
+        {#if fundOk}<p class="ok">Funded {fundOk}. Watch the balances above move by exactly that.</p>{/if}
+        {#if fundErr}<p class="err">{fundErr}</p>{/if}
+      </section>
+    {/if}
+
     <div class="cards">
       {#each pools as p (p.key)}
         {@const delta = moved(p.key, p.balance)}
@@ -259,6 +305,20 @@
             {/if}
           </dl>
           <p class="note drain">{p.drains}</p>
+          {#if chain.account}
+            <form class="fund" onsubmit={(e) => { e.preventDefault(); fund(p.key); }}>
+              <input
+                class="mono"
+                inputmode="decimal"
+                placeholder="LASSECASH"
+                bind:value={fundAmt[p.key]}
+                disabled={chain.busy || funding !== null}
+              />
+              <button class="small" disabled={chain.busy || funding !== null || !fundAmt[p.key]}>
+                {funding === p.key ? "Funding…" : "Fund this pool"}
+              </button>
+            </form>
+          {/if}
         </section>
       {/each}
     </div>
@@ -366,6 +426,10 @@
   .pool dd.up { color: var(--green); }
   .pool dd.down { color: var(--gold); }
   .err { color: var(--red); font-size: var(--t-sm); margin: 0.5rem 0 0; }
+  .ok { color: var(--green); font-size: var(--t-sm); margin: 0.5rem 0 0; }
+  form.fund { display: flex; gap: 0.5rem; margin-top: 0.7rem; }
+  form.fund input { flex: 1; min-width: 0; background: #0d1117; border: 1px solid var(--line); color: var(--fg); padding: 0.35rem 0.5rem; border-radius: 4px; }
+  .fundall { margin-bottom: 1rem; }
   .ok { color: var(--green); }
   .pill { font-size: var(--t-micro); border: 1px solid var(--line); border-radius: 4px; padding: 0.05rem 0.3rem; }
   .warn { color: var(--gold); }
