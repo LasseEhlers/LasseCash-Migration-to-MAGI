@@ -444,10 +444,10 @@ export class MagiBackend implements Backend {
       //  - not mature: the live accumulator (still earning)
       //  - mature and the day's checkpoint is written: that checkpoint (exact)
       //  - mature, day closed by height, checkpoint not yet written: the live
-      //    accumulator as an ESTIMATE. The claim will walk the day itself and
-      //    pay from the checkpoint it writes, which is at most accPer. The old
-      //    code showed 0.000 here — Lasse read that as "no yield at this size",
-      //    while the chain was about to pay 2.39 LASSECASH (2026-09-08).
+      //    accumulator as a FLOOR. It has accrued through the previous day; the
+      //    claim walks the maturity day in before paying, so it pays at least
+      //    this. Measured 2026-09-08: preview 2.13, chain paid 2.39. The old
+      //    code showed 0.000 here — Lasse read that as "no yield at this size".
       //  - mature on the maturity day itself: zero, because the claim is
       //    refused outright until the day closes (mint.go, 2026-08-23).
       const accEnd = !mature ? accPer
