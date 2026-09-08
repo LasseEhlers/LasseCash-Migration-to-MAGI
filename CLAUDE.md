@@ -2047,6 +2047,25 @@ the L-Share pool, exact to the base unit) and sold the lot for 1.50 HBD.
 unchanged** · ask MAGI for `register_token` only when a native pool is
 actually wanted (register_pool splits liquidity — decide after day 30).
 
+**MAGI's indexer discovered the token by itself — confirmed 2026-09-08 23:50
+CPH, two hours after the handover.** Public Hasura endpoint
+`https://indexer.magi.milohpr.com/v1/graphql`, tables `magi_token_overview`
+and `magi_token_balances` (columns: `contract_id account balance`). Only four
+magi_tokens exist on the whole chain; LASSECASH is one. Balances read back
+byte-exact (hive:null 18,689,540.87), which the node's own GraphQL cannot do.
+No ask was needed — the standard working as TibFox said it would.
+
+⚠️ **Two LASSECASH entries exist in that index**: throwaway #10's token
+(`vsc1Bq7L9VhLbN6eJdCD8My9jmjAdpxADJLEGR`, 1,000 test tokens) initialised with
+the same symbol and cannot be removed. Anyone listing, linking or registering
+must use the PRODUCTION token **`vsc1BUDsVccMPGycTmpc98WsQYSKyTBsZqFq4h`**.
+
+**What still needs a human:** nothing for visibility. Only DEX routing
+(`register_token`, then `register_pool` — both owner-only on their router).
+Your own pool stays inside the core and will never be indexed by them; a
+native pool would be a second, empty pool that splits liquidity. Decide after
+day 30.
+
 ⚠️ **Always set `CONTRACT_ID` explicitly** with `tools/chain-test/call.js` — it
 falls back to throwaway #9 when unset, so a forgotten export sends a production
 call to a dead test contract and reports success.
