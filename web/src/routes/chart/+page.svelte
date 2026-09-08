@@ -19,6 +19,11 @@
   import { SITE_OG_IMAGE, SITE_URL } from "$lib/site.js";
   import type { PoolTrade } from "$api/index.js";
 
+  // Same words as the Pool page's tile: the fee is a hardcoded zero, and once
+  // the owner key burns (block 110,664,118) nobody can ever reintroduce one.
+  const KEY_BURN_HEIGHT = 110_664_118;
+  const keysBurned = $derived(!!chain.info && chain.info.height >= KEY_BURN_HEIGHT);
+
   let trades = $state<PoolTrade[]>([]);
   let reconciled = $state(false);
   let loading = $state(true);
@@ -148,7 +153,7 @@
         {#if low && high}
           <div><dt>Low / high</dt><dd class="mono">{lc(low.price, 8)} · {lc(high.price, 8)}</dd></div>
         {/if}
-        <div><dt>Swap fee</dt><dd class="mono green">0%</dd></div>
+        <div><dt>Swap fee</dt><dd class="mono green">0% <small class="dim">{keysBurned ? "forever — the keys are burned" : "hardcoded · nobody can raise it"}</small></dd></div>
       </dl>
     {/if}
   </section>
