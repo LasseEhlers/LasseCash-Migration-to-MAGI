@@ -339,3 +339,9 @@ swapped the proceeds four minutes later. The contract was exact: 22.6009% of
 the term elapsed, recovery 50% + 50% x 0.226009 = 61.3005%, paying
 3,933.65641675 and forfeiting 2,483.35 to the L-Share pool, summing to the
 principal to the base unit. He received 1.50 HBD for the lot.
+
+### 8 Sep, later: first payout, and `fund` proven from a wallet
+
+- **claim_mint 2** (Lasse, from the site): paid **1,002.39355109** — principal + 2.39355109 yield, exactly the simulation. MAGI's own indexer showed his token balance +1,002.39355109; the L-Share pool moved +2,280.71140091 = one day's L-Share emission (2,283.105, walked in by the claim) − 2.39355109. First payout through the token on production.
+- **fund viral 1** and **fund all 4**, both from the rewards page (`tools/prove-fund.py`, two independent witnesses): viral +1.00000000 / token −1.00000000; then 0.5 · 1.5 · 1 · 1 across the four pools and token −4.00000000. Exact, no rounding loss. The door future dApps feed the tokenomics through works from a real Keychain.
+- Three faults found on the mint card the same evening, all in what the page SAID, none in the chain: readiness stricter than the contract, the countdown aimed at the wrong boundary, and a 0.000 yield preview for a 2.39 payout. All shipped.
