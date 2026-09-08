@@ -280,3 +280,62 @@ can mint, so no row crosses until the core owns the token. See
 time.** Record `git rev-parse HEAD` and the WASM sha256 beside the queue tx,
 and rebuild immediately before queueing — never queue an artifact that has
 been sitting in `artifacts/` while the source moved.
+
+
+---
+
+## ✅ PRODUCTION UPDATE #2 — VERDICT 2026-09-08: PASS
+
+Activated on schedule at 21:23 CPH, height 109,743,024. Live code is
+`bafkreihztepfwl5noydp3qab7odgsfvtfetupozxytbxw4uorxqdm5nrsu`, the artifact
+proven on throwaway #10.
+
+### The entrypoint sweep — the half that tests the new code
+
+| entrypoint | before | after |
+|---|---|---|
+| `fund` | wasm function not found | **funded pob** |
+| `set_token` | wasm function not found | **owner only** |
+| `migrate_ledger` | wasm function not found | **owner only** |
+| `transfer` to a bare name | **ok, transferred** | **refused — "recipient must be a full address"** |
+
+Three entrypoints appeared, both owner-gated ones refuse a stranger, and the
+bug that stranded 1,030 LASSECASH is now impossible on chain rather than
+guarded only by the site. Every other row answers as before at slightly higher
+gas (larger binary). `swap_lc_hbd` still reports a failed HBD transfer in
+simulation — the known simulator limitation, disproven the same afternoon by a
+real swap through the same code.
+
+### The state diff — and why it printed FAIL
+
+⚠️ **It reported "LOST 25 KEYS — state did NOT survive". That was the tool, not
+the chain.** All 25 were present and byte-identical when queried directly. The
+account list is seeded from `gov_board`, the board rotates, five accounts
+claimed that day and displaced five smaller holders, so the second snapshot
+never asked about them. Fixed the same night: snapshots now record their
+account list, `grab` unions in earlier ones, and `diff` re-reads anything
+missing before calling it lost.
+
+**The deeper lesson: "nothing moved" is the wrong test on a live chain.** In
+the sixteen hours between reads there were four claims, a swap, an early end,
+four votes and a payout. Every "must not change" key had an honest cause:
+
+| changed | cause |
+|---|---|
+| 5 new accounts, `sup_claimed`, `sup_migrated`, `gov_board` | four `claim_migration` calls |
+| `amm_lc`, `amm_hbd` | @jsantana's swap |
+| `mint_hive:lasseehlers_2` | Good Accounting armed |
+| `rsh_viral`, `rsh_deep`, `bal_hive:null` | four votes and a payout |
+| pools, `sup_emitted`, `acc_day`, `cfg_settled` | emission |
+
+The right check on production is attribution, not stillness: every change must
+name a transaction. `diff` now counts the transactions in the window and says
+so.
+
+### Bonus finding — the first real early end
+
+@jsantana claimed 6,417.01 (all staked), ended the mint early on day 7 and
+swapped the proceeds four minutes later. The contract was exact: 22.6009% of
+the term elapsed, recovery 50% + 50% x 0.226009 = 61.3005%, paying
+3,933.65641675 and forfeiting 2,483.35 to the L-Share pool, summing to the
+principal to the base unit. He received 1.50 HBD for the lot.

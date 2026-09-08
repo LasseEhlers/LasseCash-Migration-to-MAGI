@@ -58,21 +58,23 @@ CALLS = [
     # Run as a FUNDED account, so these succeed — that is the correct answer,
     # and a refusal here would mean the money paths had broken.
     ("transfer",         "hive:nobody|100000000",             "transferred"),
-    # THE BARE NAME. Answers "transferred" on the live contract today, which is
-    # the bug; after the update it must answer with a refusal naming the
-    # address. This row is the whole reason the sweep is worth re-running.
-    ("transfer",         "nobody|100000000",                  "transferred"),
+    # THE BARE NAME. Answered "transferred" before the update — the bug that
+    # stranded 1,030 LASSECASH — and is refused on chain from 2026-09-08. This
+    # row is the whole reason the sweep was worth re-running.
+    ("transfer",         "nobody|100000000",                  "full address"),
     ("burn",             "100000000",                         "burned"),
-    # Absent until the update lands: "wasm function not found" is the CONTROL
-    # that proves this sweep can see an entrypoint appear.
-    ("fund",             "pob|100000000",                     "not found"),
+    # ✅ APPEARED as expected when the token-ledger update activated on
+    # 2026-09-08 21:23 CPH. These three read "wasm function not found" before
+    # it and answer after, which is what proved the new code was live. The
+    # expectations below are now the POST-update answers.
+    ("fund",             "pob|100000000",                     "funded"),
     # THE TOKEN LEDGER, queued 2026-09-06, activating 8 Sep 21:23 CPH. Both are
     # "wasm function not found" on the live contract today and must ANSWER
     # afterwards — the same appear-an-entrypoint control `fund` provides.
     # set_token is owner-only, so the expected answer is a refusal, not a set;
     # simulation never writes, but the refusal is what proves the guard exists.
-    ("set_token",        "vsc1BUDsVccMPGycTmpc98WsQYSKyTBsZqFq4h", "not found"),
-    ("migrate_ledger",   "hive:nobody",                       "not found"),
+    ("set_token",        "vsc1BUDsVccMPGycTmpc98WsQYSKyTBsZqFq4h", "owner only"),
+    ("migrate_ledger",   "hive:nobody",                       "owner only"),
     # mints
     ("mint",             "100000000|30",                      "minted"),
     ("claim_mint",       "9999",                              "no such mint"),
