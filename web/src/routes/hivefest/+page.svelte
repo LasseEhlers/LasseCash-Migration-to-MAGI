@@ -70,11 +70,18 @@
   }
 
   onMount(() => {
+    // ?stage — the projector view: no nav, no banner, no footer. The class is
+    // removed on leave so the rest of the site is untouched.
+    const stage = new URLSearchParams(location.search).has("stage");
+    if (stage) document.documentElement.classList.add("stage-mode");
     poll(); readContract();
     const a = setInterval(poll, POLL_MS);
     const b = setInterval(readContract, POLL_MS * 4);
     const c = setInterval(() => (now = Date.now()), 1000);
-    return () => { clearInterval(a); clearInterval(b); clearInterval(c); };
+    return () => {
+      clearInterval(a); clearInterval(b); clearInterval(c);
+      document.documentElement.classList.remove("stage-mode");
+    };
   });
 
   const priced = $derived(trades.filter((t) => Number(t.price) > 0));
@@ -204,7 +211,7 @@
         <ul class="ticker">
           {#each recent as t (t.height + t.time)}
             <li class:fresh={baselineCount >= 0 && trades.indexOf(t) >= baselineCount}>
-              <span class="mono who">@{displayName(t.trader)}</span>
+              <span class="mono who">{displayName(t.trader)}</span>
               {#if t.side === "buy"}
                 <span class="cyan">bought</span> <span class="mono">{lc(t.amountOut)}</span> LASSECASH for <span class="mono">{lc(t.amountIn, 3)}</span> HBD
               {:else}
