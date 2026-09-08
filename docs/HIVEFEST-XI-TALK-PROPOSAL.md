@@ -1,4 +1,14 @@
-# HiveFest XI — talk proposal, ready to submit
+# HiveFest XI — talk proposal — SUBMITTED 2026-09-09 01:11 CPH
+
+**On chain:** comment `@lasseehlers/hf26-talk-mttaa4c6-2ez` under the Call for
+Talks anchor, tool metadata intact (`hf.type talk`, FRI 18 SEPT, 20 min).
+Direct link: https://hivefe.st/program.html#talks18/lasseehlers/hf26-talk-mttaa4c6-2ez
+Editable any time via the tool's [EDIT] button on the proposal (re-signs the
+same comment). Title as submitted: "LasseCash: freezing an economy on MAGI,
+then the keys go in the fire — remote (video link)". Abstract says "a pool
+deployed on MAGI's DEX contracts" — deliberately NOT "listed": registration
+is the MAGI team's decision and had not been made.
+
 
 **Where:** the program tool at https://hivefe.st/program.html, tab "talks18".
 Submit through the TOOL, not as a plain comment — only tool submissions carry
