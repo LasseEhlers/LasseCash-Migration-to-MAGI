@@ -123,7 +123,7 @@ func Init(a *string) *string {
 	if !ok {
 		sdk.Abort("usage: <genesisHeight>")
 	}
-	return finish(state.Init(store{}, h))
+	return finish(state.Init(st(), h))
 }
 
 // set_snapshot commits the Merkle root of the migration tree, the total of
@@ -142,7 +142,7 @@ func SetSnapshot(a *string) *string {
 	if args.Str(0) == "" || !okT || !okB {
 		sdk.Abort("usage: <rootHex>|<qualifierTotal>|<burnTotal>")
 	}
-	return finish(state.SetSnapshot(store{}, args.Str(0), total, burnT))
+	return finish(state.SetSnapshot(st(), args.Str(0), total, burnT))
 }
 
 // claim_migration collects the caller's snapshot position with a Merkle
@@ -161,7 +161,7 @@ func ClaimMigration(a *string) *string {
 	if !okL || !okS {
 		sdk.Abort("usage: <liquid>|<staked>|<proofHex,…>")
 	}
-	return finish(state.ClaimMigration(store{}, c, liquid, staked, state.ParseProof(args.Str(2))))
+	return finish(state.ClaimMigration(st(), c, liquid, staked, state.ParseProof(args.Str(2))))
 }
 
 // record_burn writes the permanent receipt for a burned leaf. Permissionless,
@@ -177,7 +177,7 @@ func RecordBurn(a *string) *string {
 	if args.Str(0) == "" || !okL || !okS {
 		sdk.Abort("usage: <account>|<liquid>|<staked>|<proofHex,…>")
 	}
-	return finish(state.RecordBurn(store{}, args.Str(0), liquid, staked, state.ParseProof(args.Str(3))))
+	return finish(state.RecordBurn(st(), args.Str(0), liquid, staked, state.ParseProof(args.Str(3))))
 }
 
 // sweep_unclaimed recycles whatever was committed but never claimed into the
@@ -186,7 +186,7 @@ func RecordBurn(a *string) *string {
 //go:wasmexport sweep_unclaimed
 func SweepUnclaimed(_ *string) *string {
 	c, _ := ctx()
-	return finish(state.SweepUnclaimed(store{}, c))
+	return finish(state.SweepUnclaimed(st(), c))
 }
 
 // --- ledger ---------------------------------------------------------------
@@ -214,7 +214,7 @@ func Transfer(a *string) *string {
 	if to == "" || !ok {
 		sdk.Abort("usage: <to>|<amount>")
 	}
-	return finish(state.Transfer(store{}, c, to, amount))
+	return finish(state.Transfer(st(), c, to, amount))
 }
 
 // burn permanently destroys the caller's liquid balance.
@@ -229,7 +229,7 @@ func Burn(a *string) *string {
 	if !ok {
 		sdk.Abort("usage: <amount>")
 	}
-	return finish(state.Burn(store{}, c, amount))
+	return finish(state.Burn(st(), c, amount))
 }
 
 // fund <target>|<amount> — move LASSECASH from the caller into a reward pool.
@@ -250,7 +250,7 @@ func Fund(a *string) *string {
 	if target == "" || !ok {
 		sdk.Abort("usage: <pob|viral|deep|liquidity|lshare|all>|<amount>")
 	}
-	return finish(state.FundPool(store{}, c, target, amount))
+	return finish(state.FundPool(st(), c, target, amount))
 }
 
 // settle credits block rewards up to the current height. Permissionless: an
@@ -259,7 +259,7 @@ func Fund(a *string) *string {
 //go:wasmexport settle
 func Settle(a *string) *string {
 	c, _ := ctx()
-	return finish(state.Settle(store{}, c))
+	return finish(state.Settle(st(), c))
 }
 
 // advance walks the L-Share yield accumulator forward.
@@ -288,7 +288,7 @@ func Advance(a *string) *string {
 	if v, ok := state.ParseArgs(*a).I64(0); ok && v > 0 {
 		days = int(v)
 	}
-	if state.AccrueSteps(store{}, c.Height, days) {
+	if state.AccrueSteps(st(), c.Height, days) {
 		return finish(state.OK("accrual is current"))
 	}
 	return finish(state.OK("advanced; still behind, call again"))
@@ -309,7 +309,7 @@ func Mint(a *string) *string {
 	if !okA || !okD {
 		sdk.Abort("usage: <amount>|<days 1..1095>")
 	}
-	_, r := state.CreateMint(store{}, c, amount, days)
+	_, r := state.CreateMint(st(), c, amount, days)
 	return finish(r)
 }
 
@@ -327,7 +327,7 @@ func ClaimMint(a *string) *string {
 	if !ok {
 		sdk.Abort("usage: <mintId>")
 	}
-	return finish(state.ClaimMint(store{}, c, id))
+	return finish(state.ClaimMint(st(), c, id))
 }
 
 // sweep_mint closes a position the post-maturity bleed has fully consumed,
@@ -347,7 +347,7 @@ func SweepMint(a *string) *string {
 	if owner == "" || !ok {
 		sdk.Abort("usage: <owner>|<mintId>")
 	}
-	return finish(state.SweepMint(store{}, c, owner, id))
+	return finish(state.SweepMint(st(), c, owner, id))
 }
 
 // good_accounting arms tax deferral. Only in the 30 days before maturity.
@@ -362,7 +362,7 @@ func GoodAccounting(a *string) *string {
 	if !ok {
 		sdk.Abort("usage: <mintId>")
 	}
-	return finish(state.ArmGoodAccounting(store{}, c, id))
+	return finish(state.ArmGoodAccounting(st(), c, id))
 }
 
 // set_duration records the mint length used for the monthly Proof-of-Brain
@@ -378,7 +378,7 @@ func SetDuration(a *string) *string {
 	if !ok {
 		sdk.Abort("usage: <days 1..1095>")
 	}
-	return finish(state.SetMintDuration(store{}, c, days))
+	return finish(state.SetMintDuration(st(), c, days))
 }
 
 // settle_pending converts an account's accrued Proof-of-Brain rewards into its
@@ -394,7 +394,7 @@ func SettlePending(a *string) *string {
 	if account == "" {
 		account = c.Sender
 	}
-	return finish(state.SettlePending(store{}, c, account))
+	return finish(state.SettlePending(st(), c, account))
 }
 
 // --- governance -----------------------------------------------------------
@@ -411,7 +411,7 @@ func Promote(a *string) *string {
 	if account == "" {
 		account = c.Sender
 	}
-	return finish(state.Promote(store{}, account))
+	return finish(state.Promote(st(), account))
 }
 
 // set_param records a consensus member's standing preference. There are no
@@ -429,7 +429,7 @@ func SetParam(a *string) *string {
 	if key == "" || !ok {
 		sdk.Abort("usage: <paramKey>|<value>")
 	}
-	return finish(state.SetPreference(store{}, c, key, value))
+	return finish(state.SetPreference(st(), c, key, value))
 }
 
 // --- LasseMedia -----------------------------------------------------------
@@ -455,7 +455,7 @@ func Post(a *string) *string {
 	if mode > 2 {
 		sdk.Abort("payoutMode must be 0 (split), 1 (power up) or 2 (burn)")
 	}
-	return finish(state.CreatePost(store{}, c, permlink, window(w), state.PayoutMode(mode)))
+	return finish(state.CreatePost(st(), c, permlink, window(w), state.PayoutMode(mode)))
 }
 
 // comment registers a reply to a registered post. Viral economics (7 days,
@@ -472,7 +472,7 @@ func Comment(a *string) *string {
 		sdk.Abort("usage: <permlink>|<parentAuthor>|<parentPermlink>|[payoutMode]")
 	}
 	mode, _ := args.U64(3)
-	return finish(state.CreateComment(store{}, c, permlink, state.PayoutMode(mode), pa, pp))
+	return finish(state.CreateComment(st(), c, permlink, state.PayoutMode(mode), pa, pp))
 }
 
 // promote burns LASSECASH to buy a post a labelled promoted slot. Active key
@@ -489,7 +489,7 @@ func PromotePost(a *string) *string {
 	if args.Str(0) == "" || args.Str(1) == "" || !ok {
 		sdk.Abort("usage: <author>|<permlink>|<amount>")
 	}
-	return finish(state.PromotePost(store{}, c, args.Str(0), args.Str(1), amount))
+	return finish(state.PromotePost(st(), c, args.Str(0), args.Str(1), amount))
 }
 
 // vote casts a weighted vote. weight is 1..100 percent.
@@ -506,7 +506,7 @@ func Vote(a *string) *string {
 	if author == "" || permlink == "" || !ok {
 		sdk.Abort("usage: <author>|<permlink>|<weightPct 0..100, 0 removes your vote>")
 	}
-	return finish(state.Vote(store{}, c, author, permlink, weight))
+	return finish(state.Vote(st(), c, author, permlink, weight))
 }
 
 // payout settles a post once its window closes and pays the author.
@@ -523,7 +523,7 @@ func Payout(a *string) *string {
 	if author == "" || permlink == "" {
 		sdk.Abort("usage: <author>|<permlink>")
 	}
-	return finish(state.Payout(store{}, c, author, permlink))
+	return finish(state.Payout(st(), c, author, permlink))
 }
 
 // claim_curation collects one curator's share of an already-paid-out post.
@@ -544,7 +544,7 @@ func ClaimCuration(a *string) *string {
 	if author == "" || permlink == "" {
 		sdk.Abort("usage: <author>|<permlink>|[curator]")
 	}
-	return finish(state.ClaimCuration(store{}, c, author, permlink, args.Str(2)))
+	return finish(state.ClaimCuration(st(), c, author, permlink, args.Str(2)))
 }
 
 // sweep_curation recycles a settled post's unclaimed curator pot into the
@@ -565,7 +565,7 @@ func SweepCuration(a *string) *string {
 	if author == "" || permlink == "" {
 		sdk.Abort("usage: <author>|<permlink>")
 	}
-	return finish(state.SweepCuration(store{}, c, author, permlink))
+	return finish(state.SweepCuration(st(), c, author, permlink))
 }
 
 func window(w uint64) engine.Window {
@@ -628,7 +628,7 @@ func AddLiquidity(a *string) *string {
 	if !okLC || !okHbd {
 		sdk.Abort("usage: <lcAmount>|<maxHbd>")
 	}
-	_, r := state.AddLiquidity(store{}, assets{}, c, lcIn, maxHbd)
+	_, r := state.AddLiquidity(st(), assets{}, c, lcIn, maxHbd)
 	return finish(r)
 }
 
@@ -645,7 +645,7 @@ func RemoveLiquidity(a *string) *string {
 	if !ok {
 		sdk.Abort("usage: <trancheId>")
 	}
-	return finish(state.RemoveLiquidity(store{}, assets{}, c, id))
+	return finish(state.RemoveLiquidity(st(), assets{}, c, id))
 }
 
 // claim_pool collects a tranche's share of the liquidity reward pool, weighted
@@ -660,7 +660,7 @@ func ClaimPool(a *string) *string {
 	if !ok {
 		sdk.Abort("usage: <trancheId>")
 	}
-	return finish(state.ClaimPoolRewards(store{}, c, id))
+	return finish(state.ClaimPoolRewards(st(), c, id))
 }
 
 // sweep_tranche EVICTS a dormant liquidity position: after six months with no
@@ -686,7 +686,7 @@ func SweepTranche(a *string) *string {
 	if owner == "" || !ok {
 		sdk.Abort("usage: <owner>|<trancheId>")
 	}
-	return finish(state.SweepTranche(store{}, assets{}, c, owner, id))
+	return finish(state.SweepTranche(st(), assets{}, c, owner, id))
 }
 
 // swap_lc_hbd sells LASSECASH for HBD.
@@ -705,7 +705,7 @@ func SwapLCForHBD(a *string) *string {
 	if !okIn || !okMin {
 		sdk.Abort("usage: <lcIn>|<minHbdOut>")
 	}
-	return finish(state.SwapLCForHBD(store{}, assets{}, c, in, minOut))
+	return finish(state.SwapLCForHBD(st(), assets{}, c, in, minOut))
 }
 
 // swap_hbd_lc buys LASSECASH with HBD.
@@ -721,5 +721,5 @@ func SwapHBDForLC(a *string) *string {
 	if !okIn || !okMin {
 		sdk.Abort("usage: <hbdIn>|<minLcOut>")
 	}
-	return finish(state.SwapHBDForLC(store{}, assets{}, c, in, minOut))
+	return finish(state.SwapHBDForLC(st(), assets{}, c, in, minOut))
 }

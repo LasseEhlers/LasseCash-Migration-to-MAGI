@@ -17,7 +17,10 @@
 const { Client, PrivateKey } = require("@hiveio/dhive");
 const fs = require("fs");
 
-const CONTRACT = "vsc1BV7EjeGGNCkA1yJ1iv2gzGkDjFGFwXv9Hi"; // throwaway #9 (deployed 2026-09-01 15:33): TESTWINDOWS, PRE-FUND build — the contract-update rehearsal (does an update preserve state?)
+// Target: CONTRACT_ID in the environment, else throwaway #9. Made overridable
+// 2026-09-06 for throwaway #10, which is TWO contracts (a magi_token and the
+// core that owns it) rather than one.
+const CONTRACT = process.env.CONTRACT_ID || "vsc1BV7EjeGGNCkA1yJ1iv2gzGkDjFGFwXv9Hi"; // throwaway #9 (deployed 2026-09-01 15:33): TESTWINDOWS, PRE-FUND build — the contract-update rehearsal (does an update preserve state?)
 const cfgPath = `${__dirname}/../../deploy-data/config/identityConfig.json`;
 
 async function main() {

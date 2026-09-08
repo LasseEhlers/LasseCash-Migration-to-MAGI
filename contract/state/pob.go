@@ -313,7 +313,9 @@ func PromotePost(s Store, ctx Ctx, author, permlink string, amt engine.Amount) R
 	if !debit(s, ctx.Sender, amt) {
 		return fail("insufficient balance")
 	}
-	burn(s, amt)
+	if !burn(s, amt) {
+		return fail("burn failed")
+	}
 	p.Promoted += amt
 	putPost(s, author, permlink, p)
 	return ok("promoted with " + encI64(int64(amt)))
@@ -492,7 +494,9 @@ func Payout(s Store, ctx Ctx, author, permlink string) Result {
 	p.CuratorRshares = p.Rshares
 	putPost(s, author, permlink, p)
 
-	payReward(s, ctx, author, authorAmount, p.Mode)
+	if !payReward(s, ctx, author, authorAmount, p.Mode) {
+		return fail("author payout failed")
+	}
 	return ok("paid author " + encI64(int64(authorAmount)))
 }
 
@@ -548,7 +552,9 @@ func ClaimCuration(s Store, ctx Ctx, author, permlink, curator string) Result {
 
 	// Curators always take the standard split — the author's payout choice is
 	// theirs alone and cannot dictate how someone else is paid.
-	payReward(s, ctx, curator, share, PayoutDefault)
+	if !payReward(s, ctx, curator, share, PayoutDefault) {
+		return fail("curator payout failed")
+	}
 	return ok("claimed " + encI64(int64(share)))
 }
 
@@ -557,23 +563,31 @@ func ClaimCuration(s Store, ctx Ctx, author, permlink, curator string) Result {
 //	PayoutDefault  20% liquid now, 80% to the monthly mint
 //	PayoutPowerUp  100% to the monthly mint
 //	PayoutBurn     destroyed, and recorded against total burned
-func payReward(s Store, ctx Ctx, account string, amount engine.Amount, mode PayoutMode) {
+// Returns false only if the payout could not be made — with a token ledger a
+// credit can be refused, where a local write never could.
+func payReward(s Store, ctx Ctx, account string, amount engine.Amount, mode PayoutMode) bool {
 	if amount <= 0 {
-		return
+		return true
 	}
 	switch mode {
 	case PayoutBurn:
 		// Credited to the null account, like every burn — leaving declined
 		// rewards in a pool would silently inflate what is claimable, and a
 		// bare counter would hide them from anyone auditing the null balance.
-		burn(s, amount)
+		return burn(s, amount)
 	case PayoutPowerUp:
+		// Pending is a CLAIM on tokens the core already holds: emission was
+		// minted into the core's float when it was counted, and stays there
+		// until the month turns and it becomes a mint. Nothing to transfer.
 		accruePending(s, account, amount, ctx.Epoch)
 	default:
 		liquid, pending := engine.RoutePayout(amount)
-		credit(s, account, liquid)
+		if !credit(s, account, liquid) {
+			return false
+		}
 		accruePending(s, account, pending, ctx.Epoch)
 	}
+	return true
 }
 
 // --- curation expiry ------------------------------------------------------

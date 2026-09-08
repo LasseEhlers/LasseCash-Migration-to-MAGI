@@ -37,7 +37,7 @@ func Migrate(a *string) *string {
 	if account == "" || !okL || !okS {
 		sdk.Abort("usage: <account>|<liquid>|<staked>")
 	}
-	return finish(state.CreditMigration(store{}, account, liquid, staked))
+	return finish(state.CreditMigration(st(), account, liquid, staked))
 }
 
 // migrate_batch credits up to state.MaxMigrateBatch snapshot balances in one
@@ -58,7 +58,7 @@ func Migrate(a *string) *string {
 func MigrateBatch(a *string) *string {
 	_, env := ctx()
 	requireOwner(env)
-	return finish(state.CreditMigrationBatch(store{}, parseTriples(*a)))
+	return finish(state.CreditMigrationBatch(st(), parseTriples(*a)))
 }
 
 // burn_batch records up to state.MaxMigrateBatch NON-qualifying snapshot
@@ -73,7 +73,7 @@ func MigrateBatch(a *string) *string {
 func BurnBatch(a *string) *string {
 	_, env := ctx()
 	requireOwner(env)
-	return finish(state.BurnMigrationBatch(store{}, parseTriples(*a)))
+	return finish(state.BurnMigrationBatch(st(), parseTriples(*a)))
 }
 
 // parseTriples reads `<account>,<liquid>,<staked>|…`. Commas inside a triple,

@@ -45,7 +45,17 @@ func Schedule(s Store) engine.EmissionSchedule {
 // --- balances -------------------------------------------------------------
 
 // Balance returns an account's liquid balance.
-func Balance(s Store, account string) engine.Amount { return getAmount(s, balKey(account)) }
+//
+// With a token ledger the answer is the token's balance PLUS any legacy row
+// not yet migrated — both are the account's money, and during the sweep an
+// account may briefly have one of each. Reading is a cheap state read (17 RC
+// measured), not a contract call.
+func Balance(s Store, account string) engine.Amount {
+	if t, has := tokensOf(s); has {
+		return t.TokenBalance(account) + getAmount(s, balKey(account))
+	}
+	return getAmount(s, balKey(account))
+}
 
 // credit adds to a liquid balance. Callers must have sourced the amount from
 // somewhere that was debited, or from emission.
@@ -54,6 +64,21 @@ func credit(s Store, account string, amt engine.Amount) bool {
 		return false
 	}
 	if amt == 0 {
+		return true
+	}
+	if t, has := tokensOf(s); has {
+		// The core holds the float and hands it over. It does NOT mint here:
+		// minting happens only where supply legitimately grows (mintSupply),
+		// so the token's totalSupply can never drift from migrated+emitted.
+		// A short float means an accounting leak, and failing loudly is the
+		// correct response to one.
+		if !ensureMigrated(s, t, account) {
+			return false
+		}
+		if !t.TokenTransfer(account, amt) {
+			return false
+		}
+		noteAccount(s, account)
 		return true
 	}
 	cur := Balance(s, account)
@@ -70,6 +95,15 @@ func credit(s Store, account string, amt engine.Amount) bool {
 func debit(s Store, account string, amt engine.Amount) bool {
 	if amt < 0 {
 		return false
+	}
+	if t, has := tokensOf(s); has {
+		if !ensureMigrated(s, t, account) {
+			return false
+		}
+		if t.TokenBalance(account) < amt {
+			return false
+		}
+		return t.TokenTransferFrom(account, amt)
 	}
 	cur := Balance(s, account)
 	if cur < amt {
@@ -146,15 +180,22 @@ func Burn(s Store, ctx Ctx, amt engine.Amount) Result {
 	if !debit(s, ctx.Sender, amt) {
 		return fail("insufficient balance")
 	}
-	burn(s, amt)
+	if !burn(s, amt) {
+		return fail("burn failed")
+	}
 	return ok("burned")
 }
 
 // burn credits the null account. The ONE way value is ever burned.
-func burn(s Store, amt engine.Amount) {
-	if amt > 0 {
-		credit(s, BurnAccount, amt)
+// Returns false if the credit to null could not be made. It used to return
+// nothing and discard credit()'s answer — harmless while balances were a
+// local write that cannot fail, and a silent hole once they live in a token
+// contract, where a credit really can be refused. Caught 2026-09-06.
+func burn(s Store, amt engine.Amount) bool {
+	if amt <= 0 {
+		return true
 	}
+	return credit(s, BurnAccount, amt)
 }
 
 // --- migration ------------------------------------------------------------
@@ -205,13 +246,19 @@ func CreditMigration(s Store, account string, liquid, staked engine.Amount) Resu
 	if next+engine.EmissionCap > engine.HistoricHardCap {
 		return fail("would breach 51M hardcap")
 	}
+	// MINT BEFORE CREDITING. With a token ledger the core hands out of its own
+	// float, so the supply has to exist before anything can receive it. The
+	// order is invisible on the legacy ledger and load-bearing on the token
+	// one; keep it this way.
+	if !mintSupply(s, keyMigrated, next-migrated) {
+		return fail("supply mint failed")
+	}
 	if liquid > 0 && !credit(s, account, liquid) {
 		return fail("credit failed")
 	}
 	if staked > 0 && !creditMigrationMint(s, account, staked) {
 		return fail("migration mint failed")
 	}
-	setAmount(s, keyMigrated, next)
 	s.Set(migDoneKey(account), migrationRecord(liquid, staked))
 	return ok("migrated")
 }
@@ -467,6 +514,15 @@ func CreditMigrationBatch(s Store, entries []MigrationEntry) Result {
 		return fail("would breach 51M hardcap")
 	}
 
+	// MINT BEFORE CREDITING, for the whole batch. The core hands out of its
+	// own float on a token ledger, so the supply must exist before the loop
+	// starts paying anyone. Atomic either way: a failure here writes nothing,
+	// and on-chain a failed contract call unwinds the transaction.
+	// mintSupply takes the DELTA, not the new total.
+	if !mintSupply(s, keyMigrated, total-migrated) {
+		return fail("supply mint failed")
+	}
+
 	genesis := GenesisHeight(s)
 	mints := make([]engine.Mint, 0, len(fresh))
 	for _, e := range fresh {
@@ -490,7 +546,6 @@ func CreditMigrationBatch(s Store, entries []MigrationEntry) Result {
 			return fail("migration mint failed")
 		}
 	}
-	setAmount(s, keyMigrated, total)
 	return ok("migrated " + encU64(uint64(len(fresh))) + " of " + encU64(uint64(len(entries))))
 }
 
@@ -550,6 +605,15 @@ func BurnMigrationBatch(s Store, entries []MigrationEntry) Result {
 		return fail("would breach 51M hardcap")
 	}
 
+	// MINT BEFORE CREDITING, for the whole batch. The core hands out of its
+	// own float on a token ledger, so the supply must exist before the loop
+	// starts paying anyone. Atomic either way: a failure here writes nothing,
+	// and on-chain a failed contract call unwinds the transaction.
+	// mintSupply takes the DELTA, not the new total.
+	if !mintSupply(s, keyMigrated, total-migrated) {
+		return fail("supply mint failed")
+	}
+
 	// One null credit per batch — the per-account read-modify-write of the
 	// same balance was pure gas.
 	var toNull engine.Amount
@@ -557,8 +621,9 @@ func BurnMigrationBatch(s Store, entries []MigrationEntry) Result {
 		toNull += e.Liquid + e.Staked
 		s.Set(migDoneKey(e.Account), burnRecord(e.Liquid, e.Staked))
 	}
-	burn(s, toNull)
-	setAmount(s, keyMigrated, total)
+	if !burn(s, toNull) {
+		return fail("burn failed")
+	}
 	return ok("burned " + encU64(uint64(len(fresh))) + " of " + encU64(uint64(len(entries))) + " to null")
 }
 

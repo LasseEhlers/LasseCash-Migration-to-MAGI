@@ -1,0 +1,23 @@
+# One account per line. Protocol, bot and service accounts that publish posts
+# but are not people. Found by name on 7 Sep; edit freely, lines with # are ignored.
+actifit
+breakaway.app
+buildawhale
+curangel
+ecency
+ecency.waves
+firstcontext1
+firstcontext2
+hive-br
+indiaunited
+keychain
+leofinance
+lolztoken
+peak.snaps
+poshtoken
+qurator
+scrobble
+splinterlands
+tdvtv
+threespeak
+twicejoy-sports

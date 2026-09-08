@@ -79,6 +79,31 @@ func CallN(payload *string) *string {
 	return ret("called " + strconv.Itoa(n))
 }
 
+// read_back proves the load-bearing question for the token ledger: does a
+// cross-contract state read preserve RAW BYTES?
+//
+// A magi_token stores balances as big-endian unsigned bytes, and the node's
+// GraphQL mangles any byte that is not valid UTF-8 into U+FFFD — so an
+// EXTERNAL reader cannot decode them (verified 2026-09-06: 50,000,000,000
+// came back as \u000b\ufffd;t\u0000, the 0xA4 destroyed). The contract path
+// goes through ContractStateGet, which does a plain string(bytes) with no
+// validation, so it SHOULD survive. This returns what the contract actually
+// sees, decoded, so "should" becomes "does".
+//
+//go:wasmexport read_back
+func ReadBack(payload *string) *string {
+	_, token, to, _ := args(payload)
+	raw := sdk.ContractStateGet(token, "bal|"+to)
+	if raw == nil {
+		return ret("nil")
+	}
+	var n int64
+	for i := 0; i < len(*raw); i++ {
+		n = n<<8 | int64((*raw)[i])
+	}
+	return ret("len=" + strconv.Itoa(len(*raw)) + " value=" + strconv.FormatInt(n, 10))
+}
+
 // read_n does n cross-contract STATE READS — the cheap half of the same
 // question: a balance can be read without a call, so a design that reads
 // directly and writes through calls may sit well under one that does both.

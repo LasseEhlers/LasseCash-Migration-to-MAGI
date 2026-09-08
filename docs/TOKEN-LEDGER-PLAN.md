@@ -86,6 +86,27 @@ with. Mitigated by the fact that this is **ERC-20's interface** — `transfer`,
 and their contract has been unchanged since 19 May 2026 with an external audit
 behind it.
 
+## ⚠️ TOKEN BALANCES CANNOT BE READ THROUGH GraphQL — measured 2026-09-06
+
+A magi_token stores balances as **big-endian unsigned bytes**, and the node's
+GraphQL layer replaces any byte that is not valid UTF-8 with U+FFFD. Asking
+`getStateByKeys` for `bal|hive:null` when it holds 50,000,000,000 returns
+`"\u000b\ufffd;t\u0000"` — the `0xA4` is destroyed and the number is
+unrecoverable. This is not our bug and not fixable from our side.
+
+**The contract path is fine**, and that is what matters for correctness:
+`ContractStateGet` does a plain `string(bytes)` with no validation. Proven on
+the devnet with a probe contract that reads the token and returns what it
+sees: **`len=5 value=50000000000`**, exact.
+
+**Consequence for the site and the API, and it is not optional:** anything
+outside the chain must read balances by calling the token's **`balanceOf`**
+through `simulateContractCalls`, which answers `{"balance":"50000000000"}` as
+a decimal string. Simulations cost no RC, so this is a latency cost, not a
+money one. Affects `MagiBackend.account()`, the `/api/supply` burned figure
+(hive:null's balance moves into the token) and anything else that reads
+`bal_`.
+
 ## Two properties inherent to a standard token, to state publicly
 
 1. **Anyone can call the token directly**, bypassing our site — including
@@ -106,7 +127,36 @@ behind it.
   *"it might be a little hard for people to understand, but the site explains
   the rewards clearly."*
 
-## The proof, before production
+## ✅ PROVEN END TO END ON A REAL CHAIN — devnet, 2026-09-06
+
+`tools/devnet/prove-token-ledger.sh`. Not a test double: a deployed
+`magi_token` built from vsc-eco's source, and the real contract with the
+token ledger compiled in.
+
+| step | result |
+|---|---|
+| Deploy token + core, init both | ok |
+| **`changeOwner` the token to `contract:vsc1BX7EY…`** | CONFIRMED; `owner` reads the core |
+| **The human deployer tries to mint** | **REFUSED — `Must be owner to mint`** |
+| `set_token` on the core | `token ledger set to vsc1BgFF2xh…` |
+| `set_snapshot` with a 500 LASSECASH burn total | ok |
+| **Token `totalSupply`** | **50,000,000,000 = 500.00000000** |
+| **Token `balanceOf(hive:null)`** | **50,000,000,000 = 500.00000000** |
+| **Core `sup_migrated`** | **50,000,000,000** |
+| **A real `claim_migration` at a fresh account's free 10,000 RC** | **success, 2,072 RC used** |
+
+All three supply figures agree exactly: the burn committed at snapshot became
+REAL TOKENS at hive:null, readable by any standard explorer, and the token's
+total supply equals the core's own accounting to the base unit.
+
+And the claim — the path 2.69M unclaimed still depends on — costs 2,072 RC
+against the free 10,000. The question that opened this whole spike is
+answered on-chain, not projected.
+
+⚠️ Devnet charges ACTUAL RC; mainnet freezes the full `rc_limit`. Gas is the
+trustworthy figure; re-validate the budget on a mainnet throwaway.
+
+## The remaining proof, before production
 
 Nothing reaches production until all of this passes on a throwaway:
 
@@ -123,25 +173,61 @@ Nothing reaches production until all of this passes on a throwaway:
 6. A real `claim_migration` on the throwaway from a fresh account with the
    free 10,000 RC, confirming the projected 4,221–6,096.
 
-## Sequence
+## Sequence — the production run
 
-| | |
-|---|---|
-| 1 | **Mon 7 Sep 22:01 CPH** — the already-queued production update activates; run the diff + sweep in `UPDATE-PROOF-RUNBOOK.md`, merge `duration-default-30`. **Unrelated to this work and unchanged.** |
-| 2 | Build: token deploy tooling, `credit`/`debit` through the token, `ensureMigrated`, `migrate_ledger`, the invariant, the site's allowance bundling |
-| 3 | Throwaway #10 — the six checks above |
-| 4 | Deploy the production token (10 HBD), owned by `hive:lassecashmagi` |
-| 5 | Queue the core update — 48h public timelock, visible on `/chain` the whole time |
-| 6 | On activation: `migrate_ledger` in batches, then `changeOwner` on the token to the core. The core is now the only minter |
-| 7 | Ask MAGI for `register_token` + `register_pool` (both owner-only on their router) — the BTC route. **Not on the critical path**; it can come any time after |
-| 8 | **Burn the key**, at a height announced with the reason |
+**Step 0 is done: the 7 September update was CANCELLED on 6 Sep** (cancel tx
+`2c394c62d2987e7452f126071a7b550889e24619`). `findPendingContractUpdates` is
+empty, production still runs the original launch code `bafkreifnneb…e3fm`, and
+its three changes all live inside the token-ledger build anyway. See the
+CLAUDE.md section "PRODUCTION CONTRACT UPDATE — CANCELLED 2026-09-06".
 
-**The burn date moves.** 10 October is not reachable with this done properly.
-Announce the new height once step 3 passes — realistically early November.
-The genesis post promised the burn and the reason for it; the honest framing
-is *"before freezing forever, LASSECASH adopts MAGI's token standard, so it
-can be traded and held everywhere on the network."* Announcement debt is
-cheaper than a frozen mistake.
+**The artifact is verified.** Throwaway #10's on-chain code CID
+`bafkreihztepfwl5noydp3qab7odgsfvtfetupozxytbxw4uorxqdm5nrsu` is byte-identical
+to the local `contract/artifacts/main-tokenledger.wasm`. What was proven on
+mainnet is the exact file that goes to production. Recompute any time with
+`tools/cid.py` (CIDv1 + raw codec + sha256, base32) — it reproduces the
+old queued CID from `main.wasm` exactly, which is how the method was checked.
+
+| # | Step | Command | Cost |
+|---|---|---|---|
+| 1 | Deploy the production token | `WASM=contract/artifacts/magi-token.wasm NAME=LASSECASH DESC="LASSECASH — the token ledger of the LasseCash core contract" ./deploy.sh deploy` | 10 HBD (L1) |
+| 2 | `init` the token | `CONTRACT_ID=<TOKEN> node tools/chain-test/call.js init '{"name":"LasseCash","symbol":"LASSECASH","decimals":8,"maxSupply":"5100000000000000"}' 3000` | RC |
+| 3 | Queue the core update | `WASM=contract/artifacts/main-tokenledger.wasm CONTRACT_ID=vsc1Be4TTjUiHgzhHAfqFn6s3PDAExH2X59fXV ./deploy.sh update` | 10 HBD (L1) |
+| 4 | Wait out the 48-hour public timelock | visible on `/chain` and via `findPendingContractUpdates` the whole time | — |
+| 5 | On activation: run the diff + sweep | `docs/UPDATE-PROOF-RUNBOOK.md` "PRODUCTION QUEUED" — against `prod-before.json` and `prod-sweep-before.txt` | free |
+| 6 | Hand the token to the core | `CONTRACT_ID=<TOKEN> node tools/chain-test/call.js changeOwner '{"newOwner":"contract:vsc1Be4TTjUiHgzhHAfqFn6s3PDAExH2X59fXV"}' 3000` | RC |
+| 7 | Point the core at the token | `CONTRACT_ID=vsc1Be4TTjUiHgzhHAfqFn6s3PDAExH2X59fXV node tools/chain-test/call.js set_token <TOKEN> 3000` | RC |
+| 8 | Sweep the legacy rows | `CONTRACT_ID=vsc1Be4TTjUiHgzhHAfqFn6s3PDAExH2X59fXV node tools/chain-test/call.js migrate_ledger 'hive:a\|hive:b\|…' 50000` — batches of **50** | ~822 RC/account |
+| 9 | Merge `duration-default-30` | frontend only; only after step 5 passes | — |
+| 10 | Ask MAGI for `register_token` + `register_pool` | owner-only on their router — the BTC route. NOT on the critical path | — |
+| 11 | **Burn the key**, at an announced height | | |
+
+⚠️ **Always set `CONTRACT_ID` explicitly.** `tools/chain-test/call.js` falls
+back to throwaway #9 when the variable is unset, so a forgotten export does not
+fail — it silently sends a production call to a dead test contract, reports
+success, and leaves you believing a step ran.
+
+**Step 6 comes BEFORE step 7 and 8, and that order is load-bearing.** The
+sweep mints, and only the owner can mint — so the core must own the token
+before `migrate_ledger` can move a single row. Proven on throwaway #10, where
+@lassecashmagi was refused with "Must be owner to mint" the moment the handover
+landed.
+
+Steps 1 and 3 spend 10 HBD each from @lassecashmagi's **Hive L1** balance
+(26.898 HBD as of 6 Sep — enough, leaving ~6.9). Step 8 spends RC, which is
+MAGI HBD: at 150 HBD parked the meter is ~160,000, and consumed RC thaws over
+five days.
+
+**The burn date does NOT move — 10 October stands.** This paragraph used to
+say the opposite, written on 6 Sep morning when the ledger looked like weeks
+of work. It took a day: activation is 8 Sep, the sweep is one call for 21
+accounts, and the ledger then runs live for 31 days before the burn — across
+the day-30 cliff (30 Sep) and the first monthly PoB mint (1 Oct), which is
+precisely what day 40 was chosen to observe. A corrective update still fits
+until 8 Oct 18:00 UTC. Lasse caught the stale line the same evening, after it
+had already been copied into two other documents and an outreach
+recommendation. Lesson: a date is a conclusion from a plan, and it has to be
+re-derived when the plan shrinks, not carried forward.
 
 ## One open question, to settle during the build
 
@@ -157,5 +243,77 @@ supply, and outside tools never disagree with `/api/supply`.
 If the migration fails part-way, the state is consistent by construction:
 migrated accounts have tokens and no `bal_`, unmigrated ones have `bal_` and
 no tokens, and `ensureMigrated` handles both. The sweep can be re-run; it is
-idempotent. The one irreversible step is `changeOwner` to the core, which
-happens LAST, after the rows are all across and verified.
+idempotent, and a half-finished sweep is a working chain — an unmigrated row
+migrates itself the next time its owner is touched.
+
+⚠️ **This paragraph used to end "the one irreversible step is `changeOwner`,
+which happens LAST, after the rows are all across" — that was WRONG and it
+contradicted the sequence above.** `changeOwner` must come FIRST: the sweep
+mints into the token, and only the owner can mint, so no row can cross until
+the core owns the token. The stale sentence survived the correction that fixed
+the numbered list, which is exactly how an operational document gets someone to
+do the wrong thing at midnight. `changeOwner` is still the irreversible step —
+it just happens early, and everything after it is re-runnable.
+
+
+---
+
+## ✅ VALIDATION COMPLETE — 2026-09-06
+
+| | |
+|---|---|
+| **500,000-round fuzz** on the token ledger | PASSED, 2h45m, zero failures — with the stricter audit that also asserts the core holds exactly what it owes |
+| **Every LASSECASH path** simulated against live throwaway #10 | claim_mint, claim_pool, remove_liquidity, settle, advance succeed outright; transfer, burn, mint succeed with the allowance bundled |
+| **Wallet flows on MAINNET** | claim, mint, transfer, add liquidity — all signed through Keychain by Lasse |
+| **Self-migration** (`ensureMigrated`) | PROVEN ON A CHAIN: 500 LASSECASH in a legacy row, a 1 LASSECASH transfer, and the row is gone with 499 in the token and 1 delivered |
+| **The owner sweep** (`migrate_ledger`) | PROVEN ON A CHAIN: rows deleted, token balances exact **including a 1-base-unit account** |
+| **Supply conservation** | `sup_migrated` == token `totalSupply`, to the base unit |
+| **Batch scaling of the sweep** | LINEAR, measured on the devnet at n = 1, 2, 4, 8 — see below |
+
+**Measured RC, mainnet:** claim 2,109 · mint 3,138 · transfer 1,965 · burn 1,368 ·
+claim_mint 1,115 · remove_liquidity 1,145 · **sweep ~823 per account**.
+
+### The sweep is LINEAR in batch size — MEASURED 2026-09-06
+
+`tools/devnet/prove-sweep-scaling.sh`, eight seeded liquid-only accounts on the
+local devnet, `migrate_ledger` simulated at every batch size:
+
+| n | gas | RC | RC / account |
+|---|---|---|---|
+| 1 | 93,381,639 | 934 | 933.8 |
+| 2 | 175,547,353 | 1,755 | 877.7 |
+| 4 | 339,878,552 | 3,399 | 849.7 |
+| 8 | 668,540,795 | 6,685 | 835.7 |
+
+`gas = 11.2M + 82.2M x n`, which reproduces every measured row to three
+significant figures — **no n^2 term**, unlike August's `migrate_batch`. RC per
+account FALLS slightly with n because the 112-RC fixed cost amortises; the
+marginal account is **822 RC**, matching the mainnet figure above.
+
+**Production batch size: 50.** That is 41,200 RC of real cost, so an rc_limit of
+50,000 carries a 20% margin and still sits well under MAGI's hard 100,000
+ceiling. 100 would technically fit (82,300 RC) with no margin left, which is not
+worth the saving — mainnet FREEZES the whole rc_limit for the five-day thaw, so
+an oversized limit costs throughput directly.
+
+⚠️ **The first run of this test was a false pass, and the lesson generalises.**
+Every owner call ran from node 1, whose 10,000-RC devnet meter ran out during
+the deploys. `migrate_batch` and `set_token` both returned `ok=false`, the
+script never checked, and `migrate_ledger` was measured against accounts holding
+nothing with no token configured. It printed gas flat at ~1.0M and RC/account
+falling from 10.2 to 0.6 — which reads as an excellent result. A sweep
+measurement that has not verified its own seed is measuring argument parsing.
+The script now splits the owner calls across nodes, aborts on any `ok=false`,
+and reads `bal_hive:k00` and `cfg_token` back before printing a single number.
+
+A transfer costs ~7x what it did (285 -> 1,965). That is the real price of a
+standard ledger, and a large part of it is the per-call allowance — a frontend
+choice that can later become approve-once, which is what every ERC-20 app does
+and which is safe here because only the frozen contract can spend it and it
+only ever debits its own caller.
+
+**Not rehearsed, and accepted:** the UPDATE path combined with the ledger
+switch. Both halves are proven separately — updates preserve state
+byte-identically (twice on #9, once on production) and the switch works
+against populated state (above) — and they do not interact: an update swaps
+the WASM, the switch is a state flag.

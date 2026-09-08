@@ -31,7 +31,17 @@ POOLS  = ["pool_lshare", "pool_viral", "pool_deep", "pool_liq"]
 AMM    = ["amm_lc", "amm_hbd", "amm_acc", "amm_accheld", "amm_accseen"]
 ACCR   = ["acc_day", "acc_val", "acc_held"]
 MISC   = ["gov_board", "rsh_viral", "rsh_deep"]
-PER_ACCOUNT = ["bal_", "shr_", "mig_", "mnt_", "mntn_", "pend_", "dur_"]
+# "mnt_"/"mntn_"/"dur_" were GUESSES and match nothing — the real prefixes are
+# below (see contract/state/keys.go). They cost one dead read each and, worse,
+# made the snapshot look like it covered mints when it did not.
+PER_ACCOUNT = ["bal_", "shr_", "mig_", "mseq_", "pend_"]
+# The mint length an account chose in settings: "set_<acct>_days", so it is a
+# suffix key and cannot go in the prefix list above.
+PER_ACCOUNT_SUFFIX = [("set_", "_days")]
+# Mint records are "mint_<acct>_<id>" with ids allocated from mseq_<acct>.
+# They hold PRINCIPAL — the largest value in the contract after balances — so a
+# snapshot that skips them cannot claim an update preserved state.
+MAX_MINTS_PER_ACCOUNT = 40
 
 # An update is instant relative to the chain, but not atomic with it: the two
 # reads straddle real blocks, so anything driven by HEIGHT is expected to move.
@@ -77,7 +87,21 @@ def grab(contract, path):
         except Exception:
             pass
     per = [p + a for a in sorted(accounts) for p in PER_ACCOUNT]
+    per += [p + a + suf for a in sorted(accounts) for p, suf in PER_ACCOUNT_SUFFIX]
     state.update(read_keys(contract, per))
+
+    # Now the mint records themselves. mseq_<acct> is the next id to allocate,
+    # so ids 1..mseq cover every mint the account has ever had, settled ones
+    # included — and a settled mint's key stays retired, so reading it back is
+    # how you notice one reappearing.
+    mint_keys = []
+    for a in sorted(accounts):
+        seq = state.get("mseq_" + a)
+        n = int(seq) if seq and seq.isdigit() else 0
+        n = min(n, MAX_MINTS_PER_ACCOUNT)
+        mint_keys += [f"mint_{a}_{i}" for i in range(1, n + 1)]
+    if mint_keys:
+        state.update(read_keys(contract, mint_keys))
 
     head = gql("query{ localNodeInfo{ last_processed_block } }", {})
     snap = {"contract": contract,

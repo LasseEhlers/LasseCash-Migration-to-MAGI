@@ -391,9 +391,9 @@ genesis whether or not claimed — identical economics to push:
 | claim on | the staked part |
 |---|---|
 | day 0–30 | a real 30-day mint, earning and voting from the claim onward |
-| day 30–60 (grace) | the full minted amount, straight to liquid, no yield |
-| day 60–150 (bleed) | the surviving fraction; the bled part recycles to the L-Share pool |
-| after day 150 | refused; `sweep_unclaimed` (permissionless, once) recycles ALL unclaimed — stake and liquid — to the L-Share pool (Lasse chose pool over null: it is the tail of the same bleed) |
+| day 30–120 (grace, 90 days since 08-22) | the full minted amount, straight to liquid, no yield |
+| day 120–210 (bleed) | the surviving fraction; the bled part recycles to the L-Share pool |
+| after day 210 | refused; `sweep_unclaimed` (permissionless, once) recycles ALL unclaimed — stake and liquid — to the L-Share pool (Lasse chose pool over null: it is the tail of the same bleed) |
 
 Liquid is always credited in full on claim. Nobody earns or votes before
 claiming (Lasse: fine). `ClaimDeadlineHeight = genesis + (30+30+90) days` —
@@ -597,6 +597,25 @@ path, not the expensive credit-and-write path `MaxCurationDrain` actually
 exists to bound. Retest after ~8 September, once early viral posts cross day
 7 and some accounts have a genuinely payable backlog — ideally on an account
 whose queue is at or near depth 20, not extrapolated from a smaller one.
+
+**BASELINE TAKEN 2026-09-07 08:00 CPH, ready for the comparison.** Queue
+depths on production: @lasseehlers **13**, @silvertop 4, @angeloextreme 4,
+@elizabethbit 3, @zaxan 2, @tom45p 1 — so @lasseehlers at 13 is the deepest
+queue that will ever be measurable before the day-30 cliff. Simulated on the
+CHEAP path (nothing payable yet, every entry skipped):
+
+| call | RC | gas |
+|---|---|---|
+| `settle_pending` at depth 13 | **2,467** | 246,627,997 |
+| `settle` | 100 | 3,855,112 |
+| `payout` on an open post | 109 | correctly refused, "window still open" |
+
+**The first window closes 2026-09-07 ~13:00 CPH** (`lassecash-is-live-on-magi`,
+viral, 4 votes). From that moment `settle_pending` on @lasseehlers walks the
+EXPENSIVE credit-and-write path for the entries that became payable, and the
+difference from 2,467 is the real per-entry cost `MaxCurationDrain` exists to
+bound. Re-run the same three simulations then; no broadcast needed, simulation
+is free.
 
 **Who calls it — three layers, in order of how much they matter:**
 
@@ -1953,20 +1972,76 @@ Draft: `docs/ANNOUNCEMENT-DRAFT.md` (technical parts written; Lasse's voice and
 closing line to add; criteria section still says 12 months and five months —
 update to 6 and seven).
 
-## ⏳ PRODUCTION CONTRACT UPDATE QUEUED — 2026-09-05 (read before touching the contract)
+## ⏳ PRODUCTION CONTRACT UPDATE — CANCELLED 2026-09-06, superseded by the token ledger
 
-The one and only production code update is in its 48-hour public window:
-**activates Monday 2026-09-07 at 22:01 CPH (20:01:21 UTC), height
-109,715,055**, on `vsc1Be4TTjUiHgzhHAfqFn6s3PDAExH2X59fXV`. It carries exactly
-three changes — `fund`, the bare-name `transfer` refusal, the 30-day monthly
-mint default — proven twice on throwaway #9 (round 2 activated 5 Sep 21:21
-CPH: state byte-identical, exactly the intended sweep change). The queued CID
-`bafkreieh7bs…5baa` is the content hash of the local `main.wasm` (sha256
-`87f865ab…9fa100`, HEAD `a9de1b7`), verified by recomputing it. **After
-activation, run the two checks in docs/UPDATE-PROOF-RUNBOOK.md "PRODUCTION
-QUEUED"** — diff against `prod-before.json`, sweep against
-`prod-sweep-before.txt` — and only then merge `duration-default-30`. The key
-burn on 10 October then closes the door with all three inside.
+**There is NO pending update on `vsc1Be4TTjUiHgzhHAfqFn6s3PDAExH2X59fXV`.**
+The 5 September update (queue tx `44334c0b…d2016f`, CID `bafkreieh7bs…5baa`,
+due to activate Mon 7 Sep 22:01 CPH) was **cancelled on 6 Sep at 21:2x CPH**
+by `vsc.cancel_contract_update` — cancel tx
+`2c394c62d2987e7452f126071a7b550889e24619`. Verified after the broadcast:
+`findPendingContractUpdates` returns empty and the live code is still
+`bafkreifnneb…e3fm`, the original launch build. Nothing activated.
+
+**Why it was cancelled, not allowed to land.** It carried exactly three
+changes — `fund`, the bare-name `transfer` refusal, the 30-day monthly mint
+default — and **all three are already inside the token-ledger build**, which
+is a strict superset. Letting it activate would have put a code version live
+for 47 hours before the token-ledger update superseded it, costing a second
+activation to verify on a second evening and buying nothing. The 10 HBD
+already paid is not refunded either way, so both paths cost the same 20 HBD in
+fees; cancelling buys a day. Lasse's call, 6 Sep, with the burn on 10 October
+as the reason the day matters more than the fee.
+
+**Consequences that must not be missed:**
+- The "PRODUCTION QUEUED" checks in `docs/UPDATE-PROOF-RUNBOOK.md` do NOT run
+  on 7 September. They run after the TOKEN-LEDGER update activates, against
+  the same `prod-before.json` / `prod-sweep-before.txt` baselines.
+- `duration-default-30` (frontend only — it makes the site read the contract's
+  30-day default instead of assuming 1,095) still merges only AFTER an update
+  carrying the contract-side default is live. That is now the token-ledger
+  update, not the 7 September one.
+- Production is still running the ORIGINAL launch code, so the bare-name
+  `transfer` refusal is NOT live on chain. The client-side qualification in
+  `client.transfer` is the only guard until the token-ledger update activates.
+  Do not describe the contract-side refusal as shipped before then.
+
+## ⏳ TOKEN LEDGER QUEUED ON PRODUCTION — 2026-09-06 21:23 CPH
+
+Both 6 September deploys are done, 20 HBD from @lassecashmagi's L1 balance
+(~6.9 left).
+
+| | |
+|---|---|
+| **LASSECASH token** | `vsc1BUDsVccMPGycTmpc98WsQYSKyTBsZqFq4h` — deployed, `init`-ed, owner still `hive:lassecashmagi`. Code CID `bafkreiggvrp…auem` = local `magi-token.wasm` |
+| **Core update queued** | tx `a06aa172752a0b25397f781d485483f5e6717eeb`, CID `bafkreihztep…nrsu` = local `main-tokenledger.wasm` **and the exact code throwaway #10 proved on mainnet** |
+| **Activates** | height 109,743,024 — **Tue 2026-09-08 21:23 CPH** (19:23:12 UTC) |
+| Baselines | `deploy-data/update-proof/prod-{before,sweep-before}-tokenledger.*`, head 109,685,473 |
+
+**After activation, in this order** (full detail in
+`docs/UPDATE-PROOF-RUNBOOK.md` "PRODUCTION UPDATE #2" and
+`docs/TOKEN-LEDGER-PLAN.md`):
+
+1. state diff + entrypoint sweep — **every balance must be byte-identical**;
+   the update swaps the WASM, it does NOT switch the ledger
+2. `changeOwner` on the token to `contract:vsc1Be4TTj…` — **FIRST**, because
+   the sweep mints and only the owner can mint
+3. `set_token` on the core
+4. `migrate_ledger`, batches of 50, rc_limit 50,000 (~822 RC/account, LINEAR)
+5. merge `duration-default-30`
+6. **the key burn stays 10 October** (day 40, height 110,664,118). The
+   ledger is live from 8 Sep — 31 days before the burn, across the day-30
+   cliff and the 1 Oct monthly mint, which is what day 40 was chosen to
+   observe. A fix update still fits until 8 Oct 18:00 UTC. ⚠️ An earlier
+   line here said the date moves; that was written when this looked like
+   weeks of work, and it was wrong — Lasse caught it 6 Sep.
+
+⚠️ **Until activation, production still runs the ORIGINAL launch code.** The
+contract-side bare-name `transfer` refusal is NOT live; `client.transfer`'s
+qualification is the only guard. Do not describe it as shipped before Tuesday.
+
+⚠️ **Always set `CONTRACT_ID` explicitly** with `tools/chain-test/call.js` — it
+falls back to throwaway #9 when unset, so a forgotten export sends a production
+call to a dead test contract and reports success.
 
 ## STATE OF PLAY — end of 2026-08-22 session (read this first)
 
