@@ -72,8 +72,44 @@
     try { localStorage.setItem("lc_mobile_note", "1"); } catch { /* fine */ }
   }
 
+  /**
+   * The day-30 note. Every migration position is a 30-day mint from the same
+   * genesis, so until 30 September almost nothing is liquid, the pool is thin
+   * and the yield figures are extreme because very few L-Shares exist. A
+   * visitor who does not know that reads the numbers as broken or as a scam.
+   *
+   * Lasse's framing, and it is the right one: the 30 days are not a slow
+   * start to apologise for, they are the migration mechanism working. The
+   * duration was chosen (2026-08-21) so that everyone becomes liquid on the
+   * same day and re-decides, rather than the founder holding unchosen shares
+   * for six months.
+   *
+   * It states MECHANICS, not a forecast. "Everything will look more
+   * attractive" and "mints expected to pay a lot" are predictions about a
+   * price; a protocol that puts those on every page is doing something other
+   * than explaining itself, and a reader who checks the figures afterwards
+   * would be right to hold it against us. The facts are the better argument.
+   *
+   * Disappears by itself once the cliff has passed — nothing to remember to
+   * remove.
+   */
+  let dismissedDay30 = $state(false);
+  const CLIFF_DAY = 30;
+  const day30Passed = $derived.by(() => {
+    const g = chain.info?.genesis_height ?? 0;
+    const h = chain.info?.height ?? 0;
+    if (!g || !h) return true; // say nothing until we know
+    return (h - g) / 28_800 >= CLIFF_DAY;
+  });
+  const showDay30 = $derived(WALLET_MODE && !dismissedDay30 && !day30Passed);
+  function dismissDay30() {
+    dismissedDay30 = true;
+    try { localStorage.setItem("lc_day30_note", "1"); } catch { /* fine */ }
+  }
+
   onMount(async () => {
     try { showMobileNote = !localStorage.getItem("lc_mobile_note"); } catch { showMobileNote = true; }
+    try { dismissedDay30 = !!localStorage.getItem("lc_day30_note"); } catch { /* fine */ }
     document.addEventListener("input", decimalComma, true);
     hbdPref.restore();
     await chain.init();
@@ -173,6 +209,20 @@
     </div>
   {/if}
 
+  {#if showDay30}
+    <div class="day30" role="note">
+      <span>
+        <strong>The first 30 days are the migration itself, by design.</strong>
+        Every position from the snapshot is a 30-day mint that began on the same
+        block, so until then almost nothing is liquid, the pool is thin, and the
+        yield figures are extreme because very few L-Shares exist yet. On
+        <strong>30 September</strong> they all mature at once: everyone becomes
+        liquid the same day and decides fresh, which is where trading and a real
+        price start. <a href="/about">How it works</a>
+      </span>
+      <button class="day30-dismiss" onclick={dismissDay30} aria-label="dismiss">×</button>
+    </div>
+  {/if}
   {#if chain.confirming}
     <div class="confirming" role="status">
       <span class="dot"></span> Signed — waiting for MAGI to confirm. The figures update by themselves.
@@ -213,6 +263,31 @@
   /* Rendered always, SHOWN only at phone width — the media query is the
      switch, so no user-agent sniffing and no JS resize listener. Cyan
      machine chrome, not red: nothing is broken, it is a status report. */
+  .day30 {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.6rem 1rem;
+    border-bottom: 1px solid color-mix(in srgb, var(--gold) 28%, transparent);
+    background: color-mix(in srgb, var(--gold) 7%, var(--panel));
+    color: var(--fg);
+    font-size: 0.9rem;
+    line-height: 1.45;
+  }
+  .day30 strong { color: var(--gold); }
+  .day30 a { color: var(--gold); }
+  .day30-dismiss {
+    margin-left: auto;
+    background: none;
+    border: 0;
+    color: var(--dim);
+    font-size: 1.1rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0 0.25rem;
+  }
+  .day30-dismiss:hover { color: var(--fg); }
+
   .mobile-note { display: none; }
   @media (max-width: 700px) {
     .mobile-note {
