@@ -72,7 +72,7 @@
       <!-- Matured, but the chain refuses a claim until the maturity DAY has
            closed. Saying "ready" here sends the user into a refusal, and on
            day 30 it would send the whole community into one at once. -->
-      <span class="pill info">matures today · claimable tomorrow</span>
+      <span class="pill info">matured · claimable when today closes</span>
     {:else}
       <span class="pill ok">{durationWords(mint.maturity_height - height)} left</span>
     {/if}
@@ -146,13 +146,13 @@
       onclick={close}
       disabled={chain.busy || gone || waiting}
       title={waiting
-        ? "This mint matured today. The chain will not settle it until the day has closed, so that everyone maturing today is paid from the same checkpoint. Claimable tomorrow — nothing is lost by waiting."
+        ? "This mint has matured. The chain will not settle it until the protocol day closes, so that everyone maturing today is paid from the same checkpoint — otherwise the first to claim could take the whole day's emission. Usually a few hours. Nothing is lost by waiting."
         : undefined}
     >
       {#if gone}Nothing left
       {:else if confirming}Confirm — lose {lc(mint.slashed_if_claimed_now)}
       {:else if early}End early
-      {:else if waiting}Claimable tomorrow
+      {:else if waiting}Claimable when today closes
       {:else}Claim{/if}
     </button>
   </footer>
