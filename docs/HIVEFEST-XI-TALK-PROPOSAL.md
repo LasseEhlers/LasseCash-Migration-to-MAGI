@@ -31,6 +31,41 @@ someone else could not give — but then it is a decision about travelling.
 
 ---
 
+## First: the message to @roelandp
+
+He is hands off in a specific sense — he is not curating the program, so
+nobody needs to *accept* a talk; you propose and people vote. But remote
+delivery is a venue and AV question, and that still has an owner. He wrote
+every announcement and built the program tool, so it is his to answer.
+
+Ask the equipment question, not the permission question. "Would you accept a
+remote talk" invites a curation decision he has deliberately stepped out of,
+and the honest answer would be "not my call".
+
+> Hi Roeland — following up on what we wrote about earlier this year: I got
+> LasseCash migrated to MAGI. It went live 31 August, and the admin key burns
+> on 10 October, so it becomes 100% immutable — a huge step up from the
+> Hive-Engine days.
+>
+> Quick logistics question about BCN, and it's not a program one. Is the
+> conference room set up to take a remote speaker over video link, or is it
+> in-person only this year? I'd like to propose a talk in the tool, but I
+> don't want to put something on the board that can't be delivered if it gets
+> voted up. Either answer is fine, I just need to know before I submit.
+>
+> — Lasse
+
+Send it on Hive (a reply or a memo) — he voted on 2026-09-08, so he is active.
+
+**If remote is not on offer:** do not propose it and hope. Either travel or
+skip this edition. Winning a slot you cannot deliver is worse than not
+proposing.
+
+**If it is:** put "remote (video link)" in the proposal itself, so the people
+voting know what they are voting for.
+
+---
+
 ## The proposal
 
 **Title:** Freezing an economy: what it takes to put a real token on MAGI and
