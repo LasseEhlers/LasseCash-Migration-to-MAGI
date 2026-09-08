@@ -230,7 +230,7 @@
     <div class="day30" role="note">
       <span>
         <strong>The first 30 days are the migration itself, by design.</strong>
-        Every snapshot position is a 30-day mint, so very little is liquid and
+        Every snapshot position is a 30-day mint, so little is liquid and
         the pool yield looks high. On <strong>30 September</strong> they all
         mature at once — that is where price discovery becomes effective. A 100%
         free-market product.
