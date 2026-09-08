@@ -2005,39 +2005,47 @@ as the reason the day matters more than the fee.
   `client.transfer` is the only guard until the token-ledger update activates.
   Do not describe the contract-side refusal as shipped before then.
 
-## ⏳ TOKEN LEDGER QUEUED ON PRODUCTION — 2026-09-06 21:23 CPH
+## ✅ TOKEN LEDGER LIVE ON PRODUCTION — 2026-09-08 (handover complete)
 
-Both 6 September deploys are done, 20 HBD from @lassecashmagi's L1 balance
-(~6.9 left).
+**Activated Tue 8 Sep 21:23 CPH, height 109,743,024.** Live code
+`bafkreihztepfwl5noydp3qab7odgsfvtfetupozxytbxw4uorxqdm5nrsu`, byte-identical to
+throwaway #10. Proof in docs/UPDATE-PROOF-RUNBOOK.md "PRODUCTION UPDATE #2":
+`fund`, `set_token`, `migrate_ledger` went from "wasm function not found" to
+answering; a bare-name `transfer` is now refused ON CHAIN. The state diff
+printed FAIL and that was the TOOL (board rotation dropped five accounts from
+its read list — fixed the same night); every changed key was attributed to a
+transaction.
 
-| | |
-|---|---|
-| **LASSECASH token** | `vsc1BUDsVccMPGycTmpc98WsQYSKyTBsZqFq4h` — deployed, `init`-ed, owner still `hive:lassecashmagi`. Code CID `bafkreiggvrp…auem` = local `magi-token.wasm` |
-| **Core update queued** | tx `a06aa172752a0b25397f781d485483f5e6717eeb`, CID `bafkreihztep…nrsu` = local `main-tokenledger.wasm` **and the exact code throwaway #10 proved on mainnet** |
-| **Activates** | height 109,743,024 — **Tue 2026-09-08 21:23 CPH** (19:23:12 UTC) |
-| Baselines | `deploy-data/update-proof/prod-{before,sweep-before}-tokenledger.*`, head 109,685,473 |
+**Handover the same evening, in the load-bearing order:**
 
-**After activation, in this order** (full detail in
-`docs/UPDATE-PROOF-RUNBOOK.md` "PRODUCTION UPDATE #2" and
-`docs/TOKEN-LEDGER-PLAN.md`):
+| step | tx | result |
+|---|---|---|
+| `changeOwner` token -> `contract:vsc1Be4TTj…` | `d086f4c5…0ddf` | token `owner` = the core; @lassecashmagi refused "Must be owner to mint" |
+| `set_token` | `ebbdc6bd…719b` | `cfg_token` = `vsc1BUDsVccMPGycTmpc98WsQYSKyTBsZqFq4h` |
+| `migrate_ledger` (21 names, rc_limit 50,000) | `5a2798a0…6f46` | "migrated 19"; the two skipped held zero; **no legacy `bal_` row holds value** |
 
-1. state diff + entrypoint sweep — **every balance must be byte-identical**;
-   the update swaps the WASM, it does NOT switch the ledger
-2. `changeOwner` on the token to `contract:vsc1Be4TTj…` — **FIRST**, because
-   the sweep mints and only the owner can mint
-3. `set_token` on the core
-4. `migrate_ledger`, batches of 50, rc_limit 50,000 (~822 RC/account, LINEAR)
-5. merge `duration-default-30`
-6. **the key burn stays 10 October** (day 40, height 110,664,118). The
-   ledger is live from 8 Sep — 31 days before the burn, across the day-30
-   cliff and the 1 Oct monthly mint, which is what day 40 was chosen to
-   observe. A fix update still fits until 8 Oct 18:00 UTC. ⚠️ An earlier
-   line here said the date moves; that was written when this looked like
-   weeks of work, and it was wrong — Lasse caught it 6 Sep.
+**Nobody can create LASSECASH now except the core contract**, and the core
+cannot be changed by anyone after 10 October. Balances live in the standard
+`magi_token`; `bal_` rows are gone; read balances via `balanceOf` through
+`simulateContractCalls` (GraphQL destroys the bytes).
 
-⚠️ **Until activation, production still runs the ORIGINAL launch code.** The
-contract-side bare-name `transfer` refusal is NOT live; `client.transfer`'s
-qualification is the only guard. Do not describe it as shipped before Tuesday.
+⚠️ **LIVE INCIDENT, minutes after the sweep:** `/api/supply` reported burned
+0 and circulating 28.08M (real: 9.39M). The fix (8dd5ad3, verified on #10)
+had never reached `main`, which is what Cloudflare builds. Fixed a02a96a,
+confirmed live (burned 18,689,540.87). **Lesson: verify on the branch that
+runs, not the file being edited.** Root cause removed: token-ledger merged
+into main (2f50e57), branches identical — **work on `main` from now on.**
+`duration-default-30` merged the same night (its condition, the 30-day
+default being live, was met at activation).
+
+**First real early end, a data point for day 30:** @jsantana claimed 6,417
+staked, ended on day 7 (recovered 61.3005% = 3,933.66, forfeited 2,483.35 to
+the L-Share pool, exact to the base unit) and sold the lot for 1.50 HBD.
+
+**Still ahead:** 30 Sep day-30 cliff (small: `explc_30` holds 2 chunks) ·
+1 Oct first monthly PoB mint (the one uncompressible test) · **burn 10 Oct,
+unchanged** · ask MAGI for `register_token` only when a native pool is
+actually wanted (register_pool splits liquidity — decide after day 30).
 
 ⚠️ **Always set `CONTRACT_ID` explicitly** with `tools/chain-test/call.js` — it
 falls back to throwaway #9 when unset, so a forgotten export sends a production
