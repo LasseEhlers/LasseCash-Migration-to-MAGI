@@ -29,8 +29,9 @@ that is 30 October. Same answers apply when the day comes.
 | Ticker / symbol | LASSECASH |
 | Decimals | 8 |
 | Blockchain / platform | MAGI (Virtual Smart Chain, VSC) — a smart-contract L2 anchored to Hive; every transaction is a Hive L1 `custom_json`, 3-second blocks |
-| Token type | Contract-managed token (balances live in the contract's state). Not ERC-20, not a native MAGI asset |
-| Contract address | `vsc1Be4TTjUiHgzhHAfqFn6s3PDAExH2X59fXV` |
+| Token type | **Standard MAGI token** (`magi_token`, ERC-20-style, vsc-eco's audited contract, unmodified) since 8 Sep 2026. Owned by the core contract; only the core can mint |
+| **Token contract address** (the one a form means by "contract address") | **`vsc1BUDsVccMPGycTmpc98WsQYSKyTBsZqFq4h`** — ⚠️ a test deployment's token (`vsc1Bq7L9…LEGR`) also carries the symbol LASSECASH in MAGI's index; never use it. The canonical answer is whatever the core's `cfg_token` reads, shown live at https://lassecash.com/chain#contracts |
+| Core contract address (the economy: mints, pools, Proof-of-Brain) | `vsc1Be4TTjUiHgzhHAfqFn6s3PDAExH2X59fXV` |
 | Contract owner | `hive:lassecashmagi` — **the key burns on 10 October 2026**; from then the contract is immutable, nobody can update it |
 | Consensus | Hive proof-of-stake witnesses (L1) + MAGI validator set (L2) |
 | Launch date | 31 August 2026 on MAGI (genesis Hive block 109,512,118). The token itself dates from 2019 on Steem-Engine, then Hive-Engine — the MAGI contract is the migration of that supply |

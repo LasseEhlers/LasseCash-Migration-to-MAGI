@@ -303,7 +303,7 @@ export class MagiBackend implements Backend {
         "bal_hive:null", "shares_total", "pool_lshare", "pool_viral",
         "pool_deep", "rsh_viral", "rsh_deep",
         "pool_liq", "amm_lc", "amm_hbd", "amm_shares", "amm_weight",
-        "gov_board",
+        "gov_board", "cfg_token",
       ]),
       this.height(),
     ]);
@@ -319,6 +319,7 @@ export class MagiBackend implements Backend {
       timestamp: new Date().toISOString(),
       epoch: 0, // the contract derives epochs from block timestamps it alone sees
       genesis_height: num(st["cfg_genesis"]),
+      token_contract: st["cfg_token"] ?? "",
       settled_height: num(st["cfg_settled"]),
       migrated_supply: units(st["sup_migrated"]),
       snapshot_total: units(String(

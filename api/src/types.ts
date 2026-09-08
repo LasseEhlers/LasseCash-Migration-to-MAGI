@@ -17,6 +17,15 @@ export interface ChainInfo {
   timestamp: string;
   epoch: number;
   genesis_height: number;
+  /**
+   * The magi_token the core spends and credits — read from the core's own
+   * `cfg_token`, never typed anywhere. This is THE canonical LASSECASH token
+   * address: a throwaway's token initialised with the same symbol sits in
+   * MAGI's public index beside it, so "which one is real" must be answered
+   * by the frozen contract, not by a page someone maintains. Empty until the
+   * ledger switch (2026-09-08) or on a chain without a token.
+   */
+  token_contract: string;
   settled_height: number;
   migrated_supply: Amount;
   /** Burned + claimable as committed at genesis; the hardcap figure. */

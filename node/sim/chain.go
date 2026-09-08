@@ -381,6 +381,7 @@ type ChainInfo struct {
 	Timestamp      string `json:"timestamp"`
 	Epoch          uint64 `json:"epoch"`
 	GenesisHeight  uint64 `json:"genesis_height"`
+	TokenContract  string `json:"token_contract"` // the core's cfg_token, "" when none
 	SettledHeight  uint64 `json:"settled_height"`
 	MigratedSupply string `json:"migrated_supply"`
 	// SnapshotTotal is burned + claimable as committed at genesis (claim
@@ -425,6 +426,7 @@ func (c *Chain) Info() ChainInfo {
 		Timestamp:      c.timeAt(c.height).Format(time.RFC3339),
 		Epoch:          c.epochAt(c.height),
 		GenesisHeight:  state.GenesisHeight(c.store),
+		TokenContract:  tokenContract(c.store),
 		SettledHeight:  state.SettledHeight(c.store),
 		MigratedSupply: dec(state.MigratedSupply(c.store)),
 		SnapshotTotal:  dec(state.SnapshotTotal(c.store)),
@@ -1261,4 +1263,13 @@ func (c *Chain) PostVotes(author, permlink string) []VoteView {
 		return out[i].Voter < out[j].Voter
 	})
 	return out
+}
+
+// tokenContract reads the core's cfg_token the way the SDK reads it: a missing
+// key is an empty string, never nil (the empty-vs-nil rule).
+func tokenContract(s state.Store) string {
+	if v := s.Get("cfg_token"); v != nil {
+		return *v
+	}
+	return ""
 }

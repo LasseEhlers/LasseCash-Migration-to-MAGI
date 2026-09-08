@@ -5,7 +5,7 @@
    * The supply figures are the ones critics will check, so they are shown
    * plainly and sourced from chain state, not from anything computed here.
    */
-  import { chain } from "$lib/chain.svelte.js";
+  import { chain, CONTRACT_ID } from "$lib/chain.svelte.js";
   import { displayName, lc, lcShort } from "$lib/format.js";
   import { blockSplit, constants, fromUnits, supplyLimits, toBaseUnitArg, toUnits } from "$api/index.js";
   import Seo from "$lib/Seo.svelte";
@@ -205,6 +205,27 @@
     </small>
   </section>
 
+  {#if CONTRACT_ID}
+    <section class="panel" id="contracts">
+      <h2>The two contracts</h2>
+      <div class="addr">
+        <span class="k">Core — the economy</span>
+        <a class="mono" href="https://vsc.techcoderx.com/contract/{CONTRACT_ID}" target="_blank" rel="noopener">{CONTRACT_ID}</a>
+        <small class="dim">Mints, pools, Proof-of-Brain, thresholds. Admin key burns 10 October; after that nobody can change it.</small>
+      </div>
+      <div class="addr">
+        <span class="k">Token — LASSECASH itself</span>
+        {#if chain.info?.token_contract}
+          <a class="mono" href="https://vsc.techcoderx.com/contract/{chain.info.token_contract}" target="_blank" rel="noopener">{chain.info.token_contract}</a>
+          <small class="dim">A standard MAGI token, owned by the core. This is the address to use in any wallet, listing or registry — read live from the core's own state, so it cannot be wrong.</small>
+        {:else}
+          <span class="dim">not set on this chain</span>
+        {/if}
+      </div>
+      <small class="dim">A test deployment's token also carries the symbol LASSECASH in MAGI's public index. Only the address the core reports above is real.</small>
+    </section>
+  {/if}
+
   {#if C}
     <section class="panel">
       <h2>Protocol constants</h2>
@@ -224,6 +245,10 @@
 </div>
 
 <style>
+  #contracts .addr { display: flex; flex-direction: column; gap: 0.2rem; margin: 0.7rem 0; }
+  #contracts .addr .k { font-size: 0.78rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--dim); }
+  #contracts .addr a.mono { color: var(--gold); word-break: break-all; text-decoration: none; }
+  #contracts .addr a.mono:hover { text-decoration: underline; }
   .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 1rem; }
   @media (max-width: 720px) {
     /* Two-up rather than one tall column per figure. */
