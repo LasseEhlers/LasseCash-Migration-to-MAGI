@@ -774,6 +774,10 @@
                 <td class="num" class:gold={!isZero(t.pending_reward)} class:dim={isZero(t.pending_reward)}>
                   {lc(t.pending_reward, 3)}
                   <Hbd amount={t.pending_reward} decimals={6} block />
+                  <!-- The period this figure accrued over: since the last claim, or
+                       since the deposit if never claimed. Age keeps counting after a
+                       claim; this resets — which is why it is not the age column. -->
+                  <small class="dim block">{health.dormantDays === 0 ? "since today" : `over ${health.dormantDays} day${health.dormantDays === 1 ? "" : "s"}`}</small>
                 </td>
                 <td class="health"><TrancheHealth {health} /></td>
                 <td class="actions">
@@ -973,5 +977,6 @@
     border: 1px solid var(--red); border-radius: 6px;
     background: rgba(255, 77, 77, 0.07);
   }
+  small.block { display: block; }
   tr.totals td { border-top: 1px solid var(--gold); font-weight: 600; }
 </style>
