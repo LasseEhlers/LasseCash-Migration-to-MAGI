@@ -41,6 +41,13 @@
   // render on a cold page, so it is guarded like /chain does it.
   const grace = $derived(chain.ready ? constants().graceDays : 90);
   const bleed = $derived(chain.ready ? constants().bleedDays : 90);
+  /**
+   * Age in days, the figure a human reads a position by ("day 9 of 30"). The
+   * card showed the start, the maturity date and a countdown, but never this
+   * — Lasse asked for it 2026-09-09. Heights per day come from the engine.
+   */
+  const hpd = $derived(chain.ready ? Number(constants().heightsPerDay) : 28_800);
+  const ageDays = $derived(height > mint.start_height ? Math.floor((height - mint.start_height) / hpd) : 0);
 
   async function close() {
     error = null;
@@ -61,6 +68,15 @@
     <span class="term">
       {mint.days >= 365 ? `${(mint.days / 365).toFixed(1)} years` : `${mint.days} days`}
       <span class="dim">· matures {shortDate(mint.maturity_time)}</span>
+      {#if !gone && height > 0}
+        <span class="dim mono">
+          {#if !mint.mature}
+            · day {Math.min(ageDays + 1, mint.days)} of {mint.days}
+          {:else}
+            · matured {ageDays - mint.days === 0 ? "today" : `${ageDays - mint.days} day${ageDays - mint.days === 1 ? "" : "s"} ago`}
+          {/if}
+        </span>
+      {/if}
     </span>
     {#if gone}
       <span class="pill bad">liquidated</span>
