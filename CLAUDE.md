@@ -626,7 +626,16 @@ credited entry, on top of ~2,800 for walking the queue.** A full
 `MaxCurationDrain = 20` drain is therefore ~25,600 RC: inside the 30k
 ceiling, over a fresh account's 10,000 free RC. Not a change (the cap is
 frozen; a vote drains 3 entries cheaply, so nobody is stuck) — the number
-the placeholder was waiting for. Real broadcast to follow.
+the placeholder was waiting for. **Real broadcast 02:43 CPH, tx `c11723e1…`,
+CONFIRMED at 109,749,253, rc_limit 9,000: exact.** Curation credited
+742.30845783 (three pots drained to zero, a-simple-fence left with the two
+other curators' shares); `pend_hive:lasseehlers` = 593.84676627 anchored to
+epoch 24321 (80%), token `balanceOf` +148.46169156 (20%) — to the base unit.
+The queue head advanced past one entry and stopped at the first open post
+while the payable entries deeper in the ring were credited — the "left in
+place and retried" rule, seen live. ⚠️ MAGI's Hasura indexer showed only
++37.12 of the +148.46 minutes later — it lags by events; `balanceOf` via
+simulation is the truth, the indexer is a convenience.
 
 **Posts and comments carry pending payouts along too — 2026-09-09.** Until
 then only a vote did (`client.vote` → `sideCalls`); `publish` and `comment`
