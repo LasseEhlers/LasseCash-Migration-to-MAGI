@@ -617,6 +617,24 @@ difference from 2,467 is the real per-entry cost `MaxCurationDrain` exists to
 bound. Re-run the same three simulations then; no broadcast needed, simulation
 is free.
 
+**MEASURED 2026-09-09 02:20 CPH — the expensive path, on production.** Four
+viral windows closed on 8 Sep (barski ×3, offgridlife); Lasse settled them
+(each `payout` ~1,600 RC, curator pots parked at exactly 25%). Simulated
+`settle_pending` on @lasseehlers: **2,837 RC before those payouts (every
+entry skipped), 7,406 RC after** (four entries credited) — **≈1,140 RC per
+credited entry, on top of ~2,800 for walking the queue.** A full
+`MaxCurationDrain = 20` drain is therefore ~25,600 RC: inside the 30k
+ceiling, over a fresh account's 10,000 free RC. Not a change (the cap is
+frozen; a vote drains 3 entries cheaply, so nobody is stuck) — the number
+the placeholder was waiting for. Real broadcast to follow.
+
+**Posts and comments carry pending payouts along too — 2026-09-09.** Until
+then only a vote did (`client.vote` → `sideCalls`); `publish` and `comment`
+now pass `#settlements()` through `publishAndRegister`/`commentAndRegister`,
+sized per call, dropped if refused, capped by `MaxSideCalls` and Hive's
+5-custom_json-per-block ceiling. Swaps deliberately do not: an HBD-drawing
+call's rc_limit reserves HBD, and settlements would make thin-meter trades fail.
+
 **Who calls it — three layers, in order of how much they matter:**
 
 1. **Piggyback on the voter's own transaction** (`PiggybackDrain = 3`). Voting
