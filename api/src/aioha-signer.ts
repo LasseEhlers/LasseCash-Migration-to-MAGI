@@ -558,8 +558,12 @@ export class AiohaWallet {
     hiveOps: unknown[],
     call: { action: string; payload: string; rcLimit: number; intents: unknown[] },
     contractId: string,
+    /** Settlements riding along after the user's own call (posting key, like it). */
+    extra: { action: string; payload: string; rcLimit: number; intents: unknown[] }[] = [],
   ): Promise<TxResult> {
-    return this.#broadcast([...hiveOps, this.#vscOp(call, contractId, KeyTypes.Posting)], KeyTypes.Posting);
+    return this.#broadcast(
+      [...hiveOps, this.#vscOp(call, contractId, KeyTypes.Posting), ...extra.map((c) => this.#vscOp(c, contractId, KeyTypes.Posting))],
+      KeyTypes.Posting);
   }
 
   /**
@@ -1055,6 +1059,7 @@ export class AiohaSigner implements Signer {
   async publishAndRegister(input: {
     permlink: string; title: string; body: string; tags: string[];
     summary?: string; image?: string | null; window: number; payoutMode: number;
+    sideCalls?: { entrypoint: string; args: string }[];
   }): Promise<TxResult> {
     const payload = `${input.permlink}|${input.window}|${input.payoutMode}`;
     const rcLimit = await this.sizeRc("post", payload, [], AiohaSigner.RC_LIMITS["post"] ?? this.rcLimit);
@@ -1063,11 +1068,34 @@ export class AiohaSigner implements Signer {
       [this.wallet.articleOp(input)],
       { action: "post", payload, rcLimit, intents: [] },
       this.contractId,
+      await this.sizedSideCalls(input.sideCalls),
     );
+  }
+
+  /**
+   * Pending payouts that ride along with a post or a comment, exactly as they
+   * ride along with a vote (2026-09-09: until now only votes carried them, so
+   * a feed full of posts and comments could leave closed windows unsettled).
+   * Each is sized from its own dry run and dropped if it would be refused —
+   * it was never the user's call, so it must never block theirs. Capped by
+   * MaxSideCalls and by Hive's per-block custom_json ceiling (the Hive
+   * comment op itself is not a custom_json).
+   */
+  private async sizedSideCalls(
+    sideCalls: { entrypoint: string; args: string }[] | undefined,
+  ): Promise<{ action: string; payload: string; rcLimit: number; intents: unknown[] }[]> {
+    const out: { action: string; payload: string; rcLimit: number; intents: unknown[] }[] = [];
+    const room = Math.min(MaxSideCalls, HiveCustomJsonPerBlock - 1);
+    for (const sc of (sideCalls ?? []).slice(0, room)) {
+      const lim = await this.sizeRc(sc.entrypoint, sc.args, [], AiohaSigner.RC_LIMITS[sc.entrypoint] ?? this.rcLimit);
+      if (typeof lim === "number") out.push({ action: sc.entrypoint, payload: sc.args, rcLimit: lim, intents: [] });
+    }
+    return out;
   }
   /** Reply + registration in ONE signed transaction. */
   async commentAndRegister(input: {
     permlink: string; body: string; parentAuthor: string; parentPermlink: string; payoutMode: number;
+    sideCalls?: { entrypoint: string; args: string }[];
   }): Promise<TxResult> {
     const parent = input.parentAuthor.replace(/^@/, "");
     const qualified = parent.startsWith("hive:") ? parent : `hive:${parent}`;
@@ -1078,6 +1106,7 @@ export class AiohaSigner implements Signer {
       [this.wallet.replyOp(input)],
       { action: "comment", payload, rcLimit, intents: [] },
       this.contractId,
+      await this.sizedSideCalls(input.sideCalls),
     );
   }
 

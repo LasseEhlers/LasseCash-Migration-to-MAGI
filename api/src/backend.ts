@@ -65,9 +65,12 @@ export interface Signer {
   publishAndRegister?(input: {
     permlink: string; title: string; body: string; tags: string[];
     summary?: string; image?: string | null; window: number; payoutMode: number;
+    /** Pending payouts riding along, as on a vote (see SubmitOptions.sideCalls). */
+    sideCalls?: { entrypoint: string; args: string }[];
   }): Promise<TxResult>;
   commentAndRegister?(input: {
     permlink: string; body: string; parentAuthor: string; parentPermlink: string; payoutMode: number;
+    sideCalls?: { entrypoint: string; args: string }[];
   }): Promise<TxResult>;
   /**
    * "Claim All" — several calls to the SAME entrypoint (one `<id>` arg each)
@@ -247,6 +250,7 @@ export interface Backend {
     window: number; payoutMode: number; signer?: Signer;
     /** The author's chosen short link; empty derives one from the title. */
     permlink?: string;
+    sideCalls?: { entrypoint: string; args: string }[];
   }): Promise<PublishResult>;
   /**
    * The registered REPLIES to one post.
@@ -274,6 +278,7 @@ export interface Backend {
   publishComment(input: {
     permlink: string; body: string;
     parentAuthor: string; parentPermlink: string; payoutMode: number; signer?: Signer;
+    sideCalls?: { entrypoint: string; args: string }[];
   }): Promise<PublishResult>;
   /**
    * The `gov_board` accounts, their L-Shares, and their standing preferences.

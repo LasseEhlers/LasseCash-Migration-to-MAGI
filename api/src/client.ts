@@ -199,6 +199,7 @@ export class LasseCashClient {
       window: input.window,
       payoutMode: input.payoutMode ?? 0,
       signer,
+      sideCalls: this.#settlements(),
       ...({ sender: signer.account } as object),
     });
   }
@@ -655,6 +656,7 @@ export class LasseCashClient {
       parentPermlink: input.parentPermlink,
       payoutMode: input.payoutMode ?? 0,
       signer,
+      sideCalls: this.#settlements(),
       ...({ sender: signer.account } as object),
     });
   }

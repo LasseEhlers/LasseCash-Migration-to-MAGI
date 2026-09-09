@@ -1659,6 +1659,7 @@ export class MagiBackend implements Backend {
   async publish(input: {
     title: string; body: string; summary: string; tags: string[];
     window: number; payoutMode: number; signer?: Signer; permlink?: string;
+    sideCalls?: { entrypoint: string; args: string }[];
   }): Promise<PublishResult> {
     const signer = input.signer;
     if (!signer?.publishToHive) {
@@ -1676,6 +1677,7 @@ export class MagiBackend implements Backend {
         permlink, title: input.title, body: input.body, tags: input.tags,
         summary: input.summary, image: firstImage(input.body),
         window: input.window, payoutMode: input.payoutMode,
+        sideCalls: input.sideCalls ?? [],
       });
       return { ...res, permlink };
     }
@@ -1700,6 +1702,7 @@ export class MagiBackend implements Backend {
   async publishComment(input: {
     permlink: string; body: string;
     parentAuthor: string; parentPermlink: string; payoutMode: number; signer?: Signer;
+      sideCalls?: { entrypoint: string; args: string }[];
   }): Promise<PublishResult> {
     const signer = input.signer;
     if (!signer?.publishCommentToHive) {
@@ -1710,6 +1713,7 @@ export class MagiBackend implements Backend {
       const res = await signer.commentAndRegister({
         permlink: input.permlink, body: input.body, parentAuthor,
         parentPermlink: input.parentPermlink, payoutMode: input.payoutMode,
+        sideCalls: input.sideCalls ?? [],
       });
       return { ...res, permlink: input.permlink };
     }
