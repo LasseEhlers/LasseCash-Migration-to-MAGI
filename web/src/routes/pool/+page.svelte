@@ -558,12 +558,20 @@
       : 0n,
   );
 
+  let quotedOnce = $state(false);
   $effect(() => {
     // Re-reads whenever the chain's height moves (the store ticks every 30 s),
     // so the native price and the spread stay live without a second timer.
     void chain.info?.height;
     void chain.account;
     loadNative();
+    // And quote once unprompted. Without this the panel loads with no verdict
+    // and the swap button reads as available when the chain would refuse it —
+    // the state a page must never be in (found on the first live look).
+    if (!quotedOnce && gql && chain.info?.token_contract) {
+      quotedOnce = true;
+      runNativeQuote();
+    }
   });
 
   async function loadNative() {
@@ -790,7 +798,12 @@
           <span class="dim">{nativeSellingLc ? "LASSECASH" : "HBD"}</span>
           <button class="small" onclick={doNativeSwap}
             disabled={!chain.account || !wallet || nativeBusy || !nativeQuote?.ok || chain.busy}>
-            {nativeBusy ? "Swapping…" : chain.account ? "Swap here" : "Sign in"}
+            {#if nativeBusy}Swapping…
+            {:else if !chain.account}Sign in
+            {:else if nativeQuote && !nativeQuote.whitelisted}Not open yet
+            {:else if nativeQuoting}Quoting…
+            {:else if nativeQuote?.ok}Swap here
+            {:else}Enter an amount{/if}
           </button>
         </div>
         <p class="note">
@@ -1181,5 +1194,6 @@
   .nrow input { flex: 1 1 8rem; background: #0d1117; border: 1px solid var(--line); color: var(--fg); padding: 0.45rem 0.6rem; border-radius: 4px; }
   .tab { background: transparent; border: 1px solid var(--line); color: var(--dim); padding: 0.35rem 0.7rem; border-radius: 4px; cursor: pointer; }
   .tab.on { border-color: var(--gold); color: var(--gold); }
+  .nrow button[disabled] { opacity: 0.45; cursor: not-allowed; }
   .warnbox { border-left: 2px solid var(--gold); padding-left: 0.7rem; }
 </style>
