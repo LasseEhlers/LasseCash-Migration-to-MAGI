@@ -2113,6 +2113,33 @@ docs/NATIVE-POOL-PLAN.md) — that makes it visible, it already works.
 falls back to throwaway #9 when unset, so a forgotten export sends a production
 call to a dead test contract and reports success.
 
+## ⚠️ HTTP/3 IS OFF ON PURPOSE — site reachability, 2026-09-09
+
+A public library PC in Copenhagen showed `ERR_TIMED_OUT` on lassecash.com for
+several seconds, then loaded fine on the retry. The site was not at fault:
+measured the same minute, TTFB 57–64 ms, 63 KB, 0.12 s total, HTTP/2 and
+HTTP/1.1 both clean, and our Cloudflare IPs (188.114.96.0 / .97.0) are the
+same ones peakd.com sits on.
+
+The cause of that shape of failure is the first connection, not the page:
+Cloudflare published an HTTPS DNS record advertising `alpn="h3,h2"`, so Chrome
+tries **QUIC over UDP/443 before any TCP**, and institutional firewalls very
+often drop UDP/443 — the browser stalls, times out, then falls back to TCP on
+the retry. **HTTP/3 (with QUIC) is now OFF** (Cloudflare → Speed → Settings →
+Protocol Optimization). Verified from outside: the record reads `alpn="h2"`
+and the `alt-svc: h3=":443"` header is gone. **Do not switch it back on** —
+the speed it buys on lossy mobile is worth less than being reachable from a
+library, a school or an office.
+
+ECH (`ech=` in the same record) is the other known middlebox breaker and is
+NOT exposed on the free plan — no toggle exists under SSL/TLS → Edge
+Certificates. Left as is.
+
+If it ever recurs, the test that settles blame in 30 seconds is to open
+peakd.com and lassecash.pages.dev on the same machine: both stalling means the
+network filters, only lassecash.com stalling means the domain is category-
+blocked as crypto, and neither is fixable in our code.
+
 ## STATE OF PLAY — end of 2026-08-22 session (read this first)
 
 - **Site is LIVE: https://lassecash.pages.dev** (Cloudflare Pages, project

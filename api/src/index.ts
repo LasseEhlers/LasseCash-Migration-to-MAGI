@@ -27,3 +27,4 @@ export * from "./snapshot-check.js";
 export * from "./legacy-price.js";
 export * from "./magi-pools.js";
 export * from "./market.js";
+export * from "./native-pool.js";

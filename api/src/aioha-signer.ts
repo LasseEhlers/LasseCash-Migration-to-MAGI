@@ -77,6 +77,11 @@ export function qualifyAuth(account: string): string {
  * One per app: Aioha keeps session state, and a second instance would silently
  * disagree with the first about who is logged in.
  */
+/** Milli-HBD as the "1.234" string a `transfer.allow` intent must carry. */
+function milliLimitStr(milli: bigint): string {
+  return `${milli / 1000n}.${(milli % 1000n).toString().padStart(3, "0")}`;
+}
+
 export class AiohaWallet {
   readonly aioha: Aioha;
   readonly #contractId: string;
@@ -612,6 +617,57 @@ export class AiohaWallet {
         intents: [{ type: "transfer.allow", args: { token: "hbd", limit } }],
         contractId: poolId,
       },
+    ], poolId, KeyTypes.Active);
+  }
+
+  /**
+   * Swap on the NATIVE pool (MAGI's own DEX contract — see native-pool.ts).
+   *
+   * ONE signed transaction. Selling LASSECASH carries the token allowance the
+   * pool spends through `transferFrom`; buying it carries the `transfer.allow`
+   * intent for the HBD the pool draws. `min_amount_out` is the user's floor,
+   * in the OUTPUT asset's own unit — milli for HBD, 1e8 for LASSECASH — and
+   * the chain rejects the swap rather than paying less.
+   *
+   * rc_limit stays at 4,000 on the HBD side on purpose: an HBD-drawing call
+   * reserves its requested limit out of the HBD balance before the draw is
+   * checked, so a bigger number would starve the swap it is paying for.
+   */
+  async swapNativePool(
+    poolId: string,
+    direction: "lc_hbd" | "hbd_lc",
+    amountIn: bigint,
+    minOut: bigint,
+  ): Promise<TxResult> {
+    const user = this.aioha.isLoggedIn() ? this.aioha.getCurrentUser() : null;
+    if (!user) return { ok: false, height: 0, msg: "not signed in" };
+    if (amountIn <= 0n) return { ok: false, height: 0, msg: "amount must be positive" };
+    const to = `hive:${user}`;
+    const swap = {
+      action: "swap",
+      payload: JSON.stringify(
+        direction === "lc_hbd"
+          ? { asset_in: "lassecash", amount_in: amountIn.toString(), asset_out: "hbd", to, min_amount_out: minOut.toString() }
+          : { asset_in: "hbd", amount_in: amountIn.toString(), asset_out: "lassecash", to, min_amount_out: minOut.toString() },
+      ),
+      rcLimit: 4_000,
+      intents:
+        direction === "hbd_lc"
+          ? [{ type: "transfer.allow", args: { token: "hbd", limit: milliLimitStr(amountIn) } }]
+          : [],
+      contractId: poolId,
+    };
+    if (direction === "hbd_lc") return this.broadcastCalls([swap], poolId, KeyTypes.Active);
+
+    const tokenContractId = await this.tokenContract();
+    if (!tokenContractId) return { ok: false, height: 0, msg: "token contract unknown" };
+    return this.broadcastCalls([
+      {
+        action: "increaseAllowance",
+        payload: JSON.stringify({ spender: `contract:${poolId}`, amount: amountIn.toString() }),
+        rcLimit: 1_500, intents: [], contractId: tokenContractId,
+      },
+      swap,
     ], poolId, KeyTypes.Active);
   }
 

@@ -7,7 +7,7 @@
    * every submit carries a minOut: the user states the worst price they accept,
    * so a trade cannot be sandwiched into a far worse one.
    */
-  import { chain, client } from "$lib/chain.svelte.js";
+  import { chain, client, wallet } from "$lib/chain.svelte.js";
   import { fractionPct, lc, mult, pct } from "$lib/format.js";
   import {
     estimateSwap, estimateLiquidity, toBaseUnitArg, toUnits, fromUnits, isZero,
@@ -15,6 +15,10 @@
   } from "$api/index.js";
   import Seo from "$lib/Seo.svelte";
   import Hbd from "$lib/Hbd.svelte";
+  import {
+    NATIVE_POOL_ID, readNativePool, quoteNativeSwap, nativePrice, unitsToMilli,
+    type NativePoolState, type NativeQuote, type Gql,
+  } from "$api/index.js";
   import TrancheHealth from "$lib/TrancheHealth.svelte";
   import { SITE_OG_IMAGE, SITE_URL } from "$lib/site.js";
 
@@ -494,6 +498,122 @@
   }
   /** Only worth its own button once there is more than one to save a click on. */
   const claimableTrancheCount = $derived(tranches.filter((t) => !isZero(t.pending_reward)).length);
+
+  /* ── The NATIVE pool — MAGI's own DEX contract, deployed by us ──────────
+   * Second venue for the same pair, on the chain's own DEX code rather than
+   * inside our contract. Different rules, deliberately shown side by side:
+   * it charges 0.08% (split by the node between LPs, the network and the
+   * pool's owner) where the core pool charges nothing and pays its LPs from
+   * the 25% emission slice instead.
+   *
+   * Everything here is READ FROM THE CHAIN. A quote is a free simulation of
+   * the exact swap — the output is computed by the node's fee module, which
+   * our engine does not implement and must not.
+   *
+   * It cannot trade until MAGI's witnesses whitelist the contract in their
+   * node config; until then every swap comes back "contract not whitelisted"
+   * and the panel says so rather than offering a button that fails.
+   */
+  const gql = $derived.by(() => {
+    const b = client.backend as unknown as { query?: <T>(q: string, v?: Record<string, unknown>) => Promise<T> };
+    return typeof b.query === "function" ? (b.query.bind(b) as Gql) : null;
+  });
+  let native = $state<NativePoolState | null>(null);
+  let nativeDir = $state<SwapDirection>("lc_hbd");
+  let nativeAmount = $state("1000");
+  let nativeQuote = $state<NativeQuote | null>(null);
+  let nativeQuoting = $state(false);
+  let nativeError = $state<string | null>(null);
+  let nativeBusy = $state(false);
+  let quoteSeq = 0;
+
+  const nativeSellingLc = $derived(nativeDir === "lc_hbd");
+  const nativePriceStr = $derived(native ? nativePrice(native) : null);
+  /** How far the native pool's price sits from the core pool's, in percent. */
+  const nativeSpreadPct = $derived.by(() => {
+    if (!nativePriceStr || !info || isZero(info.amm_lc)) return null;
+    const core = Number(info.amm_hbd) / Number(info.amm_lc);
+    const nat = Number(nativePriceStr);
+    if (!core || !nat) return null;
+    return ((nat / core - 1) * 100).toFixed(2);
+  });
+  /** The typed amount in the INPUT asset's own unit: milli HBD, or 1e8 LASSECASH. */
+  const nativeInUnits = $derived.by(() => {
+    try {
+      const u = toUnits(nativeAmount || "0");
+      return nativeSellingLc ? u : unitsToMilli(u);
+    } catch {
+      return 0n;
+    }
+  });
+  const nativeOutText = $derived.by(() => {
+    if (!nativeQuote?.ok) return null;
+    return nativeSellingLc
+      ? `${lc(fromUnits(nativeQuote.amountOut * 100_000n), 3)} HBD`
+      : `${lc(fromUnits(nativeQuote.amountOut))} LASSECASH`;
+  });
+  const nativeMinOut = $derived(
+    nativeQuote?.ok
+      ? (nativeQuote.amountOut * BigInt(Math.round((100 - slippagePct) * 100))) / 10_000n
+      : 0n,
+  );
+
+  $effect(() => {
+    // Re-reads whenever the chain's height moves (the store ticks every 30 s),
+    // so the native price and the spread stay live without a second timer.
+    void chain.info?.height;
+    void chain.account;
+    loadNative();
+  });
+
+  async function loadNative() {
+    const q = gql;
+    if (!q) return;
+    try {
+      native = await readNativePool(q, chain.account);
+    } catch {
+      native = null;
+    }
+  }
+  /** Quote after the typing stops — every quote is a round trip to a node. */
+  let quoteTimer: ReturnType<typeof setTimeout> | undefined;
+  function scheduleNativeQuote() {
+    clearTimeout(quoteTimer);
+    nativeQuote = null;
+    quoteTimer = setTimeout(runNativeQuote, 600);
+  }
+  async function runNativeQuote() {
+    const q = gql;
+    const amount = nativeInUnits;
+    if (!q || amount <= 0n || !chain.info?.token_contract) return;
+    const seq = ++quoteSeq;
+    nativeQuoting = true;
+    try {
+      const r = await quoteNativeSwap(q, chain.account, nativeDir, amount, chain.info.token_contract);
+      if (seq === quoteSeq) nativeQuote = r;
+    } catch (e) {
+      if (seq === quoteSeq) nativeQuote = { ok: false, amountOut: 0n, whitelisted: true, msg: e instanceof Error ? e.message : String(e) };
+    } finally {
+      if (seq === quoteSeq) nativeQuoting = false;
+    }
+  }
+  async function doNativeSwap() {
+    if (!wallet || !nativeQuote?.ok) return;
+    nativeBusy = true; nativeError = null;
+    try {
+      const refusal = await chain.submit(
+        () => (wallet as { swapNativePool: (p: string, d: SwapDirection, a: bigint, m: bigint) => Promise<{ ok: boolean; msg: string }> })
+          .swapNativePool(NATIVE_POOL_ID, nativeDir, nativeInUnits, nativeMinOut),
+        { movesHbd: !nativeSellingLc });
+      nativeError = refusal;
+      await loadNative();
+      if (!refusal) { nativeQuote = null; runNativeQuote(); }
+    } catch (e) {
+      nativeError = e instanceof Error ? e.message : String(e);
+    } finally {
+      nativeBusy = false;
+    }
+  }
   /** Column totals — sums of figures the chain computed, nothing derived. */
   const trancheTotals = $derived.by(() => {
     const sum = (pick: (t: (typeof tranches)[number]) => string) =>
@@ -617,6 +737,81 @@
       <button onclick={doSwap} disabled={!chain.account || !!swapDisabledReason || chain.busy}>
         {chain.account ? (swapDisabledReason ?? "Swap") : "Sign in to swap"}
       </button>
+
+      <!-- The second venue. Shown here, under the swap, because the whole
+           point is the comparison: same pair, different rules. -->
+      <div class="native">
+        <div class="nhead">
+          <h3>Also on MAGI's own DEX</h3>
+          {#if nativePriceStr}
+            <span class="mono">{lc(nativePriceStr, 8)} HBD</span>
+            {#if nativeSpreadPct !== null}
+              <span class="pill" class:warn={Math.abs(Number(nativeSpreadPct)) >= 1}>
+                {Number(nativeSpreadPct) >= 0 ? "+" : ""}{nativeSpreadPct}% vs the pool above
+              </span>
+            {/if}
+          {/if}
+        </div>
+        <p class="note">
+          We deployed MAGI's own DEX contract for LASSECASH/HBD — the first pool on MAGI
+          put up by anyone outside the team; the chain's only other two, HBD/HIVE and
+          BTC/HBD, belong to the DAO. It charges the DEX's standard <b>0.08%</b>, which the
+          node splits between liquidity providers, the network and the pool's owner. The
+          pool above charges <b>nothing</b> and pays its providers from the 25% emission
+          slice instead — which is why liquidity belongs there, and this one is for trading.
+        </p>
+
+        {#if native}
+          <p class="note dim">
+            Depth here: <span class="mono">{lc(fromUnits(native.reserveLc), 0)}</span> LASSECASH
+            + <span class="mono">{lc(fromUnits(native.reserveHbdMilli * 100_000n), 3)}</span> HBD.
+          </p>
+        {/if}
+
+        {#if nativeQuote && !nativeQuote.whitelisted}
+          <p class="note warnbox">
+            <b>Trading here is not open yet.</b> MAGI's witnesses keep a list of pool
+            contracts their nodes will price, and this one is not on it — the chain answers
+            every swap with <span class="mono">contract not whitelisted</span>. Deployed,
+            initialised and seeded; waiting on them. Nothing here is at risk in the meantime:
+            liquidity can be withdrawn at any moment, which needs no whitelist.
+          </p>
+        {/if}
+
+        <div class="nrow">
+          <button class="tab" class:on={nativeDir === "lc_hbd"}
+            onclick={() => { nativeDir = "lc_hbd"; scheduleNativeQuote(); }}>Sell LASSECASH</button>
+          <button class="tab" class:on={nativeDir === "hbd_lc"}
+            onclick={() => { nativeDir = "hbd_lc"; scheduleNativeQuote(); }}>Buy LASSECASH</button>
+        </div>
+        <div class="nrow">
+          <input class="mono" bind:value={nativeAmount} oninput={scheduleNativeQuote}
+            disabled={nativeBusy} aria-label="amount" />
+          <span class="dim">{nativeSellingLc ? "LASSECASH" : "HBD"}</span>
+          <button class="small" onclick={doNativeSwap}
+            disabled={!chain.account || !wallet || nativeBusy || !nativeQuote?.ok || chain.busy}>
+            {nativeBusy ? "Swapping…" : chain.account ? "Swap here" : "Sign in"}
+          </button>
+        </div>
+        <p class="note">
+          {#if nativeQuoting}
+            <span class="dim">Asking the chain…</span>
+          {:else if nativeQuote?.ok}
+            You receive <b class="mono">{nativeOutText}</b>, or at least
+            <span class="mono">{nativeSellingLc
+              ? lc(fromUnits(nativeMinOut * 100_000n), 3) + " HBD"
+              : lc(fromUnits(nativeMinOut)) + " LASSECASH"}</span>
+            at your {slippagePct}% tolerance. <span class="dim">Quoted by the chain itself, not estimated —
+            this pool's fee is computed by the node.</span>
+          {:else if nativeQuote && nativeQuote.whitelisted && nativeQuote.msg}
+            <span class="err">{nativeQuote.msg}</span>
+          {/if}
+        </p>
+        {#if nativeError}<p class="err">{nativeError}</p>{/if}
+        <p class="note dim">
+          Pool contract <span class="mono">{NATIVE_POOL_ID}</span>
+        </p>
+      </div>
     </section>
 
     <aside class="side">
@@ -979,4 +1174,12 @@
   }
   small.block { display: block; }
   tr.totals td { border-top: 1px solid var(--gold); font-weight: 600; }
+  .native { margin-top: 1.5rem; padding-top: 1.2rem; border-top: 1px solid var(--line); }
+  .native h3 { margin: 0; font-size: 1rem; }
+  .nhead { display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap; }
+  .nrow { display: flex; gap: 0.5rem; align-items: center; margin: 0.5rem 0; flex-wrap: wrap; }
+  .nrow input { flex: 1 1 8rem; background: #0d1117; border: 1px solid var(--line); color: var(--fg); padding: 0.45rem 0.6rem; border-radius: 4px; }
+  .tab { background: transparent; border: 1px solid var(--line); color: var(--dim); padding: 0.35rem 0.7rem; border-radius: 4px; cursor: pointer; }
+  .tab.on { border-color: var(--gold); color: var(--gold); }
+  .warnbox { border-left: 2px solid var(--gold); padding-left: 0.7rem; }
 </style>
