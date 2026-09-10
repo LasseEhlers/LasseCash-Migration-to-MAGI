@@ -2140,6 +2140,31 @@ peakd.com and lassecash.pages.dev on the same machine: both stalling means the
 network filters, only lassecash.com stalling means the domain is category-
 blocked as crypto, and neither is fixable in our code.
 
+## ✅ `sweep_unclaimed` AND THE MIGRATION BLEED — PROVEN ON MAINNET 2026-09-10
+
+Throwaway #11 `vsc1BWKyP3XtDUqhZQQbWSZvcVhEsB19gQnEj5` (TESTWINDOWS 240x,
+genesis set 165 days in the past). Full runbook and numbers:
+docs/THROWAWAY-11-SWEEP-PLAN.md.
+
+**Why it mattered:** `sweep_unclaimed` was the last money-moving path in the
+frozen contract that had never been broadcast anywhere, and on production it
+cannot run before 29 March 2027 — five months after the keys are gone.
+
+- **Bleed:** a claim at day 166.7 paid 581,944,440 = liquid in full + the
+  surviving stake; `pool_lshare` rose by exactly the bled 518,055,560.
+- **Sweep:** `swept 2200000000 unclaimed to the reward pool`;
+  `sup_migrated` reached `cfg_migtotal` exactly, and the pool delta
+  decomposes to 25% of interval emission + the swept amount, to the base unit.
+- **Refusals:** before the deadline "claim window still open"; a second sweep
+  and a sweep by another account both "already swept"; a post-deadline claim
+  "claim window closed"; forged/inflated proofs "proof does not match the
+  snapshot" at ~139 RC, writing nothing.
+
+⚠️ **The bleed floors TWICE** — the surviving fraction, then the amount — so a
+single float division over-predicts a claim by a few base units. ⚠️
+**`ctx.Height` is the transaction's ANCHOR height**, not the output block's.
+Both matter to anything that predicts a payout off-chain.
+
 ## STATE OF PLAY — end of 2026-08-22 session (read this first)
 
 - **Site is LIVE: https://lassecash.pages.dev** (Cloudflare Pages, project

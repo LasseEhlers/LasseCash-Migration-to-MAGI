@@ -142,6 +142,45 @@ it moved the expected figure visibly.
 requires `liquid+staked > 0` and that test leaf holds zero. An artefact of the
 three-leaf tree, not of the contract.
 
+### `sweep_unclaimed` — RAN FOR REAL, tx `e696b81c…`, CONFIRMED at 109,784,265
+
+**The first time this call has executed on any chain.** One `advance` brought
+accrual to day 210, and the sweep landed in the same output block:
+
+```
+accrual is current
+swept 2200000000 unclaimed to the reward pool
+```
+
+| | before | after | delta |
+|---|---|---|---|
+| `sup_migrated` | 1,100,000,000 | **3,300,000,000** | +2,200,000,000 |
+| `cfg_migtotal` | 3,300,000,000 | 3,300,000,000 | — |
+| `pool_lshare` | 189,825,507,830 | 202,489,738,860 | +12,664,231,030 |
+| `sup_emitted` | 757,229,809,080 | 799,086,733,200 | +41,856,924,120 |
+
+**`sup_migrated` now equals `cfg_migtotal` exactly** — every unit of the
+committed snapshot is accounted for, claimed or swept, nothing stranded.
+
+The pool delta looks too big until it is decomposed, and then it is exact:
+25% of the emission that arrived in the interval (41,856,924,120 × 25% =
+10,464,231,030) **plus** the swept 2,200,000,000 = **12,664,231,030**, to the
+base unit. The sweep credits the pool through the accumulator like any other
+inflow, so it becomes claimable yield rather than an unreachable balance.
+
+### And it cannot be done twice
+
+| attempt | answer | RC |
+|---|---|---|
+| sweep a second time | already swept | 119 |
+| sweep from a different account | already swept | 119 |
+| claim after the deadline | claim window closed | 115 |
+
+**Verdict: `sweep_unclaimed` is proven on mainnet.** Refuses before the
+deadline, runs exactly once after it, recycles precisely what was never
+claimed, and is permissionless without being repeatable. Nothing about it
+needs changing before the key burn on 10 October.
+
 ## What is being watched
 
 - the bleed pays the surviving fraction **to the base unit**, and the bled part
