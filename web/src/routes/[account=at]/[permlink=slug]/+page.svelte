@@ -114,6 +114,20 @@
     error = await chain.submit(() => client.payout(post!.author, post!.permlink));
     await load();
   }
+
+  /**
+   * What this post paid its author, from the chain's own return value. Only
+   * for paid-out posts, and only once — the walk is a few queries and the
+   * figure never changes after payout.
+   */
+  let paidAuthor = $state<string | null>(null);
+  $effect(() => {
+    const p = post;
+    if (!p?.paid_out || paidAuthor) return;
+    client.postPayout(p.author, p.permlink)
+      .then((r) => { if (r) paidAuthor = r.author; })
+      .catch(() => {});
+  });
 </script>
 
 <Seo
@@ -207,9 +221,24 @@
             <dl>
               {#if post.paid_out}
                 <dt>Status</dt><dd><span class="pill ok">paid out</span></dd>
+                <!-- WHAT IT PAID. The contract keeps no total — it credits the
+                     author, parks the curator pot and moves on — so the author
+                     figure is read from the payout call's own return value and
+                     is null for payouts older than the walk window. Whole
+                     LASSECASH: at this size the decimals are noise, and the
+                     exact figures are on chain for anyone who wants them. -->
+                {#if paidAuthor}
+                  <dt>{post.payout_mode === 2 ? "Burned to @null" : "To the author"}</dt>
+                  <dd class="mono">
+                    {lc(paidAuthor, 0)}
+                    {#if post.payout_mode === 1}<small class="dim">— all of it into the monthly mint</small>
+                    {:else if post.payout_mode === 2}<small class="dim">— the author took nothing</small>
+                    {:else}<small class="dim">— 20% liquid, 80% into the monthly mint</small>{/if}
+                  </dd>
+                {/if}
                 {#if Number(post.curator_pot) > 0}
-                  <dt>Still owed to curators</dt>
-                  <dd class="mono">{lc(post.curator_pot)}</dd>
+                  <dt>To curators</dt>
+                  <dd class="mono">{lc(post.curator_pot, 0)} <small class="dim">— still unclaimed</small></dd>
                 {/if}
               {:else}
                 <dt>Pending</dt>

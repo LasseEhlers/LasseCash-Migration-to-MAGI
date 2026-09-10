@@ -1139,7 +1139,32 @@ export class MagiBackend implements Backend {
    * `ok:false, ret:""` rather than a guess.
    */
   async poolLedger(limit = 500): Promise<PoolLedgerEntry[]> {
-    const wanted = new Set(["add_liquidity", "remove_liquidity", "swap_lc_hbd", "swap_hbd_lc"]);
+    return this.#callLedger(new Set(["add_liquidity", "remove_liquidity", "swap_lc_hbd", "swap_hbd_lc"]), limit);
+  }
+
+  /**
+   * What every `payout` call actually paid, keyed `author|permlink`.
+   *
+   * The contract keeps no record of the sum it paid: it credits the author,
+   * parks the curator pot on the post, and moves on. The one exact source is
+   * the call's own return value, `paid author <units>` — so this reads the
+   * chain's own account of what it did, exactly as the pool ledger does for
+   * swaps. Posts older than the walk window simply have no entry, which the
+   * UI must render as "unknown", never as zero.
+   */
+  async payoutLedger(limit = 500): Promise<Map<string, { units: string; height: number; txId: string }>> {
+    const out = new Map<string, { units: string; height: number; txId: string }>();
+    for (const e of await this.#callLedger(new Set(["payout"]), limit)) {
+      if (!e.ok) continue;
+      const m = /paid author\s+(\d+)/.exec(e.ret);
+      const [author = "", permlink = ""] = e.payload.split("|");
+      if (!m || !author || !permlink) continue;
+      out.set(`${author}|${permlink}`, { units: m[1]!, height: e.height, txId: e.txId });
+    }
+    return out;
+  }
+
+  async #callLedger(wanted: Set<string>, limit: number): Promise<PoolLedgerEntry[]> {
     const PAGE = 100;
 
     type Tx = {

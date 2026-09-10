@@ -237,6 +237,28 @@ export class LasseCashClient {
   // Previews are ENGINE-computed. `amount` is what the user typed, e.g. "1000.5".
 
   /**
+   * What one post actually paid, from the chain's own words.
+   *
+   * The contract stores no payout total — it credits the author, parks the
+   * curator pot and moves on — so the exact figure lives only in the
+   * `payout` call's return value. Returns null when the post has not paid
+   * out, or when its payout is older than the walk window; the caller must
+   * render that as unknown rather than as nothing paid.
+   *
+   * `curators` is the pot the payout parked, i.e. the 25% share. It is read
+   * from the post record, so once curators start claiming it shows what is
+   * still owed rather than what was allotted — which is why the two figures
+   * are reported separately and never summed for the reader by this method.
+   */
+  async postPayout(author: string, permlink: string): Promise<{ author: Amount; txId: string } | null> {
+    const b = this.backend as { payoutLedger?: (n?: number) => Promise<Map<string, { units: string; height: number; txId: string }>> };
+    if (!b.payoutLedger) return null;
+    const key = `${author.startsWith("hive:") ? author : `hive:${author}`}|${permlink}`;
+    const hit = (await b.payoutLedger()).get(key);
+    return hit ? { author: fromUnits(BigInt(hit.units)), txId: hit.txId } : null;
+  }
+
+  /**
    * Every trade since the pool opened, with the price each one left behind.
    *
    * HOW IT IS BUILT. The chain records the CALL, not its effect: a swap's

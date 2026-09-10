@@ -211,6 +211,12 @@ export interface Backend {
    * replay in the browser.
    */
   poolLedger?(limit?: number): Promise<PoolLedgerEntry[]>;
+  /**
+   * What each `payout` call paid the author, keyed `author|permlink`, read
+   * from the call's own return value. Absent for posts older than the walk
+   * window — the UI must say "unknown", never "zero".
+   */
+  payoutLedger?(limit?: number): Promise<Map<string, { units: string; height: number; txId: string }>>;
   /** Confirmed contract calls grouped by signer. Optional: the simulator keeps
    *  no transaction log, so it cannot answer this. */
   activity?(limit?: number): Promise<AccountActivity[]>;
