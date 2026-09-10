@@ -114,6 +114,21 @@
    * dismissing it and finding no way back.
    */
   const DAY30_SNOOZE_MS = 3 * 24 * 60 * 60 * 1000;
+
+  /**
+   * The Feed is the least finished part of the site, and a visitor cannot tell
+   * "unfinished frontend" from "broken money" by looking. So say it plainly:
+   * the payouts settle on chain and are proven, the page around them is not
+   * where the rest of the site is. Same snooze as the day-30 note — a click
+   * is respected, but a temporary notice that never comes back is a notice
+   * nobody sees when it matters. Delete this block when the Feed is done.
+   */
+  let dismissedFeedNote = $state(false);
+  const showFeedNote = $derived(WALLET_MODE && !dismissedFeedNote);
+  function dismissFeedNote() {
+    dismissedFeedNote = true;
+    try { localStorage.setItem("lc_feed_note", String(Date.now())); } catch { /* fine */ }
+  }
   function dismissDay30() {
     dismissedDay30 = true;
     try { localStorage.setItem("lc_day30_note", String(Date.now())); } catch { /* fine */ }
@@ -122,6 +137,8 @@
   onMount(async () => {
     try { showMobileNote = !localStorage.getItem("lc_mobile_note"); } catch { showMobileNote = true; }
     try {
+      const feedAt = Number(localStorage.getItem("lc_feed_note") || 0);
+      dismissedFeedNote = feedAt > 0 && Date.now() - feedAt < DAY30_SNOOZE_MS;
       const at = Number(localStorage.getItem("lc_day30_note") || 0);
       // A pre-existing "1" from the first build parses to 1 ms since epoch,
       // which is long lapsed — so those browsers simply see it once more.
@@ -239,6 +256,20 @@
       <button class="day30-dismiss" onclick={dismissDay30} aria-label="dismiss">×</button>
     </div>
   {/if}
+
+  {#if showFeedNote}
+    <div class="day30 feednote" role="note">
+      <span>
+        <strong>The Feed still needs work.</strong>
+        Posts and payouts settle correctly on chain — that part is proven and
+        the figures are real — but the Feed's frontend is not where the rest of
+        the site is yet, and it is not the priority right now. Apologies for the
+        rough edges. Everything else is close to done, the core has been tested
+        endlessly, and <strong>your funds are safe</strong>.
+      </span>
+      <button class="day30-dismiss" onclick={dismissFeedNote} aria-label="dismiss">×</button>
+    </div>
+  {/if}
   {#if chain.confirming}
     <div class="confirming" role="status">
       <span class="dot"></span> Signed — waiting for MAGI to confirm. The figures update by themselves.
@@ -292,6 +323,7 @@
   }
   .day30 strong { color: var(--gold); }
   .day30 a { color: var(--gold); }
+  .feednote { border-top: 0; }
   .day30-dismiss {
     margin-left: auto;
     background: none;
