@@ -90,6 +90,58 @@ that, `sup_migrated` rises by exactly that, and **a second call refuses with
 "already swept"**. A claim attempted after the deadline refuses with "claim
 window closed".
 
+## RESULTS — 2026-09-10
+
+**Deployed** `vsc1BWKyP3XtDUqhZQQbWSZvcVhEsB19gQnEj5`, code CID
+`bafkreia3ebidtsbavr5h4v4y7ft3mp2j776ttellys45rlmtv4pvskl7xm` (= the local
+artifact), owner hive:lassecashmagi, tx `f0d4cac4…`.
+**init** `b9a5d31f…` → "initialised at height 109759027 [TESTWINDOWS BUILD
+240x]", contract born at **day 165**. **set_snapshot** `6682ffa6…` → root and
+33.00000000 committed. **Accrual walk** four `advance 50` calls, ~90 s in
+total, ending "accrual is current" at acc_day 165.
+
+**Emission cross-check, unprompted:** `sup_emitted` = 6,278.53861800 over
+those 165 compressed days = era-1's 0.31709791 × 19,800 REAL heights, exactly.
+The TESTWINDOWS promise — compressed calendar, real values — holds on mainnet.
+
+### The bleed — EXACT, tx `38565d4d…`, anchored 109,779,022
+
+```
+past      = 109,779,022 − maturity 109,762,627 = 16,395 heights
+into      = 16,395 − 10,800 grace              =  5,595
+remaining = 10,800 − 5,595                     =  5,205
+frac      = 5,205 × 1e8 / 10,800 = 48,194,444        (floored)
+kept      = 1,000,000,000 × 48,194,444 / 1e8 = 481,944,440
+```
+
+Paid **581,944,440** = 1.00000000 liquid in full + 4.81944440 of the stake.
+`pool_lshare` 156,963,465,450 → 157,481,521,010, **+518,055,560 = exactly the
+bled remainder**. Nothing created, nothing lost.
+
+⚠️ **The contract floors TWICE** — once on the fraction, once on the amount —
+so a single float division over-predicts by a few base units. `BleedRemaining`
+computes the SURVIVING side directly for that reason (comment in
+engine/lshare.go, review find 2026-08-24). Any external calculator that
+predicts a claim must do the same two integer steps.
+
+⚠️ **`ctx.Height` is the transaction's ANCHOR height**, not the height of the
+output block. 8 heights apart here; on a 240x clock that is 0.07 of a day and
+it moved the expected figure visibly.
+
+### Refusal paths, all free simulations
+
+| attempt | answer | RC |
+|---|---|---|
+| claim twice from one account | already claimed | 157 |
+| one byte flipped in the proof | proof does not match the snapshot | 139 |
+| right proof, inflated amounts | proof does not match the snapshot | 139 |
+| another account's proof | proof does not match the snapshot | 139 |
+| `sweep_unclaimed` before day 210 | claim window still open | 106 |
+
+`record_burn` on the tiny tree's null leaf refuses "bad entry" — correct: it
+requires `liquid+staked > 0` and that test leaf holds zero. An artefact of the
+three-leaf tree, not of the contract.
+
 ## What is being watched
 
 - the bleed pays the surviving fraction **to the base unit**, and the bled part
