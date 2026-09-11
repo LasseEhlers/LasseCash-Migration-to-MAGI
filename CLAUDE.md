@@ -2165,6 +2165,32 @@ single float division over-predicts a claim by a few base units. ⚠️
 **`ctx.Height` is the transaction's ANCHOR height**, not the output block's.
 Both matter to anything that predicts a payout off-chain.
 
+## ✅ `getStateByKeys(encoding: "hex")` — THE BYTES WERE ALWAYS READABLE, 2026-09-11
+
+Two contracts store numbers as raw big-endian bytes (vsc-eco's `magi_token`
+and its `dex` pool). A plain `getStateByKeys` renders them as text and
+replaces every non-UTF-8 byte with U+FFFD, so `r0` came back as `"&\uFFFD"`
+and we concluded the values were unreachable through GraphQL, routing
+everything through `simulateContractCalls` instead — `balanceOf` for
+balances, `get_pool` for reserves.
+
+**The query takes an `encoding` argument.** Found by reading how Altera
+queries the DAO's own pools:
+
+```graphql
+getStateByKeys(contractId: $c, keys: $k, encoding: "hex")
+```
+
+Verified on the native pool: `r0 = 0x26b1` = 9,905 milli HBD,
+`r1 = 0x0274a48a7800` = 27,000 LASSECASH, `tlp`, `fee` — all exact. On the
+token, `supply` = 18,942,333.99385417 and `owner` = `contract:vsc1Be4TTjU…`
+read straight out. Per-account balance keys do NOT match the obvious guesses,
+so `balanceOf` through simulation stays for those.
+
+`readNativePool` now uses hex: one cheap state read instead of a simulation
+round trip, no caller identity needed, and it answers for signed-out visitors.
+**Reach for `encoding: "hex"` before assuming a contract's state is opaque.**
+
 ## STATE OF PLAY — end of 2026-08-22 session (read this first)
 
 - **Site is LIVE: https://lassecash.pages.dev** (Cloudflare Pages, project

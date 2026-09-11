@@ -46,39 +46,39 @@ export interface NativePoolState {
 export type Gql = <T>(query: string, variables?: Record<string, unknown>) => Promise<T>;
 
 /**
- * The pool's own report of itself.
+ * The pool's own report of itself — reserves, fee, LP supply.
  *
- * ⚠️ NOT `getStateByKeys`. This contract stores its reserves as raw
- * big-endian BYTES, and GraphQL replaces every byte that is not valid UTF-8
- * with U+FFFD — `r0` comes back as "&\uFFFD" and is unrecoverable. The same
- * trap the token ledger sprang on 2026-09-08. `get_pool` returns clean JSON
- * through `simulateContractCalls`, which is free, unsigned, touches no
- * balance, and therefore answers for signed-out visitors too.
+ * ⚠️ The contract stores these as raw big-endian BYTES. A plain
+ * `getStateByKeys` returns them as text and replaces every byte that is not
+ * valid UTF-8 with U+FFFD, so `r0` comes back as "&\uFFFD" and is ruined —
+ * the same trap the token ledger sprang on 2026-09-08.
+ *
+ * The fix is one parameter: **`encoding: "hex"`**. Found 2026-09-11 by
+ * reading how Altera queries the DAO's own pools, after a week of assuming
+ * the bytes were simply unreachable through GraphQL and routing everything
+ * through `simulateContractCalls`. Hex is cheaper, needs no caller identity,
+ * and answers for signed-out visitors and crawlers.
  */
-export async function readNativePool(q: Gql, account?: string | null): Promise<NativePoolState | null> {
-  const who = qualify(account);
-  const d = await q<{ simulateContractCalls: { success: boolean; ret: string | null }[] | null }>(
-    "query($i: SimulateContractCallsInput!) { simulateContractCalls(input: $i) { success ret } }",
-    { i: { tx_id: "native-pool", required_auths: who,
-           calls: [{ contract_id: NATIVE_POOL_ID, action: "get_pool", payload: "", rc_limit: 500, intents: [] }] } },
+export async function readNativePool(q: Gql, _account?: string | null): Promise<NativePoolState | null> {
+  const d = await q<{ getStateByKeys: Record<string, string | null> | null }>(
+    'query($c: String!, $k: [String!]!) { getStateByKeys(contractId: $c, keys: $k, encoding: "hex") }',
+    { c: NATIVE_POOL_ID, k: ["r0", "r1", "tlp", "fee", "a0n"] },
   );
-  const row = (d.simulateContractCalls ?? [])[0];
-  if (!row?.success || !row.ret) return null;
-  let p: { asset0?: string; asset1?: string; reserve0?: string; reserve1?: string; fee?: number; total_lp?: string };
-  try {
-    p = JSON.parse(row.ret);
-  } catch {
-    return null;
-  }
-  const big = (v: string | undefined) => (/^\d+$/.test((v ?? "").trim()) ? BigInt(v as string) : 0n);
-  // Assets are normalised alphabetically by the contract, so hbd is asset0 for
-  // this pair — but read the names rather than trusting the order.
-  const hbdIsFirst = (p.asset0 ?? "").toLowerCase() === "hbd";
+  const st = d.getStateByKeys;
+  if (!st) return null;
+  const big = (v: string | null | undefined) => {
+    const h = (v ?? "").trim();
+    return /^[0-9a-f]*$/i.test(h) && h.length ? BigInt("0x" + h) : 0n;
+  };
+  // Assets are normalised alphabetically, so hbd is asset0 for this pair —
+  // but read the stored name rather than trusting the order.
+  const a0 = Buffer.from((st["a0n"] ?? ""), "hex").toString("utf8").toLowerCase();
+  const hbdIsFirst = a0 === "" || a0 === "hbd";
   return {
-    reserveHbdMilli: big(hbdIsFirst ? p.reserve0 : p.reserve1),
-    reserveLc: big(hbdIsFirst ? p.reserve1 : p.reserve0),
-    feeBps: Number(p.fee ?? 8),
-    totalLp: big(p.total_lp),
+    reserveHbdMilli: big(hbdIsFirst ? st["r0"] : st["r1"]),
+    reserveLc: big(hbdIsFirst ? st["r1"] : st["r0"]),
+    feeBps: Number(big(st["fee"])) || 8,
+    totalLp: big(st["tlp"]),
   };
 }
 
