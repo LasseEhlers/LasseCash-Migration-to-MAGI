@@ -167,7 +167,7 @@ Every account in the snapshot — qualifying and burned — is a leaf in a Merkl
 
 The snapshot committed on-chain at genesis, 31 August 2026: **353 accounts qualify**, **11,730,692.24746305 LASSECASH** migrates to its owners, **18,688,809.72711925** goes to `hive:null`, and the full snapshot totals **30,419,501.97458230** across 11,238 leaves.
 
-**Check it yourself, in your own browser.** [lassecash.com/burned](https://lassecash.com/burned) loads the published leaf list, recomputes the Merkle root from it, and compares that with the root the contract committed at genesis — if the two agree, the list you are reading is provably the one the chain enforces and not a single leaf was edited. The same page reconciles both totals against the chain, decomposes `hive:null`'s live balance into the genesis burn and every burn since, and lists all 10,885 burned accounts by name. Nothing on it is computed by us at page-build time; the arithmetic happens on your machine.
+**Check it yourself, in your own browser.** The [burn audit page](https://lassecash.com/burned) loads the published leaf list, recomputes the Merkle root from it, and compares that with the root the contract committed at genesis — if the two agree, the list you are reading is provably the one the chain enforces and not a single leaf was edited. The same page reconciles both totals against the chain, decomposes `hive:null`'s live balance into the genesis burn and every burn since, and lists all 10,885 burned accounts by name. Nothing on it is computed by us at page-build time; the arithmetic happens on your machine.
 
 ### The Hive-Engine supply discrepancy
 
