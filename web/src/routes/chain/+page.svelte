@@ -83,7 +83,7 @@
     <div class="panel stat">
       <div class="label">Burned</div>
       <div class="value">{info ? lcShort(info.total_burned) : "—"}</div>
-      <div class="sub">held by @null — the migration burn and every burn since, unspendable forever</div>
+      <div class="sub">held by @null — the migration burn and every burn since, unspendable forever · <a href="/burned">audit it</a></div>
     </div>
     <div class="panel stat">
       <div class="label">Product age</div>

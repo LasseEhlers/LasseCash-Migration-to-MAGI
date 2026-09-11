@@ -307,6 +307,25 @@ export class MagiBackend implements Backend {
       ]),
       this.height(),
     ]);
+    /**
+     * ⚠️ THE BURN TOTAL LIVES IN THE TOKEN NOW, not in `bal_hive:null`.
+     *
+     * Burning credits hive:null — provably unspendable, visible forever — but
+     * since the token ledger went live (2026-09-08) that balance is a row in
+     * the magi_token contract, and the legacy `bal_` key it used to occupy is
+     * empty. Reading the old key made the Chain page's BURNED tile show 0.00
+     * while null actually held 18.69M (Lasse, 2026-09-11). Same shape as the
+     * /api/supply break three days earlier: the ledger moved, a reader did
+     * not. Any other place that reads a `bal_` row for a figure people see
+     * must be checked against this.
+     */
+    const burnedUnits = st["cfg_token"]
+      ? (
+          BigInt(await this.tokenBalance(st["cfg_token"], "hive:null")) +
+          BigInt(st["bal_hive:null"] || "0")
+        ).toString()
+      : st["bal_hive:null"];
+
     const board = (st["gov_board"] ?? "").split("|").filter(Boolean);
     const shr = board.length
       ? await this.state(board.map((a) => "shr_" + a))
@@ -326,7 +345,7 @@ export class MagiBackend implements Backend {
         BigInt(st["cfg_migtotal"] || "0") + BigInt(st["cfg_migburn"] || "0"))),
       snapshot_burned: units(st["cfg_migburn"] || "0"),
       total_emitted: units(st["sup_emitted"]),
-      total_burned: units(st["bal_hive:null"]),
+      total_burned: units(burnedUnits),
       total_shares: units(st["shares_total"]),
       pool_lshare: units(st["pool_lshare"]),
       pool_viral: units(st["pool_viral"]),
