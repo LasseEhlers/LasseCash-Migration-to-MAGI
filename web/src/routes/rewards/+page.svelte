@@ -17,7 +17,7 @@
    */
   import { chain, client, wallet } from "$lib/chain.svelte.js";
   import { lc, displayName } from "$lib/format.js";
-  import { dailyRewards, fromUnits, toUnits, estimateLiquidity, toBaseUnitArg } from "$api/index.js";
+  import { dailyRewards, fromUnits, toUnits, toBaseUnitArg, readNativePool, type NativePoolState, type Gql } from "$api/index.js";
   import type { PostView } from "$api/index.js";
   import Seo from "$lib/Seo.svelte";
   import { SITE_OG_IMAGE, SITE_URL } from "$lib/site.js";
@@ -167,6 +167,16 @@
    * the native DEX pool's owner-only `init`, which lasseehlers must sign and
    * no command-line tool here can. Simulate first; this does not.
    */
+  /** The native pool's own reserves, so a deposit is priced against the pool
+   *  it enters. Hex encoding: the contract stores these as raw bytes. */
+  let native = $state<NativePoolState | null>(null);
+  $effect(() => {
+    void chain.info?.height;
+    const b = client.backend as unknown as { query?: <T>(q: string, v?: Record<string, unknown>) => Promise<T> };
+    if (typeof b.query !== "function") return;
+    readNativePool(b.query.bind(b) as Gql).then((n) => (native = n)).catch(() => {});
+  });
+
   let rawContract = $state("");
   let rawAction = $state("");
   let rawPayload = $state("");
@@ -202,18 +212,25 @@
   let seedMsg = $state<string | null>(null);
   let seedErr = $state<string | null>(null);
   const seedQuote = $derived.by(() => {
-    if (!info || !chain.ready) return null;
+    // Priced from the NATIVE pool's own reserves, not the core pool's.
+    // add_liquidity mints min(amt0·LP/r0, amt1·LP/r1) and draws BOTH sides in
+    // full — a surplus on either side is simply absorbed, never refunded — so
+    // the deposit has to match the pool it is going into. HBD rounds UP so the
+    // LASSECASH side stays the limiting one and the draw is never short.
+    if (!native || native.reserveLc === 0n || native.reserveHbdMilli === 0n) return null;
     try {
       const lcBase = toBaseUnitArg(seedLc || "0");
       if (lcBase === "0") return null;
-      const q = estimateLiquidity(lcBase, toBaseUnitArg(info.amm_lc), toBaseUnitArg(info.amm_hbd), toBaseUnitArg(info.amm_shares));
-      if (!q.ok || q.isFirstDeposit) return null;
-      const milli = Number((toUnits(q.hbdNeeded) + 99_999n) / 100_000n);
-      return { lcBase, milli, hbd: `${Math.floor(milli / 1000)}.${String(milli % 1000).padStart(3, "0")}` };
+      const lcUnits = BigInt(lcBase);
+      const milli = (lcUnits * native.reserveHbdMilli + native.reserveLc - 1n) / native.reserveLc;
+      if (milli <= 0n) return null;
+      const m = Number(milli);
+      return { lcBase, milli: m, hbd: `${Math.floor(m / 1000)}.${String(m % 1000).padStart(3, "0")}` };
     } catch {
       return null;
     }
   });
+
   async function seedNative() {
     if (!wallet || !seedQuote) return;
     const q = seedQuote;
