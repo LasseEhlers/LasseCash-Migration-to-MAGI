@@ -189,3 +189,42 @@ needs changing before the key burn on 10 October.
   refuses the second time
 - the supply identity holds across both: `sum of holdings = migrated + emitted`
 - the RC cost of a 211-day accrual walk in slices, on mainnet, for real
+
+
+## ⚠️ A TESTWINDOWS CONTRACT DECAYS IF LEFT IDLE — 2026-09-14
+
+Two days after the sweep test we tried to reuse #11 for `sweep_tranche` and
+`sweep_mint`. It could not be done, and the reason is worth keeping.
+
+**At 240x the accrual backlog grows 240 contract-days per real day.** By
+14 Sep the contract stood at day 1,245 with `acc_day` 210 — 1,035 days behind.
+Measured against the live contract:
+
+| call | outcome |
+|---|---|
+| `advance 600` at rc_limit 32,000 | FAILED, ~31,000 RC consumed — 600 days needs more than that |
+| `add_liquidity` at rc_limit 20,000 | cost limit exceeded, 2.0B gas |
+| `add_liquidity` at rc_limit 60,000 | cost limit exceeded, **6.02B gas** |
+
+`AddLiquidity` calls `Settle` internally, so it drags the whole backlog with
+it — there is no cheap way in. Clearing 1,035 days in `advance` slices would
+have cost ~80,000 RC in frozen limits against 75,124 available, and RC thaws
+over five days while the backlog grows 1,200 days in the same period. The
+account cannot catch up faster than the clock runs away.
+
+**Rules this gives us:**
+- A 240x throwaway is usable for **hours, not days**. Finish the arc in one
+  sitting or accept that the contract is spent.
+- If a TESTWINDOWS contract must live longer, keep `advance` current on a
+  schedule — the backlog is cheap while small and unaffordable once large.
+- Check which entrypoints carry an internal `Settle` before planning a test
+  on an idle contract: `CreateMint` refuses outright ("accrual is behind"),
+  but `AddLiquidity` silently tries to walk it all and dies on gas.
+
+**Still untested on any chain, and untestable on production before the burn:**
+`sweep_tranche` (first possible ~28 Feb 2027), `sweep_mint` (29 Mar 2027),
+`sweep_curation` (Sep 2027). All three are permissionless, pay the caller
+nothing, and refuse unless the position is already dead — so the blast radius
+is bounded — but none has run outside Go tests and the simulator. The right
+venue is the local devnet (free deploys, `tools/devnet/`), or a fresh 10 HBD
+TESTWINDOWS deploy run to completion in one sitting.
