@@ -811,6 +811,18 @@ This is the wall every new LP walks into — deposit HBD, claim, swap, then find
 the pool refuses the balance the page is showing. 53 LP letters went out the
 same night.
 
+**AND THE DRY RUN'S OWN LIMIT CAN REFUSE AN AFFORDABLE CALL — 2026-09-16.**
+A 15,000 LASSECASH deposit (6.952 HBD) against a 35.375 HBD balance was
+refused "Not enough RC" on the live site. The chain would have taken it: the
+probe was the problem. `sizeRc` dry-ran HBD-draw ops at `RC_CEILING` 30,000,
+and admission reserves `rc_limit − freeRcRemaining` out of the balance BEFORE
+checking the draw — 28.78 + 6.95 = 35.73 > 35.375, short by 36 øre. The probe
+is now additionally capped at `available − draw − 1,000 milli` with the table
+value as the floor, so it can never manufacture a reservation the account
+cannot cover, and a genuinely unaffordable call still fails honestly.
+**Same family as the 100,000-probe bug below: the measuring instrument was
+changing the measurement.**
+
 **THE EXACT MECHANISM, FROM THE NODE SOURCE — 2026-09-04.** `execution-context.go`
 `PullBalance` (go-vsc-node, `~/.lassecash-deployer/src/modules/contract/`):
 on an HBD draw by the RC payer, the ledger transfer carries

@@ -1190,6 +1190,21 @@ export class AiohaSigner implements Signer {
   static readonly RC_HEADROOM = 3;
   /** Never freeze more than this for one call, whatever the simulation says. */
   static readonly RC_CEILING = 30_000;
+  /** Slack left between an HBD-draw probe and the balance it is checked against. */
+  static readonly PROBE_MARGIN_MILLI = 1_000;
+
+  /**
+   * Milli-HBD this call will draw, read from the same argument the intent is
+   * sized from. Null when it cannot be determined — the caller then keeps the
+   * conservative ceiling rather than guessing.
+   */
+  static drawMilli(entrypoint: string, args: string): number | null {
+    const idx = AiohaSigner.HBD_DRAW_OPS[entrypoint];
+    if (idx === undefined) return null;
+    const raw = (args.split("|")[idx] ?? "").trim();
+    if (!/^\d+$/.test(raw)) return null;
+    return Number((BigInt(raw) + 99_999n) / 100_000n);
+  }
 
   /**
    * Size the RC limit from a dry run of the exact call: max(table, 3x simulated),
@@ -1203,7 +1218,29 @@ export class AiohaSigner implements Signer {
     // No real rc_limit is ever sized above RC_CEILING, and probing higher than
     // that only manufactures a bigger phantom exclusion against the HBD draw
     // for no benefit — see the warning on AiohaWallet.simulate.
-    const probeRcLimit = entrypoint in AiohaSigner.HBD_DRAW_OPS ? AiohaSigner.RC_CEILING : undefined;
+    //
+    // ⚠️ AND NOT EVEN RC_CEILING WHEN THE BALANCE IS MODEST. The node reserves
+    // `rc_limit - freeRcRemaining` out of the HBD balance BEFORE it checks the
+    // draw, so the probe's own limit decides whether the call looks
+    // affordable. Found live 2026-09-16: a 6.952 HBD deposit against a 35.375
+    // HBD balance was refused "Not enough RC" because the 30,000 probe
+    // reserved ~28.8 HBD on top of the draw — the chain would have taken the
+    // same call at a sane limit. So cap the probe at what the account could
+    // actually reserve beside its own draw, with the table value as the floor
+    // so a genuinely unaffordable call still fails honestly.
+    let probeRcLimit: number | undefined;
+    if (entrypoint in AiohaSigner.HBD_DRAW_OPS) {
+      probeRcLimit = AiohaSigner.RC_CEILING;
+      const drawMilli = AiohaSigner.drawMilli(entrypoint, args);
+      const avail = await this.wallet.availableRc(this.account);
+      if (avail !== null && drawMilli !== null) {
+        // A milli of margin, so the probe never sits exactly on the boundary:
+        // the reservation is checked against a meter that moves between the
+        // dry run and the broadcast.
+        const room = Math.max(0, Math.trunc(avail) - drawMilli - AiohaSigner.PROBE_MARGIN_MILLI);
+        probeRcLimit = Math.max(tableLimit, Math.min(AiohaSigner.RC_CEILING, room));
+      }
+    }
     // The allowance rides with the real call, so it must ride with the dry run
     // too — otherwise `transferFrom` has nothing to spend and a perfectly good
     // call simulates as "Insufficient allowance".
