@@ -11,7 +11,7 @@
   import { fractionPct, lc, mult, pct } from "$lib/format.js";
   import {
     estimateSwap, estimateLiquidity, toBaseUnitArg, toUnits, fromUnits, isZero,
-    trancheHealth, dailyRewards, poolApy as poolApy_, type SwapDirection, type TrancheView,
+    trancheHealth, dailyRewards, poolApy as poolApy_, signaturesFor, type SwapDirection, type TrancheView,
   } from "$api/index.js";
   import Seo from "$lib/Seo.svelte";
   import Hbd from "$lib/Hbd.svelte";
@@ -1028,6 +1028,15 @@
                     <button class="ghost small" onclick={claimAll} disabled={chain.busy}>
                       Claim all ({claimableTrancheCount})
                     </button>
+                    <!-- Said BEFORE the wallet opens. Hive caps an account at
+                         five contract calls per block, so a bigger batch is
+                         split and the wallet asks once per chunk — silence
+                         here makes the second popup look like a fault. -->
+                    {#if signaturesFor(claimableTrancheCount) > 1}
+                      <small class="dim block">
+                        {signaturesFor(claimableTrancheCount)} signatures — Hive allows 5 calls per block
+                      </small>
+                    {/if}
                   {/if}
                 </td>
               </tr>

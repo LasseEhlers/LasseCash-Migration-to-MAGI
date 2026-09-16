@@ -124,6 +124,18 @@ export const MaxSideCalls = 2;
  */
 export const HiveCustomJsonPerBlock = 5;
 
+/**
+ * How many wallet signatures a "claim all" of `n` positions will ask for.
+ *
+ * Hive refuses more than HiveCustomJsonPerBlock custom_json ops from one
+ * account per block, so the batch goes out in chunks of that size — one
+ * signature each. A user who is not told this in advance reads the second
+ * Keychain popup as a fault or a double charge (Lasse, 2026-09-16).
+ */
+export function signaturesFor(n: number): number {
+  return n <= 0 ? 0 : Math.ceil(n / HiveCustomJsonPerBlock);
+}
+
 /** One pool-moving contract call, exactly as the chain recorded it. */
 /**
  * Every contract call one account has made, counted by action.

@@ -6,6 +6,7 @@
   import MintForm from "$lib/MintForm.svelte";
   import MintCard from "$lib/MintCard.svelte";
   import RateChart from "$lib/RateChart.svelte";
+  import { signaturesFor } from "$api/index.js";
   import Hbd from "$lib/Hbd.svelte";
   import Seo from "$lib/Seo.svelte";
   import { SITE_DESCRIPTION, SITE_NAME, SITE_OG_IMAGE, SITE_URL } from "$lib/site.js";
@@ -338,6 +339,13 @@
           <button class="ghost small" onclick={claimAllMints} disabled={chain.busy}>
             Claim all ({claimableNow.length})
           </button>
+          {#if signaturesFor(claimableNow.length) > 1}
+            <!-- See the pool page: Hive caps five contract calls per block, so
+                 the wallet opens once per chunk. Say it before it happens. -->
+            <small class="dim block">
+              {signaturesFor(claimableNow.length)} signatures — Hive allows 5 calls per block
+            </small>
+          {/if}
         {/if}
       </div>
       {#if claimAllError}<p class="err">{claimAllError}</p>{/if}
@@ -485,4 +493,5 @@
   .charts { display: flex; gap: 1rem; flex-wrap: wrap; }
   .charts > :global(.chart-panel) { flex: 1 1 320px; min-width: 0; }
   .empty-chart { display: flex; flex-direction: column; justify-content: center; min-height: 150px; }
+  small.block { display: block; margin-top: 0.25rem; }
 </style>
