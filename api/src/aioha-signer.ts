@@ -19,6 +19,7 @@ import { Aioha, Asset as HiveAsset, KeyTypes, Providers } from "@aioha/aioha";
 import { BackendError, HiveCustomJsonPerBlock, MaxSideCalls, type Signer, type SubmitOptions } from "./backend.js";
 import { commentMetadata, postMetadata } from "./hive-metadata.js";
 import type { TxResult } from "./types.js";
+import { magiFetch } from "./magi-nodes.js";
 
 export { KeyTypes, Providers };
 
@@ -90,7 +91,7 @@ export class AiohaWallet {
   readonly siteUrl: string;
 
   readonly #netId: string;
-  readonly #chainUrl: string;
+  readonly #chainUrl: string | undefined;
   #tokenContractId: string | undefined;
   #tokenChecked = false;
 
@@ -113,7 +114,8 @@ export class AiohaWallet {
     if (opts.peakVault !== false) this.aioha.registerPeakVault();
     if (opts.hiveSigner) this.aioha.registerHiveSigner(opts.hiveSigner);
     this.#netId = opts.netId ?? "vsc-mainnet";
-    this.#chainUrl = opts.chainUrl ?? "https://api.vsc.eco/api/v1/graphql";
+    // Undefined = the public nodes with failover (see magi-nodes.ts).
+    this.#chainUrl = opts.chainUrl;
     if (opts.netId) this.aioha.vscSetNetId(opts.netId);
   }
 
@@ -452,10 +454,7 @@ export class AiohaWallet {
     // calls (a big mint, a long accrual walk) still need to avoid a false
     // gasLimitHit.
     const addr = qualifyAuth(account);
-    const res = await fetch(this.#chainUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+    const res = await magiFetch(JSON.stringify({
         query: `query($i: SimulateContractCallsInput!) {
           simulateContractCalls(input: $i) { success err_msg gas_used } }`,
         variables: { i: {
@@ -470,8 +469,7 @@ export class AiohaWallet {
             { contract_id: this.#contractId, action, payload, rc_limit: probeRcLimit, intents },
           ],
         } },
-      }),
-    });
+      }), { url: this.#chainUrl });
     const body = (await res.json()) as {
       data?: { simulateContractCalls?: { success: boolean; err_msg?: string | null; gas_used: number }[] };
     };
@@ -500,14 +498,10 @@ export class AiohaWallet {
     // MAGI addresses are qualified; Aioha hands us a bare Hive name.
     const addr = qualifyAuth(account);
     try {
-      const res = await fetch(this.#chainUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const res = await magiFetch(JSON.stringify({
           query: `query($a: String!) { getAccountRC(account: $a) { amount max_rcs } }`,
           variables: { a: addr },
-        }),
-      });
+        }), { url: this.#chainUrl });
       const body = (await res.json()) as {
         data?: { getAccountRC?: { amount: number; max_rcs: number } | null };
       };
@@ -860,14 +854,10 @@ export class AiohaWallet {
     if (this.#tokenChecked) return this.#tokenContractId;
     this.#tokenChecked = true;
     try {
-      const res = await fetch(this.#chainUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const res = await magiFetch(JSON.stringify({
           query: `query($id: String!) { getStateByKeys(contractId: $id, keys: ["cfg_token"]) }`,
           variables: { id: this.#contractId },
-        }),
-      });
+        }), { url: this.#chainUrl });
       const body = (await res.json()) as {
         data?: { getStateByKeys?: Record<string, string> | null };
       };

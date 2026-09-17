@@ -2152,6 +2152,19 @@ peakd.com and lassecash.pages.dev on the same machine: both stalling means the
 network filters, only lassecash.com stalling means the domain is category-
 blocked as crypto, and neither is fixable in our code.
 
+## ⚠️ ONE MAGI NODE IS NOT A NETWORK — failover, 2026-09-17
+
+09:22 CPH: api.vsc.eco went fully dark (no HTTP, no ping) and lassecash.com
+showed "MAGI's node is not answering", an empty feed and no balances — while
+`api.okinoko.io` and `vsc.techcoderx.com` sat at the same head block with the
+same contract state and open CORS. Every node read now goes through
+`api/src/magi-nodes.ts` `magiFetch`: tries the remembered node first, fails
+over after 6 s (a dead server swallows the connection rather than refusing
+it) or on a 5xx, and remembers the node that answered in `localStorage`. A
+URL outside `MAGI_NODES` (a local/dev node) is used alone. Reads and
+simulations only — safe to retry, nothing is broadcast through a node.
+Measured live: first read 6.2 s, next 83 ms. Add new public nodes to the list.
+
 ## ✅ `sweep_unclaimed` AND THE MIGRATION BLEED — PROVEN ON MAINNET 2026-09-10
 
 Throwaway #11 `vsc1BWKyP3XtDUqhZQQbWSZvcVhEsB19gQnEj5` (TESTWINDOWS 240x,

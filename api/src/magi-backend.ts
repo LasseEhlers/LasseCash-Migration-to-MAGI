@@ -13,6 +13,7 @@
  *   - `localNodeInfo.last_processed_block` is the Hive height (3s per unit)
  */
 import { MAPPED_BALANCE_PREFIX } from "./magi-pools.js";
+import { magiFetch } from "./magi-nodes.js";
 import { BackendError, type AccountActivity, type AccountOp, type PoolOp, type PoolLedgerEntry, type Backend, type Signer } from "./backend.js";
 import * as engine from "./engine.js";
 import { toUnits } from "./amount.js";
@@ -34,42 +35,29 @@ export interface MagiBackendOptions {
 
 export class MagiBackend implements Backend {
   readonly name = "magi";
-  readonly #url: string;
+  readonly #url: string | undefined;
   readonly #contractId: string;
   readonly #fetch: typeof globalThis.fetch;
   readonly #timeoutMs: number;
 
   constructor(opts: MagiBackendOptions) {
-    this.#url = opts.url ?? "https://api.vsc.eco/api/v1/graphql";
+    // Undefined = the public nodes with failover (see magi-nodes.ts).
+    this.#url = opts.url;
     this.#contractId = opts.contractId;
     this.#fetch = opts.fetch ?? globalThis.fetch.bind(globalThis);
     this.#timeoutMs = opts.timeoutMs ?? 15_000;
   }
 
   async query<T>(query: string, variables: Record<string, unknown> = {}): Promise<T> {
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), this.#timeoutMs);
     let res: Response;
     try {
-      res = await this.#fetch(this.#url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query, variables }),
-        signal: ctrl.signal,
+      res = await magiFetch(JSON.stringify({ query, variables }), {
+        url: this.#url, fetch: this.#fetch, timeoutMs: this.#timeoutMs,
       });
     } catch (cause) {
-      // Say WHY. Seen live 2026-09-07 04:08 and 04:19: a red "unreachable"
-      // banner with the cause thrown away, so a 15 s timeout, a dropped wifi
-      // link and a CORS refusal all read the same and nothing could be
-      // diagnosed afterwards. The name is what distinguishes them:
-      // AbortError = our timeout, TypeError = the browser could not connect.
-      const c = cause as { name?: string; message?: string } | undefined;
-      const why = c?.name === "AbortError"
-        ? `no answer within ${this.#timeoutMs / 1000}s`
-        : c?.message ? `${c.name ?? "error"}: ${c.message}` : "no response";
-      throw new BackendError(`MAGI node unreachable at ${this.#url} (${why})`, undefined, cause);
-    } finally {
-      clearTimeout(timer);
+      // The message names every node tried and WHY each failed — a timeout, a
+      // dropped link and a CORS refusal must not all read the same.
+      throw new BackendError((cause as Error).message, undefined, cause);
     }
 
     const body = (await res.json()) as { data?: T; errors?: { message: string }[] };

@@ -22,6 +22,7 @@
   import { chain } from "$lib/chain.svelte.js";
   import { CONTRACT_ID, WALLET_MODE } from "$lib/chain.svelte.js";
   import { KEY_BURN_HEIGHTS, MAGI_GRAPHQL } from "$lib/site.js";
+  import { currentMagiNode, magiFetch } from "$api/index.js";
 
   type Pending = {
     id: string;
@@ -34,6 +35,7 @@
   let pending = $state<Pending[] | null>(null);
   let checked = $state<Date | null>(null);
   let failed = $state(false);
+  let node = $state(currentMagiNode(MAGI_GRAPHQL));
 
   const info = $derived(chain.info);
   /** The announced burn height, derived from genesis so it cannot be typed wrong. */
@@ -55,11 +57,8 @@
     if (!WALLET_MODE) return;
     const query = `{ findPendingContractUpdates(filterOptions:{byId:${JSON.stringify(CONTRACT_ID)}}){ id code proposer creation_height activation_height } }`;
     try {
-      const res = await fetch(MAGI_GRAPHQL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query }),
-      });
+      const res = await magiFetch(JSON.stringify({ query }), { url: MAGI_GRAPHQL });
+      node = currentMagiNode(MAGI_GRAPHQL);
       const json = await res.json();
       if (json.errors) throw new Error(json.errors[0]?.message ?? "query failed");
       pending = json.data?.findPendingContractUpdates ?? [];
@@ -133,7 +132,7 @@
       contract <span class="mono break">{CONTRACT_ID}</span>
       {#if checked}· checked {checked.toLocaleTimeString()}{/if}
       · verify with <span class="mono">findPendingContractUpdates</span> against
-      <span class="mono break">{MAGI_GRAPHQL}</span>
+      <span class="mono break">{node}</span>
     </small>
   </section>
 {/if}
