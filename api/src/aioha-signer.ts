@@ -1229,6 +1229,17 @@ export class AiohaSigner implements Signer {
         // dry run and the broadcast.
         const room = Math.max(0, Math.trunc(avail) - drawMilli - AiohaSigner.PROBE_MARGIN_MILLI);
         probeRcLimit = Math.max(tableLimit, Math.min(AiohaSigner.RC_CEILING, room));
+      } else {
+        // ⚠️ AN UNREADABLE METER MUST NOT BECOME A REFUSAL. Seen live
+        // 2026-09-17: MAGI's main node was down, `availableRc` came back
+        // null, the probe stayed at RC_CEILING and a 20,000 LASSECASH
+        // deposit (10.402 HBD against 35.4 HBD, simulated fine at 4,000)
+        // was refused "Not enough RC" on a meter that was 80% full. With no
+        // reading there is nothing to size against, so probe at the TABLE
+        // value: it is measured real cost, it reserves the least, and a call
+        // the balance genuinely cannot cover still fails on the chain's own
+        // check rather than on ours.
+        probeRcLimit = tableLimit;
       }
     }
     // The allowance rides with the real call, so it must ride with the dry run

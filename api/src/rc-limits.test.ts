@@ -86,6 +86,42 @@ test("when the dry run fails, the table is still checked against available RC", 
   assert.equal(fine, AiohaSigner.RC_LIMITS["comment"]!);
 });
 
+/**
+ * THE PROBE'S OWN LIMIT IS PART OF THE MEASUREMENT. Admission reserves
+ * `rc_limit - freeRcRemaining` out of the HBD balance BEFORE checking the
+ * draw, so a dry run at RC_CEILING refuses calls the chain would take.
+ * Live 2026-09-16 (a 15,000 LASSECASH deposit) and again 2026-09-17, when
+ * MAGI's main node was down and the meter could not be read at all.
+ */
+function probeOf(avail: number | null, entrypoint: string, args: string, table: number) {
+  let seen: number | undefined = -1;
+  const wallet = {
+    simulate: async (
+      _acct: string, _ep: string, _args: string, _intents: unknown[], probe?: number,
+    ) => { seen = probe; return { ok: true as const, gas: 1_000_000 }; },
+    availableRc: async () => avail,
+    tokenContract: async () => undefined,
+  };
+  const signer = new AiohaSigner(wallet as never, "hive:test", "vsc1test", 1_500);
+  return signer.sizeRc(entrypoint, args, [], table).then(() => seen);
+}
+
+test("an HBD-drawing probe leaves room for the draw it is measuring", async () => {
+  // 36,208 RC available, 10.403 HBD drawn: probe at 36,208 - 10,403 - 1,000.
+  const probe = await probeOf(36_208, "add_liquidity", "2000000000000|1040300000",
+    AiohaSigner.RC_LIMITS["add_liquidity"]!);
+  assert.equal(probe, 24_805);
+});
+
+test("an unreadable meter probes at the table, never at the ceiling", async () => {
+  // The 2026-09-17 refusal: node down, availableRc null, probe stayed at
+  // 30,000 and a deposit the chain accepted at 4,000 was refused.
+  const probe = await probeOf(null, "add_liquidity", "2000000000000|1040300000",
+    AiohaSigner.RC_LIMITS["add_liquidity"]!);
+  assert.equal(probe, AiohaSigner.RC_LIMITS["add_liquidity"]);
+  assert.notEqual(probe, AiohaSigner.RC_CEILING);
+});
+
 test("every value-moving USER entrypoint is in the table", () => {
   // Genesis operations (init, migrate*, burn_batch) are owner-only and sent by
   // tools/migrate.py, which sizes its own limits from the batch contents.
