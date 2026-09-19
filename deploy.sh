@@ -36,6 +36,25 @@ WASM="${WASM:-contract/artifacts/main.wasm}"
 # be overridable, because this script deploys two different contracts now: the
 # core, and the magi_token the core owns. Deploying the token under the name
 # "LasseCash core" would mislabel it forever.
+# Which MAGI node the deployer asks for the witness election. The tool
+# hardcodes api.vsc.eco, which went dark on 2026-09-17 and took a deploy down
+# with it on 2026-09-19 ("failed to request storage proof ... i/o timeout").
+# GQL_URL= forces one; otherwise the first node that answers is used.
+pick_gql() {
+  local url
+  for url in https://api.vsc.eco/api/v1/graphql \
+             https://api.okinoko.io/api/v1/graphql \
+             https://vsc.techcoderx.com/api/v1/graphql; do
+    if curl -s -m 6 -X POST -H 'content-type: application/json' \
+         -d '{"query":"{ localNodeInfo { last_processed_block } }"}' "$url" \
+         | grep -q last_processed_block; then
+      echo "$url"; return
+    fi
+  done
+  echo "https://api.vsc.eco/api/v1/graphql"
+}
+GQL_URL="${GQL_URL:-}"
+
 NAME="${NAME:-LasseCash}"
 DESC="${DESC:-LasseCash core — L-Shares, Proof-of-Brain, LASSECASH:HBD pool}"
 GO_IMAGE=golang:1.25
@@ -157,8 +176,11 @@ EOF
     [ "$confirm" = "deploy" ] || { echo "aborted"; exit 1; }
     # Capture the output: the tool exits 0 even when the Hive broadcast fails,
     # so success has to be judged from what it printed, not the exit code.
+    GQL_URL="${GQL_URL:-$(pick_gql)}"
+    echo "    MAGI node: $GQL_URL"
     out=$(run_deployer \
       -data-dir /repo/deploy-data \
+      -gqlUrl "$GQL_URL" \
       -wasmPath "/repo/$WASM" \
       -name "$NAME" \
       -description "$DESC" \
@@ -167,8 +189,9 @@ EOF
     echo
     if echo "$out" | grep -qi 'failed to broadcast\|Missing Active Authority\|error'; then
       echo "DEPLOY FAILED — no HBD was spent."
-      echo "The WASM uploaded and witnesses signed a storage proof; only the"
-      echo "Hive broadcast was rejected. Fix the cause and re-run."
+      echo "Nothing is charged unless the final Hive broadcast goes out. Read the"
+      echo "error above for WHICH step failed (upload, storage proof or broadcast),"
+      echo "fix the cause and re-run."
       exit 1
     fi
     echo "Save the contract id above."
@@ -187,8 +210,11 @@ EOF
     echo "==> queueing an update for $CONTRACT_ID"
     echo "    MAGI timelocks contract updates and shows them publicly before"
     echo "    they activate — announced, not sneaked."
+    GQL_URL="${GQL_URL:-$(pick_gql)}"
+    echo "    MAGI node: $GQL_URL"
     run_deployer \
       -data-dir /repo/deploy-data \
+      -gqlUrl "$GQL_URL" \
       -wasmPath "/repo/$WASM" \
       -contractId "$CONTRACT_ID"
     ;;
