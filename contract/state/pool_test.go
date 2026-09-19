@@ -596,3 +596,33 @@ func TestEvictionRefusedBeforeSixMonthsAndAfterAClaim(t *testing.T) {
 	}
 	auditPool(t, s, a)
 }
+
+// --- the wire format of the return messages ---------------------------------
+
+// The pool's return messages are PUBLIC API: the market endpoints rebuild
+// every trade from them (api/src/market.ts), with no engine of their own. The
+// 2026-09 update changed "LC" to "LASSECASH" in two of them; a typo here would
+// not fail any economics test, it would silently drop deposits and withdrawals
+// out of the published trade history. So the exact strings are pinned.
+func TestPoolReturnMessagesAreTheWireFormat(t *testing.T) {
+	s, a, ctx := newPool(t)
+	lp := at(ctx, "hive:lp1", genesis)
+
+	id, r := AddLiquidity(s, a, lp, lc(100_000), lc(25_000))
+	if !r.OK || r.Msg != "added 10000000000000 LASSECASH and 2500000000000 HBD" {
+		t.Fatalf("add_liquidity message: %q", r.Msg)
+	}
+	if r := SwapLCForHBD(s, a, lp, lc(1_000), 1); !r.OK || !strings.HasPrefix(r.Msg, "swapped for ") || !strings.HasSuffix(r.Msg, " HBD") {
+		t.Fatalf("swap_lassecash_hbd message: %q", r.Msg)
+	}
+	if r := SwapHBDForLC(s, a, lp, lc(100), 1); !r.OK || !strings.HasPrefix(r.Msg, "swapped for ") || !strings.HasSuffix(r.Msg, " LASSECASH") {
+		t.Fatalf("swap_hbd_lassecash message: %q", r.Msg)
+	}
+	r = RemoveLiquidity(s, a, at(ctx, "hive:lp1", genesis+engine.HeightsPerDay), id)
+	if !r.OK || !strings.HasPrefix(r.Msg, "withdrew ") || !strings.Contains(r.Msg, " LASSECASH and ") || !strings.HasSuffix(r.Msg, " HBD") {
+		t.Fatalf("remove_liquidity message: %q", r.Msg)
+	}
+	if strings.Contains(r.Msg, " LC ") {
+		t.Fatalf("the old wording survived: %q", r.Msg)
+	}
+}
