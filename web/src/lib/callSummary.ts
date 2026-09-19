@@ -115,7 +115,10 @@ export function describeCall(action: string, payload: string): string {
     case "set_duration": return `Monthly Proof-of-Brain mint set to ${f[0]} days`;
 
     // Both sides quote a MINIMUM out: the floor you accepted, not the fill.
+    // Old spellings stay: they are in every swap on chain before the 2026-09 rename.
+    case "swap_lassecash_hbd":
     case "swap_lc_hbd":  return `Sold ${amt(f[0])} LASSECASH · at least ${amt(f[1], 6)} HBD`;
+    case "swap_hbd_lassecash":
     case "swap_hbd_lc":  return `Bought with ${amt(f[0], 6)} HBD · at least ${amt(f[1])} LASSECASH`;
     case "add_liquidity":    return `Added ${amt(f[0])} LASSECASH + ${amt(f[1], 6)} HBD`;
     case "remove_liquidity": return `Withdrew tranche #${f[0]}`;

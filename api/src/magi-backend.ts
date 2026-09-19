@@ -1094,7 +1094,8 @@ export class MagiBackend implements Backend {
    * charting it would draw a price that never existed.
    */
   async poolOps(limit = 500): Promise<PoolOp[]> {
-    const wanted = new Set(["add_liquidity", "remove_liquidity", "swap_lc_hbd", "swap_hbd_lc"]);
+    // Both swap spellings: the 2026-09 rename left the old ones in history.
+    const wanted = new Set(["add_liquidity", "remove_liquidity", "swap_lassecash_hbd", "swap_hbd_lassecash", "swap_lc_hbd", "swap_hbd_lc"]);
     const out: PoolOp[] = [];
     const PAGE = 100;
     for (let offset = 0; offset < limit; offset += PAGE) {
@@ -1146,7 +1147,7 @@ export class MagiBackend implements Backend {
    * `ok:false, ret:""` rather than a guess.
    */
   async poolLedger(limit = 500): Promise<PoolLedgerEntry[]> {
-    return this.#callLedger(new Set(["add_liquidity", "remove_liquidity", "swap_lc_hbd", "swap_hbd_lc"]), limit);
+    return this.#callLedger(new Set(["add_liquidity", "remove_liquidity", "swap_lassecash_hbd", "swap_hbd_lassecash", "swap_lc_hbd", "swap_hbd_lc"]), limit);
   }
 
   /**

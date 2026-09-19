@@ -19,7 +19,7 @@ const MEASURED_RC = {
   // three real ones died at a 4,000 limit the day before. The registering
   // case is the one the floor must survive.
   transfer: 872, mint: 3_486, vote: 4_818, post: 1_098, comment: 1_974,
-  promote_post: 833, swap_lc_hbd: 206, claim_pool: 463, burn: 167,
+  promote_post: 833, swap_lassecash_hbd: 206, claim_pool: 463, burn: 167,
   claim_migration: 5_892, record_burn: 590,
 };
 

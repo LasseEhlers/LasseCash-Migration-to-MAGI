@@ -689,37 +689,41 @@ func SweepTranche(a *string) *string {
 	return finish(state.SweepTranche(st(), assets{}, c, owner, id))
 }
 
-// swap_lc_hbd sells LASSECASH for HBD.
+// swap_lassecash_hbd sells LASSECASH for HBD.
+//
+// RENAMED from swap_lc_hbd in the 2026-09 update, WITHOUT an alias: Lasse
+// wanted one name on the frozen contract, not two. Every caller switched in
+// the same activation; the old name is now "wasm function not found".
 //
 // minOut is slippage protection: the caller states the worst price they accept,
 // so a trade cannot be sandwiched into a far worse rate than they were shown.
 //
-//	args: <lcIn>|<minHbdOut>
+//	args: <lassecashIn>|<minHbdOut>
 //
-//go:wasmexport swap_lc_hbd
+//go:wasmexport swap_lassecash_hbd
 func SwapLCForHBD(a *string) *string {
 	c, _ := ctx()
 	args := state.ParseArgs(*a)
 	in, okIn := args.Amount(0)
 	minOut, okMin := args.Amount(1)
 	if !okIn || !okMin {
-		sdk.Abort("usage: <lcIn>|<minHbdOut>")
+		sdk.Abort("usage: <lassecashIn>|<minHbdOut>")
 	}
 	return finish(state.SwapLCForHBD(st(), assets{}, c, in, minOut))
 }
 
-// swap_hbd_lc buys LASSECASH with HBD.
+// swap_hbd_lassecash buys LASSECASH with HBD. Renamed from swap_hbd_lc, see above.
 //
-//	args: <hbdIn>|<minLcOut>
+//	args: <hbdIn>|<minLassecashOut>
 //
-//go:wasmexport swap_hbd_lc
+//go:wasmexport swap_hbd_lassecash
 func SwapHBDForLC(a *string) *string {
 	c, _ := ctx()
 	args := state.ParseArgs(*a)
 	in, okIn := args.Amount(0)
 	minOut, okMin := args.Amount(1)
 	if !okIn || !okMin {
-		sdk.Abort("usage: <hbdIn>|<minLcOut>")
+		sdk.Abort("usage: <hbdIn>|<minLassecashOut>")
 	}
 	return finish(state.SwapHBDForLC(st(), assets{}, c, in, minOut))
 }

@@ -159,8 +159,8 @@ export interface AccountActivity {
 
 /**
  * A pool call together with what the contract RETURNED for it. The return
- * value is the settled figure — `swapped for <out> HBD`, `added <lc> LC and
- * <hbd> HBD` — so a reader with no engine can still know exactly what each
+ * value is the settled figure — `swapped for <out> HBD`, `added <lc> LASSECASH and
+ * <hbd> HBD` (older entries say `LC`) — so a reader with no engine can still know exactly what each
  * call moved. `ok:false` entries moved nothing (a refused call's `ret` is
  * empty) and are kept so a consumer can count them.
  */
@@ -177,7 +177,8 @@ export interface PoolOp {
   /** The Hive height this was anchored at. Needed to price an L-Share at the
    *  moment of the trade: the share rate is a function of height, not of time. */
   height: number;
-  action: "add_liquidity" | "remove_liquidity" | "swap_lc_hbd" | "swap_hbd_lc";
+  /** History carries the pre-rename swap names forever; see `canonicalAction`. */
+  action: "add_liquidity" | "remove_liquidity" | "swap_lassecash_hbd" | "swap_hbd_lassecash" | "swap_lc_hbd" | "swap_hbd_lc";
   /** The pipe-delimited argument string, untouched. */
   payload: string;
   /**

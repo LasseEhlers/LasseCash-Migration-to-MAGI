@@ -114,7 +114,7 @@ func TestFullLifecycleThroughTheSimulator(t *testing.T) {
 	mustTx(t, c, "hive:bob", "mint", "100000000000|365") // bob needs shares to post later
 	mustTx(t, c, "hive:alice", "add_liquidity", "100000000000|103000000")
 	before := c.Info()
-	mustTx(t, c, "hive:bob", "swap_lc_hbd", "10000000000|0")
+	mustTx(t, c, "hive:bob", "swap_lassecash_hbd", "10000000000|0")
 	after := c.Info()
 	if after.AmmLC == before.AmmLC || after.AmmHBD == before.AmmHBD {
 		t.Fatal("swap did not move the reserves")

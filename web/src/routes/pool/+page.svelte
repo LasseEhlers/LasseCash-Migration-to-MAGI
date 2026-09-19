@@ -687,7 +687,7 @@
         <!-- The balance lives ON the input it limits, same pattern as the
              liquidity boxes; it used to live only across the page, and
              finding it mid-swap was a hunt (Lasse, 2026-09-03). Max on the
-             buy side is RC-capped exactly like a deposit: swap_hbd_lc draws
+             buy side is RC-capped exactly like a deposit: swap_hbd_lassecash draws
              HBD, and on MAGI the balance is not the ceiling, the meter is. -->
         <div class="asset-head">
           <span>You pay — {inSymbol}</span>

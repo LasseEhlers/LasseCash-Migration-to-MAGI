@@ -9,6 +9,23 @@ import type { Amount } from "./amount.js";
 
 /** Content windows. Viral pays in 7 days, Deep in 30. */
 export const Window = { Viral: 0, Deep: 1 } as const;
+
+/**
+ * The two swap entrypoints were RENAMED in the 2026-09 contract update, with
+ * no alias kept (Lasse's call: one name on the frozen contract, not two).
+ * Every transaction already on chain still carries the old name forever, so
+ * every READER of history accepts both, and every SENDER uses the new. This
+ * is the one place the old spelling is allowed to exist in this codebase.
+ */
+export const LegacyEntrypoint: Record<string, string> = {
+  swap_lc_hbd: "swap_lassecash_hbd",
+  swap_hbd_lc: "swap_hbd_lassecash",
+};
+
+/** An action name as the current contract spells it, old history included. */
+export function canonicalAction(action: string): string {
+  return LegacyEntrypoint[action] ?? action;
+}
 export type Window = (typeof Window)[keyof typeof Window];
 
 /** Global chain position. */
@@ -395,8 +412,8 @@ export const Entrypoint = {
   AddLiquidity: "add_liquidity",
   RemoveLiquidity: "remove_liquidity",
   ClaimPool: "claim_pool",
-  SwapLcHbd: "swap_lc_hbd",
-  SwapHbdLc: "swap_hbd_lc",
+  SwapLassecashHbd: "swap_lassecash_hbd",
+  SwapHbdLassecash: "swap_hbd_lassecash",
   ClaimMigration: "claim_migration",
   RecordBurn: "record_burn",
 } as const;

@@ -36,7 +36,27 @@ import sys
 import time
 import urllib.request
 
-API = "https://api.vsc.eco/api/v1/graphql"
+# One node is not a network (2026-09-17: api.vsc.eco went dark for days while
+# two other public nodes served the same state). Set MAGI_API to force one;
+# otherwise the first node that answers is used.
+def _pick_api():
+    import os, json as _j, urllib.request as _u
+    if os.environ.get("MAGI_API"):
+        return os.environ["MAGI_API"]
+    for url in ("https://api.vsc.eco/api/v1/graphql",
+                "https://api.okinoko.io/api/v1/graphql",
+                "https://vsc.techcoderx.com/api/v1/graphql"):
+        try:
+            req = _u.Request(url, data=_j.dumps({"query": "{ localNodeInfo { last_processed_block } }"}).encode(),
+                             headers={"content-type": "application/json"})
+            if "last_processed_block" in _u.urlopen(req, timeout=6).read().decode():
+                return url
+        except Exception:
+            continue
+    return "https://api.vsc.eco/api/v1/graphql"
+
+
+API = _pick_api()
 # MEASURED 2026-09-01: the node answers "rate limit exceeded: max 30
 # simulation requests per minute". A full sweep is 33 calls, so it must pace
 # itself or the tail of the table reports transport errors that look like
@@ -103,8 +123,8 @@ CALLS = [
     ("remove_liquidity", "9999",                              "no such"),
     ("claim_pool",       "9999",                              "no open tranche"),
     ("sweep_tranche",    "hive:nobody|1",                     "no open tranche"),
-    ("swap_lc_hbd",      "100000000|1",                       "swapped"),
-    ("swap_hbd_lc",      "100000000|1",                       "no caller intent"),
+    ("swap_lassecash_hbd", "100000000|1",                       "swapped"),
+    ("swap_hbd_lassecash", "100000000|1",                       "no caller intent"),
     # governance
     # VALID on purpose: an out-of-bounds value aborts early and measures
     # nothing. 1,000 L-Shares is the current default, so this is a no-op that

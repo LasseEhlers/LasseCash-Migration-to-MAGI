@@ -336,19 +336,19 @@ func (c *Chain) Submit(sender, entrypoint, payload string) Result {
 		} else {
 			r = state.ClaimPoolRewards(s, ctx, id)
 		}
-	case "swap_lc_hbd":
+	case "swap_lassecash_hbd":
 		in, okI := args.Amount(0)
 		minOut, okM := args.Amount(1)
 		if !okI || !okM {
-			r = bad("usage: <lcIn>|<minHbdOut>")
+			r = bad("usage: <lassecashIn>|<minHbdOut>")
 		} else {
 			r = state.SwapLCForHBD(s, a, ctx, in, minOut)
 		}
-	case "swap_hbd_lc":
+	case "swap_hbd_lassecash":
 		in, okI := args.Amount(0)
 		minOut, okM := args.Amount(1)
 		if !okI || !okM {
-			r = bad("usage: <hbdIn>|<minLcOut>")
+			r = bad("usage: <hbdIn>|<minLassecashOut>")
 		} else {
 			r = state.SwapHBDForLC(s, a, ctx, in, minOut)
 		}

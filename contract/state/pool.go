@@ -260,7 +260,7 @@ func AddLiquidity(s Store, a Assets, ctx Ctx, lcIn engine.Amount, maxHbd engine.
 		AccStart: acc, LastTouch: ctx.Height,
 	})
 
-	return id, ok("added " + encI64(int64(lcIn)) + " LC and " + encI64(int64(hbdIn)) + " HBD")
+	return id, ok("added " + encI64(int64(lcIn)) + " LASSECASH and " + encI64(int64(hbdIn)) + " HBD")
 }
 
 // RemoveLiquidity closes a tranche, paying out its proportional share of both
@@ -337,7 +337,7 @@ func closeTranche(s Store, a Assets, ctx Ctx, owner string, id uint64) Result {
 	t.Weight = 0
 	putTranche(s, id, t)
 
-	return ok("withdrew " + encI64(int64(lcOut)) + " LC and " + encI64(int64(realHbdOut)) + " HBD")
+	return ok("withdrew " + encI64(int64(lcOut)) + " LASSECASH and " + encI64(int64(realHbdOut)) + " HBD")
 }
 
 // --- rewards --------------------------------------------------------------

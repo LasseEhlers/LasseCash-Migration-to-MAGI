@@ -29,6 +29,7 @@
  * Amounts: base units in, 8-decimal strings out, BigInt throughout.
  */
 import { UNIT, fromUnits } from "./amount.js";
+import { canonicalAction } from "./types.js";
 import type { PoolLedgerEntry } from "./backend.js";
 
 export const MARKET_PAIR = {
@@ -70,8 +71,9 @@ export function reservePrice(lc: bigint, hbd: bigint): bigint {
 const RET = {
   swapHbd: /^swapped for (\d+) HBD$/,
   swapLc: /^swapped for (\d+) LASSECASH$/,
-  added: /^added (\d+) LC and (\d+) HBD$/,
-  withdrew: /^withdrew (\d+) LC and (\d+) HBD$/,
+  // "LC" until the 2026-09 update, "LASSECASH" after; both are on chain forever.
+  added: /^added (\d+) (?:LC|LASSECASH) and (\d+) HBD$/,
+  withdrew: /^withdrew (\d+) (?:LC|LASSECASH) and (\d+) HBD$/,
 };
 
 /**
@@ -84,13 +86,14 @@ export function parseLedgerEntry(e: PoolLedgerEntry): {
 } | null {
   if (!e.ok) return null;
   const arg0 = e.payload.split("|")[0] ?? "";
-  if (!/^\d+$/.test(arg0) && (e.action === "swap_lc_hbd" || e.action === "swap_hbd_lc")) return null;
+  const action = canonicalAction(e.action);
+  if (!/^\d+$/.test(arg0) && (action === "swap_lassecash_hbd" || action === "swap_hbd_lassecash")) return null;
   let m: RegExpMatchArray | null;
-  switch (e.action) {
-    case "swap_lc_hbd":
+  switch (action) {
+    case "swap_lassecash_hbd":
       if (!(m = e.ret.match(RET.swapHbd))) return null;
       return { type: "sell", lc: BigInt(arg0), hbd: BigInt(m[1]!), dLc: BigInt(arg0), dHbd: -BigInt(m[1]!) };
-    case "swap_hbd_lc":
+    case "swap_hbd_lassecash":
       if (!(m = e.ret.match(RET.swapLc))) return null;
       return { type: "buy", lc: BigInt(m[1]!), hbd: BigInt(arg0), dLc: -BigInt(m[1]!), dHbd: BigInt(arg0) };
     case "add_liquidity":

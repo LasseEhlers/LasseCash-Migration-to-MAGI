@@ -32,7 +32,7 @@
 
   /**
    * One letter per KIND of thing done, not per entrypoint. Nobody reading a
-   * table wants to distinguish swap_lc_hbd from swap_hbd_lc at a glance; they
+   * table wants to distinguish swap_lassecash_hbd from swap_hbd_lassecash at a glance; they
    * want to know the account has traded.
    */
   const KINDS: { key: string; letter: string; label: string; actions: string[] }[] = [
@@ -42,7 +42,7 @@
     { key: "vote",  letter: "V", label: "Voted", actions: ["vote"] },
     { key: "mint",  letter: "M", label: "Minted", actions: ["mint", "claim_mint", "good_accounting", "set_duration"] },
     { key: "lp",    letter: "L", label: "Liquidity", actions: ["add_liquidity", "remove_liquidity", "claim_pool"] },
-    { key: "swap",  letter: "S", label: "Swapped", actions: ["swap_lc_hbd", "swap_hbd_lc"] },
+    { key: "swap",  letter: "S", label: "Swapped", actions: ["swap_lassecash_hbd", "swap_hbd_lassecash", "swap_lc_hbd", "swap_hbd_lc"] },
     { key: "send",  letter: "T", label: "Transferred", actions: ["transfer"] },
     { key: "burn",  letter: "B", label: "Burned / promoted", actions: ["burn", "promote_post"] },
     { key: "gov",   letter: "G", label: "Thresholds", actions: ["set_param", "promote"] },

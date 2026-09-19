@@ -19,7 +19,27 @@ settled height changing is just time passing.
 """
 import json, sys, urllib.request
 
-API = "https://api.vsc.eco/api/v1/graphql"
+# One node is not a network (2026-09-17: api.vsc.eco went dark for days while
+# two other public nodes served the same state). Set MAGI_API to force one;
+# otherwise the first node that answers is used.
+def _pick_api():
+    import os, json as _j, urllib.request as _u
+    if os.environ.get("MAGI_API"):
+        return os.environ["MAGI_API"]
+    for url in ("https://api.vsc.eco/api/v1/graphql",
+                "https://api.okinoko.io/api/v1/graphql",
+                "https://vsc.techcoderx.com/api/v1/graphql"):
+        try:
+            req = _u.Request(url, data=_j.dumps({"query": "{ localNodeInfo { last_processed_block } }"}).encode(),
+                             headers={"content-type": "application/json"})
+            if "last_processed_block" in _u.urlopen(req, timeout=6).read().decode():
+                return url
+        except Exception:
+            continue
+    return "https://api.vsc.eco/api/v1/graphql"
+
+
+API = _pick_api()
 
 # getStateByKeys refuses a request outside 1..100 keys.
 BATCH = 90

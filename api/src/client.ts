@@ -24,7 +24,7 @@ import { MAPPING_CONTRACTS,
 } from "./magi-pools.js";
 import { constants } from "./engine.js";
 import * as engine from "./engine.js";
-import { Entrypoint } from "./types.js";
+import { Entrypoint, canonicalAction } from "./types.js";
 
 export interface ClientOptions {
   backend: Backend;
@@ -391,7 +391,7 @@ export class LasseCashClient {
         });
         continue;
       }
-      const selling = op.action === "swap_lc_hbd";
+      const selling = canonicalAction(op.action) === "swap_lassecash_hbd";
       const amountIn = BigInt(f[0] || "0");
       if (amountIn <= 0n || lc <= 0n || hbd <= 0n) continue;
       const q = engine.estimateSwap(
@@ -797,7 +797,7 @@ export class LasseCashClient {
    * any price, which invites a sandwich.
    */
   async swap(direction: SwapDirection, amountIn: string, minOut: string): Promise<TxResult> {
-    const ep = direction === "lc_hbd" ? Entrypoint.SwapLcHbd : Entrypoint.SwapHbdLc;
+    const ep = direction === "lc_hbd" ? Entrypoint.SwapLassecashHbd : Entrypoint.SwapHbdLassecash;
     return this.#send(ep, args(toBaseUnitArg(amountIn), toBaseUnitArg(minOut)));
   }
 

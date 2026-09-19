@@ -908,7 +908,7 @@ export class AiohaSigner implements Signer {
     // be able to destroy money — see CLAUDE.md, the key-type split.
     "promote_post",
     "add_liquidity", "remove_liquidity", "claim_pool",
-    "swap_lc_hbd", "swap_hbd_lc", "migrate", "migrate_batch",
+    "swap_lassecash_hbd", "swap_hbd_lassecash", "migrate", "migrate_batch",
     // claim_migration credits the caller's snapshot balance and creates their
     // migration mint — it moves value TO them, which is still value, and
     // posting authority must never be able to touch it.
@@ -1013,8 +1013,8 @@ export class AiohaSigner implements Signer {
     // Same shape as claim_pool (settles the owner's rewards first) plus the
     // bleed's share/weight rewrite — unmeasured, modeled on remove_liquidity.
     sweep_tranche: 4_000,
-    swap_lc_hbd: 3_000,   // mainnet 206
-    swap_hbd_lc: 3_000,
+    swap_lassecash_hbd: 3_000,   // mainnet 206 (measured as swap_lc_hbd, same code)
+    swap_hbd_lassecash: 3_000,
     // A claim is a mint-sized write set (balance, mint record, share board,
     // accrual) plus ~14 Merkle hashes to walk the proof to the root.
     claim_migration: 9_500,  // measured worst case 5,892 (staked claim that takes a board seat); liquid-only 1,042, matured 1,327 — the claim page passes 2,500 for those
@@ -1024,7 +1024,7 @@ export class AiohaSigner implements Signer {
 
   static readonly HBD_DRAW_OPS: Record<string, number> = {
     add_liquidity: 1, // <lcAmount>|<maxHbd>
-    swap_hbd_lc: 0, //   <hbdIn>|<minOut>
+    swap_hbd_lassecash: 0, // <hbdIn>|<minOut>
   };
 
   /**
@@ -1040,7 +1040,7 @@ export class AiohaSigner implements Signer {
    * wallet shows them.
    *
    * Ops that only CREDIT are deliberately absent (claim_mint, claim_pool,
-   * claim_migration, remove_liquidity, good_accounting), as is swap_hbd_lc,
+   * claim_migration, remove_liquidity, good_accounting), as is swap_hbd_lassecash,
    * which spends HBD rather than LASSECASH.
    */
   static readonly TOKEN_DEBIT_OPS: Record<string, number> = {
@@ -1050,7 +1050,7 @@ export class AiohaSigner implements Signer {
     mint: 0, //          <amount>|<days>
     promote_post: 2, //  <author>|<permlink>|<amount>
     add_liquidity: 0, // <lcAmount>|<maxHbd>
-    swap_lc_hbd: 0, //   <amountIn>|<minOut>
+    swap_lassecash_hbd: 0, // <amountIn>|<minOut>
   };
 
   /** Measured on the devnet 2026-09-06: a cross-contract token call is ~301 RC. */

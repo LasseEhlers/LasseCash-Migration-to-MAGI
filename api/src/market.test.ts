@@ -35,13 +35,28 @@ const LEDGER: PoolLedgerEntry[] = [
   entry(4, "remove_liquidity", "1", "withdrew 500000000000 LC and 510000000 HBD"),
 ];
 
+// After the 2026-09 rename: new entrypoint names, new wording in the returns.
+// Kept apart from LEDGER so the replay tests above keep their exact reserves.
+const RENAMED: PoolLedgerEntry[] = [
+  entry(5, "swap_lassecash_hbd", "10000000000|0", "swapped for 10000000 HBD"),
+  entry(6, "swap_hbd_lassecash", "5000000|0", "swapped for 4800000000 LASSECASH"),
+  entry(7, "add_liquidity", "100000000000|103000000", "added 100000000000 LASSECASH and 103000000 HBD"),
+  entry(8, "remove_liquidity", "2", "withdrew 50000000000 LASSECASH and 51000000 HBD"),
+];
+
 test("every pool return string parses to the right deltas", () => {
   const [add, sell, buy, refused, remove] = LEDGER.map(parseLedgerEntry);
+  const [sell2, buy2, add2, remove2] = RENAMED.map(parseLedgerEntry);
   assert.deepEqual(add, { type: "add", lc: 1000000000000n, hbd: 1030000000n, dLc: 1000000000000n, dHbd: 1030000000n });
   assert.deepEqual(sell, { type: "sell", lc: 10000000000n, hbd: 10197029n, dLc: 10000000000n, dHbd: -10197029n });
   assert.deepEqual(buy, { type: "buy", lc: 4830000000n, hbd: 5000000n, dLc: -4830000000n, dHbd: 5000000n });
   assert.equal(refused, null, "a refused call moved nothing");
   assert.deepEqual(remove, { type: "remove", lc: 500000000000n, hbd: 510000000n, dLc: -500000000000n, dHbd: -510000000n });
+  // The renamed entrypoints and the LASSECASH wording parse exactly like the old ones did.
+  assert.deepEqual(sell2, { type: "sell", lc: 10000000000n, hbd: 10000000n, dLc: 10000000000n, dHbd: -10000000n });
+  assert.deepEqual(buy2, { type: "buy", lc: 4800000000n, hbd: 5000000n, dLc: -4800000000n, dHbd: 5000000n });
+  assert.deepEqual(add2, { type: "add", lc: 100000000000n, hbd: 103000000n, dLc: 100000000000n, dHbd: 103000000n });
+  assert.deepEqual(remove2, { type: "remove", lc: 50000000000n, hbd: 51000000n, dLc: -50000000000n, dHbd: -51000000n });
 });
 
 test("an unreadable return is skipped, never guessed", () => {
