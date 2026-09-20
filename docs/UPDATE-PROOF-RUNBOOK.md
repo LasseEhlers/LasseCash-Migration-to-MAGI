@@ -345,3 +345,52 @@ principal to the base unit. He received 1.50 HBD for the lot.
 - **claim_mint 2** (Lasse, from the site): paid **1,002.39355109** — principal + 2.39355109 yield, exactly the simulation. MAGI's own indexer showed his token balance +1,002.39355109; the L-Share pool moved +2,280.71140091 = one day's L-Share emission (2,283.105, walked in by the claim) − 2.39355109. First payout through the token on production.
 - **fund viral 1** and **fund all 4**, both from the rewards page (`tools/prove-fund.py`, two independent witnesses): viral +1.00000000 / token −1.00000000; then 0.5 · 1.5 · 1 · 1 across the four pools and token −4.00000000. Exact, no rounding loss. The door future dApps feed the tokenomics through works from a real Keychain.
 - Three faults found on the mint card the same evening, all in what the page SAID, none in the chain: readiness stricter than the contract, the countdown aimed at the wrong boundary, and a 0.000 yield preview for a 2.39 payout. All shipped.
+
+## ⏳ PRODUCTION UPDATE #3 — THE SWAP RENAME, QUEUED 2026-09-20 10:22 CPH
+
+`swap_lc_hbd` → `swap_lassecash_hbd`, `swap_hbd_lc` → `swap_hbd_lassecash`, and
+the pool's return messages say `LASSECASH` instead of `LC`. **No alias** —
+Lasse's call: one name on the frozen contract, not two. Nothing else changes.
+
+| | |
+|---|---|
+| New code | `bafkreiaal6j4ar5wiktqcsaqk5qgzb6ouxwrkma4qixghawdlppokcv6za` (105,104 bytes) |
+| Queued | height 110,072,627, proposer `hive:lassecashmagi` |
+| **Activates** | **height 110,130,227 ≈ Tue 22 Sep 10:24 CPH** |
+| BEFORE snapshot | `deploy-data/update-proof/prod-before-swaprename.json`, 120 keys, head 110,058,651 |
+| Sweep baseline | `prod-sweep-before-swaprename.txt` — the two new names read "wasm function not found" on the old code |
+| Rehearsal | throwaway #12 `vsc1BVE5KB2ZSu9gU2LU9xq2ZTfvuYcdNfJmbc`, same CID, sweep in `tw12-sweep.txt` |
+
+**Why the new WASM can be trusted to differ ONLY by the rename:** the unchanged
+source was rebuilt first and reproduced the live CID `bafkreihztepf…` byte for
+byte; the new build has 36 exports like the old, two removed, two added. On
+#12 every entrypoint answered, the new names reached their handlers
+("insufficient LASSECASH", "swap not possible at this size" — correct on an
+empty contract) and the old names are "wasm function not found".
+
+### At activation — in this order
+
+1. Confirm it landed: `findPendingContractUpdates` empty, `findContract` code =
+   `bafkreiaal6j4ar…`.
+2. **Merge `rename-swap-entrypoints` into `main` and push** — that deploys the
+   site, which then SENDS the new names. Not before: the old contract answers
+   "wasm function not found" to them. Between activation and the merge, swaps
+   on the site fail at the DRY RUN — no RC spent, no failed transaction.
+3. State diff and sweep:
+   ```
+   python3 tools/state-snapshot.py grab vsc1Be4TTjUiHgzhHAfqFn6s3PDAExH2X59fXV \
+       deploy-data/update-proof/prod-after-swaprename.json
+   python3 tools/state-snapshot.py diff \
+       deploy-data/update-proof/prod-before-swaprename.json \
+       deploy-data/update-proof/prod-after-swaprename.json
+   python3 tools/entrypoint-sweep/sweep.py \
+       > deploy-data/update-proof/prod-sweep-after-swaprename.txt
+   ```
+   The sweep must differ from the baseline in exactly the two swap rows, which
+   go from "wasm function not found" to "swapped" / "no caller intent".
+4. One real swap each way from the site, small, and read the market API's
+   `reconciled` flag afterwards: the parser must replay old and new wording
+   into the live reserves.
+
+Every READER of history keeps accepting the old names (`canonicalAction` in
+`api/src/types.ts`) — they are in every swap before this height, forever.

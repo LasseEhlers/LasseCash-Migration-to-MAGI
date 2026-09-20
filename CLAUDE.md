@@ -1439,7 +1439,8 @@ interface; `app/` is the only file that touches the SDK.
 `init` `migrate` — owner only, genesis phase.
 `transfer` `burn` `settle` `mint` `claim_mint` `good_accounting` `set_duration`
 `settle_pending` `promote` `set_param` `post` `vote` `payout` `claim_curation`
-`add_liquidity` `remove_liquidity` `claim_pool` `swap_lc_hbd` `swap_hbd_lc`
+`add_liquidity` `remove_liquidity` `claim_pool` `swap_lassecash_hbd` `swap_hbd_lassecash`
+(the two swaps were `swap_lc_hbd` / `swap_hbd_lc` until the 2026-09-22 update — renamed WITHOUT an alias)
 
 Args are **pipe-delimited positional strings**, e.g. `mint` takes
 `<amount>|<days>`. Not JSON: `encoding/json` needs reflect, which bloats the
@@ -2152,6 +2153,23 @@ peakd.com and lassecash.pages.dev on the same machine: both stalling means the
 network filters, only lassecash.com stalling means the domain is category-
 blocked as crypto, and neither is fixable in our code.
 
+## ⏳ PRODUCTION UPDATE #3 QUEUED — the swap rename, activates Tue 22 Sep ~10:24 CPH
+
+`swap_lc_hbd`/`swap_hbd_lc` become `swap_lassecash_hbd`/`swap_hbd_lassecash`
+and the pool's return messages say LASSECASH, because Altera prints the
+entrypoint name as the transaction type and "SWAP HBD LC" read wrong. **No
+alias, Lasse's call** (Claude argued for one; he chose a single clean name on
+the frozen contract). New code `bafkreiaal6j4ar…`, activation height
+**110,130,227**. Rehearsed on throwaway #12; the unchanged source rebuilt to
+the live CID exactly, so the diff is only the rename. **The site change lives
+on branch `rename-swap-entrypoints` and must be merged to `main` AT activation,
+not before** — full checklist in docs/UPDATE-PROOF-RUNBOOK.md "PRODUCTION UPDATE
+#3". Readers of history accept both spellings forever (`canonicalAction`).
+This does NOT use the 8 October window, which stays free for a real defect.
+
+`deploy.sh` now passes `-gqlUrl` from the first public node that answers: the
+deployer hardcodes api.vsc.eco and a deploy died on it on 19 Sep.
+
 ## ⚠️ ONE MAGI NODE IS NOT A NETWORK — failover, 2026-09-17
 
 09:22 CPH: api.vsc.eco went fully dark (no HTTP, no ping) and lassecash.com
@@ -2577,7 +2595,7 @@ broadcasts it; the REAL `init` executed on MAGI and its contract output reads
   source: **`rc_limit` reserves HBD** (`PullBalance` reserves rc_limit−free_rc),
   so HBD-drawing calls need a LOW rc_limit or they starve their own draw.
   `AiohaSigner` now attaches exact-sized intents for `add_liquidity` and
-  `swap_hbd_lc` (`HBD_DRAW_OPS`), rounding the limit UP to the milli-HBD.
+  `swap_hbd_lassecash` (`HBD_DRAW_OPS`), rounding the limit UP to the milli-HBD.
 
 ### Migration executor — BUILT AND FULLY REHEARSED (`tools/migrate.py`)
 
