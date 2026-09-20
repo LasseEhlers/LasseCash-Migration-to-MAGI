@@ -355,7 +355,7 @@ Lasse's call: one name on the frozen contract, not two. Nothing else changes.
 | | |
 |---|---|
 | New code | `bafkreiaal6j4ar5wiktqcsaqk5qgzb6ouxwrkma4qixghawdlppokcv6za` (105,104 bytes) |
-| Queued | height 110,072,627, proposer `hive:lassecashmagi` |
+| Queued | height 110,072,627, proposer `hive:lassecashmagi`, tx `1d410b2a2cef0c6f7091fa3b165823158a81958d` |
 | **Activates** | **height 110,130,227 ≈ Tue 22 Sep 10:24 CPH** |
 | BEFORE snapshot | `deploy-data/update-proof/prod-before-swaprename.json`, 120 keys, head 110,058,651 |
 | Sweep baseline | `prod-sweep-before-swaprename.txt` — the two new names read "wasm function not found" on the old code |
