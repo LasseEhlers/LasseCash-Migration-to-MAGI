@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { page } from "$app/state";
+  import RcNote from "$lib/RcNote.svelte";
   import { chain, restoreSession, WALLET_MODE } from "$lib/chain.svelte.js";
   import { hbdPref } from "$lib/hbd.svelte.js";
   import SignIn from "$lib/SignIn.svelte";
@@ -295,6 +296,11 @@
   {:else if !chain.ready}
     <div class="banner">Loading engine…</div>
   {/if}
+
+  <!-- Shows itself only when the account is actually short of credits, so it
+       is silent for everyone it does not concern. Site-wide on purpose: the
+       wall is hit wherever the person happens to be acting. -->
+  <RcNote />
 
   <main>{@render children()}</main>
 
