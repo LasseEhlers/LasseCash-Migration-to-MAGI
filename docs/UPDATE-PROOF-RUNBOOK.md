@@ -394,3 +394,33 @@ empty contract) and the old names are "wasm function not found".
 
 Every READER of history keeps accepting the old names (`canonicalAction` in
 `api/src/types.ts`) — they are in every swap before this height, forever.
+
+### ✅ PRODUCTION UPDATE #3 — VERDICT 2026-09-22 11:5x CPH: PASS
+
+Live code is `bafkreiaal6j4ar5wiktqcsaqk5qgzb6ouxwrkma4qixghawdlppokcv6za`,
+`findPendingContractUpdates` empty. Site merged to `main` at activation.
+
+**The sweep is the proof, and it is exact.** Comparing
+`prod-sweep-before-swaprename.txt` with `prod-sweep-after-swaprename.txt`,
+**exactly two rows changed their answer** and every other entrypoint replied
+identically:
+
+| row | before | after |
+|---|---|---|
+| `swap_lassecash_hbd` | wasm function not found | reaches its handler |
+| `swap_hbd_lassecash` | wasm function not found | `no caller intent for: hbd` |
+
+The old names now answer `wasm function not found` — confirmed by direct
+simulation on production. A full sell simulated with its allowance returns
+**`swapped for 9848698 HBD`**, so the renamed path settles money end to end.
+
+**The state diff printed FAIL, and it was USER ACTIVITY again** (the same trap
+as update #2: 73,254 blocks and 2.5 days separate the two reads). Every key
+attributed: `amm_hbd` +22 HBD / `amm_lc` −29,743 are Lasse's two buys on 21 Sep;
+`mseq_hive:lasseehlers` 3→4 plus the new `mint_hive:lasseehlers_4` and
+`shr_hive:lasseehlers` +31,083.23 are his 25,000 × 7-day mint (the figure the
+preview promised, to the base unit); `pend_hive:elizabethbit` and `rsh_viral`
+are a payout and votes. Nothing moved that a transaction does not explain.
+
+**Remaining:** one real swap each way from the site, and a look at Altera to
+confirm it now prints SWAP HBD LASSECASH.
