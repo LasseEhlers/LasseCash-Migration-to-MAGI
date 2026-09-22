@@ -11,7 +11,7 @@
 import {
   AiohaWallet, DevBackend, DevSigner, LasseCashClient, MagiBackend,
   engineReady, loadEngine,
-  type AccountView, type ChainInfo, type Providers,
+  type AccountView, type ChainInfo, type Providers, type ResourceCredits,
 } from "$api/index.js";
 import { SITE_URL } from "$lib/site.js";
 
@@ -125,6 +125,18 @@ class ChainStore {
    * 2026-08-22: two claims landed exactly, and the page showed zeros until F5.
    */
   confirming = $state(false);
+  /**
+   * The MAGI resource meter, refreshed on the ordinary 30 s tick.
+   *
+   * WHY IT LIVES HERE. Credits are the one thing that silently stops a user
+   * doing anything, and the page that needs to warn them is whichever page
+   * they are on. @psyopdailydao claimed on 2026-09-15, tried to mint twice
+   * six minutes later, both died on chain for want of credits, and never came
+   * back — the site had told them nothing beforehand. `getAccountRC` is a
+   * plain read, not a simulation, so it is not under the node's 30-per-minute
+   * simulation cap.
+   */
+  rc = $state<ResourceCredits | null>(null);
 
   async init() {
     try {
@@ -168,6 +180,9 @@ class ChainStore {
     try {
       this.info = await client.chain();
       if (this.account) this.me = await client.accountOf(this.account);
+      // Never let the meter read break the page: it is advisory.
+      if (this.account) void client.resourceCredits().then((r) => (this.rc = r)).catch(() => {});
+      else this.rc = null;
       this.error = null;
       this.failures = 0;
     } catch (e) {

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { page } from "$app/state";
+  import RcNote from "$lib/RcNote.svelte";
   import { chain, restoreSession, WALLET_MODE } from "$lib/chain.svelte.js";
   import { hbdPref } from "$lib/hbd.svelte.js";
   import SignIn from "$lib/SignIn.svelte";
@@ -278,8 +279,15 @@
   {#if chain.outage}
     <div class="banner error">
       {#if WALLET_MODE}
-        <strong>MAGI's node is not answering.</strong>
-        {chain.info ? "Showing the last figures loaded — retrying every 30 seconds." : "Retrying every 30 seconds."}
+        {#if /rate limit/i.test(chain.error ?? "")}
+          <strong>MAGI's nodes are busy.</strong>
+          They cap how many previews a browser may ask for per minute, and we
+          hit the cap. Nothing is wrong with your funds or with anything you
+          just signed — wait a minute and it clears itself.
+        {:else}
+          <strong>MAGI's node is not answering.</strong>
+          {chain.info ? "Showing the last figures loaded — retrying every 30 seconds." : "Retrying every 30 seconds."}
+        {/if}
       {:else}
         <strong>Chain unreachable.</strong> {chain.error}
         <span class="hint">Start it with <code>./build.sh node</code></span>
@@ -288,6 +296,11 @@
   {:else if !chain.ready}
     <div class="banner">Loading engine…</div>
   {/if}
+
+  <!-- Shows itself only when the account is actually short of credits, so it
+       is silent for everyone it does not concern. Site-wide on purpose: the
+       wall is hit wherever the person happens to be acting. -->
+  <RcNote />
 
   <main>{@render children()}</main>
 

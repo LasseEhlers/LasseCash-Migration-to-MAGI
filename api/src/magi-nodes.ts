@@ -31,6 +31,21 @@ export const MAGI_NODES: readonly string[] = [
  */
 const FAILOVER_MS = 6_000;
 
+/**
+ * ⚠️ A RATE LIMIT ARRIVES AS HTTP 200. The public nodes cap simulations —
+ * "rate limit exceeded: max 30 simulation requests per minute" — and say so
+ * in a GraphQL error inside a 200 response, so a failover that only watches
+ * the status code hands the error straight to the UI. Seen live 2026-09-21:
+ * a mint (which dry-runs several calls) tripped it on the fallback node and
+ * the page showed "MAGI's node is not answering" while the mint itself
+ * confirmed. With api.vsc.eco down, every client's load piles onto whichever
+ * node answered, so this is now the normal failure, not an exotic one.
+ *
+ * Another node has its own budget, so this is precisely the case failover
+ * fixes — but only if we look inside the body.
+ */
+const RATE_LIMITED = /rate limit exceeded/i;
+
 const REMEMBER_KEY = "lc_magi_node";
 
 /** Remembered per browser, so a reload does not wait out a dead node again.
@@ -104,8 +119,16 @@ export async function magiFetch(body: string, opts: MagiFetchOptions = {}): Prom
         tried.push(`${url} (HTTP ${res.status})`);
         continue;
       }
+      // A body can only be read once, so read it here and hand the caller a
+      // fresh Response carrying the same text.
+      const text = await res.text();
+      if (RATE_LIMITED.test(text) && !last) {
+        lastCause = new Error("rate limited");
+        tried.push(`${url} (rate limited)`);
+        continue;
+      }
       if (!custom && order[k] !== preferred) prefer(order[k] as number);
-      return res;
+      return new Response(text, { status: res.status, headers: res.headers });
     } catch (cause) {
       lastCause = cause;
       // AbortError = our timeout, TypeError = the browser could not connect

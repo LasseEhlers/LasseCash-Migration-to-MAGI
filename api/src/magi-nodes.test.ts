@@ -31,6 +31,26 @@ test("a gateway error fails over", async () => {
   assert.equal(seen.length, 2);
 });
 
+test("a rate limit inside a 200 moves to the next node", async () => {
+  // The live shape: HTTP 200, GraphQL error, no data. Seen 2026-09-21.
+  const seen: string[] = [];
+  const limited = '{"errors":[{"message":"rate limit exceeded: max 30 simulation requests per minute"}]}';
+  const f = as(async (url) => {
+    seen.push(url);
+    return seen.length === 1 ? new Response(limited, { status: 200 }) : ok();
+  });
+  const res = await magiFetch("{}", { fetch: f });
+  assert.equal(seen.length, 2, "it must try another node, which has its own budget");
+  assert.equal(await res.text(), '{"data":{}}', "the body survives being peeked at");
+});
+
+test("when every node is rate-limited the error is reported, not swallowed", async () => {
+  const limited = '{"errors":[{"message":"rate limit exceeded: max 30 simulation requests per minute"}]}';
+  const f = as(async () => new Response(limited, { status: 200 }));
+  const res = await magiFetch("{}", { fetch: f });
+  assert.match(await res.text(), /rate limit exceeded/, "the last node's answer is handed back honestly");
+});
+
 test("a private node is used alone", async () => {
   const seen: string[] = [];
   const f = as(async (url) => { seen.push(url); throw new TypeError("down"); });
