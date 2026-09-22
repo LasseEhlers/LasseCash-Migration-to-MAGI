@@ -122,6 +122,22 @@ test("an unreadable meter probes at the table, never at the ceiling", async () =
   assert.notEqual(probe, AiohaSigner.RC_CEILING);
 });
 
+test("a stale tab is told to reload, not shown the node's words", async () => {
+  // After the swap rename (no alias), an old build sends a name the contract
+  // no longer exports. It must read as "reload", not "wasm function not found".
+  const wallet = {
+    simulate: async () => ({ ok: false as const, msg: "wasm function not found" }),
+    availableRc: async () => 30_000,
+    tokenContract: async () => undefined,
+  };
+  const signer = new AiohaSigner(wallet as never, "hive:test", "vsc1test", 1_500);
+  const r = await signer.sizeRc("swap_hbd_lassecash", "100|1", [], 3_000);
+  assert.ok(typeof r !== "number", "it must refuse, not size");
+  assert.match(r.msg, /out of date/i);
+  assert.match(r.msg, /reload/i);
+  assert.doesNotMatch(r.msg, /wasm/i);
+});
+
 test("every value-moving USER entrypoint is in the table", () => {
   // Genesis operations (init, migrate*, burn_batch) are owner-only and sent by
   // tools/migrate.py, which sizes its own limits from the batch contents.

@@ -1260,6 +1260,19 @@ export class AiohaSigner implements Signer {
       return tableLimit;
     }
     if (!sim.ok) {
+      // ⚠️ A STALE TAB AFTER AN ENTRYPOINT RENAME. The 2026-09-22 update
+      // renamed both swaps with no alias kept, so a browser still running the
+      // previous build sends a name the contract no longer exports and the
+      // node answers "wasm function not found". Nothing is spent — the dry run
+      // catches it — but the raw message means nothing to a reader, and the
+      // cure is one keystroke. SvelteKit only reloads on navigation, so a tab
+      // left open for hours hits exactly this.
+      if (/wasm function not found/i.test(sim.msg)) {
+        return {
+          ok: false, height: 0,
+          msg: "This page is out of date — reload it (Ctrl+Shift+R, or Cmd+Shift+R on a Mac) and try again.",
+        };
+      }
       if (sim.gasLimitHit) {
         return { ok: false, msg: "this call would exceed the per-call gas ceiling — call advance first to close the accrual gap", height: 0 };
       }
