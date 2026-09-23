@@ -463,8 +463,13 @@ export interface PoolTrade {
    * pool has both sides.
    */
   shareHbd: Amount | null;
-  /** `open` is the deposit that set the price; `liquidity` moves depth only. */
-  side: "open" | "liquidity" | "sell" | "buy";
+  /**
+   * `open` is the deposit that set the price. `deposit` and `withdraw` move
+   * DEPTH only — they never move the price, which is why they are named apart
+   * from the two that do. Both used to be one value, `liquidity`, and the
+   * table could not tell money going in from money coming out.
+   */
+  side: "open" | "deposit" | "withdraw" | "sell" | "buy";
   amountIn: Amount;
   amountOut: Amount;
   lcReserve: Amount;

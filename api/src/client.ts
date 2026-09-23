@@ -360,7 +360,7 @@ export class LasseCashClient {
         trancheShares.set(`${op.signer}_${id}`, minted);
 
         trades.push({
-          time: op.time, height: op.height, side: q.isFirstDeposit ? "open" : "liquidity",
+          time: op.time, height: op.height, side: q.isFirstDeposit ? "open" : "deposit",
           amountIn: fromUnits(dLc), amountOut: fromUnits(dHbd),
           lcReserve: fromUnits(lc), hbdReserve: fromUnits(hbd), price: priceNow(),
           shareHbd: shareCostNow(op.height), trader: op.signer,
@@ -384,7 +384,7 @@ export class LasseCashClient {
         trancheShares.delete(key);
 
         trades.push({
-          time: op.time, height: op.height, side: "liquidity",
+          time: op.time, height: op.height, side: "withdraw",
           amountIn: fromUnits(outLc), amountOut: fromUnits(outHbd),
           lcReserve: fromUnits(lc), hbdReserve: fromUnits(hbd), price: priceNow(),
           shareHbd: shareCostNow(op.height), trader: op.signer,

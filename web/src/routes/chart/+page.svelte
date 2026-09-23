@@ -192,6 +192,7 @@
         <span><i class="sw gold"></i>price</span>
         <span><i class="sw amber"></i>sell — LASSECASH into the pool</span>
         <span><i class="sw cyan"></i>buy — HBD into the pool</span>
+        <span><i class="sw gold"></i>deposit / withdraw — depth only, never the price</span>
       </div>
       <small class="dim note">
         Drawn as <b>steps</b> because that is what an AMM price does: it is a pure
@@ -215,8 +216,8 @@
           assets</b>, which is the check that says it is right.
         {:else if chain.info}
           <b class="amber">The replay does not currently reconcile with live
-          reserves</b>, so treat the earlier points as approximate — a liquidity
-          event it cannot reproduce is the usual cause.
+          reserves</b>, so treat the earlier points as approximate — a deposit
+          or withdrawal it cannot reproduce is the usual cause.
         {/if}
       </small>
       <div class="scroll">
@@ -225,8 +226,8 @@
             <tr>
               <!-- PER ASSET, not per direction. "In" and "Out" meant different
                    assets on different rows — a SELL puts LASSECASH in and takes
-                   HBD out, a BUY does the reverse, and a LIQUIDITY row puts both
-                   in — so the reader had to work out the unit from the badge
+                   HBD out, a BUY does the reverse, a DEPOSIT puts both in and a
+                   WITHDRAW takes both out — so the reader had to work out the unit from the badge
                    before the number meant anything. Each column now holds one
                    asset on every row, and the badge says which way it moved. -->
               <th>Time</th><th>Event</th><th>Account</th>
@@ -332,5 +333,13 @@
   .pill { font-family: var(--mono); font-size: var(--t-micro); padding: 0.08rem 0.4rem; border-radius: 2px; letter-spacing: 0.08em; }
   .pill.buy { color: var(--cyan); border: 1px solid rgba(46, 230, 214, 0.45); }
   .pill.sell { color: var(--amber); border: 1px solid rgba(255, 165, 63, 0.45); }
-  .pill.open, .pill.liquidity { color: var(--gold); border: 1px solid var(--gold-dim); }
+  /* Depth events share ONE colour family, distinct from the two trade
+     colours, so the eye separates "moved the price" from "changed the depth"
+     before it reads a word. Direction is carried by the WORD, never by colour
+     alone: colour is unreadable to a colourblind reader and vanishes in a
+     screenshot, and the only spare loud colour is red — which CLAUDE.md
+     reserves for value actively being lost. Nothing is lost when an LP
+     withdraws their own capital. */
+  .pill.open, .pill.deposit { color: var(--gold); border: 1px solid var(--gold-dim); }
+  .pill.withdraw { color: var(--gold-dim, #b08f2a); border: 1px dashed var(--gold-dim); }
 </style>
