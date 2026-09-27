@@ -5,6 +5,7 @@
 #   ./build.sh test     engine + contract + simulator tests
 #   ./build.sh wasm     build the MAGI contract + the browser engine
 #   ./build.sh wasm-test  the 240x-clock TESTWINDOWS contract (throwaways only)
+#   ./build.sh wasm-fast  the 3600x-clock FASTWINDOWS contract (throwaways only)
 #   ./build.sh tree     rebuild the migration Merkle tree + static proofs
 #   ./build.sh node     run the dev chain on :8080
 #   ./build.sh web      run the frontend on :5173
@@ -118,13 +119,29 @@ run_wasm_test() {
   echo "    api/src/wasm/engine-testwindows.wasm  $(stat -c%s api/src/wasm/engine-testwindows.wasm) bytes (synced to web/static)"
 }
 
+# The 3600x clock: a day is 24 seconds, so the three permissionless sweeps —
+# sweep_mint, sweep_tranche, sweep_curation — become testable in one sitting
+# instead of 18, 18 and 37 hours. Nothing else differs from wasm-test. There
+# is deliberately NO browser-engine build here: this clock exists for a
+# throwaway driven by tools/chain-test/call.js, never for the site.
+run_wasm_fast() {
+  echo "==> TinyGo build of the MAGI contract (FASTWINDOWS, 3600x clock)"
+  mkdir -p contract/artifacts
+  docker run --rm -v "$PWD":/repo -w /repo/contract "$TINYGO_IMAGE" \
+    tinygo build -gc=custom -scheduler=none -panic=trap -no-debug -tags fastwindows \
+    -target=wasm-unknown -o artifacts/main-fastwindows.wasm ./app
+  echo "    contract/artifacts/main-fastwindows.wasm  $(stat -c%s contract/artifacts/main-fastwindows.wasm) bytes"
+  echo "    a day is 24 seconds — init is stamped [FASTWINDOWS BUILD 3600x]"
+}
+
 case "${1:-all}" in
   test) run_tests ;;
   wasm) run_wasm; run_browser_engine ;;
   wasm-test) run_wasm_test ;;
+  wasm-fast) run_wasm_fast ;;
   tree) run_tree ;;
   node) run_node ;;
   web)  run_web ;;
   all)  run_browser_engine; run_tests; run_wasm; echo; echo "All green." ;;
-  *)    echo "usage: $0 [test|wasm|wasm-test|tree|node|web]" >&2; exit 1 ;;
+  *)    echo "usage: $0 [test|wasm|wasm-test|wasm-fast|tree|node|web]" >&2; exit 1 ;;
 esac

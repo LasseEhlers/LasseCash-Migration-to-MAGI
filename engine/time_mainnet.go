@@ -1,4 +1,4 @@
-//go:build !testwindows
+//go:build !testwindows && !fastwindows
 
 package engine
 

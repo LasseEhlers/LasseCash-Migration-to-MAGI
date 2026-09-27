@@ -1046,7 +1046,15 @@ func TestFirstVoteRegistersAnOutsidePost(t *testing.T) {
 	}
 
 	// It pays out like any viral post, to the author who never touched us.
-	h := genesis + uint64(engine.ViralPayoutDays+1)*engine.HeightsPerDay
+	//
+	// MEASURED FROM THE POST, NOT FROM GENESIS. A vote-registered post's
+	// window opens at the VOTE, so "genesis + 8 days" only clears it while a
+	// day is comfortably longer than the 10-height offset above — true at
+	// 28,800 and at the 240x build's 120, false on a faster test clock, where
+	// the test failed with "window still open" while the contract was right.
+	// The contract measures from the record; so does this now.
+	post, _ := getPost(s, "hive:author", "from-peakd")
+	h := post.CreatedHeight + engine.Viral.PayoutHeights() + 1
 	AccrueFully(s, h)
 	before := Balance(s, "hive:author")
 	if r := Payout(s, at(ctx, "hive:x", h), "hive:author", "from-peakd"); !r.OK {
