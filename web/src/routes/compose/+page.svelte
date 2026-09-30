@@ -13,7 +13,7 @@
    *     whole reward, so it is confirmed rather than clicked.
    */
   import { goto } from "$app/navigation";
-  import { onMount } from "svelte";
+
   import { chain, client } from "$lib/chain.svelte.js";
   import { lc } from "$lib/format.js";
   import { compare } from "$api/amount.js";
@@ -79,15 +79,43 @@
     return compare(chain.me.shares, threshold) >= 0;
   });
 
-  onMount(async () => {
-    if (!chain.ready) return;
-    const c = constants();
-    const [v, d] = await Promise.all([
-      readGovernedValue(c.paramPostThresholdViral),
-      readGovernedValue(c.paramPostThresholdDeep),
-    ]);
-    thresholdViral = v ? v.value : null;
-    thresholdDeep = d ? d.value : null;
+  /**
+   * ⚠️ THIS USED TO BE `onMount` WITH `if (!chain.ready) return`, AND THAT
+   * STRANDED A FINISHED POST (2026-09-30). onMount fires exactly once; the
+   * browser engine loads asynchronously, so anyone who reached /compose before
+   * the WASM was ready got one silent early return and the thresholds stayed
+   * null forever. `clearsThreshold === null` then reads "Reading the posting
+   * threshold from the chain…" and `canPublish` stays false — the publish
+   * button dead, with a whole article typed and no draft saved anywhere. A
+   * single failed node read did the same thing.
+   *
+   * An $effect re-runs when `chain.ready` flips, and a failed read is retried
+   * rather than left as a permanent "loading". `done` stops it re-reading a
+   * value that is already in hand: the thresholds move only by governance.
+   */
+  let thresholdsRead = $state(false);
+  $effect(() => {
+    if (!chain.ready || thresholdsRead) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const c = constants();
+        const [v, d] = await Promise.all([
+          readGovernedValue(c.paramPostThresholdViral),
+          readGovernedValue(c.paramPostThresholdDeep),
+        ]);
+        if (cancelled) return;
+        if (v && d) {
+          thresholdViral = v.value;
+          thresholdDeep = d.value;
+          thresholdsRead = true;
+        }
+      } catch {
+        // Left unread on purpose: the effect runs again on the next tick of
+        // chain state, which is the retry. Never assume a threshold.
+      }
+    })();
+    return () => { cancelled = true; };
   });
 
   const canPublish = $derived(
