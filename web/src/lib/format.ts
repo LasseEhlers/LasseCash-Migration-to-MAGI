@@ -135,7 +135,13 @@ export function durationWords(heights: number): string {
   if (days >= 1) return plural(days, "day");
   const hours = Math.floor((heights % 28_800) / 1_200);
   if (hours >= 1) return plural(hours, "hour");
-  return plural(Math.floor((heights % 1_200) / 20), "minute");
+  // UNDER A MINUTE IS NOT "0 minutes". Flooring is right for every other
+  // unit — 29 days and some hours IS 29 days — but the last minute floors to
+  // zero while the thing has not happened yet, so a mint three heights from
+  // maturity read "0 MINUTES LEFT · 0 minutes to maturity". Lasse saw it on
+  // the day-30 cliff, 2026-10-01, with 36 positions maturing behind it.
+  const minutes = Math.floor((heights % 1_200) / 20);
+  return minutes >= 1 ? plural(minutes, "minute") : "under a minute";
 }
 
 export function shortDate(iso: string): string {
