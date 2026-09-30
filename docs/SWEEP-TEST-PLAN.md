@@ -1,7 +1,15 @@
 # The three untested sweeps — a plan, and the clock that makes it possible
 
-**Status: build ready, NOT deployed. Costs 10 HBD when it runs. Deadline ~6 Oct
-2026** (a fix would need a 48-hour timelock before the key burn on the 10th).
+**Status 2026-09-30 15:20 CPH: DEPLOYED, NOT YET INITIALISED.**
+Throwaway #13 is `vsc1BUBuo8NmjoJB3VsxraE34VRuCMmv5DbW5r`, owner
+`hive:lassecashmagi`, code `bafkreiblin7y3lygiruqipbfspfwumppici2r5u6dxdc6qobpksqbwouye`
+(the fastwindows build), deploy tx `37fad761a5f61940378f20b688fffc48ec3fe7cc`,
+10 HBD paid. **The clock only starts at `init`**, so it can sit untouched
+indefinitely — Lasse's machine needed a reboot before the 2.5-hour run.
+Resume by initialising at the then-current head and following step 2 below;
+@lassecashmagi had 32,800 RC and 23 HBD on MAGI, which covers the whole run.
+
+**Deadline ~6 Oct 2026** (a fix would need a 48-hour timelock before the key burn on the 10th).
 
 ## What is untested, and why it matters
 
