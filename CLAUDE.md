@@ -849,6 +849,34 @@ HBD send would leave under 1,000 RC; the MAGI-pool swap preflights the
 `awaitVerdict` re-asks for a FAILED transaction's reason, because the
 output DAG (which carries `errMsg`) lands a beat after the status flips.
 
+## ⚠️ AN ACCOUNT CANNOT MOVE HBD IT HAS NO CREDITS FOR — 2026-09-30
+
+Seen live, and it bears directly on the key burn. @lassecashmagi held 38.995
+HBD with its meter spent down to ~15 credits after the sweep test. A 10 HBD
+send went through; the follow-up send of the remaining 38.995 **FAILED**.
+
+**Moving HBD requires available RC of roughly the amount being moved** (the
+milli figure), because capacity IS the HBD balance and the node reserves the
+transfer against it — the same `PullBalance` exclusion that governs a
+contract call's draw. Spent credits stay spent and thaw over five days at
+`max_rcs / 5` per day, so an account that has just worked hard **cannot empty
+itself until it has rested**.
+
+**Consequence for 10 October, and it must not be left to the day:**
+@lassecashmagi has to be emptied before its keys burn, and at 28.995 HBD with
+7,799 credits thawing per day it needs until **≈ 4 October** before it can
+move the lot in one transfer. Two rules follow:
+
+1. **Do not spend @lassecashmagi's credits after ~1 October.** Every call
+   pushes the date it can empty itself further out.
+2. **Empty it in the first days of October, not on the 9th.** If its meter is
+   flat on burn day the HBD is stranded with keys that no longer exist —
+   unrecoverable, exactly like the bare-name transfer above.
+
+A partial send always works: you can always move as much HBD as you currently
+have credits for, so several small transfers beat one large one when a meter
+is recovering.
+
 ## ⚠️ A BARE NAME IN `transfer` STRANDED 1,030 LC — FIXED 2026-09-01
 
 Lasse sent 1,000 LC to his daughter's account and it never arrived. The call
