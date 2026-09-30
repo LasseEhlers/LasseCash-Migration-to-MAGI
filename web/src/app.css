@@ -150,6 +150,22 @@ footer {
   font-family: var(--mono);
 }
 
+/* THE FOOTER LINKS DID NOT LOOK CLICKABLE. `a { color: inherit;
+   text-decoration: none }` above strips every affordance, which is right for
+   the quiet bottom of the page — Lasse wants it to stay quiet at rest — but it
+   left the Discord and YouTube links reading as plain grey text, so people did
+   not know they could follow them.
+   The whole signal therefore lives in the hover: gold, an underline, and the
+   pointer. The resting state is untouched. `:focus-visible` carries the same
+   signal for anyone arriving by keyboard, who otherwise gets nothing at all. */
+footer a { cursor: pointer; transition: color 120ms ease; }
+footer a:hover,
+footer a:focus-visible {
+  color: var(--gold);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 /* --- controls ---------------------------------------------------------- */
 
 input, select {
