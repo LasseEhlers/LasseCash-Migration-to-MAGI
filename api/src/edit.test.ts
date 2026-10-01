@@ -175,3 +175,37 @@ test("removing the cover image from the body removes it from the metadata", () =
   const out = editMetadata({ image: ["https://old/x.png"] }, { ...FIELDS, image: null });
   assert.equal(out.image, undefined);
 });
+
+/**
+ * THE REAL SIGNER MUST FORWARD EVERY CONTENT METHOD.
+ *
+ * The backend is handed a Signer, never the wallet, and `AiohaSigner`
+ * forwards the wallet's content methods one explicit line at a time. It
+ * REFUSES rather than skips when one is missing — which is right, but it
+ * means a forgotten line reports "needs a wallet that can write to Hive" to
+ * someone whose wallet is connected and working.
+ *
+ * That shipped on 1 Oct: `editOnHive` was implemented on the wallet and
+ * nowhere else, so every Save was refused. The tests above did not catch it
+ * because they hand `editPost` a hand-rolled stub signer — which is the right
+ * way to test the RULES, and no way at all to test the WIRING.
+ */
+import { AiohaSigner, AiohaWallet } from "./aioha-signer.js";
+
+test("the signer the app actually uses forwards every content write", () => {
+  // The prototype, not an instance: building a signer needs a logged-in
+  // wallet, and this is about method wiring, not about being signed in.
+  const forwarded = AiohaSigner.prototype as unknown as Record<string, unknown>;
+  const onWallet = AiohaWallet.prototype as unknown as Record<string, unknown>;
+  for (const method of ["publishToHive", "publishCommentToHive", "editOnHive"]) {
+    assert.equal(
+      typeof onWallet[method], "function",
+      `AiohaWallet is missing ${method}`,
+    );
+    assert.equal(
+      typeof forwarded[method], "function",
+      `AiohaSigner does not forward ${method} — the backend will refuse it `
+        + `with "needs a wallet that can write to Hive", on a working wallet`,
+    );
+  }
+});

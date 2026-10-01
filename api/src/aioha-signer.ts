@@ -1252,6 +1252,19 @@ export class AiohaSigner implements Signer {
   }): Promise<void> {
     return this.wallet.publishCommentToHive(input);
   }
+  /** ⚠️ EVERY WALLET CONTENT METHOD NEEDS ITS LINE HERE. The backend is handed
+   *  a Signer, not the wallet, and it refuses rather than skips when a method
+   *  is missing — so forgetting one makes the feature report "needs a wallet
+   *  that can write to Hive" to a user whose wallet is connected and working.
+   *  That is what shipped on 1 Oct: `editOnHive` existed on the wallet and
+   *  nowhere else, and every Save was refused. */
+  editOnHive(input: {
+    permlink: string; title: string; body: string; tags: string[];
+    summary?: string; image?: string | null; category?: string;
+    metadata?: Record<string, unknown>;
+  }): Promise<void> {
+    return this.wallet.editOnHive(input);
+  }
 
   /** Gas → RC on MAGI: 100,000 cycles per RC (node source, rc-system/). */
   static readonly GAS_PER_RC = 100_000;
