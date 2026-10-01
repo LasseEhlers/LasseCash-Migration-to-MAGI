@@ -2259,6 +2259,14 @@ reaches the wallet and never costs credits. Only the queueing went.
 properties: an `await` moved one line up restores the serial version without
 any other test noticing.
 
+**Observed live 1 Oct:** changing the weight on a vote returns its RC verdict
+in **under a second**, and nothing is spent — the chain was asked, refused,
+and the wallet never opened. ⚠️ A vote is NOT the worst case (≈2 round trips
+before, ≈1 now), and repeated slider nudges partly measure the 2.5 s meter
+cache rather than the path. **Mint and claim — the calls that carry catch-up
+slices, and the reason the work was done — are still unmeasured on a real
+meter.**
+
 ## ⚠️ HTTP/3 IS OFF ON PURPOSE — site reachability, 2026-09-09
 
 A public library PC in Copenhagen showed `ERR_TIMED_OUT` on lassecash.com for
