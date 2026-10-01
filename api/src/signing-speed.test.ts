@@ -160,3 +160,46 @@ test("a lone call forgets the meter too, not just a bundled one", async () => {
   assert.equal(res.ok, true);
   assert.ok(log.forgotten > 0, "a lone call left a stale meter reading behind");
 });
+
+/**
+ * THE CATCH-UP READS, STARTED EARLY AND SHARED.
+ *
+ * A mint press costs four sequential node round trips: the form confirms the
+ * share rate, `catchUp` reads where the accrual walk stands, reads how many
+ * mints mature on those days, and then the call is dry-run. The rate check and
+ * the catch-up reads need nothing from each other, so the form starts them
+ * together — but only if the warm-up and the press that follows SHARE one pair
+ * of reads instead of each making their own.
+ *
+ * Hence a cache, and hence this test. It is deliberately engine-free: the
+ * promise is cached before anything is awaited, so identity proves the sharing
+ * whatever the reads themselves return.
+ */
+import { LasseCashClient } from "./client.js";
+import type { Backend } from "./backend.js";
+
+function bareClient() {
+  // Reads are irrelevant here; what is under test is who asks, and how often.
+  const backend = {
+    async state() { return {}; },
+    async chain() { return { height: 0 } as never; },
+  } as unknown as Backend;
+  return new LasseCashClient({ backend });
+}
+
+test("warming and pressing share one pair of catch-up reads", () => {
+  const c = bareClient();
+  c.warmCatchUp();
+  // The press, a moment later, must land on the warm-up's own promise — not
+  // start a second pair of reads and wait for them.
+  assert.equal(c.catchUp(), c.catchUp(), "each call started its own reads");
+});
+
+test("anything signed spends the cached catch-up reading", async () => {
+  // A transaction may have carried the slices away with it, so the next press
+  // must look again rather than bundle slices that are already sent.
+  const c = bareClient();
+  const before = c.catchUp();
+  await c.burn("1").catch(() => {}); // no signer: clears the cache, then refuses
+  assert.notEqual(c.catchUp(), before, "a stale catch-up survived a transaction");
+});

@@ -567,7 +567,49 @@ export class LasseCashClient {
    * ahead of the user's call, each its own transaction, so the progress
    * persists. No economics here — it only counts rows.
    */
-  async catchUp(max = 8): Promise<{ entrypoint: string; args: string }[]> {
+  /**
+   * Start the catch-up reads WITHOUT waiting for them.
+   *
+   * A mint press costs four sequential node round trips: the form confirms the
+   * share rate (`quoteMint`), then `catchUp` reads where the accrual walk is,
+   * then reads how many mints mature on those days, then the call is dry-run.
+   * The rate check and the catch-up reads need nothing from each other, so
+   * making the caller start this first turns four waits into two.
+   *
+   * Fire-and-forget on purpose: a failure here is already handled (catchUp
+   * returns no slices and the press proceeds), so a warm-up must never be
+   * something a caller has to catch.
+   */
+  warmCatchUp(): void {
+    void this.catchUp().catch(() => {});
+  }
+
+  /**
+   * Cached for a few seconds so a warm-up and the press that follows it share
+   * ONE pair of reads rather than racing. Deliberately short: the answer
+   * depends on where the accrual walk stands, and being wrong means bundling
+   * too few slices — which the chain refuses safely and the "press again" path
+   * already covers. Cleared whenever anything is signed, since a sent slice is
+   * no longer needed.
+   */
+  #catchUp: { at: number; max: number; p: Promise<{ entrypoint: string; args: string }[]> } | null = null;
+  static readonly CATCHUP_TTL_MS = 5_000;
+
+  // NOT `async`: an async method wraps its return in a NEW promise, so callers
+  // would each get their own wrapper and the warm-up would be shared in name
+  // only. Returning the cached promise itself is what makes a warm-up and the
+  // press behind it wait on ONE pair of reads. Nothing here can throw
+  // synchronously — `#readCatchUp` is async and owns its own failures — so the
+  // "reads never throw at the call site" rule still holds.
+  catchUp(max = 8): Promise<{ entrypoint: string; args: string }[]> {
+    const c = this.#catchUp;
+    if (c && c.max === max && Date.now() - c.at < LasseCashClient.CATCHUP_TTL_MS) return c.p;
+    const p = this.#readCatchUp(max);
+    this.#catchUp = { at: Date.now(), max, p };
+    return p;
+  }
+
+  async #readCatchUp(max: number): Promise<{ entrypoint: string; args: string }[]> {
     try {
       const c = constants();
       const hpd = Number(c.heightsPerDay);
@@ -1142,6 +1184,9 @@ export class LasseCashClient {
   // sometimes throws before returning cannot be handled with .catch(), which
   // is exactly the kind of trap that makes a UI swallow errors silently.
   async #send(entrypoint: string, payload: string, opts?: SubmitOptions): Promise<TxResult> {
+    // Anything signed may have carried catch-up slices, so the cached reading
+    // of where the walk stands is spent along with them.
+    this.#catchUp = null;
     return this.#requireSigner().submit(entrypoint, payload, opts);
   }
 

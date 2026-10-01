@@ -56,6 +56,19 @@
     confirming = false;
     error = await chain.submit(() => client.claimMint(mint.id));
   }
+  /**
+   * Start the catch-up reads while the pointer is still travelling.
+   *
+   * A claim has no rate check to run them beside — unlike a mint — so this is
+   * where its two round trips come off the wait. Reads only, never a
+   * simulation, so the node's per-minute simulation cap is untouched; and the
+   * answer is cached for a few seconds, so a hover that goes nowhere costs one
+   * cheap pair of reads and nothing else.
+   */
+  function warm() {
+    client.warmCatchUp();
+  }
+
   async function arm() {
     error = null;
     error = await chain.submit(() => client.armGoodAccounting(mint.id));
@@ -160,6 +173,8 @@
       class:danger={early}
       class:urgent={bleeding}
       onclick={close}
+      onpointerenter={warm}
+      onfocus={warm}
       disabled={chain.busy || gone || waiting}
       title={waiting
         ? "This mint has matured. The chain will not settle it until the protocol day closes, so that everyone maturing today is paid from the same checkpoint — otherwise the first to claim could take the whole day's emission. Usually a few hours. Nothing is lost by waiting."

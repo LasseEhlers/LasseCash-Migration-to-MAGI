@@ -144,6 +144,16 @@
     error = null;
     confirming = true;
     try {
+      // THE CATCH-UP READS START NOW, BESIDE THE RATE CHECK.
+      //
+      // A mint press used to walk the node four times in a row: confirm the
+      // share rate, read where the accrual walk stands, read how many mints
+      // mature on those days, dry-run the call. The rate check and the
+      // catch-up reads need nothing from each other, so starting them
+      // together removes two of those waits — and `client.mint()` picks up
+      // the warmed answer instead of asking again.
+      client.warmCatchUp();
+
       // Confirm against the chain before signing: the browser used a share rate
       // and thresholds fetched a moment ago, and both can move.
       const authoritative = await client.quoteMint(amount, days);
