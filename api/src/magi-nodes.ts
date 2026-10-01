@@ -73,6 +73,67 @@ export function currentMagiNode(url?: string): string {
   return url && !MAGI_NODES.includes(url) ? url : (MAGI_NODES[preferred] as string);
 }
 
+/**
+ * Ask every node for the head block at once and remember whichever answers
+ * FIRST.
+ *
+ * Failover only ever noticed a node being DEAD. It had nothing to say about a
+ * node that is merely SLOW — and that is the common case. Measured 1 Oct, the
+ * same mint path: 373–640 ms per request on one public node against 117–293 ms
+ * on another, which is 2.5 s before the wallet opens instead of under one. The
+ * client had remembered the slow node weeks earlier, when the node it used
+ * before went dark, and nothing would ever have moved it off again.
+ *
+ * Deliberately NOT fired from `magiFetch`: a low-level helper that quietly
+ * sends extra requests is a surprise, and it would make every test that counts
+ * fetches wrong. The app calls this once when it starts.
+ *
+ * The head block is the right probe — it is the cheapest query the API has,
+ * every node must answer it, and answering it fast is what "this node is
+ * responsive right now" means. Racing costs two extra cheap reads once per
+ * session.
+ *
+ * Safe by construction: if every probe fails, whatever was remembered before
+ * is kept, and ordinary failover still runs on top.
+ */
+export async function pickFastestNode(opts: MagiFetchOptions = {}): Promise<string> {
+  const doFetch = opts.fetch ?? globalThis.fetch.bind(globalThis);
+  // A configured private node is a deliberate choice; never race past it.
+  if (opts.url !== undefined && !MAGI_NODES.includes(opts.url)) return opts.url;
+
+  const body = JSON.stringify({ query: "{localNodeInfo{last_processed_block}}" });
+  const attempts = MAGI_NODES.map(async (url, i) => {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), PROBE_MS);
+    try {
+      const res = await doFetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body,
+        signal: ctrl.signal,
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      // A rate-limited node answers fast and is useless — see RATE_LIMITED.
+      if (RATE_LIMITED.test(await res.text())) throw new Error("rate limited");
+      return i;
+    } finally {
+      clearTimeout(timer);
+    }
+  });
+
+  try {
+    prefer(await Promise.any(attempts));
+  } catch {
+    // Nothing answered. Keep what we had; magiFetch still fails over.
+  }
+  return currentMagiNode();
+}
+
+/** How long a probe waits before giving up on a node. Short: this is a race,
+ *  and a node that cannot answer the cheapest query quickly is not the one to
+ *  send a mint through. */
+const PROBE_MS = 3_000;
+
 export interface MagiFetchOptions {
   /** A configured node. A known public node joins the failover list; any
    *  other address (a private or local node) is used alone. */

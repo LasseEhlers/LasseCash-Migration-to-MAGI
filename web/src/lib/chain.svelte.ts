@@ -10,7 +10,7 @@
  */
 import {
   AiohaWallet, DevBackend, DevSigner, LasseCashClient, MagiBackend,
-  engineReady, loadEngine,
+  engineReady, loadEngine, pickFastestNode,
   type AccountView, type ChainInfo, type Providers, type ResourceCredits,
 } from "$api/index.js";
 import { SITE_URL } from "$lib/site.js";
@@ -140,6 +140,19 @@ class ChainStore {
 
   async init() {
     try {
+      // PICK THE FASTEST NODE BEFORE ASKING IT ANYTHING.
+      //
+      // Failover only ever moved off a node that was DEAD, never off one that
+      // was merely slow — and the client keeps whichever node it landed on,
+      // possibly weeks ago when something else went dark. Measured 1 Oct: the
+      // same mint took 2.5 s on one public node and under a second on
+      // another, purely because of which one was remembered.
+      //
+      // Not awaited: it is a race between cheap reads, and the first real
+      // query should not queue behind it. Whichever node wins is used from
+      // the next request onward, and ordinary failover still runs on top.
+      void pickFastestNode({ url: import.meta.env.VITE_CHAIN_URL });
+
       // The engine and the chain load in parallel; neither depends on the other.
       await Promise.all([
         // The engine build must match the CONTRACT's clock: against a
