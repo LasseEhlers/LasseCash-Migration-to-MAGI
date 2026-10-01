@@ -2187,6 +2187,78 @@ docs/NATIVE-POOL-PLAN.md) — that makes it visible, it already works.
 falls back to throwaway #9 when unset, so a forgotten export sends a production
 call to a dead test contract and reports success.
 
+## ✅ EDIT A POST — BUILT 2026-10-01, and it never touches the chain
+
+An author edits their own post from `/compose?edit=@author/permlink`; the
+`Edit` chip sits by the byline and only the author sees it. On Hive an edit
+IS the same `comment` operation with the same permlink — there is no edit op —
+so the whole thing is one Hive write and **no MAGI call at all**.
+
+That is the design, not an optimisation. Window, payout mode and rshares froze
+at registration, and curators vote on what they read: if fixing a sentence
+could also change the payout mode, every curator's share would depend on text
+the author can rewrite after the vote. So the screen does not offer those
+controls, the permlink is read-only, the posting threshold does not apply (an
+edit registers nothing), and `edit.test.ts` hands `editPost` a signer whose
+every chain method throws.
+
+Three things that are easy to get wrong and are pinned by tests:
+
+- **json_metadata is MERGED, never replaced.** The button appears on posts we
+  did not publish — anything tagged `lassecash` is registered here by its first
+  vote — and Actifit, Waivio and the NFT apps identify their own posts by those
+  fields and PAY OUT on them. Replacing the metadata would cost their author
+  money elsewhere for fixing a typo here. Only what the author just typed
+  (tags, summary, cover) is written.
+- **A missing `canonical_url` is NOT filled in.** It states where the original
+  lives; ours would be false on an Actifit report. One Edit click must not
+  quietly hand us somebody else's search ranking. Our claim is refreshed only
+  where it already is — i.e. on posts published here, where publishing set it.
+  `format` is the one exception: it says how to render, claims nothing.
+- **The category goes back unchanged.** Hive refuses an operation that moves a
+  comment to another parent, and a post written elsewhere sits in whatever ITS
+  first tag was. `content()` now returns `category` for exactly this.
+
+After saving, the page waits for Hive to serve the new body before navigating,
+then arrives with `?edited` so the post page re-reads from Hive instead of its
+own `max-age=60, stale-while-revalidate=600` cache — otherwise the author is
+shown their OLD text for up to ten minutes, concludes it failed, and signs it
+again. Nobody else's caching changes. Simulator parity: `/edit` →
+`chain.Edit`, content store only, contract untouched.
+
+## ✅ THE WAIT BEFORE THE WALLET — HALVED 2026-10-01
+
+Lasse, 2026-09-30: *"når jeg claimer tager det vist et sekund eller to før
+hive keychain popper op"*. It did. A mint carrying catch-up slices walked a
+public node **in series**: read the meter, dry-run slice one, read the meter,
+dry-run slice two, read the meter, dry-run the mint — seven or eight round
+trips before anything visible happened.
+
+The dry run itself stays: it is why a call the chain would refuse never
+reaches the wallet and never costs credits. Only the queueing went.
+
+- **The RC meter is read ONCE per click.** The PROMISE is cached (2.5 s, under
+  a block), so overlapping callers share one request instead of racing. Within
+  a click this is exactly correct — nothing has broadcast yet, so the meter
+  cannot have moved — and any broadcast clears it. ⚠️ Found while testing: a
+  lone call goes out through `vscCallContract` and never reached `#broadcast`,
+  the one place that cleared the cache, so it now clears it itself.
+- **The dry run and the meter read start together.** HBD-drawing calls still
+  read the meter FIRST — there the probe's own rc_limit decides what the chain
+  will let them draw (the @daneamanda wall).
+- **Every dry run in a transaction goes out at once.** Contract state never
+  carries between simulations, so sizing in series never meant sizing against
+  each other's effects. Results are applied in order, so slices still stop at
+  the first unaffordable one. Max 7 concurrent (4 slices + call + 2 side) —
+  the same number of requests the node saw before, against its 30/min cap.
+- `catchUp` reads the head height by the cheap route instead of assembling the
+  whole chain view and ranking the consensus group through the engine for one
+  number.
+
+≈3 round trips where there were 7–8. `signing-speed.test.ts` pins both
+properties: an `await` moved one line up restores the serial version without
+any other test noticing.
+
 ## ⚠️ HTTP/3 IS OFF ON PURPOSE — site reachability, 2026-09-09
 
 A public library PC in Copenhagen showed `ERR_TIMED_OUT` on lassecash.com for
