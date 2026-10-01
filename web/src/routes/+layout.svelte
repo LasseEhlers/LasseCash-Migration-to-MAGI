@@ -124,6 +124,29 @@
    * is respected, but a temporary notice that never comes back is a notice
    * nobody sees when it matters. Delete this block when the Feed is done.
    */
+  /**
+   * WHY THE BUTTONS PAUSE, said before anyone has to wonder.
+   *
+   * Every signed action asks the chain whether it would succeed before the
+   * wallet opens — a dry run plus a read of the account's credits, two to four
+   * round trips, 0.3 to 1.2 seconds. The old condenser sites felt instant
+   * because they checked nothing, and the price was a transaction that failed
+   * ninety seconds later with no explanation. We would rather spend the second.
+   *
+   * But most of that second is OUR doing, not MAGI's: the calls run one after
+   * another where they could run together, the credit meter is read several
+   * times per click, and the mint paths fetch chain state the page already
+   * has. Measured 2026-10-01 after Lasse noticed the delay on a claim. The fix
+   * is frontend-only and lands after the key burn, when changing the site
+   * carries no risk to anything frozen. Delete this note when it is done.
+   */
+  let dismissedSpeedNote = $state(false);
+  const showSpeedNote = $derived(WALLET_MODE && !dismissedSpeedNote);
+  function dismissSpeedNote() {
+    dismissedSpeedNote = true;
+    try { localStorage.setItem("lc_speed_note", String(Date.now())); } catch { /* fine */ }
+  }
+
   let dismissedFeedNote = $state(false);
   const showFeedNote = $derived(WALLET_MODE && !dismissedFeedNote);
   function dismissFeedNote() {
@@ -140,6 +163,8 @@
     try {
       const feedAt = Number(localStorage.getItem("lc_feed_note") || 0);
       dismissedFeedNote = feedAt > 0 && Date.now() - feedAt < DAY30_SNOOZE_MS;
+      const speedAt = Number(localStorage.getItem("lc_speed_note") || 0);
+      dismissedSpeedNote = speedAt > 0 && Date.now() - speedAt < DAY30_SNOOZE_MS;
       const at = Number(localStorage.getItem("lc_day30_note") || 0);
       // A pre-existing "1" from the first build parses to 1 ms since epoch,
       // which is long lapsed — so those browsers simply see it once more.
@@ -271,6 +296,21 @@
       <button class="day30-dismiss" onclick={dismissFeedNote} aria-label="dismiss">×</button>
     </div>
   {/if}
+  {#if showSpeedNote}
+    <div class="day30 speednote" role="note">
+      <span>
+        <strong>The buttons take a moment, on purpose.</strong>
+        Before your wallet opens, the site asks the chain whether the call would
+        actually succeed — so a transaction the chain would refuse never reaches
+        your wallet and never costs you credits. The old Hive sites felt instant
+        because they checked nothing, and you found out ninety seconds later.
+        Most of that wait is ours to remove, though, not the chain's:
+        <strong>after the key burn on 10 October we make it fast</strong>, with
+        the same checks still running underneath.
+      </span>
+      <button class="day30-dismiss" onclick={dismissSpeedNote} aria-label="dismiss">×</button>
+    </div>
+  {/if}
   {#if chain.confirming}
     <div class="confirming" role="status">
       <span class="dot"></span> Signed — waiting for MAGI to confirm. The figures update by themselves.
@@ -337,6 +377,9 @@
   .day30 strong { color: var(--gold); }
   .day30 a { color: var(--gold); }
   .feednote { border-top: 0; }
+  /* Third in the stack, so it carries no top border either and sits dimmer
+     than the two above it: it explains a second of waiting, not money. */
+  .speednote { border-top: 0; opacity: 0.85; }
   .day30-dismiss {
     margin-left: auto;
     background: none;
