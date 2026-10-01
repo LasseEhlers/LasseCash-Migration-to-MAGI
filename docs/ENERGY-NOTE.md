@@ -97,14 +97,57 @@ Stating these is what makes the rest trustworthy:
   weakest number here. Anyone who wants to attack the estimate should attack
   this, and the right answer is to ask witnesses what their nodes actually draw.
 
-## Before this is published
+## Publishing it WITHOUT asking anyone — the method that fits reality
 
-1. Ask two or three Hive witnesses and two MAGI witnesses what their nodes
-   actually consume. Measured beats assumed, and it makes the post a
-   contribution to Hive and MAGI rather than a LasseCash advert.
-2. Re-read the CBECI figure on the day of publication — it moves with hashrate.
-3. Keep the framing "fixed versus growing". The watt comparison invites a fight
-   about methodology; the scaling argument does not.
+Lasse has no working line to Hive's core witnesses; years of messages have gone
+unanswered, and chasing them is not a plan. So the estimate must stand on
+PUBLIC evidence, and the post itself becomes the request for correction. That
+is the stronger move anyway: a direct message asking for a favour is easy to
+ignore, while a published number about someone's own machine is the kind of
+thing people correct — and if nobody does, the figure stands on the record.
 
-Only then is it worth a post, and only after the post survives contact with
-critics is it worth putting on the About page.
+### A bounded range beats a point estimate
+
+Publish both ends rather than one number nobody can verify. Then the only way
+to attack it is to supply a real measurement, which is exactly the outcome
+worth having.
+
+| | Hive (21 witnesses) | MAGI (17 witnesses) | total | households |
+|---|---|---|---|---|
+| **Low** — thin clients, no backups, 12 W / 25 W | 0.25 kW | 0.43 kW | **0.7 kW** ≈ 6,000 kWh/yr | **~1.5** |
+| **Midpoint** — mixed estate, backups on Hive | 2.1 kW | 1.0 kW | **3.1 kW** ≈ 27,000 kWh/yr | **~7** |
+| **High** — every node a rack server at 150 W, Hive doubled for backups | 6.3 kW | 2.6 kW | **8.9 kW** ≈ 78,000 kWh/yr | **~19** |
+
+So: **"somewhere between two and twenty ordinary households power the consensus
+of both chains, and every application on them."** Even the pessimistic end is
+four million times smaller than Bitcoin, which makes the argument robust to
+being wrong about the hardware by an order of magnitude.
+
+### Public evidence that needs no one's permission
+
+- A Hive witness's own published write-up of running consensus on a **Dell
+  OptiPlex 3000 thin client, Pentium Silver, 8 GB RAM** — a documented low end.
+- Hive's developer portal: 16 GB RAM to build, Linux only — a documented
+  minimum.
+- `gtg`'s long-running "Steem Pressure" series, which documents node operation
+  in public and is the ancestor of the Raspberry Pi estimate Lasse remembers.
+- CPU model TDPs are published by Intel and AMD: a Pentium Silver is ~10 W, a
+  Ryzen 9 7950X3D ~120 W. Hardware named in public posts converts to watts
+  without asking anybody.
+- **The MAGI validator count is readable from the chain itself**
+  (`electionByBlockHeight`), so that half of the estimate is not an assumption
+  at all — it was 17 on 2026-09-30, epoch 2049.
+
+### Close the post with the invitation
+
+One line, in Lasse's voice, something like: *"If you run a witness on either
+chain and these numbers are wrong, tell me what your node actually draws and I
+will correct this and credit you."* That is a contribution to Hive and MAGI
+rather than an advert, it costs nothing to be wrong in public about an
+assumption you labelled as one, and it gives witnesses a reason to engage that
+a private message never did.
+
+Re-read the CBECI figure on publication day — it moves with hashrate.
+
+Only after the post survives contact with critics is it worth putting on the
+About page.
