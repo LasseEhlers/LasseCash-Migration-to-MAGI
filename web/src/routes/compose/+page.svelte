@@ -342,7 +342,10 @@
           // A read that fails is not an edit that failed — keep waiting.
         }
       }
-      await goto(`/@${t.author}/${t.permlink}`);
+      // `?edited` tells the post page to read the body from Hive rather than
+      // from its own 60s cache — see the comment there. Dropped from the URL
+      // as soon as it has done its job.
+      await goto(`/@${t.author}/${t.permlink}?edited`);
     } catch (e) {
       error = e instanceof Error ? e.message : String(e);
     } finally {

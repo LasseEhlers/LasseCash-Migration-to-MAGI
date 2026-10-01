@@ -19,6 +19,7 @@
    * not an error: publishing writes the article first and registers it second.
    */
   import { onMount } from "svelte";
+  import { page } from "$app/state";
   import { chain, client } from "$lib/chain.svelte.js";
   import { displayName, durationWords, lc, shortDate } from "$lib/format.js";
   import { renderMarkdown } from "$lib/markdown.js";
@@ -71,7 +72,42 @@
     if (!perDay) return false;
     return info.height - info.genesis_height < perDay;
   });
-  const rendered = $derived(a.body ? renderMarkdown(a.body) : "");
+  /**
+   * STRAIGHT AFTER AN EDIT, READ THE POST FROM HIVE RATHER THAN THE CACHE.
+   *
+   * This page is server-rendered with `max-age=60, stale-while-revalidate=600`
+   * — which is right for readers (an article does not change, and the money is
+   * never in the HTML) and wrong for exactly one person: the author who just
+   * edited it. They would be served the cached copy, see their old text for
+   * as much as ten minutes, conclude the edit failed, and sign it again.
+   *
+   * So the Save button returns here with `?edited`, and that one case fetches
+   * the body from Hive in the browser and renders that instead. Nobody else's
+   * caching changes, and the flag is dropped from the URL afterwards so the
+   * canonical address is what gets shared and bookmarked.
+   */
+  let freshTitle = $state<string | null>(null);
+  let freshBody = $state<string | null>(null);
+
+  $effect(() => {
+    if (!page.url.searchParams.has("edited")) return;
+    void (async () => {
+      try {
+        const c = await client.content(a.author, a.permlink);
+        if (c) { freshTitle = c.title; freshBody = c.body; }
+      } catch {
+        // The cached copy is still a copy of the post — showing it beats an error.
+      }
+      const clean = new URL(page.url);
+      clean.searchParams.delete("edited");
+      history.replaceState(history.state, "", clean.pathname + clean.search);
+    })();
+  });
+
+  const rendered = $derived.by(() => {
+    const body = freshBody ?? a.body;
+    return body ? renderMarkdown(body) : "";
+  });
   /** Signed in as this post's author — the only person Hive will let edit it. */
   const isAuthor = $derived(
     !!chain.account && chain.account.replace(/^hive:/, "") === a.handle,
@@ -181,7 +217,7 @@
           {/if}
         </div>
 
-        <h1>{a.title}</h1>
+        <h1>{freshTitle ?? a.title}</h1>
 
         {#if a.published}
           <!-- renderMarkdown escapes before emitting any tag. Same renderer on
