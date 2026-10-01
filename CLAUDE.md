@@ -2219,6 +2219,19 @@ Three things that are easy to get wrong and are pinned by tests:
   comment to another parent, and a post written elsewhere sits in whatever ITS
   first tag was. `content()` now returns `category` for exactly this.
 
+⚠️ **A `$effect` MUST NOT READ THE STATE IT WRITES — shipped broken 1 Oct,
+found by Lasse on his first press.** The "load once per post" guard was
+`$state`, so writing it re-ran the effect, the re-run fired the previous run's
+cleanup, `cancelled` went true and the answer from Hive was discarded, while
+the second run returned early at the guard. Visible result: the banner named
+the post correctly and the form sat on "Loading the post from Hive…" forever
+with every field blank. Fixed by making the guard a PLAIN variable and
+checking staleness against it at the point of use rather than with a cleanup
+flag — a cleanup fires on every re-run, including one that changed nothing.
+The thresholds effect on the same page has the same shape and survives only
+because it writes its flag AFTER its assignments; leave it, but do not copy
+it.
+
 After saving, the page waits for Hive to serve the new body before navigating,
 then arrives with `?edited` so the post page re-reads from Hive instead of its
 own `max-age=60, stale-while-revalidate=600` cache — otherwise the author is
