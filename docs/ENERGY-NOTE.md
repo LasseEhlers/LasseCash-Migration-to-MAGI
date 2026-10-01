@@ -34,21 +34,47 @@ Three layers, and only the first two consume meaningful power:
    to execute a call, plus the bytes it writes. The frontend is static files on
    Cloudflare's edge; there is no LasseCash server anywhere.
 
-### The arithmetic, with the assumptions visible
+### The arithmetic, in two honest tiers
+
+A witness is not one machine. Lasse's point, and it is the right one: most run
+a block producer AND a backup, publish a **price feed** (part of the job — the
+HBD rate comes from witnesses), often run **seed nodes** for the P2P layer, and
+several run public **API/HAF servers**, which are genuinely large — one
+documented Hive API node is a Ryzen 9 7950X3D with 128 GB of RAM. Counting only
+the block producer would be lowballing, and a lowball is what a critic looks
+for first.
+
+So count it in two tiers and say which is which.
+
+**Tier 1 — what the chains need in order to exist at all.**
 
 | | nodes | W each (assumed) | kW |
 |---|---|---|---|
-| Hive witnesses + backups | 21 × 2 | 15–150, say 50 | 2.1 |
-| MAGI witnesses | 17 | 30–150, say 60 | 1.0 |
-| **consensus total** | | | **≈ 3.1 kW** |
+| Hive block producers + backups | 21 × 2 | 15–150, say 50 | 2.1 |
+| Hive seed nodes | ~20 | 30 | 0.6 |
+| MAGI witnesses (**17, read from the chain**) | 17 | 30–150, say 60 | 1.0 |
+| **consensus and network** | | | **≈ 3.7 kW** |
 
-3.1 kW continuous ≈ **27,000 kWh per year** for *both chains together* —
-and that is the whole of Hive and the whole of MAGI, shared by every app,
-token and contract on them, not LasseCash alone.
+**Tier 2 — what makes them usable: the public API and HAF servers.**
 
-A Danish household without electric heating uses roughly **4,000 kWh a year**.
-So the consensus layer under LasseCash is **about seven households**, and
-LasseCash's own share of it is a fraction of one.
+| | nodes | W each (assumed) | kW |
+|---|---|---|---|
+| Hive public API / HAF | ~15 | 150–400, say 250 | 3.8 |
+| MAGI public API | ~4 | 100 | 0.4 |
+| **application infrastructure** | | | **≈ 4.2 kW** |
+
+**Both tiers together: ~7.9 kW ≈ 69,000 kWh a year ≈ 17 Danish households**
+— and that is the ENTIRE Hive network, the entire MAGI network, and every app,
+token, game and frontend running on either.
+
+Tier 2 belongs in the honest number but not in LasseCash's share: those servers
+exist for the whole ecosystem and would run identically if LasseCash had never
+been deployed. Tier 1 is the same — 38 validators produce blocks whether we
+exist or not.
+
+**LasseCash's own marginal cost is Tier 3: the CPU cycles to execute its
+calls**, and nothing else. No LasseCash server exists anywhere; the frontend is
+static files on Cloudflare's edge.
 
 ### The per-call figure, which is the striking one
 
@@ -85,10 +111,10 @@ designed to.**
 
 Stating these is what makes the rest trustworthy:
 
-- **API and HAF nodes.** The heavy servers that let apps read the chain —
-  one documented example runs a Ryzen 9 with 128 GB RAM. They are
-  infrastructure for every Hive app, they are not consensus, and counting them
-  against LasseCash alone would be dishonest. They would exist without us.
+- **Tier 2 is counted in the ecosystem total but NOT attributed to LasseCash.**
+  Those API and HAF servers are infrastructure for every Hive app and would run
+  identically without us. Including them in the headline number is honest;
+  charging them to LasseCash would not be.
 - **The reader's own device.** A phone rendering the site uses more power than
   the chain spends settling what it shows.
 - **Cloudflare's edge**, which serves the frontend from capacity that exists
@@ -112,16 +138,17 @@ Publish both ends rather than one number nobody can verify. Then the only way
 to attack it is to supply a real measurement, which is exactly the outcome
 worth having.
 
-| | Hive (21 witnesses) | MAGI (17 witnesses) | total | households |
+| | tier 1 | tier 2 | total | households |
 |---|---|---|---|---|
-| **Low** — thin clients, no backups, 12 W / 25 W | 0.25 kW | 0.43 kW | **0.7 kW** ≈ 6,000 kWh/yr | **~1.5** |
-| **Midpoint** — mixed estate, backups on Hive | 2.1 kW | 1.0 kW | **3.1 kW** ≈ 27,000 kWh/yr | **~7** |
-| **High** — every node a rack server at 150 W, Hive doubled for backups | 6.3 kW | 2.6 kW | **8.9 kW** ≈ 78,000 kWh/yr | **~19** |
+| **Low** — thin clients, lean API estate | 0.9 kW | 1.5 kW | **2.4 kW** ≈ 21,000 kWh/yr | **~5** |
+| **Midpoint** — mixed estate | 3.7 kW | 4.2 kW | **7.9 kW** ≈ 69,000 kWh/yr | **~17** |
+| **High** — every node a rack server | 9.0 kW | 9.0 kW | **18 kW** ≈ 158,000 kWh/yr | **~39** |
 
-So: **"somewhere between two and twenty ordinary households power the consensus
-of both chains, and every application on them."** Even the pessimistic end is
-four million times smaller than Bitcoin, which makes the argument robust to
-being wrong about the hardware by an order of magnitude.
+So: **"somewhere between five and forty ordinary households power both chains
+AND every application on them."** Even the pessimistic end is roughly a
+million times smaller than Bitcoin, which makes the argument robust to being
+wrong about the hardware by an order of magnitude in either direction. That
+robustness is worth more than a flattering point estimate.
 
 ### Public evidence that needs no one's permission
 
