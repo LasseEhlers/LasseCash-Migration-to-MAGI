@@ -2263,9 +2263,12 @@ any other test noticing.
 in **under a second**, and nothing is spent — the chain was asked, refused,
 and the wallet never opened. ⚠️ A vote is NOT the worst case (≈2 round trips
 before, ≈1 now), and repeated slider nudges partly measure the 2.5 s meter
-cache rather than the path. **Mint and claim — the calls that carry catch-up
-slices, and the reason the work was done — are still unmeasured on a real
-meter.**
+cache rather than the path. A MINT — the heavy case, which carries catch-up
+slices — came back **"slightly longer but comfortable, maybe one second"**,
+against the "et sekund eller to" that started this. Both readings are of the
+RC-refusal path, so both are the full sizing walk with nothing broadcast.
+Still unseen: the sizing walk followed by the wallet actually opening, which
+needs a meter that can afford the call.
 
 ## ⚠️ HTTP/3 IS OFF ON PURPOSE — site reachability, 2026-09-09
 
