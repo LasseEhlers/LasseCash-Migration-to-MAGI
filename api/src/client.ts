@@ -571,11 +571,20 @@ export class LasseCashClient {
     try {
       const c = constants();
       const hpd = Number(c.heightsPerDay);
-      const st = await this.backend.state(["acc_day", "cfg_genesis", "cfg_settled"]);
-      const info = await this.backend.chain();
+      // Both reads at once, and the height read is the CHEAP one.
+      //
+      // This runs on every mint and every claim, before the wallet opens, and
+      // it used to be three node round trips in series. `chain()` was the
+      // expensive one: it assembles the whole chain view and ranks the
+      // consensus group through the engine, when all that is wanted here is
+      // the head height. Backends that can answer that directly now do.
+      const [st, height] = await Promise.all([
+        this.backend.state(["acc_day", "cfg_genesis", "cfg_settled"]),
+        this.#height(),
+      ]);
       const genesis = Number(st["cfg_genesis"] || 0);
       if (!genesis || !hpd) return [];
-      const today = Math.floor((info.height - genesis) / hpd);
+      const today = Math.floor((height - genesis) / hpd);
       const accDay = Number(st["acc_day"] || 0);
       if (accDay >= today) return [];
       const days: string[] = [];
@@ -590,6 +599,24 @@ export class LasseCashClient {
     } catch {
       return [];
     }
+  }
+
+  /**
+   * The head height, by the cheapest route the backend offers.
+   *
+   * Falls back to the full chain view, which always answers — a backend
+   * without a direct height read is slower here, never wrong.
+   */
+  async #height(): Promise<number> {
+    const b = this.backend as Backend & { height?: () => Promise<number> };
+    if (typeof b.height === "function") {
+      try {
+        return await b.height();
+      } catch {
+        // Fall through: one unanswered query must not stop a mint.
+      }
+    }
+    return (await this.backend.chain()).height;
   }
 
   /** Lock LASSECASH for `days` (1..1095, sliding scale). */

@@ -540,6 +540,35 @@ export class AiohaWallet {
    * allowance, so report that rather than nothing.
    */
   async availableRc(account: string): Promise<number | null> {
+    // ONE READ PER CLICK, NOT THREE.
+    //
+    // Sizing a transaction asks for the meter several times: the HBD probe
+    // wants it before the dry run, the final clamp wants it after, and a
+    // transaction carrying catch-up slices or settlements sizes each of those
+    // too. Every one of those used to be its own round trip to a public node,
+    // in series, between the press and the wallet opening.
+    //
+    // The PROMISE is cached, not just the answer, so calls that overlap share
+    // one request instead of racing. Within a single click this is exactly
+    // correct: nothing has been broadcast yet, so the meter cannot have moved.
+    // Across clicks, `forgetRc()` clears it the moment anything is signed, and
+    // the TTL is shorter than a block.
+    const cached = this.#rc;
+    if (cached && cached.account === account && Date.now() - cached.at < AiohaWallet.RC_CACHE_MS) {
+      return cached.p;
+    }
+    const p = this.#readRc(account);
+    this.#rc = { account, p, at: Date.now() };
+    return p;
+  }
+
+  /** Forget the meter. Called wherever anything is broadcast — the whole
+   *  point of the cache is that it never outlives a transaction. */
+  forgetRc(): void {
+    this.#rc = null;
+  }
+
+  async #readRc(account: string): Promise<number | null> {
     // MAGI addresses are qualified; Aioha hands us a bare Hive name.
     const addr = qualifyAuth(account);
     try {
@@ -588,6 +617,13 @@ export class AiohaWallet {
 
   /** RC every hive: account has without staking anything on MAGI (rc-system/). */
   static readonly FREE_RC = 10_000;
+
+  /** How long one reading of the meter may be reused — under a block, so it
+   *  can never describe a chain that has moved on. Cleared on any broadcast. */
+  static readonly RC_CACHE_MS = 2_500;
+
+  /** The in-flight or recent meter reading (see availableRc). */
+  #rc: { account: string; p: Promise<number | null>; at: number } | null = null;
 
   /**
    * ONE confirm for publishing: the Hive `comment` and the contract's
@@ -746,6 +782,9 @@ export class AiohaWallet {
   }
 
   async #broadcast(ops: unknown[], keyType: KeyTypes): Promise<TxResult> {
+    // Anything signed spends credits, so the cached meter is now a lie —
+    // including when the broadcast fails, since we cannot tell from here.
+    this.forgetRc();
     // Aioha types operations loosely; the shapes above are Hive's own.
     const res = await this.aioha.signAndBroadcastTx(
       ops as Parameters<Aioha["signAndBroadcastTx"]>[0],
@@ -1263,11 +1302,24 @@ export class AiohaSigner implements Signer {
     // same call at a sane limit. So cap the probe at what the account could
     // actually reserve beside its own draw, with the table value as the floor
     // so a genuinely unaffordable call still fails honestly.
+    //
+    // THE METER READ STARTS NOW, BESIDE THE DRY RUN. Both are independent
+    // reads of the same node, and waiting for one before beginning the other
+    // doubled the time between the press and the wallet for every signed
+    // action on the site. The result is cached per click (AiohaWallet.
+    // availableRc), so the clamp at the bottom and any sibling call reuse this
+    // one request rather than making their own.
+    //
+    // HBD-drawing calls are the exception: the probe's own rc_limit decides
+    // what the chain will let them draw, so there the meter genuinely has to
+    // arrive first.
+    const rcRead = this.wallet.availableRc(this.account);
+
     let probeRcLimit: number | undefined;
     if (entrypoint in AiohaSigner.HBD_DRAW_OPS) {
       probeRcLimit = AiohaSigner.RC_CEILING;
       const drawMilli = AiohaSigner.drawMilli(entrypoint, args);
-      const avail = await this.wallet.availableRc(this.account);
+      const avail = await rcRead;
       if (avail !== null && drawMilli !== null) {
         // A milli of margin, so the probe never sits exactly on the boundary:
         // the reservation is checked against a meter that moves between the
@@ -1300,7 +1352,7 @@ export class AiohaSigner implements Signer {
       // The node could not simulate, so the table is the only estimate — but
       // admission still checks rc_limit against AVAILABLE RC, so a broadcast
       // the account cannot cover is known doomed even without a dry run.
-      const avail = await this.wallet.availableRc(this.account);
+      const avail = await rcRead;
       if (avail !== null && avail < tableLimit) return AiohaSigner.rcRefusal(tableLimit, avail);
       return tableLimit;
     }
@@ -1353,7 +1405,7 @@ export class AiohaSigner implements Signer {
     // that measurement says cannot fit. `advance` is exempt: it is sized
     // to affordable slices by design ("never above what they hold").
     const tableFloor = entrypoint === "advance" ? 0 : Math.ceil(tableLimit * 0.6);
-    const avail = await this.wallet.availableRc(this.account);
+    const avail = await rcRead;
     if (avail !== null && sized > avail) {
       const floor = Math.max(Math.ceil(need * 1.3), tableFloor);
       if (avail < floor) return AiohaSigner.rcRefusal(floor, avail);
@@ -1503,19 +1555,46 @@ export class AiohaSigner implements Signer {
     // transaction either way, so the user still sees a single confirm.
     const allowance = await this.allowanceCall(entrypoint, args);
     if (allowance) pre.push(allowance);
-    for (const pc of opts?.preCalls ?? []) {
-      // Leave room for the user's own call inside Hive's per-block ceiling;
-      // slices that do not fit are simply sent by the next press.
-      if (pre.length >= HiveCustomJsonPerBlock - 1) break;
-      const lim = await this.sizeRc(pc.entrypoint, pc.args, [], AiohaSigner.RC_LIMITS[pc.entrypoint] ?? this.rcLimit);
-      if (typeof lim !== "number") break; // cannot afford more slices: send what we can
-      pre.push({ action: pc.entrypoint, payload: pc.args, rcLimit: lim, intents: [] });
-    }
 
     // Per-entrypoint limit from measurement; the constructor's value is only
     // the fallback for an entrypoint this table does not know.
     const tableLimit = opts?.rcLimit ?? AiohaSigner.RC_LIMITS[entrypoint] ?? this.rcLimit;
-    const rcLimit = await this.sizeRc(entrypoint, args, intents, tableLimit);
+
+    // EVERY DRY RUN AT ONCE, NOT ONE AFTER ANOTHER.
+    //
+    // A mint carrying catch-up slices used to walk the node call by call —
+    // size slice 1, wait, size slice 2, wait, size the mint, wait — and all of
+    // that happened before the wallet even opened. The simulations are
+    // independent (contract state never carries from one simulation to the
+    // next, so sizing them in series never meant sizing them against each
+    // other's effects) and they cost the node the same number of requests
+    // either way. Only the waiting was serial.
+    //
+    // The ORDER of the results is still applied in series below, so the rules
+    // are unchanged: slices stop at the first one that cannot be afforded, and
+    // the user's own call still decides whether anything is sent at all.
+    const preSlots = Math.max(0, HiveCustomJsonPerBlock - 1 - pre.length);
+    const preWanted = (opts?.preCalls ?? []).slice(0, preSlots);
+    // Sized against the room left if EVERY slice is accepted. One that is
+    // refused leaves a slot unused rather than promoting a settlement into it
+    // — a settlement was never the user's call, and the next press carries it.
+    const sideRoom = Math.max(0, preSlots - preWanted.length);
+    const sideWanted = (opts?.sideCalls ?? []).slice(0, Math.min(MaxSideCalls, sideRoom));
+
+    const [preLimits, rcLimit, sideLimits] = await Promise.all([
+      Promise.all(preWanted.map((pc) =>
+        this.sizeRc(pc.entrypoint, pc.args, [], AiohaSigner.RC_LIMITS[pc.entrypoint] ?? this.rcLimit))),
+      this.sizeRc(entrypoint, args, intents, tableLimit),
+      Promise.all(sideWanted.map((sc) =>
+        this.sizeRc(sc.entrypoint, sc.args, [], AiohaSigner.RC_LIMITS[sc.entrypoint] ?? this.rcLimit))),
+    ]);
+
+    for (const [i, pc] of preWanted.entries()) {
+      const lim = preLimits[i];
+      if (typeof lim !== "number") break; // cannot afford more slices: send what we can
+      pre.push({ action: pc.entrypoint, payload: pc.args, rcLimit: lim, intents: [] });
+    }
+
     if (typeof rcLimit !== "number") {
       // The chain would refuse the user's call. If that is because accrual is
       // behind and we have slices to send, send ONLY the slices: the user's
@@ -1530,13 +1609,12 @@ export class AiohaSigner implements Signer {
       return rcLimit;
     }
 
-    // Side calls (settlements riding along) go in the same transaction. Each
-    // is sized from its own dry run; one that would be refused is dropped —
-    // it was never the user's call, so it must never block theirs.
+    // Side calls (settlements riding along) go in the same transaction, sized
+    // above with everything else; one that would be refused is dropped — it
+    // was never the user's call, so it must never block theirs.
     const side: { action: string; payload: string; rcLimit: number; intents: unknown[] }[] = [];
-    const sideRoom = Math.max(0, HiveCustomJsonPerBlock - 1 - pre.length);
-    for (const sc of (opts?.sideCalls ?? []).slice(0, Math.min(MaxSideCalls, sideRoom))) {
-      const lim = await this.sizeRc(sc.entrypoint, sc.args, [], AiohaSigner.RC_LIMITS[sc.entrypoint] ?? this.rcLimit);
+    for (const [i, sc] of sideWanted.entries()) {
+      const lim = sideLimits[i];
       if (typeof lim === "number") side.push({ action: sc.entrypoint, payload: sc.args, rcLimit: lim, intents: [] });
     }
     // A LasseCash vote is ALSO a Hive vote at the same weight, in the same
@@ -1565,6 +1643,10 @@ export class AiohaSigner implements Signer {
       );
     }
 
+    // A lone call does not go through `#broadcast`, so it must forget the
+    // meter itself — otherwise the next click within the cache window would
+    // size itself against credits this one has already spent.
+    this.wallet.forgetRc();
     const res = await this.wallet.aioha.vscCallContract(
       this.contractId,
       entrypoint,
