@@ -2340,6 +2340,25 @@ URL outside `MAGI_NODES` (a local/dev node) is used alone. Reads and
 simulations only — safe to retry, nothing is broadcast through a node.
 Measured live: first read 6.2 s, next 83 ms. Add new public nodes to the list.
 
+⚠️ **AND FAILOVER ONLY NOTICED DEAD, NEVER SLOW — FIXED 2026-10-01.** The
+client kept whichever node it landed on, possibly weeks earlier when a
+different one went dark, and nothing would ever move it off. Measured on
+production, the same mint path: `vsc.techcoderx.com` 373–609 ms per state
+read and 384–640 ms per simulation, against `api.okinoko.io` at 117–202 and
+183–293. Four round trips either way — **2.5 s before the wallet opened
+instead of under one, with nothing wrong in our code.** `pickFastestNode()`
+now races every node for the head block (the cheapest query the API has, which
+every node must answer) and remembers whichever replies first; `chain.init()`
+calls it once and does NOT await it. It is deliberately not fired from inside
+`magiFetch` — a low-level helper that quietly sends extra requests is a
+surprise, and it would make every test that counts fetches wrong. If nothing
+answers, the remembered node is kept.
+
+**Lesson worth keeping: measure the node before optimising the client.** A
+morning of real work went into removing queued round trips (worth doing, and
+it halved the count), but the last 1.5 s was one slow server — invisible from
+the code and obvious from a 20-line timing script against each node in turn.
+
 ## ✅ `sweep_unclaimed` AND THE MIGRATION BLEED — PROVEN ON MAINNET 2026-09-10
 
 Throwaway #11 `vsc1BWKyP3XtDUqhZQQbWSZvcVhEsB19gQnEj5` (TESTWINDOWS 240x,
