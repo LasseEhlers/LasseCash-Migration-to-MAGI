@@ -96,12 +96,25 @@
    */
   let dismissedDay30 = $state(false);
   const CLIFF_DAY = 30;
-  const day30Passed = $derived.by(() => {
+  /**
+   * ⚠️ MATURING AND BEING CLAIMABLE ARE A DAY APART, and this used to hide the
+   * note in between. A mint's yield is read from the checkpoint written when
+   * its maturity DAY CLOSES, so positions that matured at the start of day 30
+   * cannot be claimed until day 31 begins — a full 24 hours during which every
+   * holder sees "claimable when today closes" on their card. Hiding the
+   * explanation exactly then left them with the question and no answer.
+   * Found 2026-10-01, the same off-by-one that put the wrong date in the
+   * memo to 35 holders and in that day's video.
+   */
+  const chainDay = $derived.by(() => {
     const g = chain.info?.genesis_height ?? 0;
     const h = chain.info?.height ?? 0;
-    if (!g || !h) return true; // say nothing until we know
-    return (h - g) / 28_800 >= CLIFF_DAY;
+    return g && h ? (h - g) / 28_800 : null;
   });
+  /** True once claims are actually open — day 30 closed, not merely reached. */
+  const day30Passed = $derived(chainDay === null || chainDay >= CLIFF_DAY + 1);
+  /** The in-between day: matured, not yet claimable. */
+  const cliffToday = $derived(chainDay !== null && chainDay >= CLIFF_DAY && chainDay < CLIFF_DAY + 1);
   const showDay30 = $derived(WALLET_MODE && !dismissedDay30 && !day30Passed);
   /**
    * Dismissal LAPSES after three days, it is not permanent.
@@ -272,12 +285,22 @@
   {#if showDay30}
     <div class="day30" role="note">
       <span>
-        <strong>The first 30 days are the migration itself, by design.</strong>
-        Every snapshot position is a 30-day mint, so little is liquid and
-        the pool yield looks high. On <strong>30 September</strong> they all
-        mature at once — that is where price discovery becomes effective. A 100%
-        free-market product.
-        <a href="/about">How it works</a>
+        {#if cliffToday}
+          <strong>Every migration mint has matured.</strong>
+          They become claimable when the chain's day 30 <em>closes</em>, about
+          24 hours after it began — your card says "claimable when today closes"
+          until then. That wait is deliberate: every claim then reads the same
+          figure, so claiming early costs nothing and waiting gains nothing.
+          Nothing is at risk — grace runs to 29 December.
+          <a href="/about">How it works</a>
+        {:else}
+          <strong>The first 30 days are the migration itself, by design.</strong>
+          Every snapshot position is a 30-day mint, so little is liquid and
+          the pool yield looks high. On <strong>30 September</strong> they all
+          mature at once — that is where price discovery becomes effective. A 100%
+          free-market product.
+          <a href="/about">How it works</a>
+        {/if}
       </span>
       <button class="day30-dismiss" onclick={dismissDay30} aria-label="dismiss">×</button>
     </div>
