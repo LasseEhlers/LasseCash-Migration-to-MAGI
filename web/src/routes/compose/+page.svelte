@@ -67,8 +67,22 @@
   /** What the save is currently doing — the signing wait and the Hive wait are
    *  different things and a blank button during either reads as a hang. */
   let saving = $state<string | null>(null);
-  /** Which post the form currently holds, so the load runs once per target. */
-  let loadedFor = $state<string | null>(null);
+  /**
+   * Which post the form currently holds, so the load runs once per target.
+   *
+   * ⚠️ DELIBERATELY NOT `$state`, and this is load-bearing. The effect below
+   * READS this to decide whether to skip, then WRITES it. If it were reactive,
+   * that write would re-run the effect, the re-run would fire the previous
+   * run's cleanup, `cancelled` would go true, and the in-flight fetch's result
+   * would be thrown away — while the second run returned early at the guard.
+   * The visible result was the bug shipped on 1 Oct: the banner named the post
+   * correctly and the form then sat on "Loading the post from Hive…" forever
+   * with every field empty.
+   *
+   * A plain variable is read and written without creating a dependency, which
+   * is exactly what a once-per-target guard needs.
+   */
+  let loadedFor: string | null = null;
 
   /** Only the author may edit, and the chain is not consulted for that: the
    *  permlink is keyed by author, so Hive itself refuses anyone else. This is
@@ -84,13 +98,18 @@
     const key = `${t.author}/${t.permlink}`;
     if (loadedFor === key) return;
     loadedFor = key;
-    let cancelled = false;
     loadingPost = true;
     error = null;
     void (async () => {
       try {
         const c = await client.content(t.author, t.permlink);
-        if (cancelled) return;
+        // STALE ONLY IF A DIFFERENT POST TOOK OVER. Deliberately NOT a
+        // cleanup-function flag: a cleanup fires on every re-run of the
+        // effect, including one that changed nothing, and discarding the
+        // answer then leaves the form loading forever with empty fields.
+        // `loadedFor` moves only when another target actually starts loading,
+        // which is the only case where this answer is genuinely unwanted.
+        if (loadedFor !== key) return;
         if (!c) {
           error = "That post could not be read from Hive.";
           return;
@@ -104,12 +123,11 @@
         editCategory = c.category;
         editMeta = c.metadata;
       } catch (e) {
-        if (!cancelled) error = e instanceof Error ? e.message : String(e);
+        if (loadedFor === key) error = e instanceof Error ? e.message : String(e);
       } finally {
-        if (!cancelled) loadingPost = false;
+        if (loadedFor === key) loadingPost = false;
       }
     })();
-    return () => { cancelled = true; };
   });
 
   const me = $derived(chain.me);
