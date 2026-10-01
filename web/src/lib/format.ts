@@ -120,7 +120,19 @@ export function heightsToDuration(heights: number): string {
 export function durationWords(heights: number): string {
   if (heights <= 0) return "now";
   const plural = (n: number, unit: string) => `${n} ${unit}${n === 1 ? "" : "s"}`;
-  const days = Math.floor(heights / 28_800);
+  /**
+   * Floor, EXCEPT in the last tenth of a unit, where the next whole one is the
+   * honest reading. A post published a second ago has 6.9999 days of its
+   * 7-day window left, and "pays in 6 days" is technically true and visibly
+   * wrong — Hive's own frontends say 7, and the compose page promises 7 one
+   * screen earlier. Lasse caught the mismatch on his first post, 2026-10-01.
+   *
+   * Only ever rounds up within 10% of a unit, and every caller is a payout or
+   * maturity countdown — nothing where saying "1 day" at 0.95 days could cost
+   * someone money. A bleed deadline must keep flooring; none uses this.
+   */
+  const nearly = (v: number) => (v - Math.floor(v) >= 0.9 ? Math.ceil(v) : Math.floor(v));
+  const days = nearly(heights / 28_800);
   if (days >= 365) {
     // A year is 365 days but a month was 30, so the remainder could reach 12
     // months and the label read "2 years 12 months" — arithmetically
@@ -133,14 +145,14 @@ export function durationWords(heights: number): string {
     return months >= 1 ? `${plural(years, "year")} ${plural(months, "month")}` : plural(years, "year");
   }
   if (days >= 1) return plural(days, "day");
-  const hours = Math.floor((heights % 28_800) / 1_200);
+  const hours = nearly((heights % 28_800) / 1_200);
   if (hours >= 1) return plural(hours, "hour");
   // UNDER A MINUTE IS NOT "0 minutes". Flooring is right for every other
   // unit — 29 days and some hours IS 29 days — but the last minute floors to
   // zero while the thing has not happened yet, so a mint three heights from
   // maturity read "0 MINUTES LEFT · 0 minutes to maturity". Lasse saw it on
   // the day-30 cliff, 2026-10-01, with 36 positions maturing behind it.
-  const minutes = Math.floor((heights % 1_200) / 20);
+  const minutes = nearly((heights % 1_200) / 20);
   return minutes >= 1 ? plural(minutes, "minute") : "under a minute";
 }
 
