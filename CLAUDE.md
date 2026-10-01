@@ -849,6 +849,39 @@ HBD send would leave under 1,000 RC; the MAGI-pool swap preflights the
 `awaitVerdict` re-asks for a FAILED transaction's reason, because the
 output DAG (which carries `errMsg`) lands a beat after the status flips.
 
+## ⚠️ MATURING AND BEING CLAIMABLE ARE A DAY APART — 2026-10-01
+
+A mint matures at `MaturityHeight()`. It becomes CLAIMABLE only once its
+maturity DAY closes, because its yield is read from `accAt_<matDay>`, and that
+checkpoint is written when the accrual walk crosses the day. Until then
+`endMint` refuses: *"mint matured today; the day has not closed yet — call
+advance, then claim again"*.
+
+**That refusal is deliberate and must not be read as a bug.** Falling back to
+the live accumulator made a prompt claimer forfeit their own maturity-day
+yield while that day's remaining emission divided across a smaller pool.
+Measured 2026-08-23: 50 mints of 200,000 LC claiming together handed one
+unrelated 200 LC mint **100% of that day's emission — 11x its own principal,
+in a day**. Every claim now reads the same checkpoint whenever it is made.
+
+**The day-30 cliff therefore has TWO moments, 24 hours apart**, and conflating
+them cost three separate mistakes in one day:
+
+| | height | what happens |
+|---|---|---|
+| mints MATURE | genesis + 30 days = 110,376,118 (01 Oct 00:08 CPH) | yield stops, shares retire on the walk |
+| mints CLAIMABLE | genesis + 31 days = 110,404,918 (02 Oct 00:09 CPH) | `accAt_30` exists, claims succeed |
+
+The three: the memo to 35 holders said "liquid after midnight tonight"
+(corrected by a second memo the same night); the day's video said the same
+(pinned comment + description); and the `showDay30` banner hid itself at day
+30, removing the explanation for exactly the 24 hours when every holder's card
+reads "claimable when today closes" (fixed — it now survives to day 31 and
+changes its text for the in-between day).
+
+**Rule: any text that tells a user WHEN they can act must count to the day
+AFTER maturity, never to maturity itself.**
+
 ## ⚠️ AN ACCOUNT CANNOT MOVE HBD IT HAS NO CREDITS FOR — 2026-09-30
 
 Seen live, and it bears directly on the key burn. @lassecashmagi held 38.995
