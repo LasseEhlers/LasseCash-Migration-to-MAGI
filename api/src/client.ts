@@ -204,6 +204,32 @@ export class LasseCashClient {
     });
   }
 
+  /**
+   * Edit one of your own posts — the TEXT, never the money.
+   *
+   * No contract call, no credits spent: the window, the payout mode and every
+   * rshare froze when the post was registered. `category` is the post's
+   * existing Hive category, read back from the content layer, because Hive
+   * refuses an edit that would move a post to another parent.
+   */
+  async editPost(input: {
+    permlink: string; title: string; body: string; summary?: string;
+    tags?: string[]; category?: string; metadata?: Record<string, unknown>;
+  }): Promise<PublishResult> {
+    const signer = this.#requireSigner();
+    return this.backend.editPost({
+      permlink: input.permlink,
+      title: input.title,
+      body: input.body,
+      summary: input.summary ?? "",
+      tags: input.tags ?? [],
+      ...(input.category ? { category: input.category } : {}),
+      ...(input.metadata ? { metadata: input.metadata } : {}),
+      signer,
+      ...({ sender: signer.account } as object),
+    });
+  }
+
   /** The signed-in account's view. */
   me(): Promise<AccountView> {
     return this.backend.account(this.#requireSigner().account);

@@ -59,6 +59,27 @@ export interface Signer {
     permlink: string; body: string; parentAuthor: string; parentPermlink: string;
   }): Promise<void>;
   /**
+   * EDIT an article already on the content layer.
+   *
+   * On Hive an edit is the same `comment` operation with the same author and
+   * permlink — there is no separate edit op — so this is `publishToHive` with
+   * two differences that matter:
+   *
+   *  - It takes the post's existing `category` and sends it back unchanged.
+   *    Hive refuses an operation that moves a comment to another parent, and a
+   *    category cannot be changed after creation.
+   *  - It is the WHOLE edit. Nothing on the chain is touched: window, payout
+   *    mode and rshares froze when the post was registered, and re-registering
+   *    would be refused anyway. An edit changes the text, never the money.
+   */
+  editOnHive?(input: {
+    permlink: string; title: string; body: string; tags: string[];
+    summary?: string; image?: string | null; category?: string;
+    /** The post's existing `json_metadata`, MERGED into rather than replaced —
+     *  another app's post keeps the fields it is paid on. */
+    metadata?: Record<string, unknown>;
+  }): Promise<void>;
+  /**
    * Preferred when available: content write AND contract registration in one
    * signed Hive transaction — one wallet confirm, and atomic.
    */
@@ -270,6 +291,18 @@ export interface Backend {
     /** The author's chosen short link; empty derives one from the title. */
     permlink?: string;
     sideCalls?: { entrypoint: string; args: string }[];
+  }): Promise<PublishResult>;
+  /**
+   * Edit an article's TEXT. The chain is not touched — see `Signer.editOnHive`.
+   *
+   * Takes the permlink rather than deriving one: the post already has an
+   * address, and that address is the contract's key for it. Changing it would
+   * orphan the rewards, so it is passed in and never recomputed.
+   */
+  editPost(input: {
+    permlink: string; title: string; body: string; summary: string;
+    tags: string[]; category?: string; metadata?: Record<string, unknown>;
+    signer?: Signer;
   }): Promise<PublishResult>;
   /**
    * The registered REPLIES to one post.

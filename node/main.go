@@ -72,6 +72,7 @@ func main() {
 	mux.HandleFunc("/state", handleState)
 	mux.HandleFunc("/posts", handlePosts)
 	mux.HandleFunc("/publish", handlePublish)
+	mux.HandleFunc("/edit", handleEdit)
 	mux.HandleFunc("/content/", handleContent)
 	mux.HandleFunc("/post/", handlePostSub)
 	mux.HandleFunc("/governance", handleGovernance)
@@ -288,6 +289,37 @@ func handlePublish(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, code, map[string]any{
 		"ok": res.OK, "msg": res.Msg, "height": res.Height, "permlink": permlink,
+	})
+}
+
+// handleEdit rewrites a post's TEXT and nothing else.
+//
+// The contract is never called, exactly as in production: window, payout mode
+// and rshares froze at registration, so an edit must not be able to reach them.
+// Hive has no edit operation either — it is the same comment, written again —
+// and this is that, against the content store.
+func handleEdit(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "POST only"})
+		return
+	}
+	var req publishRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
+	if req.Sender == "" || req.Permlink == "" {
+		writeJSON(w, http.StatusBadRequest,
+			map[string]string{"error": "sender and permlink are required"})
+		return
+	}
+	res := chain.Edit(req.Sender, req.Permlink, req.Title, req.Body, req.Summary, req.Tags)
+	code := http.StatusOK
+	if !res.OK {
+		code = http.StatusUnprocessableEntity
+	}
+	writeJSON(w, code, map[string]any{
+		"ok": res.OK, "msg": res.Msg, "height": res.Height, "permlink": req.Permlink,
 	})
 }
 

@@ -1660,20 +1660,34 @@ export class MagiBackend implements Backend {
       }),
     });
     const body = (await res.json()) as {
-      result?: { author?: string; title?: string; body?: string; json_metadata?: string };
+      result?: {
+        author?: string; title?: string; body?: string; json_metadata?: string;
+        category?: string; parent_permlink?: string;
+      };
     };
     const post = body.result;
     if (!post?.author) return null;
     let tags: string[] = [];
     let summary = "";
+    let metadata: Record<string, unknown> | undefined;
     try {
       const meta = JSON.parse(post.json_metadata || "{}");
+      if (meta && typeof meta === "object" && !Array.isArray(meta)) {
+        metadata = meta as Record<string, unknown>;
+      }
       if (Array.isArray(meta.tags)) tags = meta.tags.slice(0, 21);
       if (typeof meta.description === "string") summary = meta.description;
     } catch {
       // malformed author metadata is the author's problem, not a crash
     }
-    return { title: post.title ?? "", body: post.body ?? "", tags, summary };
+    // `category` and `parent_permlink` are the same string on a root post;
+    // taking either is what lets an edit send the parent back unchanged.
+    const category = post.category || post.parent_permlink || "";
+    return {
+      title: post.title ?? "", body: post.body ?? "", tags, summary,
+      ...(category ? { category } : {}),
+      ...(metadata ? { metadata } : {}),
+    };
   }
   /**
    * Publish an article: Hive FIRST, contract SECOND.
@@ -1724,6 +1738,42 @@ export class MagiBackend implements Backend {
     });
     const res = await signer.submit("post", `${permlink}|${input.window}|${input.payoutMode}`);
     return { ...res, permlink };
+  }
+
+  /**
+   * Edit an article — HIVE ONLY, and that is the whole point.
+   *
+   * The contract is not called. A post's window, payout mode and accumulated
+   * rshares were frozen the moment it was registered, so there is nothing an
+   * edit could legitimately change on chain, and `post` on an existing
+   * permlink would be refused anyway. Fixing a typo must never be able to
+   * touch anyone's reward — not the author's, and not a curator's.
+   *
+   * Costs no RC and no credits: it is a Hive operation, not a MAGI call.
+   */
+  async editPost(input: {
+    permlink: string; title: string; body: string; summary: string;
+    tags: string[]; category?: string; metadata?: Record<string, unknown>;
+    signer?: Signer;
+  }): Promise<PublishResult> {
+    const signer = input.signer;
+    if (!signer?.editOnHive) {
+      throw new BackendError("editing needs a wallet that can write to Hive");
+    }
+    if (!input.permlink) {
+      return { ok: false, msg: "no post to edit", height: 0, permlink: "" };
+    }
+    await signer.editOnHive({
+      permlink: input.permlink,
+      title: input.title,
+      body: input.body,
+      tags: input.tags,
+      summary: input.summary,
+      image: firstImage(input.body),
+      ...(input.category ? { category: input.category } : {}),
+      ...(input.metadata ? { metadata: input.metadata } : {}),
+    });
+    return { ok: true, msg: "updated", height: 0, permlink: input.permlink };
   }
 
   /**

@@ -72,6 +72,10 @@
     return info.height - info.genesis_height < perDay;
   });
   const rendered = $derived(a.body ? renderMarkdown(a.body) : "");
+  /** Signed in as this post's author — the only person Hive will let edit it. */
+  const isAuthor = $derived(
+    !!chain.account && chain.account.replace(/^hive:/, "") === a.handle,
+  );
   const description = $derived(
     metaDescription(a.summary || `${a.title} — by @${a.handle} on ${SITE_NAME}.`),
   );
@@ -166,6 +170,15 @@
             <span class="pill ok">100% minted</span>
           {/if}
           <PromotedBadge promoted={post?.promoted} />
+          <!-- EDIT, for the author only. An edit is a Hive write and nothing
+               else — the window, the payout mode and every vote already cast
+               are frozen on chain — so it is offered next to the byline rather
+               than among the reward controls, and it never appears on someone
+               else's post. Hive would refuse anyone else in any case; this is
+               only the affordance. -->
+          {#if isAuthor}
+            <a class="edit" href="/compose?edit=@{a.handle}/{a.permlink}">Edit</a>
+          {/if}
         </div>
 
         <h1>{a.title}</h1>
@@ -346,6 +359,18 @@
 </div>
 
 <style>
+  /* Quiet by default: an author sees their own post far more often than they
+     edit it, so this sits at the weight of the date beside it until hovered. */
+  .edit {
+    font-size: 0.8rem;
+    color: var(--dim);
+    text-decoration: none;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    padding: 0.05rem 0.4rem;
+  }
+  .edit:hover, .edit:focus-visible { color: var(--gold); border-color: var(--gold); }
+
   .back { color: var(--cyan); font-family: var(--mono); font-size: var(--t-sm); }
   .layout { align-items: flex-start; }
   .article { flex: 1 1 600px; }

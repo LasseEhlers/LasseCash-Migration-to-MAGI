@@ -165,6 +165,29 @@ export class DevBackend implements Backend {
   }
 
   /**
+   * Edit an article's text. Content layer only — the simulator's content store
+   * stands in for Hive, and the contract is not called, exactly as in
+   * production (`MagiBackend.editPost`).
+   */
+  editPost(input: {
+    permlink: string; title: string; body: string; summary: string;
+    tags: string[]; sender?: string; signer?: Signer;
+  }): Promise<PublishResult> {
+    return this.#req<PublishResult>("/edit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sender: input.sender ?? "",
+        permlink: input.permlink,
+        title: input.title,
+        body: input.body,
+        summary: input.summary,
+        tags: input.tags,
+      }),
+    });
+  }
+
+  /**
    * Publish a reply, then register it. Same endpoint as `publish` with a
    * parent attached — a comment IS a post with a parent, on the chain and
    * here.

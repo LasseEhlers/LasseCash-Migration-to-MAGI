@@ -17,7 +17,7 @@
  */
 import { Aioha, Asset as HiveAsset, KeyTypes, Providers } from "@aioha/aioha";
 import { BackendError, HiveCustomJsonPerBlock, MaxSideCalls, type Signer, type SubmitOptions } from "./backend.js";
-import { commentMetadata, postMetadata } from "./hive-metadata.js";
+import { commentMetadata, editMetadata, postMetadata } from "./hive-metadata.js";
 import type { TxResult } from "./types.js";
 import { magiFetch } from "./magi-nodes.js";
 
@@ -319,6 +319,50 @@ export class AiohaWallet {
     /** Cover image, if the body has one. */
     image?: string | null;
   }): Promise<void> {
+    return this.#writeArticle(input);
+  }
+
+  /**
+   * EDIT an article: the same Hive `comment` operation, same permlink.
+   *
+   * Hive has no edit operation — re-sending `comment` for an author+permlink
+   * that already exists replaces the title, body and json_metadata, and that
+   * is all an edit has ever been on any Hive frontend.
+   *
+   * ⚠️ THE CATEGORY MUST COME BACK UNCHANGED. A root post's category is its
+   * `parent_permlink`, fixed at creation and refused thereafter ("The parent
+   * of a comment cannot change"). Our own posts are always in `lassecash`,
+   * but a post written on peakd and registered here by its first vote sits in
+   * whatever ITS first tag was — so the caller reads the live category and
+   * hands it back, rather than this assuming ours.
+   *
+   * Nothing on MAGI is called. The window, the payout mode and the rshares
+   * were frozen when the post was registered; an edit is text only, and
+   * re-registering the same permlink would be refused in any case.
+   */
+  async editOnHive(input: {
+    permlink: string;
+    title: string;
+    body: string;
+    tags: string[];
+    summary?: string;
+    image?: string | null;
+    category?: string;
+    metadata?: Record<string, unknown>;
+  }): Promise<void> {
+    return this.#writeArticle(input, input.category, input.metadata ?? {});
+  }
+
+  /** @param base  present ONLY on an edit: the post's existing json_metadata,
+   *               which is merged into rather than overwritten. */
+  async #writeArticle(input: {
+    permlink: string;
+    title: string;
+    body: string;
+    tags: string[];
+    summary?: string;
+    image?: string | null;
+  }, category?: string, base?: Record<string, unknown>): Promise<void> {
     const author = this.aioha.getCurrentUser();
     if (!author) throw new BackendError("not signed in");
 
@@ -329,18 +373,19 @@ export class AiohaWallet {
     // CANONICAL OWNERSHIP. `canonical_url` is what makes lassecash.com the
     // original copy of this article on every other Hive frontend — see
     // hive-metadata.ts for why that matters and who honours it.
-    const meta = postMetadata({
+    const fields = {
       author,
       permlink: input.permlink,
       tags,
       summary: input.summary ?? "",
       image: input.image ?? null,
       siteUrl: this.siteUrl,
-    });
+    };
+    const meta = base === undefined ? postMetadata(fields) : editMetadata(base, fields);
 
     const res = await this.aioha.comment(
       null,
-      tags[0] ?? "lassecash",
+      category || tags[0] || "lassecash",
       input.permlink,
       input.title,
       input.body,

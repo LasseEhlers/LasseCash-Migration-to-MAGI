@@ -13,6 +13,7 @@
    *     whole reward, so it is confirmed rather than clicked.
    */
   import { goto } from "$app/navigation";
+  import { page } from "$app/state";
 
   import { chain, client } from "$lib/chain.svelte.js";
   import { lc } from "$lib/format.js";
@@ -36,6 +37,80 @@
   let error = $state<string | null>(null);
   let published = $state<string | null>(null);
   let editor = $state<HTMLTextAreaElement | null>(null);
+
+  /**
+   * EDIT MODE — `/compose?edit=@author/permlink`.
+   *
+   * An edit is a Hive `comment` operation with the same permlink and nothing
+   * else: no contract call, no credits, no second registration. The window,
+   * the payout mode and every rshare froze when the post was registered, so
+   * this screen must not even OFFER to change them — a fix to a typo can never
+   * be allowed to reach anyone's reward, the author's or a curator's.
+   *
+   * What it does change is exactly what Hive lets an author change: title,
+   * body, summary, tags, and the cover image derived from the body.
+   */
+  const editTarget = $derived.by(() => {
+    const raw = page.url.searchParams.get("edit");
+    if (!raw) return null;
+    const m = /^@?([a-z0-9.-]+)\/(.+)$/.exec(raw.trim());
+    if (!m) return null;
+    return { author: m[1] as string, permlink: m[2] as string };
+  });
+  const editing = $derived(editTarget !== null);
+  /** The post's existing Hive category — sent back unchanged (see editOnHive). */
+  let editCategory = $state<string | undefined>(undefined);
+  /** The post's existing json_metadata, merged into on save — an Actifit or
+   *  Waivio post must not lose the fields those apps pay on (editMetadata). */
+  let editMeta = $state<Record<string, unknown> | undefined>(undefined);
+  let loadingPost = $state(false);
+  /** What the save is currently doing — the signing wait and the Hive wait are
+   *  different things and a blank button during either reads as a hang. */
+  let saving = $state<string | null>(null);
+  /** Which post the form currently holds, so the load runs once per target. */
+  let loadedFor = $state<string | null>(null);
+
+  /** Only the author may edit, and the chain is not consulted for that: the
+   *  permlink is keyed by author, so Hive itself refuses anyone else. This is
+   *  the honest message rather than a wallet error after the fact. */
+  const notMine = $derived(
+    editTarget !== null && !!chain.account &&
+      chain.account.replace(/^hive:/, "") !== editTarget.author,
+  );
+
+  $effect(() => {
+    const t = editTarget;
+    if (!t) { loadedFor = null; return; }
+    const key = `${t.author}/${t.permlink}`;
+    if (loadedFor === key) return;
+    loadedFor = key;
+    let cancelled = false;
+    loadingPost = true;
+    error = null;
+    void (async () => {
+      try {
+        const c = await client.content(t.author, t.permlink);
+        if (cancelled) return;
+        if (!c) {
+          error = "That post could not be read from Hive.";
+          return;
+        }
+        title = c.title;
+        body = c.body;
+        summary = c.summary;
+        tags = (c.tags ?? []).filter((x) => x !== "lassecash").slice(0, MAX_TAGS);
+        link = t.permlink;
+        linkTouched = true;
+        editCategory = c.category;
+        editMeta = c.metadata;
+      } catch (e) {
+        if (!cancelled) error = e instanceof Error ? e.message : String(e);
+      } finally {
+        if (!cancelled) loadingPost = false;
+      }
+    })();
+    return () => { cancelled = true; };
+  });
 
   const me = $derived(chain.me);
   const shares = $derived(me?.shares ?? "0.00000000");
@@ -123,8 +198,12 @@
       title.trim().length > 0 &&
       permlink.length > 0 &&
       !chain.busy &&
-      clearsThreshold === true &&
-      (mode !== PayoutMode.Burn || burnConfirmed),
+      // An edit registers nothing, so the posting threshold does not apply —
+      // gating it would lock an author out of fixing a post they already own
+      // the moment their mint matured.
+      (editing
+        ? !notMine && !loadingPost
+        : clearsThreshold === true && (mode !== PayoutMode.Burn || burnConfirmed)),
   );
 
   /**
@@ -220,7 +299,60 @@
     if (url && /^https?:\/\//i.test(url)) insert(`\n${url.trim()}\n`);
   }
 
+  /**
+   * Save an edit: one Hive write, no chain call, so there is no verdict to
+   * await and nothing to settle. Straight back to the post afterwards, which
+   * is also the only honest confirmation — Hive serves the new text within a
+   * block or two, and the page reads it fresh.
+   */
+  async function save() {
+    const t = editTarget;
+    if (!t) return;
+    error = null;
+    chain.busy = true;
+    saving = "Saving…";
+    try {
+      const res = await client.editPost({
+        permlink: t.permlink,
+        title: title.trim(),
+        body,
+        summary: summary.trim(),
+        tags,
+        ...(editCategory ? { category: editCategory } : {}),
+        ...(editMeta ? { metadata: editMeta } : {}),
+      });
+      if (!res.ok) { error = res.msg; return; }
+
+      // WAIT FOR HIVE TO APPLY IT BEFORE SHOWING THE POST.
+      //
+      // A Hive edit lands in the next block, and our post pages are
+      // server-rendered with a short cache. Navigating the instant the wallet
+      // returns would show the author their OLD text, which reads as "the edit
+      // failed" — and the natural response is to edit and sign again. So we
+      // poll the content layer until it reports the new body, and only then
+      // move. Bounded: after ~15s we go anyway, because a slow read is not a
+      // failed write and the post page is still the right place to be.
+      saving = "Hive is applying the edit…";
+      for (let i = 0; i < 8; i++) {
+        await new Promise((r) => setTimeout(r, 2_000));
+        try {
+          const c = await client.content(t.author, t.permlink);
+          if (c && c.body === body) break;
+        } catch {
+          // A read that fails is not an edit that failed — keep waiting.
+        }
+      }
+      await goto(`/@${t.author}/${t.permlink}`);
+    } catch (e) {
+      error = e instanceof Error ? e.message : String(e);
+    } finally {
+      chain.busy = false;
+      saving = null;
+    }
+  }
+
   async function publish() {
+    if (editing) return save();
     error = null;
     published = null;
     chain.busy = true;
@@ -283,8 +415,22 @@
   <div class="split">
     <!-- EDITOR -->
     <section class="panel editor">
-      <h2>Write</h2>
+      <h2>{editing ? "Edit" : "Write"}</h2>
 
+      {#if editing}
+        <p class="note edit">
+          Editing <code>{editTarget?.permlink}</code>. This changes the text on
+          Hive and <strong>nothing on the chain</strong> — the window, the
+          payout mode and every vote already cast stay exactly as they are, and
+          it costs no credits.
+          {#if loadingPost}<br />Loading the post from Hive…{/if}
+        </p>
+        {#if notMine}
+          <p class="err">You can only edit your own posts.</p>
+        {/if}
+      {/if}
+
+      {#if !editing}
       <div class="windows">
         <button class="win" class:active={window_ === 0} onclick={() => (window_ = 0)}>
           <span class="wname">VIRAL</span>
@@ -315,6 +461,7 @@
         but its first vote registers it as viral, permanently, however many
         L-Shares its author holds.
       </p>
+      {/if}
 
       <label class="field">
         <span>Title</span>
@@ -324,16 +471,19 @@
       <label class="field">
         <span>Link — short address of the post</span>
         <div class="linkrow">
-          <span class="dim mono">/@{chain.account?.replace(/^hive:/, "") ?? "you"}/</span>
+          <span class="dim mono">/@{editTarget?.author ?? chain.account?.replace(/^hive:/, "") ?? "you"}/</span>
           <input
             class="mono"
             value={linkTouched ? link : permlink}
             oninput={(e) => { linkTouched = true; link = e.currentTarget.value; }}
             placeholder="from the title"
+            readonly={editing}
           />
         </div>
         <small class="dim">
-          {#if permlink}Registered on-chain as <code>{permlink}</code> — this is the post's address forever.{:else}Letters and numbers; dashes between words.{/if}
+          {#if editing}The address is the contract's key for this post and can never change.
+          {:else if permlink}Registered on-chain as <code>{permlink}</code> — this is the post's address forever.
+          {:else}Letters and numbers; dashes between words.{/if}
         </small>
       </label>
 
@@ -412,6 +562,17 @@
 
   <!-- PAYOUT -->
   <div class="row">
+    {#if editing}
+    <section class="panel">
+      <h2>Your reward</h2>
+      <p class="note">
+        Set when you published and frozen with the post — an edit cannot reach
+        it. That is deliberate: if editing could change the payout mode, every
+        curator's share would depend on text the author can rewrite after they
+        voted.
+      </p>
+    </section>
+    {:else}
     <section class="panel">
       <h2>Your reward</h2>
       <div class="modes">
@@ -450,9 +611,17 @@
         Frozen once published.
       </p>
     </section>
+    {/if}
 
     <section class="panel publish">
-      <h2>Publish</h2>
+      <h2>{editing ? "Save" : "Publish"}</h2>
+      {#if editing}
+        <small class="dim">
+          One signature on Hive, no MAGI call, no credits spent. Every other
+          Hive frontend shows the new text as soon as it lands, and this post's
+          canonical link keeps pointing here.
+        </small>
+      {:else}
       <dl>
         <dt>Your L-Shares</dt>
         <dd class="mono gold">{lc(shares)}</dd>
@@ -464,8 +633,9 @@
         hardcoded bounds they can never leave. If publishing is refused, the
         chain says what you need.
       </small>
+      {/if}
       {#if error}<p class="err">{error}</p>{/if}
-      {#if chain.account && clearsThreshold === false}
+      {#if !editing && chain.account && clearsThreshold === false}
         <p class="gate">
           <strong>You need {lc(threshold ?? "0", 0)} L-Shares to post
           {window_ === 1 ? "deep" : "viral"}.</strong>
@@ -473,20 +643,27 @@
           post on Hive and leave it unregistered here, so it is blocked before
           anything is written. <a href="/mint">Lock LASSECASH to get L-Shares →</a>
         </p>
-      {:else if chain.account && clearsThreshold === null}
+      {:else if !editing && chain.account && clearsThreshold === null}
         <p class="gate dim">Reading the posting threshold from the chain…</p>
       {/if}
       <button onclick={publish} disabled={!canPublish}>
-        {#if !chain.account}Sign in to publish
-        {:else if chain.busy}Publishing…
+        {#if !chain.account}Sign in to {editing ? "edit" : "publish"}
+        {:else if chain.busy}{editing ? (saving ?? "Saving…") : "Publishing…"}
+        {:else if editing}Save changes
         {:else}Publish to {window_ === 1 ? "Deep" : "Viral"}{/if}
       </button>
+      {#if editing}
+        <a class="cancel" href="/@{editTarget?.author}/{editTarget?.permlink}">Cancel</a>
+      {/if}
     </section>
   </div>
 </div>
 
 <style>
+  .note.edit { border-left: 2px solid var(--gold); padding-left: 0.7rem; }
+  .cancel { display: inline-block; margin-top: 0.6rem; font-size: 0.85rem; }
   .linkrow { display: flex; align-items: center; gap: 0.3rem; }
+  input[readonly] { opacity: 0.75; cursor: default; }
   .linkrow input { flex: 1; }
 
   /* Editor left, preview right — side by side on anything wide enough. */

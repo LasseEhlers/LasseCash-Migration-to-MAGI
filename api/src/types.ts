@@ -337,6 +337,24 @@ export interface Content {
   body: string;
   summary: string;
   tags: string[] | null;
+  /**
+   * The Hive CATEGORY the post was created in — its `parent_permlink`.
+   *
+   * Needed only to EDIT a post, and load-bearing there: Hive refuses a comment
+   * operation whose parent changed ("The parent of a comment cannot change"),
+   * and a category is immutable from creation. So an edit must send back the
+   * category the post already has, which for a post written on another
+   * frontend is whatever ITS first tag was, not ours.
+   *
+   * Absent on the simulator, which has no categories.
+   */
+  category?: string;
+  /**
+   * The post's `json_metadata`, parsed — carried so an EDIT can merge into it
+   * instead of replacing it. See `editMetadata`: another app's post keeps its
+   * own identity fields, because those are what it gets paid on.
+   */
+  metadata?: Record<string, unknown>;
 }
 
 /** What publishing returns. */

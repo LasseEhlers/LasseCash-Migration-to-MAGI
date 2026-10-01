@@ -128,3 +128,54 @@ export function commentMetadata(
     }/${input.permlink}`,
   };
 }
+
+/**
+ * `json_metadata` for an EDIT — a MERGE, never a replacement.
+ *
+ * ⚠️ AN EDIT CAN DESTROY ANOTHER APP'S POST. A post tagged `lassecash` from
+ * any Hive frontend is registered here by its first vote, so our Edit button
+ * appears on posts we did not publish — Actifit reports, Waivio reviews, NFT
+ * listings. Those apps identify their own posts by fields in `json_metadata`
+ * (`app` above all) and pay out on that basis. Writing our metadata over
+ * theirs would quietly cost their author rewards somewhere else, for the
+ * crime of fixing a typo on our site.
+ *
+ * So: everything the post already declares is kept. We overwrite only the
+ * fields the author just edited in our form — tags, description, image — and
+ * we claim `app` and `canonical_url` ONLY on a post that already carries our
+ * claim, i.e. one published here.
+ *
+ * ⚠️ WE DO NOT CLAIM A POST WE DID NOT PUBLISH, even when it carries no claim
+ * at all. `canonical_url` says "the original lives at lassecash.com" — true of
+ * what we published, false of an Actifit report whose author merely fixed a
+ * typo here. Filling in a missing canonical would make one Edit click quietly
+ * hand us the search ranking for somebody else's article, which is the exact
+ * thing the canonical convention exists to prevent. The honest way to own a
+ * post's canonical is to publish it here.
+ *
+ * `format` is the one exception: it describes how to RENDER the body, claims
+ * nothing, and a post without it renders wrong.
+ */
+export function editMetadata(
+  base: Record<string, unknown> | null | undefined,
+  input: PostMetadataInput,
+): Record<string, unknown> {
+  const ours = postMetadata(input);
+  const meta: Record<string, unknown> = { ...(base ?? {}) };
+
+  // The author just typed these; they are the edit.
+  meta.tags = ours.tags;
+  meta.description = ours.description;
+  if (ours.image) meta.image = ours.image;
+  else delete meta.image; // the cover was removed from the body
+
+  // Rendering, not ownership — safe to supply when missing.
+  if (!meta.format) meta.format = ours.format;
+
+  // Ownership: refreshed only on a post that is already ours.
+  if (typeof meta.app === "string" && meta.app.startsWith("lassecash/")) {
+    meta.app = ours.app;
+    if (!meta.canonical_url) meta.canonical_url = ours.canonical_url;
+  }
+  return meta;
+}

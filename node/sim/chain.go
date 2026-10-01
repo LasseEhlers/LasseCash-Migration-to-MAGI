@@ -698,6 +698,26 @@ func (c *Chain) Publish(
 	return permlink, c.Submit(sender, "post", payload)
 }
 
+// Edit rewrites a post's text on the content layer. The contract is untouched.
+//
+// An author may only edit what they wrote: the content key is author+permlink,
+// so a different sender simply addresses a different (missing) post rather
+// than overwriting someone else's. Editing something that was never published
+// is refused instead of silently creating it, because that would be a post
+// with no registration and no payout window — the orphan state publishing is
+// ordered to avoid.
+func (c *Chain) Edit(
+	sender, permlink, title, body, summary string, tags []string,
+) Result {
+	if _, ok := c.content.get(sender, permlink); !ok {
+		return Result{Msg: "no such post", Height: c.Height()}
+	}
+	c.content.put(sender, permlink, Content{
+		Title: title, Body: body, Summary: summary, Tags: tags,
+	})
+	return Result{OK: true, Msg: "updated", Height: c.Height()}
+}
+
 // PublishComment writes a REPLY to the content layer and registers it, in the
 // same order and for the same reason as Publish.
 //
