@@ -133,3 +133,67 @@ out mid-run can strand the rest of the sequence for a day.
 Queue the production update (10 HBD, 48h timelock), verify on activation,
 run `reconcile_float` on production, and pay Lasse's 7,061,423 claim as the
 proof. The burn height is discussed after that, never before.
+
+---
+
+# RESULT — 2026-10-02, PASSED ON EVERY POINT
+
+| | |
+|---|---|
+| core | `vsc1BgdKX5K7rZTtBw5oCLe4MpKaWhudowETQj` (CID `bafkreifrpanzly…`, 106,263 bytes) |
+| token | `vsc1BpgwVcLuVtJNf6CjamcFzTUtjfzJj99883` (CID `bafkreiggvrpe2f…` — byte-identical to the production token's build) |
+| genesis | 109,516,866 — backdated 892,800 heights, day 31 from birth |
+| cost | 20 HBD (two deploys) |
+
+## What was learned, and it changed the plan mid-run
+
+**A backdated genesis cannot produce a mint to claim.** Genesis was set 31 days
+back so a migration mint would be MATURED — but a claim at day 31 lands in the
+grace window, where the whole amount goes straight to liquid and **no mint is
+created at all**. Matured and created cannot both be true on a mainnet clock.
+
+Salvaged without a second deploy by making a **voluntary 6,000,000 mint** from
+the claimed liquid, then closing it with an **EARLY END** rather than waiting
+for maturity. An early end still pays out of the float, so it exercises the
+same failure with no waiting. Better test, as it happens: it needs no clock
+tricks at all.
+
+## The reproduction
+
+```
+sup_migrated     7,001,000.00000000
+sup_emitted        283,105.01404800
+books say        7,284,105.01404800
+token supply     1,001,000.00000000
+SHORTFALL        6,283,105.01404800     (6,000,000 mint principal + 283,105 pools)
+```
+
+`claim_mint 1` → `ok=False  msg: Insufficient balance  file: :65460:65460` —
+the SAME error and the SAME file offset as the production refusal that started
+this. Core float: 0.
+
+⚠️ **This also settles a doubt raised earlier in the night:** the simulation of
+a cross-contract mint works correctly, so production's `Insufficient balance`
+was REAL and never a simulation artifact.
+
+## The fix, broadcast
+
+| call | result |
+|---|---|
+| `reconcile_float` | CONFIRMED — `minted 628310501404800 of backing`, exactly the measured shortfall |
+| books vs token supply | **7,284,105.01404800 vs 7,284,105.01404800 — difference 0** |
+| `claim_mint 1` | CONFIRMED — `ended early, recovered 302187498…`, the claim that was impossible minutes earlier |
+| `reconcile_float` by a non-owner | refused `owner only` |
+| `reconcile_float` a SECOND time | CONFIRMED, supply **unchanged** — idempotent by arithmetic, not by a flag |
+
+The recovery came out slightly above the simulated figure because the
+early-end curve rises with every block between the dry run and the broadcast —
+the curve behaving correctly, not a discrepancy.
+
+## Next
+
+1. Withdraw 10 HBD MAGI → L1 on @lassecashmagi.
+2. `WASM=contract/artifacts/main.wasm CONTRACT_ID=vsc1Be4TTjUiHgzhHAfqFn6s3PDAExH2X59fXV ./deploy.sh update` — 10 HBD, 48h public timelock.
+3. On activation: `reconcile_float`, confirm supply == books, then pay Lasse's
+   7,061,423 claim as the proof.
+4. Only then discuss a burn height.
