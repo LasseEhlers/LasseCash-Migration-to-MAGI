@@ -131,8 +131,56 @@
    * these as JavaScript numbers would start misplacing posts as soon as a
    * payout passed the safe integer range.
    */
+  /**
+   * WHAT'S HOT NOW — three viral posts, above Trending.
+   *
+   * ⚠️ THE RANKING HAS A BIAS BUILT INTO THE ECONOMICS. Deep draws on 75% of
+   * the Proof-of-Brain pool against viral's 25%, and accumulates for 30 days
+   * against 7. So a deep post outranks a viral one for two reasons that have
+   * nothing to do with which is better — a bigger pool, and four times as long
+   * to fill from it. A month-old deep post can sit above a viral post that is
+   * catching fire today.
+   *
+   * That matters for WHO GETS SEEN, not for fairness between posts. Viral
+   * costs 1,000 L-Shares to publish and deep costs 10,000, so viral is where
+   * newcomers can afford to be — and a permanently deep-dominated front page
+   * makes them invisible unless they know to click a tab.
+   *
+   * Lasse's call, 2026-10-02, over a ranking by reward-per-day: that would be
+   * technically sounder and self-normalising, but it ranks by a number nobody
+   * can see, and this site's whole promise is that every figure on screen is
+   * checkable. Three labelled slots need no formula and no explanation.
+   * "Simple and easy to understand" wins when the product already asks a lot.
+   *
+   * Two columns were considered and rejected: at 390px they must stack, and a
+   * stacked pair is strictly worse than today — whichever lands on top wins
+   * completely, where at least now a strong viral post can climb.
+   */
+  const HOT_SLOTS = 3;
+  const hot = $derived.by<PostMeta[]>(() => {
+    if (filter !== "all" || sort !== "trending" || !hydrated) return [];
+    return all
+      .filter((p) => {
+        if (p.window !== "viral") return false;
+        const m = rewards.get(key(p));
+        // Still inside its window and still earning: a settled or closed post
+        // is not "now", whatever it earned.
+        return !!m && m.registered && !m.paid_out && !m.payable && isPositive(m.pending_payout);
+      })
+      .sort((a, b) => compare(
+        rewards.get(key(b))?.pending_payout ?? "0",
+        rewards.get(key(a))?.pending_payout ?? "0",
+      ))
+      .slice(0, HOT_SLOTS);
+  });
+
   const shown = $derived.by<Row[]>(() => {
-    const base = filter === "all" ? all : all.filter((p) => p.window === filter);
+    const lifted = new Set(hot.map(key));
+    const base = (filter === "all" ? all : all.filter((p) => p.window === filter))
+      // Shown above, so not repeated here — the same post twice on one screen
+      // reads as a bug, and the strip is a promotion out of the list, not a
+      // copy of it.
+      .filter((p) => !lifted.has(key(p)));
     const out = [...base];
     if (sort === "trending" && hydrated) {
       out.sort((a, b) => {
@@ -296,6 +344,21 @@
     <p class="reading-chain">● reading the chain…</p>
   {/if}
 
+  {#if hot.length > 0}
+    <section class="hot" aria-label="What's hot now">
+      <h2>WHAT'S HOT NOW <small>viral · pays in 7 days</small></h2>
+      {#each hot as post (post.author + "/" + post.permlink)}
+        {@const money = rewards.get(key(post))}
+        <a class="hotrow" href={href(post)}>
+          <span class="pill warn">VIRAL</span>
+          <span class="who">@{post.author.replace(/^hive:/, "")}</span>
+          <span class="t">{post.title}</span>
+          <span class="amt mono gold">{lc(money?.pending_payout ?? "0", 0)}</span>
+        </a>
+      {/each}
+    </section>
+  {/if}
+
   {#if awaitingPayout.length > 0}
     <div class="panel settle">
       <strong class="gold">
@@ -426,6 +489,29 @@
 </div>
 
 <style>
+  /* A compact strip, deliberately NOT the full card: it keeps Trending above
+     the fold and reads as a different thing rather than a duplicate. One
+     column at every width, so it behaves identically on a phone. */
+  .hot { margin-bottom: 1.1rem; }
+  .hot h2 {
+    font-size: 0.78rem; letter-spacing: 0.12em; color: var(--dim);
+    margin: 0 0 0.5rem; font-weight: 600;
+  }
+  .hot h2 small { color: var(--dimmer); letter-spacing: 0.06em; margin-left: 0.5rem; }
+  .hotrow {
+    display: flex; align-items: baseline; gap: 0.6rem;
+    padding: 0.5rem 0.7rem; border: 1px solid var(--line-soft); border-radius: 4px;
+    margin-bottom: 0.35rem; text-decoration: none; color: inherit;
+  }
+  .hotrow:hover, .hotrow:focus-visible { border-color: var(--line-hot); }
+  .hotrow .who { color: var(--dim); font-size: 0.85rem; white-space: nowrap; }
+  .hotrow .t { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .hotrow .amt { white-space: nowrap; font-size: 0.85rem; }
+  @media (max-width: 560px) {
+    .hotrow { flex-wrap: wrap; gap: 0.35rem 0.5rem; }
+    .hotrow .t { flex-basis: 100%; white-space: normal; }
+  }
+
   .bar { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
   .filters { display: flex; gap: 0.4rem; flex-wrap: wrap; }
   .filters button.active { border-color: var(--gold); color: var(--gold); background: rgba(255, 210, 63, 0.07); }
