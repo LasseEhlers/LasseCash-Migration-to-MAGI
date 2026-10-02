@@ -133,3 +133,38 @@ func TestReconcileFloatCannotInventMoney(t *testing.T) {
 		t.Fatalf("minted on a healthy chain: %s -> %s", fmtA(before), fmtA(ts.TokenSupply()))
 	}
 }
+
+// The instrument that watches for the failure must itself be able to see it.
+// floatShort is how the late-adoption fuzzer notices a payout refused for want
+// of float — a refusal the fuzzer otherwise treats as ordinary and discards.
+// Fed the original bug it must fire; fed the repaired chain it must stay zero.
+func TestTheFloatShortCounterSeesTheOriginalBugAndOnlyThat(t *testing.T) {
+	claim := func(t *testing.T, repair bool) int {
+		t.Helper()
+		s, ctx := newChain(t)
+		if r := CreditMigration(s, "hive:alice", lc(1_000), lc(7_000_000)); !r.OK {
+			t.Fatalf("migrate: %s", r.Msg)
+		}
+		ts := adoptTokenLate(t, s, "hive:alice")
+		if repair {
+			if r := ReconcileFloat(ts); !r.OK {
+				t.Fatalf("reconcile: %s", r.Msg)
+			}
+		}
+		wrapped := countingToken{ts}
+		floatShort = 0
+		ctx.Sender = "hive:alice"
+		ctx.Height = genesis + engine.HeightsPerDay*uint64(engine.MigrationMintDays+1)
+		if !Accrue(wrapped, ctx.Height) {
+			t.Fatal("accrue")
+		}
+		ClaimMint(wrapped, ctx, 1)
+		return floatShort
+	}
+	if n := claim(t, false); n == 0 {
+		t.Fatal("the counter did not notice a 7,000,000 claim refused for want of float")
+	}
+	if n := claim(t, true); n != 0 {
+		t.Fatalf("the counter fired %d time(s) on a correctly backed chain", n)
+	}
+}

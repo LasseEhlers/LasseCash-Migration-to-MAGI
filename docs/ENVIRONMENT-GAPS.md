@@ -116,9 +116,50 @@ activates, a run of claims or a large pool withdrawal can drain the float and
 produce the same `Insufficient balance` for a smaller holder. Claims are paused
 on the site; direct calls are not.
 
+## 3d. Solvency under total exit — CLOSED, fuzzed (2 Oct)
+After the late-adoption handover and the repair, `TestFuzzLateAdoption` lets the
+economy run on, then has EVERY actor leave at once six years later: claim every
+mint, pull every liquidity tranche, settle every post, every curation share and
+every pending balance. A counter at the token records any payout refused for
+want of float — the one failure a fuzzer otherwise swallows, because a refused
+operation leaves state untouched and the audit passes. The counter is itself
+tested against the original bug (`TestTheFloatShortCounterSeesTheOriginalBugAndOnlyThat`).
+The test also fails if the exit sweep pays nothing, so a green run cannot be a
+sweep that silently did nothing (959 exit payouts across the first 25 economies).
+
+## 3e. The monthly Proof-of-Brain mint — SIMULATED ON PRODUCTION STATE, not yet broadcast
+The one behaviour no test clock can compress. At 16:30 CPH on 2 Oct every
+account's `pend_` was still anchored to epoch 24321 (September): the mint is
+LAZY, it runs when the account next touches the contract, and nobody has since
+1 October. Simulated against the real state for @lasseehlers:
+`minted 3854309097122 for 30 days` (38,543.09 LASSECASH, which is his 36,719.70
+pending plus the queued curation drained into the same mint, as designed). A
+control account with nothing due answered `not due yet`. So the path runs on
+real state. Still unobserved: a real broadcast, and the resulting mint's
+maturity. Cost note, not a defect: the call costs 10,721 credits for a deep
+curation queue (~1,140 per credited entry) and `settle`/`advance` stay at 100,
+so the cost is the queue, not the accrual walk.
+
+## 9b. What changed between the DEPLOYED source and the queued update — CLOSED
+`git diff f41e883 HEAD` over contract/ and engine/, test files excluded: 92 lines
+added, ZERO removed. One read function (`TokenSupply`), one owner-only entrypoint
+(`reconcile_float`), one interface method. No existing money logic is touched,
+so no new state layout can arise from update #4, and the rename update before it
+changed entrypoint names only. The only layout-changing transition in
+production's life was the token adoption, which is now fuzzed.
+
+## 11. The three permissionless sweeps on a real chain — OPEN, needs money
+`sweep_mint`, `sweep_tranche`, `sweep_curation` have run in unit tests and the
+fuzzer but never on a real chain; the 3600x build that would prove them is
+committed and not deployed. With the burn on hold there is no deadline on this
+any more. Not before 20 October.
+
 ## What I would do next, in order
-1. Item 9, remaining: seed from the launch-era layout and migrate through the
-   rename and float-fix versions. Free, Go only.
-2. A failed token call in the middle of the monthly mint, by simulation.
+1. After Sunday's activation: run tools/audit-production.py, expect green, then
+   enable the hourly schedule in .github/workflows/audit-production.yml.
+2. The first real monthly mint, broadcast from an account that has the credits.
+3. A failed token call in the middle of a monthly mint: not testable by
+   simulation (state never persists between simulations), and the real chain's
+   unwinding has been seen once (item 3).
 3. Cron for `tools/audit-production.py`. Free.
 4. Item 10 on a throwaway, not before 20 October and only on a yes.

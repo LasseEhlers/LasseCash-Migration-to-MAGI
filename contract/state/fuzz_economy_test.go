@@ -269,6 +269,12 @@ func fuzzOneEconomy(t *testing.T, seed int64, late bool) {
 		// books broke, not WHICH operation broke them.
 		AccrueFully(s, height)
 		audit("op " + strconv.Itoa(i))
+		if floatShort != 0 {
+			t.Fatalf("seed %d, after op %d: a payout was refused for want of float", seed, i)
+		}
+	}
+	if late {
+		totalExit(t, s, assets, seed, actors, mints, tranches, posts, height, epoch)
 	}
 }
 
@@ -289,6 +295,9 @@ type keyedStore interface {
 }
 
 func auditEconomy(s Store) string {
+	if ct, ok := s.(countingToken); ok {
+		return auditTokenEconomy(ct.MemTokenStore)
+	}
 	if ts, ok := s.(*MemTokenStore); ok {
 		return auditTokenEconomy(ts)
 	}
@@ -490,7 +499,7 @@ var lateShortfalls int
 //
 // The fuzzer already checked both invariants, but only on a chain that had a
 // token from genesis. That chain cannot reach this state.
-func adoptMidRun(t *testing.T, s keyedStore, seed int64, height uint64) *MemTokenStore {
+func adoptMidRun(t *testing.T, s keyedStore, seed int64, height uint64) keyedStore {
 	t.Helper()
 	legacy, isLegacy := s.(*MemStore)
 	if !isLegacy {
@@ -529,7 +538,7 @@ func adoptMidRun(t *testing.T, s keyedStore, seed int64, height uint64) *MemToke
 		t.Fatalf("seed %d: a second reconcile_float moved supply %s -> %s (%s)",
 			seed, fmtRaw(before), fmtRaw(ts.Sup), r.Msg)
 	}
-	return ts
+	return countingToken{ts}
 }
 
 // TestFuzzLateAdoption runs the economy on the legacy ledger, adopts the token
@@ -549,17 +558,90 @@ func TestFuzzLateAdoption(t *testing.T) {
 			seeds = append(seeds, rand.Int63())
 		}
 	}
-	lateShortfalls = 0
+	lateShortfalls, exitOK = 0, 0
 	poolOpsDone = map[string]int{}
 	for _, seed := range seeds {
 		seed := seed
 		t.Run("seed="+strconv.FormatInt(seed, 10), func(t *testing.T) {
+			floatShort = 0
 			fuzzOneEconomy(t, seed, true)
 		})
 	}
-	t.Logf("%d of %d seeds had a real shortfall at the handover", lateShortfalls, len(seeds))
+	t.Logf("%d of %d seeds had a real shortfall at the handover; %d exit payouts succeeded", lateShortfalls, len(seeds), exitOK)
+	if exitOK == 0 {
+		t.Errorf("the total-exit sweep paid nothing — it is not testing solvency")
+	}
 	if len(seeds) > 1 && lateShortfalls == 0 {
 		t.Errorf("no seed left the float unbacked at the handover — the test is not " +
 			"reproducing the bug, and a green run means nothing")
+	}
+}
+
+// floatShort counts payouts the token refused BECAUSE THE CORE'S FLOAT WAS TOO
+// SMALL — the failure production hit on 2 October. It lives in the test, not in
+// MemTokenStore, because the double is compiled from production source and a
+// change there would disturb the byte-for-byte proof of the queued update.
+//
+// WHY A COUNTER AND NOT JUST THE AUDIT. The audit asserts the core's float
+// equals what it owes after every operation, which already implies every
+// payout is covered. But the fuzzer treats a refused operation as ordinary — it
+// throws the Result away — and a payout refused for a short float leaves state
+// untouched, so the audit passes on exactly the failure that matters. Counting
+// the refusal at the token is the only place it cannot be swallowed.
+var floatShort int
+
+// exitOK counts exit operations that actually paid out, so a green run can be
+// told apart from one where the sweep silently did nothing.
+var exitOK int
+
+type countingToken struct{ *MemTokenStore }
+
+func (c countingToken) TokenTransfer(to string, amount engine.Amount) bool {
+	if !c.Fail && amount > 0 && to != "" && c.Bal[c.Self] < amount {
+		floatShort++
+	}
+	return c.MemTokenStore.TokenTransfer(to, amount)
+}
+
+// totalExit is every holder leaving at once, years later: claim every mint,
+// pull every liquidity tranche, settle every post and every pending balance.
+// Individual refusals are ordinary (already ended, still locked) and ignored;
+// what must never happen is a refusal for want of float, which floatShort
+// records, and the books must still balance when everyone has gone.
+func totalExit(t *testing.T, s keyedStore, a Assets, seed int64, actors []string,
+	mints, tranches map[string][]uint64, posts []string, height, epoch uint64) {
+	t.Helper()
+	height += uint64(6*365) * uint64(engine.HeightsPerDay)
+	AccrueFully(s, height)
+	for _, who := range actors {
+		c := Ctx{Sender: who, Height: height, Epoch: epoch + 3}
+		for _, id := range mints[who] {
+			if ClaimMint(s, c, id).OK {
+				exitOK++
+			}
+		}
+		for _, id := range tranches[who] {
+			if RemoveLiquidity(s, a, c, id).OK {
+				exitOK++
+			}
+		}
+		for _, p := range posts {
+			parts := strings.SplitN(p, "|", 2)
+			if Payout(s, c, parts[0], parts[1]).OK {
+				exitOK++
+			}
+			if ClaimCuration(s, c, parts[0], parts[1], who).OK {
+				exitOK++
+			}
+		}
+		if SettlePending(s, c, who).OK {
+			exitOK++
+		}
+	}
+	if failed := auditEconomy(s); failed != "" {
+		t.Fatalf("seed %d, after everyone left:\n%s", seed, failed)
+	}
+	if floatShort != 0 {
+		t.Fatalf("seed %d: %d payout(s) were refused because the float was too short", seed, floatShort)
 	}
 }
