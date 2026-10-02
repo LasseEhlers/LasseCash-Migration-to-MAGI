@@ -97,7 +97,7 @@ also run it from a state seeded by the LAUNCH-era layout and migrated forward.
 Emission is a closed form pinned to real heights, so a test build cannot
 compress it. `TestSeventyFiveYearRun` crosses it in MemStore only. A throwaway
 initialised with a genesis backdated ~3 years would put the chain across the
-boundary immediately. Costs 10 HBD plus RC for the catch-up slices. Ask first.
+boundary immediately. Costs 10 HBD plus RC for the catch-up slices. Not before 20 October; ask first.
 
 ## 3b. Do callers check the token's failures? — CLOSED by inspection
 On the real chain a failed token call aborts the transaction, but the double
@@ -121,4 +121,4 @@ on the site; direct calls are not.
    rename and float-fix versions. Free, Go only.
 2. A failed token call in the middle of the monthly mint, by simulation.
 3. Cron for `tools/audit-production.py`. Free.
-4. Item 10 on a throwaway, only after you say so.
+4. Item 10 on a throwaway, not before 20 October and only on a yes.
