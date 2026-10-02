@@ -209,3 +209,40 @@ test("the signer the app actually uses forwards every content write", () => {
     );
   }
 });
+
+/**
+ * A HOLDER MUST NEVER READ A FILE OFFSET.
+ *
+ * The float shortfall surfaces as the TOKEN's `Insufficient balance` — capital
+ * I, because our own contract says it lowercase. Shown raw it reaches the mint
+ * card as `msg: Insufficient balance file: :65460:65460`, under a badge
+ * reading READY TO CLAIM, which tells a holder nothing and looks exactly like
+ * their money has gone. It has not: the position is on chain and nothing
+ * expires before 29 December.
+ *
+ * CLAUDE.md's rule is older than this bug — contract messages are diagnostics
+ * and must never be rendered verbatim — and this is the case that proves why.
+ */
+test("the token's refusal is translated, never shown raw", async () => {
+  const wallet = {
+    async simulate() {
+      return {
+        ok: false as const,
+        msg: "msg: Insufficient balance\nfile: :65460:65460",
+        gasLimitHit: false,
+      };
+    },
+    async availableRc() { return 30_000; },
+    async tokenContract() { return undefined; },
+    forgetRc() {},
+  } as unknown as import("./aioha-signer.js").AiohaWallet;
+
+  const { AiohaSigner } = await import("./aioha-signer.js");
+  const signer = new AiohaSigner(wallet, "hive:alice", "vsc1Test", 2_000);
+  const res = await signer.submit("claim_mint", "1");
+
+  assert.equal(res.ok, false);
+  assert.doesNotMatch(res.msg, /file:|65460/, "a file offset reached the user");
+  assert.match(res.msg, /safe/i, "it must say the position is safe");
+  assert.match(res.msg, /29 December/, "it must say nothing expires");
+});

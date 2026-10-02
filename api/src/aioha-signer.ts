@@ -1392,6 +1392,25 @@ export class AiohaSigner implements Signer {
       // easily covers, and the raw message reads as a lie ("insufficient
       // balance when it's not", Lasse, 2026-09-03, on a 1 HBD buy against an
       // 18 HBD balance). Translate it where it can only mean the meter.
+      // ⚠️ `Insufficient balance` WITH A CAPITAL I IS THE TOKEN, NOT US. Our
+      // own contract says it lowercase; the capitalised one comes from the
+      // magi_token refusing to move LASSECASH the core does not hold. That is
+      // the float shortfall (docs/FLOAT-SHORTFALL.md) — the books owe more
+      // than the ledger holds, because the 8 September handover moved account
+      // balances and not the amounts the contract itself holds.
+      //
+      // Shown raw it reads `msg: Insufficient balance file: :65460:65460`,
+      // which tells a holder nothing and looks like their money is gone. It
+      // is not: the position is on chain and nothing expires. Say that.
+      if (/Insufficient balance/.test(sim.msg)) {
+        return {
+          ok: false, height: 0,
+          msg: "Claiming is paused while we fix a backing error — the contract "
+            + "cannot pay out large claims yet. Your position is safe and "
+            + "recorded on chain, and nothing expires: grace runs to 29 "
+            + "December. The fix is queued and activates 4 October.",
+        };
+      }
       if (entrypoint in AiohaSigner.HBD_DRAW_OPS && /insufficient balance/i.test(sim.msg)) {
         return {
           ok: false, height: 0,

@@ -154,36 +154,15 @@
    * carries no risk to anything frozen. Delete this note when it is done.
    */
   /**
-   * The speed note RETIRES ON 8 OCTOBER, a week after the work it describes.
-   *
-   * It started as an apology for a real wart — a mint took "a second or two"
-   * before the wallet opened — and now reports that the wart is gone. That is
-   * worth saying to the people who felt it, and worth nothing at all a week
-   * later: a banner explaining that the site is NOT slow is just chrome. The
-   * standing explanation lives on About, where it belongs.
-   *
-   * Dated rather than left to a future tidy-up, because a note nobody
-   * remembers writing is a note nobody removes.
-   */
-  const SPEED_NOTE_UNTIL = Date.UTC(2026, 9, 8); // 8 Oct 2026
-  let dismissedSpeedNote = $state(false);
-  const showSpeedNote = $derived(
-    WALLET_MODE && !dismissedSpeedNote && Date.now() < SPEED_NOTE_UNTIL,
-  );
-  function dismissSpeedNote() {
-    dismissedSpeedNote = true;
-    try { localStorage.setItem("lc_speed_note", String(Date.now())); } catch { /* fine */ }
-  }
-
-  /**
    * CLAIMS ARE PAUSED — the most important thing the site can say right now.
    *
    * The 8 Sep token handover left every contract-held position without token
    * backing (docs/FLOAT-SHORTFALL.md), so a claim larger than the core's float
    * is refused by the token with "Insufficient balance". The holders whose
-   * mints matured on the day-30 cliff can hit that TODAY, and an unexplained
-   * failure on a page that says READY TO CLAIM reads as a broken or dishonest
-   * project. Saying it plainly, with the number, costs far less than silence.
+   * mints matured on the day-30 cliff hit that from 2 October, and an
+   * unexplained failure on a page that says READY TO CLAIM reads as a broken
+   * or dishonest project. Saying it plainly, with the number, costs far less
+   * than silence.
    *
    * GOLD, not red: red is reserved for value actively being lost, and nothing
    * is being lost here — the positions are on chain and nothing expires before
@@ -214,8 +193,6 @@
       dismissedClaimsNote = claimsAt > 0 && Date.now() - claimsAt < DAY30_SNOOZE_MS;
       const feedAt = Number(localStorage.getItem("lc_feed_note") || 0);
       dismissedFeedNote = feedAt > 0 && Date.now() - feedAt < DAY30_SNOOZE_MS;
-      const speedAt = Number(localStorage.getItem("lc_speed_note") || 0);
-      dismissedSpeedNote = speedAt > 0 && Date.now() - speedAt < DAY30_SNOOZE_MS;
       const at = Number(localStorage.getItem("lc_day30_note") || 0);
       // A pre-existing "1" from the first build parses to 1 ms since epoch,
       // which is long lapsed — so those browsers simply see it once more.
@@ -372,19 +349,6 @@
         endlessly, and <strong>your funds are safe</strong>.
       </span>
       <button class="day30-dismiss" onclick={dismissFeedNote} aria-label="dismiss">×</button>
-    </div>
-  {/if}
-  {#if showSpeedNote}
-    <div class="day30 speednote" role="note">
-      <span>
-        <strong>The buttons check before they sign.</strong>
-        Before your wallet opens, the site asks the chain whether the call would
-        actually succeed — so a transaction the chain would refuse never reaches
-        your wallet and never costs you credits. That check used to take a
-        second or two. <strong>Since 1 October it is usually under a
-        second</strong>, and the site now picks the fastest MAGI node by itself.
-      </span>
-      <button class="day30-dismiss" onclick={dismissSpeedNote} aria-label="dismiss">×</button>
     </div>
   {/if}
   {#if chain.confirming}
