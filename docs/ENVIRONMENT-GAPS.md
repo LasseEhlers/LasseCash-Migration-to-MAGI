@@ -61,7 +61,30 @@ The token is decimals=8 so LASSECASH has no conversion; keep it that way.
 ## 8. Flat keys only (no `/` in a state key) — CLOSED
 Slashes are silently dropped on the deployed node. Every key is flat.
 
-## 9. State written by an older version of the code — OPEN, and the sharpest one
+## 9. State written by an older version of the code — PARTLY CLOSED, 2026-10-02
+`TestFuzzLateAdoption` runs a random economy on the LEGACY ledger, adopts the
+token halfway through exactly as the 8 September handover did (moves every
+`bal_` row and nothing else), then keeps fuzzing with the full audit after every
+operation. It asserts, in this order:
+1. the handover left a shortfall AND the audit says `SUPPLY LEAK` — the
+   instrument is shown to see the fault before it is shown to see the repair;
+2. after `ReconcileFloat`, supply equals the books AND the core holds exactly
+   what it owes (pools + pending + open mint principals + curator pots);
+3. a second `ReconcileFloat` mints nothing.
+Result: 5,000 of 5,000 economies had a real shortfall and every one repaired to
+zero difference. Mutation-checked: a repair that mints ONE base unit short fails
+the test at once. Before this, the fuzzer only ever built a token chain from
+genesis, which cannot reach this state — that is why 500,000 green economies
+sat beside a 9.19M hole. (Note: the fuzzer ran the token ledger only with
+`FUZZ_TOKEN=1`; the default run was the legacy ledger.)
+
+STILL OPEN under this heading: the launch-era layout against the three later
+code versions (rename, float fix). The late-adoption test covers the one
+transition that is known to have broken; the other two have no equivalent.
+
+### (original note, kept for the reasoning)
+Production holds state written by FOUR code versions, but every test starts from
+state the current code wrote.
 Every test starts from state the CURRENT code wrote. Production holds state
 written by FOUR different code versions (launch, token ledger, rename, and the
 float fix on Sunday). The float shortfall was exactly this: state from before an
@@ -76,9 +99,26 @@ compress it. `TestSeventyFiveYearRun` crosses it in MemStore only. A throwaway
 initialised with a genesis backdated ~3 years would put the chain across the
 boundary immediately. Costs 10 HBD plus RC for the catch-up slices. Ask first.
 
+## 3b. Do callers check the token's failures? — CLOSED by inspection
+On the real chain a failed token call aborts the transaction, but the double
+returns `false`, so a caller that ignores it would lose money in a test and not
+on chain. Every `credit`/`debit` call site was checked: all but two consume the
+result. The two that do not (`pool.go` swap refund, `ledger.go` transfer
+refund) are best-effort ROLLBACKS after a debit, and a debit pulls the amount
+into the float, so the refund is always covered.
+
+## 3c. Can the float fund everyone leaving at once? — OPEN, and honest about it
+Read live, 2 Oct: each pot is individually under the float (largest: L-Share
+pool 72,688 against a float of 144,897) but the five pots sum to ~190,800, and
+unclaimed migration principal is 2,346,485. After `reconcile_float` the float
+equals obligations exactly, by construction and by the audit above. Until it
+activates, a run of claims or a large pool withdrawal can drain the float and
+produce the same `Insufficient balance` for a smaller holder. Claims are paused
+on the site; direct calls are not.
+
 ## What I would do next, in order
-1. Item 3, the rest: simulate on a throwaway a token failure in the middle of a
-   pool call and a monthly mint. Free if done through `simulateContractCalls`.
-2. Item 9: the launch-layout migration test. Free, Go only.
+1. Item 9, remaining: seed from the launch-era layout and migrate through the
+   rename and float-fix versions. Free, Go only.
+2. A failed token call in the middle of the monthly mint, by simulation.
 3. Cron for `tools/audit-production.py`. Free.
 4. Item 10 on a throwaway, only after you say so.

@@ -55,7 +55,7 @@ func TestFuzzEconomy(t *testing.T) {
 	for _, seed := range seeds {
 		seed := seed
 		t.Run("seed="+strconv.FormatInt(seed, 10), func(t *testing.T) {
-			fuzzOneEconomy(t, seed)
+			fuzzOneEconomy(t, seed, false)
 		})
 	}
 	for _, op := range []string{"add", "remove", "claim", "swap_lc", "swap_hbd", "sweep"} {
@@ -81,9 +81,18 @@ func fuzzChain(t *testing.T) keyedStore {
 	return ms
 }
 
-func fuzzOneEconomy(t *testing.T, seed int64) {
+// late runs the economy on the LEGACY ledger and adopts the token halfway
+// through, exactly as production did on 8 September — see adoptMidRun.
+func fuzzOneEconomy(t *testing.T, seed int64, late bool) {
 	r := rand.New(rand.NewSource(seed))
-	s := fuzzChain(t)
+	var s keyedStore
+	if late {
+		ms, _ := newChain(t) // always legacy: the token arrives later
+		s = ms
+	} else {
+		s = fuzzChain(t)
+	}
+	adopted := false
 	// Real HBD custody. The pool is the ONLY place in the contract that holds
 	// somebody else's actual money, and until 2026-08-23 the 500k fuzzer never
 	// touched it — no AddLiquidity, no Swap, no ClaimPoolRewards, no
@@ -126,6 +135,10 @@ func fuzzOneEconomy(t *testing.T, seed int64) {
 
 	steps := 200 + r.Intn(400)
 	for i := 0; i < steps; i++ {
+		if late && !adopted && i == steps/2 {
+			adopted = true
+			s = adoptMidRun(t, s, seed, height)
+		}
 		// Time lurches forward unevenly: minutes to ~2 years, so eras, grace
 		// windows, bleeds and expiries all get straddled at random.
 		height += uint64(1+r.Intn(2*365)) * uint64(engine.HeightsPerDay) / uint64(1+r.Intn(48))
@@ -451,5 +464,102 @@ func mustNotShrinkK(t *testing.T, seed int64, what string, before, after *big.In
 	t.Helper()
 	if after.Cmp(before) < 0 {
 		t.Fatalf("seed %d: k SHRANK across %s: %s -> %s", seed, what, before, after)
+	}
+}
+
+// lateShortfalls counts the seeds whose handover really did leave the float
+// unbacked. If it stays zero the test is not exercising the bug at all.
+var lateShortfalls int
+
+// adoptMidRun is the 8 September handover, performed on a live fuzzed economy.
+//
+// It does what `migrate_ledger` did and no more: walks every account that has a
+// legacy `bal_` row and moves that row into the token. It does NOT touch mint
+// principals, pools or the AMM, because they have no `bal_` row — which is the
+// whole bug.
+//
+// Then it asserts two things, in this order, and the order is the point:
+//
+//  1. If the handover left a shortfall, the production audit MUST SAY SO. A
+//     test that could not fail on the known bug would prove nothing about the
+//     fix, so the instrument is shown to see the fault before it is shown to
+//     see the repair.
+//  2. After ReconcileFloat, every invariant the token chain has — supply equals
+//     the books, and the core holds exactly what it owes — must hold, on an
+//     economy that had been running for hundreds of random operations.
+//
+// The fuzzer already checked both invariants, but only on a chain that had a
+// token from genesis. That chain cannot reach this state.
+func adoptMidRun(t *testing.T, s keyedStore, seed int64, height uint64) *MemTokenStore {
+	t.Helper()
+	legacy, isLegacy := s.(*MemStore)
+	if !isLegacy {
+		t.Fatalf("seed %d: late adoption needs a legacy chain", seed)
+	}
+	ts := NewMemTokenStore()
+	ts.MemStore = legacy
+	for _, k := range legacy.Keys() {
+		if strings.HasPrefix(k, "bal_") {
+			if !ensureMigrated(ts, ts, strings.TrimPrefix(k, "bal_")) {
+				t.Fatalf("seed %d: handover could not migrate %s", seed, k)
+			}
+		}
+	}
+	books := MigratedSupply(ts) + TotalEmitted(ts)
+	if ts.Sup > books {
+		t.Fatalf("seed %d: handover minted MORE than the books hold: token %s, books %s",
+			seed, fmtRaw(ts.Sup), fmtRaw(books))
+	}
+	if ts.Sup < books {
+		lateShortfalls++
+		if msg := auditTokenEconomy(ts); !strings.Contains(msg, "SUPPLY LEAK") {
+			t.Fatalf("seed %d at height %d: the handover left %s unbacked and the audit "+
+				"did not notice (said %q)", seed, height, fmtRaw(books-ts.Sup), msg)
+		}
+		if r := ReconcileFloat(ts); !r.OK {
+			t.Fatalf("seed %d: reconcile_float refused: %s", seed, r.Msg)
+		}
+	}
+	if msg := auditTokenEconomy(ts); msg != "" {
+		t.Fatalf("seed %d at height %d, AFTER the repair:\n%s", seed, height, msg)
+	}
+	// Idempotent: running it again must change nothing and mint nothing.
+	before := ts.Sup
+	if r := ReconcileFloat(ts); !r.OK || ts.Sup != before {
+		t.Fatalf("seed %d: a second reconcile_float moved supply %s -> %s (%s)",
+			seed, fmtRaw(before), fmtRaw(ts.Sup), r.Msg)
+	}
+	return ts
+}
+
+// TestFuzzLateAdoption runs the economy on the legacy ledger, adopts the token
+// halfway through, and keeps going — with the full audit after every operation
+// on both sides of the handover.
+func TestFuzzLateAdoption(t *testing.T) {
+	rounds := 25
+	if v := os.Getenv("FUZZ_ROUNDS"); v != "" {
+		rounds, _ = strconv.Atoi(v)
+	}
+	var seeds []int64
+	if v := os.Getenv("FUZZ_SEED"); v != "" {
+		n, _ := strconv.ParseInt(v, 10, 64)
+		seeds = []int64{n}
+	} else {
+		for i := 0; i < rounds; i++ {
+			seeds = append(seeds, rand.Int63())
+		}
+	}
+	lateShortfalls = 0
+	poolOpsDone = map[string]int{}
+	for _, seed := range seeds {
+		seed := seed
+		t.Run("seed="+strconv.FormatInt(seed, 10), func(t *testing.T) {
+			fuzzOneEconomy(t, seed, true)
+		})
+	}
+	t.Logf("%d of %d seeds had a real shortfall at the handover", lateShortfalls, len(seeds))
+	if len(seeds) > 1 && lateShortfalls == 0 {
+		t.Errorf("no seed left the float unbacked at the handover — the test is not " +
+			"reproducing the bug, and a green run means nothing")
 	}
 }
