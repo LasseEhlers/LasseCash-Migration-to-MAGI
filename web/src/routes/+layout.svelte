@@ -346,9 +346,8 @@
         directly, so posts older than roughly thirty days drop out of the feed
         and off their author's page. <strong>Nothing is lost</strong> — those
         posts are still live at their own address, still earning, still in
-        search. An index that remembers them is the next thing we build, after
-        the key burn. Posts, payouts and every figure you see are settled on
-        chain and real.
+        search. An index that remembers them is the next thing we build. Posts,
+        payouts and every figure you see are settled on chain and real.
       </span>
       <button class="day30-dismiss" onclick={dismissFeedNote} aria-label="dismiss">×</button>
     </div>

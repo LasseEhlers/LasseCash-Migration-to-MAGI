@@ -1207,8 +1207,11 @@ CoinGecko / TradingView readiness, pays nobody ever). Design:
   top-10 LP list (LPs discovered from tx history; the contract cannot
   enumerate); richlists and full LP tables stay on price-stats.lassecash.com,
   re-pointed at MAGI after migration. Additive, never touches the contract.
-- **Post indexer + feed "load more" — DEFERRED 2026-09-03 (after the key
-  burn).** The feed assembles itself in every browser from the last 30 days
+- **Post indexer + feed "load more" — DEFERRED 2026-09-03; ⚠️ NO LONGER
+  GATED ON THE BURN (2026-10-02).** The burn has no date, and this never
+  depended on it: the indexer is off-chain and purely additive. It is also
+  more urgent than "when volume grows" — discovery reads ~31 days of history,
+  so every profile and the feed age to BLANK on a rolling basis.** The feed assembles itself in every browser from the last 30 days
   of transaction history (paged, 10-page cap) and shows at most 50 registered
   posts, no pagination; older posts live on profiles, direct URLs and Google.
   Fine at launch volume (~15 posts in 3 days) but it re-reads history per
