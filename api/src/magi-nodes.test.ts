@@ -88,6 +88,33 @@ test("the node that answers first is the one that gets remembered", async () => 
   assert.notEqual(currentMagiNode(), slow);
 });
 
+test("a cold connection does not lose to a node we are already talking to", async () => {
+  // ⚠️ THE BUG THIS PINS, found on production 2 Oct. The first request to a
+  // node pays DNS and TLS; the node the app is already using has paid that
+  // long ago. One cold request each therefore hands the race to the incumbent
+  // — the exact node we might need to escape. Measured from Copenhagen:
+  // okinoko 226, 79, 68 ms against techcoderx 217, 254, 307 ms. Cold they look
+  // alike; warm, one is three times the other.
+  const incumbent = MAGI_NODES[0] as string;
+  const genuinelyFaster = MAGI_NODES[1] as string;
+  const calls = new Map<string, number>();
+  const f = as(async (url) => {
+    const n = (calls.get(url) ?? 0) + 1;
+    calls.set(url, n);
+    // The incumbent is warm throughout but slow; the challenger pays a big
+    // handshake once and is quick afterwards.
+    const ms = url === incumbent ? 60 : (n === 1 ? 200 : 5);
+    await new Promise((r) => setTimeout(r, ms));
+    return ok();
+  });
+  await pickFastestNode({ fetch: f });
+  assert.equal(
+    currentMagiNode(), genuinelyFaster,
+    "the probe kept the incumbent because it only ever measured cold requests",
+  );
+  assert.ok((calls.get(genuinelyFaster) ?? 0) >= 2, "no warm-up request was made");
+});
+
 test("a probe that nothing answers keeps the node we had", async () => {
   // Offline, or every node down. Losing the remembered node here would be
   // strictly worse than keeping it: failover still runs on every request.

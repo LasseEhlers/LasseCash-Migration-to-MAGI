@@ -102,7 +102,8 @@ export async function pickFastestNode(opts: MagiFetchOptions = {}): Promise<stri
   if (opts.url !== undefined && !MAGI_NODES.includes(opts.url)) return opts.url;
 
   const body = JSON.stringify({ query: "{localNodeInfo{last_processed_block}}" });
-  const attempts = MAGI_NODES.map(async (url, i) => {
+
+  const ask = async (url: string) => {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), PROBE_MS);
     try {
@@ -115,17 +116,39 @@ export async function pickFastestNode(opts: MagiFetchOptions = {}): Promise<stri
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       // A rate-limited node answers fast and is useless — see RATE_LIMITED.
       if (RATE_LIMITED.test(await res.text())) throw new Error("rate limited");
-      return i;
     } finally {
       clearTimeout(timer);
     }
-  });
+  };
 
-  try {
-    prefer(await Promise.any(attempts));
-  } catch {
-    // Nothing answered. Keep what we had; magiFetch still fails over.
-  }
+  // ⚠️ THE FIRST REQUEST TO A NODE IS NOT A MEASUREMENT OF THE NODE. It pays
+  // DNS and the TLS handshake, which the node we are already talking to has
+  // long since paid. Racing one cold request per node therefore hands the race
+  // to the incumbent — the very node we might need to escape.
+  //
+  // Measured from Copenhagen, 2 Oct, three requests in a row:
+  //   api.okinoko.io      226 ms, 79 ms, 68 ms
+  //   vsc.techcoderx.com  217 ms, 254 ms, 307 ms
+  //
+  // Cold, they look alike. Warm, one is three times the other — and the first
+  // version of this probe kept the slow one. So: one throwaway request to open
+  // the connection, then time the second. Six cheap requests once per session.
+  const timed = await Promise.all(MAGI_NODES.map(async (url, i) => {
+    try {
+      await ask(url);                       // warm up; cost not counted
+      const t0 = Date.now();
+      await ask(url);                       // this is the measurement
+      return { i, ms: Date.now() - t0 };
+    } catch {
+      return null;                          // unreachable, rate-limited, refusing
+    }
+  }));
+
+  const best = timed
+    .filter((r): r is { i: number; ms: number } => r !== null)
+    .sort((a, b) => a.ms - b.ms)[0];
+  // Nothing answered: keep what we had. magiFetch still fails over on top.
+  if (best) prefer(best.i);
   return currentMagiNode();
 }
 
