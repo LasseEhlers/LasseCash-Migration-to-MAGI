@@ -203,3 +203,54 @@ test("anything signed spends the cached catch-up reading", async () => {
   await c.burn("1").catch(() => {}); // no signer: clears the cache, then refuses
   assert.notEqual(c.catchUp(), before, "a stale catch-up survived a transaction");
 });
+
+/**
+ * WHEN THE CHAIN ASKS FOR `advance`, SEND THE SLICES — however it phrases it.
+ *
+ * A press that carries catch-up slices and is refused *because* the walk is
+ * behind must still send those slices: the user's click then moves the chain
+ * forward and the next press goes through. Without it the card says READY TO
+ * CLAIM and every press is a dead end.
+ *
+ * Found on production 2 Oct, the morning every migration mint became
+ * claimable. The client matched only "accrual is behind", which is what most
+ * paths say — but claiming on the maturity day says "mint matured today; the
+ * day has not closed yet — call advance, then claim again". One unmatched
+ * phrase, and all 35 holders would have hit the same dead end.
+ */
+test("a refusal that asks for advance still sends the catch-up slices", async () => {
+  for (const msg of [
+    "accrual is behind; call advance then claim again",
+    "mint matured today; the day has not closed yet — call advance, then claim again",
+  ]) {
+    let sent: { action: string }[] = [];
+    const wallet = {
+      async simulate(_a: string, action: string) {
+        // The slices are affordable; the user's own call is refused for lag.
+        return action === "advance"
+          ? { ok: true as const, gas: 1_000_000 }
+          : { ok: false as const, msg, gasLimitHit: false };
+      },
+      async availableRc() { return 30_000; },
+      async tokenContract() { return undefined; },
+      forgetRc() {},
+      async broadcastCalls(calls: { action: string }[]) {
+        sent = calls;
+        return { ok: true, msg: "submitted", height: 0, txId: "abc" };
+      },
+      aioha: { async vscCallContract() { return { success: true, result: "abc" }; } },
+    } as unknown as AiohaWallet;
+
+    const signer = new AiohaSigner(wallet, "hive:alice", "vsc1Test", 2_000);
+    const res = await signer.submit("claim_mint", "1", {
+      preCalls: [{ entrypoint: "advance", args: "" }, { entrypoint: "advance", args: "" }],
+    });
+
+    assert.equal(sent.length, 2, `nothing was sent for: ${msg}`);
+    assert.ok(sent.every((c) => c.action === "advance"));
+    // Reported as a non-success so the user knows to press again — the claim
+    // itself did NOT happen.
+    assert.equal(res.ok, false);
+    assert.match(res.msg, /press again/i);
+  }
+});

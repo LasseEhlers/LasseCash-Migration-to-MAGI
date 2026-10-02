@@ -1613,7 +1613,17 @@ export class AiohaSigner implements Signer {
       // behind and we have slices to send, send ONLY the slices: the user's
       // click still pushes the chain forward, and the next click will go
       // through. Otherwise say so, no popup.
-      if (pre.length > 0 && /accrual is behind/i.test(rcLimit.msg)) {
+      //
+      // ⚠️ MATCH EVERY WAY THE CONTRACT ASKS FOR `advance`, not just one.
+      // Most paths say "accrual is behind; call advance then X again", but
+      // claiming a mint on its maturity day says "mint matured today; the day
+      // has not closed yet — call advance, then claim again". That one phrase
+      // was missed, so on 2 Oct — the morning every migration mint became
+      // claimable — the client threw away the advance calls it had already
+      // prepared and left a dead end on a card reading READY TO CLAIM. It
+      // would have done that to all 35 holders. "call advance" is the part
+      // the contract always says, so match on that too.
+      if (pre.length > 0 && /accrual is behind|call advance/i.test(rcLimit.msg)) {
         const r = await this.wallet.broadcastCalls(pre, this.contractId, keyType);
         return r.ok
           ? { ...r, ok: false, msg: `the chain is catching up on matured mints — this transaction advanced it ${pre.length} step${pre.length > 1 ? "s" : ""}; press again` }
