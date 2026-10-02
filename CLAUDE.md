@@ -2354,6 +2354,16 @@ calls it once and does NOT await it. It is deliberately not fired from inside
 surprise, and it would make every test that counts fetches wrong. If nothing
 answers, the remembered node is kept.
 
+⚠️ **AND THE FIRST VERSION OF THE PROBE WAS RIGGED — FIXED 2026-10-02.** It
+raced ONE cold request per node, but the node the app is already using has a
+warm connection, so the incumbent won on a handicap and the slow node was
+kept. Measured from Copenhagen, three requests in a row: `api.okinoko.io`
+226 / 79 / 68 ms against `vsc.techcoderx.com` 217 / 254 / 307 ms — **cold they
+look alike, warm one is three times the other.** Each node now gets one
+throwaway request to open the connection and the SECOND one is timed. The
+question is not "who answers first" but "who is fastest once connected",
+which is what every request after the first actually experiences.
+
 **Lesson worth keeping: measure the node before optimising the client.** A
 morning of real work went into removing queued round trips (worth doing, and
 it halved the count), but the last 1.5 s was one slow server — invisible from
