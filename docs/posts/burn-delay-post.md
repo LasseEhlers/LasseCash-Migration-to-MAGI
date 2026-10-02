@@ -1,11 +1,9 @@
-# The contract could not pay my own claim. We are not burning the keys on 10 October.
-
 Last night I pressed Claim on my migration mint — 7,005,065 LASSECASH that had
 been locked since genesis and matured on 1 October. The chain refused it.
 
 Not because of anything I did wrong. The contract genuinely could not pay.
 
-Here is exactly what is wrong, with the numbers, because I would rather you
+Here is exactly what we found, with the numbers, because I would rather you
 heard it from me with the figures than from someone else without them.
 
 ## What is wrong
@@ -28,8 +26,8 @@ the new ledger. It did not move the amounts the **contract** was holding on
 everyone's behalf, because those are not account balances — they live inside
 mint records and pool counters.
 
-That night I checked that every account balance had moved across. It had. I did
-not check what had been left behind.
+That night we checked that every account balance had moved across. It had.
+Nobody checked what had been left behind, and that was my call to make.
 
 Small claims have been working since, because they fit inside what the contract
 happened to be holding. Mine is 7,061,423, and it does not.
@@ -43,9 +41,9 @@ ownership.
 **Your balance works.** Transfers, swaps, posting, voting, liquidity — all
 normal.
 
-**Claiming a matured mint is paused** until this is fixed. If you try, you will
-get an error. That is the contract refusing to pay out money it does not hold,
-which is the correct behaviour and the reason this was caught at all.
+**Claiming a matured mint is paused** until we have fixed this. If you try, you
+will get an error. That is the contract refusing to pay out money it does not
+hold, which is the correct behaviour and the reason we caught it at all.
 
 **Nothing expires.** Grace on the migration mints runs to 29 December. You do
 not need to do anything, and you are not losing value by waiting.
@@ -60,7 +58,7 @@ This is why. The key's only remaining power was to ship a public, timelocked
 code update. I kept it alive for exactly one reason: in case the live chain
 showed us something the tests could not.
 
-It did. On the first morning it was possible to find it.
+It did. We found it on the first morning it was possible to find it.
 
 If I had burned the keys at launch the way "100% immutable from day one" would
 have sounded better, this contract would now be frozen forever, unable to pay
@@ -73,7 +71,8 @@ job and I am going to use it.
 
 One function, run once: mint the difference between what the books say exists
 and what the token ledger actually holds, into the contract. After it runs the
-two agree exactly, and every position is backed.
+two agree exactly, and every position is backed. We are writing and rehearsing
+it now, on a throwaway contract, before it goes anywhere near the real one.
 
 It cannot create extra tokens. The 51,000,000 hard cap is enforced inside the
 token itself, independently, and the fix brings the total to 28.3 million —
@@ -93,5 +92,7 @@ promised the first time.
 I would rather tell you this now, in public, with the numbers, than quietly
 freeze a contract that cannot pay. Immutability is only worth something if what
 you are making immutable actually works.
+
+We fix it before we freeze it.
 
 Lasse Ehlers
