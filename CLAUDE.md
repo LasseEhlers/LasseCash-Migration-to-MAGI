@@ -849,6 +849,40 @@ HBD send would leave under 1,000 RC; the MAGI-pool swap preflights the
 `awaitVerdict` re-asks for a FAILED transaction's reason, because the
 output DAG (which carries `errMsg`) lands a beat after the status flips.
 
+## 🔴 THE FLOAT IS NOT BACKED — FOUND 2026-10-02, BLOCKS THE KEY BURN
+
+**The core's books owe 9,189,552 LASSECASH; the token holds 166,665.** The
+supply invariant (`token.totalSupply == sup_migrated + sup_emitted`) is broken
+by **9,189,161.46721902**, measured on mainnet.
+
+Found when Lasse pressed Claim on his matured 7,005,065 migration mint — the
+first claim of the day-30 cliff — and the token refused with `Insufficient
+balance` (capital I: never one of our own messages).
+
+**Cause:** the 8 September token handover migrated user BALANCES and nothing
+else. `migrate_ledger` walks accounts and moves each one's legacy `bal_` row;
+mint principals, `pool_*` and `amm_lc` are not `bal_` rows, so nothing ever
+minted their backing. The float's 166,665 is only what emission has minted
+since. The handover was verified by checking what it MOVED, not what it LEFT.
+
+No test could catch it: `auditSupply` runs against `MemStore`, where the token
+and the core are the same world. The gap exists only on a chain where they are
+two contracts and one was adopted later — the empty-vs-nil lesson, one layer up.
+
+Balances are fine (`ensureMigrated` mints a legacy row on first touch). Claims
+larger than the float are not. **Every pre-8-September mint is unpayable until
+this is fixed.**
+
+**Fix:** a one-time owner-only entrypoint minting `(sup_migrated + sup_emitted)
+− token.totalSupply` into the core. Cannot overshoot — the token's own 51M
+`maxSupply` is the independent backstop.
+
+⚠️ **THE 10 OCTOBER BURN MUST NOT HAPPEN UNTIL THIS IS FIXED AND A LARGE CLAIM
+HAS BEEN PAID ON MAINNET.** The burn was set at day 40 precisely so the first
+claims and the day-30 maturity would be observed while the key still existed.
+They have been, and they found this. Full write-up and order of work:
+[docs/FLOAT-SHORTFALL.md](docs/FLOAT-SHORTFALL.md).
+
 ## ⚠️ MATURING AND BEING CLAIMABLE ARE A DAY APART — 2026-10-01
 
 A mint matures at `MaturityHeight()`. It becomes CLAIMABLE only once its
