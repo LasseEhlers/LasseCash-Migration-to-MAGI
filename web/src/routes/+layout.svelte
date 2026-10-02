@@ -341,12 +341,14 @@
   {#if showFeedNote}
     <div class="day30 feednote" role="note">
       <span>
-        <strong>The Feed still needs work.</strong>
-        Posts and payouts settle correctly on chain — that part is proven and
-        the figures are real — but the Feed's frontend is not where the rest of
-        the site is yet, and it is not the priority right now. Apologies for the
-        rough edges. Everything else is close to done, the core has been tested
-        endlessly, and <strong>your funds are safe</strong>.
+        <strong>The Feed and profiles only reach back about a month.</strong>
+        There is no index yet: every visit reads the chain's recent history
+        directly, so posts older than roughly thirty days drop out of the feed
+        and off their author's page. <strong>Nothing is lost</strong> — those
+        posts are still live at their own address, still earning, still in
+        search. An index that remembers them is the next thing we build, after
+        the key burn. Posts, payouts and every figure you see are settled on
+        chain and real.
       </span>
       <button class="day30-dismiss" onclick={dismissFeedNote} aria-label="dismiss">×</button>
     </div>
