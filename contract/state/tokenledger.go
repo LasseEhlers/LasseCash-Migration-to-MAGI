@@ -43,6 +43,11 @@ type Tokens interface {
 	// TokenTransferFrom pulls from an account into the core, spending the
 	// allowance the user granted in the same signed transaction.
 	TokenTransferFrom(from string, amount engine.Amount) bool
+	// TokenSupply is the token's total issuance, read straight from its
+	// state. The invariant `TokenSupply() == sup_migrated + sup_emitted` is
+	// the one ReconcileFloat exists to restore, and the one a reconciliation
+	// should check against the live chain before anything is frozen.
+	TokenSupply() engine.Amount
 	// TokenSelf is the core's own address as the token sees it,
 	// `contract:vsc1...`.
 	TokenSelf() string
@@ -225,6 +230,8 @@ func (m *MemTokenStore) TokenSelf() string { return m.Self }
 
 func (m *MemTokenStore) TokenBalance(account string) engine.Amount { return m.Bal[account] }
 
+func (m *MemTokenStore) TokenSupply() engine.Amount { return m.Sup }
+
 func (m *MemTokenStore) TokenMint(amount engine.Amount) bool {
 	if m.Fail || amount <= 0 {
 		return false
@@ -250,4 +257,51 @@ func (m *MemTokenStore) TokenTransferFrom(from string, amount engine.Amount) boo
 	m.Bal[from] -= amount
 	m.Bal[m.Self] += amount
 	return true
+}
+
+// --- reconciliation -------------------------------------------------------
+
+// ReconcileFloat mints the backing the token ledger never received.
+//
+// ⚠️ WHY THIS EXISTS, AND WHY IT IS A ONE-OFF. When the token ledger was
+// adopted on 8 September 2026, `MigrateLedger` moved every account's legacy
+// `bal_` row across. Everything the CONTRACT held had no `bal_` row — mint
+// principals live in mint records, pool balances in `pool_*`, the AMM's
+// LASSECASH in `amm_lc` — so nothing minted their backing. The counters were
+// already correct; only the tokens were missing.
+//
+// Found on 2 October, the first morning a day-30 migration mint could be
+// claimed: the books owed 9,189,552 and the token held 166,665, so `credit`
+// refused — correctly, loudly, three weeks after the leak was created.
+//
+// WHAT IT DOES: brings the token's supply up to what the books already say,
+// into the core's own float, where `credit` hands it out. Nothing else. The
+// supply counters are NOT touched, because they were never wrong.
+//
+// WHY IT CANNOT INVENT MONEY:
+//   - It mints the DIFFERENCE and never a figure anyone passes in.
+//   - If the token is already at or above the books it mints nothing, so
+//     running it twice is a no-op. Idempotent by arithmetic, not by a flag.
+//   - The token's own `maxSupply` is the 51M hardcap and refuses to be
+//     exceeded even if this asked, which is the second, independent check.
+//
+// Owner-only at the entrypoint: it mints, so it must never be permissionless.
+func ReconcileFloat(s Store) Result {
+	t, has := tokensOf(s)
+	if !has {
+		return fail("no token ledger configured")
+	}
+	books, okAdd := getAmount(s, keyMigrated).Add(getAmount(s, keyEmitted))
+	if !okAdd {
+		return fail("supply counters overflow")
+	}
+	supply := t.TokenSupply()
+	if supply >= books {
+		return ok("already backed")
+	}
+	need := books - supply
+	if !t.TokenMint(need) {
+		return fail("mint failed")
+	}
+	return ok("minted " + encU64(uint64(need)) + " of backing")
 }

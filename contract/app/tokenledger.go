@@ -55,6 +55,24 @@ func (t tokenLedger) TokenBalance(account string) engine.Amount {
 	return amt
 }
 
+// TokenSupply reads the token's total issuance from its own state, the same
+// cheap read TokenBalance uses. The key is `supply`, verified against the live
+// token on 2026-10-02 via getStateByKeys(encoding:"hex").
+func (t tokenLedger) TokenSupply() engine.Amount {
+	raw := sdk.ContractStateGet(t.id, "supply")
+	if raw == nil {
+		return 0
+	}
+	amt, ok := state.DecodeTokenAmount(*raw)
+	if !ok {
+		// Same rule as TokenBalance: refusing beats guessing. A supply we
+		// cannot decode would make ReconcileFloat mint against a number it
+		// does not understand.
+		sdk.Abort("token supply unreadable")
+	}
+	return amt
+}
+
 func (t tokenLedger) TokenMint(amount engine.Amount) bool {
 	if amount <= 0 {
 		return false
@@ -180,4 +198,24 @@ func MigrateLedgerEntry(a *string) *string {
 		sdk.Abort("usage: <acct>|<acct>|...")
 	}
 	return finish(state.MigrateLedger(st(), accounts))
+}
+
+// reconcile_float mints the backing the token ledger never received.
+//
+// Owner only, and a one-off in practice though safe to repeat: it mints the
+// difference between what the supply counters say exists and what the token
+// actually holds, so a second run finds nothing to do. See
+// state.ReconcileFloat and docs/FLOAT-SHORTFALL.md.
+//
+// Takes no arguments ON PURPOSE. An amount parameter would make this "mint
+// what I tell you", which is the one power nobody should hold over a contract
+// whose keys are about to be destroyed. The chain computes the figure.
+//
+//	args: none
+//
+//go:wasmexport reconcile_float
+func ReconcileFloat(a *string) *string {
+	_, env := ctx()
+	requireOwner(env)
+	return finish(state.ReconcileFloat(st()))
 }
