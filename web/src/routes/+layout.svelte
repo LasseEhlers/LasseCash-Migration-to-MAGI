@@ -175,6 +175,27 @@
     try { localStorage.setItem("lc_speed_note", String(Date.now())); } catch { /* fine */ }
   }
 
+  /**
+   * CLAIMS ARE PAUSED — the most important thing the site can say right now.
+   *
+   * The 8 Sep token handover left every contract-held position without token
+   * backing (docs/FLOAT-SHORTFALL.md), so a claim larger than the core's float
+   * is refused by the token with "Insufficient balance". The holders whose
+   * mints matured on the day-30 cliff can hit that TODAY, and an unexplained
+   * failure on a page that says READY TO CLAIM reads as a broken or dishonest
+   * project. Saying it plainly, with the number, costs far less than silence.
+   *
+   * GOLD, not red: red is reserved for value actively being lost, and nothing
+   * is being lost here — the positions are on chain and nothing expires before
+   * 29 December.
+   */
+  let dismissedClaimsNote = $state(false);
+  const showClaimsNote = $derived(WALLET_MODE && !dismissedClaimsNote);
+  function dismissClaimsNote() {
+    dismissedClaimsNote = true;
+    try { localStorage.setItem("lc_claims_note", String(Date.now())); } catch { /* fine */ }
+  }
+
   let dismissedFeedNote = $state(false);
   const showFeedNote = $derived(WALLET_MODE && !dismissedFeedNote);
   function dismissFeedNote() {
@@ -189,6 +210,8 @@
   onMount(async () => {
     try { showMobileNote = !localStorage.getItem("lc_mobile_note"); } catch { showMobileNote = true; }
     try {
+      const claimsAt = Number(localStorage.getItem("lc_claims_note") || 0);
+      dismissedClaimsNote = claimsAt > 0 && Date.now() - claimsAt < DAY30_SNOOZE_MS;
       const feedAt = Number(localStorage.getItem("lc_feed_note") || 0);
       dismissedFeedNote = feedAt > 0 && Date.now() - feedAt < DAY30_SNOOZE_MS;
       const speedAt = Number(localStorage.getItem("lc_speed_note") || 0);
@@ -321,6 +344,23 @@
     </div>
   {/if}
 
+  {#if showClaimsNote}
+    <div class="day30 claimsnote" role="note">
+      <span>
+        <strong>Claiming a mint is paused while we fix a backing error.</strong>
+        Your tokens and your positions are safe and recorded on chain, and
+        nothing expires — grace runs to 29 December. We found that the contract
+        cannot currently pay out large claims: its books owe 9,189,552
+        LASSECASH and the token ledger holds 166,665, because the September
+        ledger upgrade moved account balances and not the amounts the contract
+        itself holds. <strong>We are fixing that before anything is frozen, so
+        the key burn planned for 10 October is on hold.</strong> Balances,
+        transfers, swaps, posting and voting all work normally.
+        <a href="https://github.com/LasseEhlers/LasseCash-Migration-to-MAGI/blob/main/docs/FLOAT-SHORTFALL.md" target="_blank" rel="noreferrer">The full write-up, with the numbers →</a>
+      </span>
+      <button class="day30-dismiss" onclick={dismissClaimsNote} aria-label="dismiss">×</button>
+    </div>
+  {/if}
   {#if showFeedNote}
     <div class="day30 feednote" role="note">
       <span>
