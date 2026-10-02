@@ -849,6 +849,25 @@ HBD send would leave under 1,000 RC; the MAGI-pool swap preflights the
 `awaitVerdict` re-asks for a FAILED transaction's reason, because the
 output DAG (which carries `errMsg`) lands a beat after the status flips.
 
+## ⏳ PRODUCTION UPDATE #4 QUEUED — the float fix, activates Sun 4 Oct 02:36 UTC
+
+**`reconcile_float` is queued on production.** Queue tx
+`b6f0a4887b2679fc3570311573b9bcebf0f45ca3`, code
+`bafkreifrpanzlyv7uduovzwzvreg4nfnozlj3powgjdw5cxsc5xy6hzyii` (106,263 bytes),
+queued at height 110,410,157, **activation height 110,467,757 =
+2026-10-04T02:36:12 UTC**. Live code until then stays `bafkreiaal6j4ar…`.
+
+The queued binary is **the same artifact, byte for byte**, that reproduced the
+production failure on throwaway #15 and then repaired it to a difference of
+zero — not a rebuild, not a close relative. And rebuilding the DEPLOYED source
+(`f41e883`) reproduces the live CID exactly, so the diff against production is
+`reconcile_float` and +1,159 bytes and nothing else.
+
+**On activation:** `reconcile_float` → verify `token.supply == sup_migrated +
+sup_emitted` → pay Lasse's 7,061,423 claim as the proof → only then discuss a
+burn height. Full rehearsal evidence in
+[docs/THROWAWAY-15-FLOAT-PLAN.md](docs/THROWAWAY-15-FLOAT-PLAN.md).
+
 ## 🔴 THE FLOAT IS NOT BACKED — FOUND 2026-10-02, BLOCKS THE KEY BURN
 
 **The core's books owe 9,189,552 LASSECASH; the token holds 166,665.** The
