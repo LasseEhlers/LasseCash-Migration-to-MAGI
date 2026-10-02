@@ -34,9 +34,15 @@ def main() -> None:
     p.add_argument("--line", required=True, help="headline, gold")
     p.add_argument("--sub", default="", help="second line, grey")
     p.add_argument("--scale", type=float, default=1.0, help="text size multiplier")
+    # Models also refuse to REMOVE text they have already drawn. Cropping the
+    # band it sits in is the only reliable answer: on the burn-delay cover the
+    # heading survived three explicit instructions to delete it.
+    p.add_argument("--crop-top", type=int, default=0, help="pixels to cut off the top")
     a = p.parse_args()
 
     im = Image.open(a.src).convert("RGB")
+    if a.crop_top:
+        im = im.crop((0, a.crop_top, im.size[0], im.size[1]))
     W, H = im.size
     # Sized from the image, not in absolute pixels, so the same command works
     # whatever the model hands back.
