@@ -327,10 +327,11 @@
         <strong>Claiming a mint is paused while we fix a backing error.</strong>
         Your tokens and your positions are safe and recorded on chain, and
         nothing expires — grace runs to 29 December. We found that the contract
-        cannot currently pay out large claims: its books owe 9,189,552
-        LASSECASH and the token ledger holds 166,665, because the September
-        ledger upgrade moved account balances and not the amounts the contract
-        itself holds. <strong>We are fixing that before anything is frozen, so
+        cannot currently pay out large claims: its books record
+        28,356,122 LASSECASH in existence while the token ledger has only ever
+        minted 19,166,961, so 9,189,161 of backing is missing. The September
+        ledger upgrade carried the account balances across and not the amounts
+        the contract itself holds — the mint principals and the pools. <strong>We are fixing that before anything is frozen, so
         the key burn planned for 10 October is on hold.</strong> Balances,
         transfers, swaps, posting and voting all work normally.
         <a href="https://github.com/LasseEhlers/LasseCash-Migration-to-MAGI/blob/main/docs/FLOAT-SHORTFALL.md" target="_blank" rel="noreferrer">The full write-up, with the numbers →</a>
