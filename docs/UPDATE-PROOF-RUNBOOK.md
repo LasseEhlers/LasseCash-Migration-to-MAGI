@@ -424,3 +424,92 @@ are a payout and votes. Nothing moved that a transaction does not explain.
 
 **Remaining:** one real swap each way from the site, and a look at Altera to
 confirm it now prints SWAP HBD LASSECASH.
+
+## ⏳ PRODUCTION UPDATE #4 — THE FLOAT FIX, QUEUED 2026-10-02 04:33 CPH
+
+| | |
+|---|---|
+| Contract | `vsc1Be4TTjUiHgzhHAfqFn6s3PDAExH2X59fXV` — PRODUCTION |
+| New code CID | `bafkreifrpanzlyv7uduovzwzvreg4nfnozlj3powgjdw5cxsc5xy6hzyii` |
+| Artifact | `contract/artifacts/main.wasm`, 106,263 bytes |
+| Queue tx | `b6f0a4887b2679fc3570311573b9bcebf0f45ca3` |
+| Queued at height | 110,410,157 |
+| **Activates at height** | **110,467,757 — 2026-10-04T02:36:12 UTC (04:36 CPH, SUNDAY)** |
+| BEFORE snapshot | `prod-before-float.json`, 125 keys, head 110,410,206 |
+| Rehearsed on | throwaway #15 — `vsc1BgdKX5K7rZTtBw5oCLe4MpKaWhudowETQj` + token `vsc1BpgwVcLuVtJNf6CjamcFzTUtjfzJj99883` |
+
+**The queued binary is the one that was proven, not a rebuild of it.** The same
+CID reproduced the production failure on throwaway #15 — identical message,
+identical file offset `:65460:` — and then repaired it to a difference of
+zero. Recompute any time: `python3 tools/cid.py contract/artifacts/main.wasm`.
+
+**The diff against production is one entrypoint.** Rebuilding the DEPLOYED
+source (`f41e883`) reproduces the live CID
+`bafkreiaal6j4ar5wiktqcsaqk5qgzb6ouxwrkma4qixghawdlppokcv6za` exactly, so the
+candidate differs by `reconcile_float`, `Tokens.TokenSupply()` and +1,159
+bytes. Nothing else moved.
+
+### What it carries
+
+One owner-only entrypoint, `reconcile_float`, taking NO arguments. It mints
+`(sup_migrated + sup_emitted) − token.totalSupply` into the core's float, which
+is the backing the 8 September handover never created
+(docs/FLOAT-SHORTFALL.md). An amount parameter was deliberately not added: that
+would be "mint what I tell you", the one power nobody should hold over a
+contract about to be frozen. The chain computes the figure.
+
+### BEFORE baselines (taken 2026-10-02 04:38 CPH)
+
+```
+state           prod-before-float.json — 125 keys, head 110,410,206
+entrypoint      reconcile_float on PRODUCTION -> ok=False "wasm function not found"
+shortfall       books 9,189,552.02715609  vs  float 157,639.74895112
+```
+
+That "wasm function not found" is the control: after activation the same
+simulation must ANSWER. It is how update #2 was proven and it cannot be faked.
+
+### On activation — Sunday 4 October, after 04:36 CPH
+
+Nothing needs doing AT the moment of activation; it lands by itself.
+
+1. **The update is gone and the code changed**
+   ```
+   findPendingContractUpdates(byId: PROD) -> empty list
+   findContract(byId: PROD).code          -> bafkreifrpanzly…
+   ```
+   An empty list is the signal, not a failure.
+
+2. **The entrypoint now exists** — simulate `reconcile_float` on PRODUCTION.
+   Before: `wasm function not found`. After: it must answer, and it should
+   report the amount it WOULD mint without broadcasting anything.
+
+3. **State diff** against `prod-before-float.json`. Every changed key must be
+   attributable to an ordinary transaction in the gap, never to the update
+   itself. ⚠️ On update #2 the diff tool printed FAIL and the TOOL was wrong
+   (board rotation dropped accounts from its read list) — investigate a FAIL
+   before believing it.
+
+4. **Then, and only then, broadcast the fix**
+   ```
+   CONTRACT_ID=vsc1Be4TTjUiHgzhHAfqFn6s3PDAExH2X59fXV \
+     node tools/chain-test/call.js reconcile_float '' 5000
+   ```
+   Expect `minted <n> of backing`, where `<n>` is the live shortfall at that
+   moment — it grows slowly as emission accrues, so it will NOT be exactly
+   9,189,161.
+
+5. **Verify the invariant, exactly**
+   ```
+   token.totalSupply == sup_migrated + sup_emitted      difference must be 0
+   ```
+
+6. **Run it a second time.** Must return `already backed` and mint nothing.
+   Idempotent by arithmetic, not by a flag — proven on #15.
+
+7. **Pay the claim that started this.** @lasseehlers' migration mint,
+   7,005,065 principal + yield. That is the proof the fix works for the people
+   it was for, not merely for the books.
+
+8. **Only then** discuss a burn height, and announce it with at least a week's
+   notice, as the 2 October post promises.
