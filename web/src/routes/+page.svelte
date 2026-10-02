@@ -349,11 +349,20 @@
       <h2>WHAT'S HOT NOW <small>viral · pays in 7 days</small></h2>
       {#each hot as post (post.author + "/" + post.permlink)}
         {@const money = rewards.get(key(post))}
+        {@const img = cover(post)}
         <a class="hotrow" href={href(post)}>
           <span class="pill warn">VIRAL</span>
+          <!-- The box is drawn even with no cover, so the three titles start at
+               the same x. A strip of three rows is read as a column; one row
+               indenting differently from its neighbours looks like a fault. -->
+          <span class="hotthumb">
+            {#if img}<img src={img} alt="" loading="lazy" />{/if}
+          </span>
           <span class="who">@{post.author.replace(/^hive:/, "")}</span>
           <span class="t">{post.title}</span>
-          <span class="amt mono gold">{lc(money?.pending_payout ?? "0", 0)}</span>
+          <!-- The unit is spelled out. Beside a headline a bare "3,860" reads
+               as a vote or a view count, which is the one thing it is not. -->
+          <span class="amt mono gold">{lc(money?.pending_payout ?? "0", 0)} LASSECASH</span>
         </a>
       {/each}
     </section>
@@ -499,7 +508,8 @@
   }
   .hot h2 small { color: var(--dimmer); letter-spacing: 0.06em; margin-left: 0.5rem; }
   .hotrow {
-    display: flex; align-items: baseline; gap: 0.6rem;
+    /* center, not baseline: the row now carries an image. */
+    display: flex; align-items: center; gap: 0.6rem;
     padding: 0.5rem 0.7rem; border: 1px solid var(--line-soft); border-radius: 4px;
     margin-bottom: 0.35rem; text-decoration: none; color: inherit;
   }
@@ -507,6 +517,11 @@
   .hotrow .who { color: var(--dim); font-size: 0.85rem; white-space: nowrap; }
   .hotrow .t { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .hotrow .amt { white-space: nowrap; font-size: 0.85rem; }
+  .hotthumb {
+    flex: 0 0 46px; height: 32px; border-radius: 3px; overflow: hidden;
+    background: #05070a; border: 1px solid var(--line-soft);
+  }
+  .hotthumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
   @media (max-width: 560px) {
     .hotrow { flex-wrap: wrap; gap: 0.35rem 0.5rem; }
     .hotrow .t { flex-basis: 100%; white-space: normal; }
