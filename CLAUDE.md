@@ -868,6 +868,24 @@ sup_emitted` → pay Lasse's 7,061,423 claim as the proof → only then discuss 
 burn height. Full rehearsal evidence in
 [docs/THROWAWAY-15-FLOAT-PLAN.md](docs/THROWAWAY-15-FLOAT-PLAN.md).
 
+**The verification is `tools/audit-production.py`** — it asks the live chain
+the invariant that only ever ran against MemStore. Read-only, no RC, no HBD,
+exit 1 on any failure. It was written BEFORE the fix landed and knows nothing
+about it, so Sunday's green is evidence rather than a tautology. Today it
+reads, correctly:
+
+    FAIL  backing   books 28,356,122.25890156 vs minted 19,166,960.79168254
+                    — missing 9,189,161.46721902
+
+⚠️ **TWO DIFFERENT GAPS, AND THE BANNER CONFLATED THEM (fixed 2026-10-02).**
+`docs/FLOAT-SHORTFALL.md` measures the FLOAT: obligations 9,189,552 minus the
+float's 166,665. The SUPPLY INVARIANT measures what was never minted: books
+28,356,122 minus token supply 19,166,961 = **9,189,161.46721902**, which is
+what `reconcile_float` mints. Both are real; they are not the same subtraction,
+and quoting one number from each pair produces an arithmetic nobody can
+follow. The float also DRIFTS (144,897.59 on 2 Oct) because payouts spend it —
+never publish it as a fixed figure.
+
 ## 🔴 THE FLOAT IS NOT BACKED — FOUND 2026-10-02, BLOCKS THE KEY BURN
 
 **The core's books owe 9,189,552 LASSECASH; the token holds 166,665.** The
