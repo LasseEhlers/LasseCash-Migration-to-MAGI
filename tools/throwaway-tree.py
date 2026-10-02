@@ -15,11 +15,30 @@ LEAF_DOMAIN = b"lassecash-migration-leaf-v1|"
 # The throwaway's whole world. Two accounts we can sign for from the command
 # line (their keys are in deploy-data/config/), so the arc can be driven
 # without a wallet: one claims mid-bleed, one never claims and is swept.
+# ⚠️ AMOUNTS RAISED 2026-09-30 for the sweep run (throwaway #13). The old
+# figures (1 and 10 LASSECASH) could not register a post: `CreatePost` checks
+# the author against the VIRAL threshold, 1,000 L-Shares by default, and a
+# 10-share claim is refused. sweep_curation needs a real post, a real vote and
+# a real payout before there is any curator pot to expire, so the claimer has
+# to clear that bar. Still a throwaway tree — never the production root.
 ACCOUNTS = [
-    # account,               liquid,        staked,       burned
-    ("hive:lassecashmagi",   100_000_000,   1_000_000_000, False),   # 1 + 10 LASSECASH
-    ("hive:lassecashdapps",  200_000_000,   2_000_000_000, False),   # 2 + 20, never claims
-    ("hive:null",            0,             0,             True),
+    # account,               liquid,            staked,       burned
+    # Throwaway #15 (2026-10-02): reproducing the FLOAT SHORTFALL and proving
+    # `reconcile_float` fixes it. See docs/FLOAT-SHORTFALL.md.
+    #
+    # ⚠️ THE STAKE MUST BE BIG, and that is the whole design of this tree.
+    # A migration mint's principal is only unbacked if it exceeds whatever
+    # emission has since minted into the core's float. With genesis set 31
+    # days back, emission alone puts ~283,000 LASSECASH there — so a small
+    # stake would be quietly covered and the claim would SUCCEED, proving
+    # nothing. That is exactly why production's small claims (andy4475,
+    # cinqowy) worked while Lasse's 7,005,065 did not, and it is why the unit
+    # test had to be rewritten from 9,000 to 7,000,000 before it failed.
+    #
+    # The signer is lassecashmagi: it owns the contract and holds the credits.
+    ("hive:lassecashmagi",   100_000_000_000,   700_000_000_000_000, False),  # 1,000 liquid + 7,000,000 staked
+    ("hive:lassecashdapps",  100_000_000,       0,                   False),  # unused second leaf
+    ("hive:null",            0,                 0,                   True),
 ]
 
 def sha(b: bytes) -> bytes:
