@@ -167,3 +167,14 @@ export const SNAPSHOT_WHEN = "Monday 31 August 2026, 12:00 UTC";
  * stranger put real HBD into a pool that gets abandoned at genesis.
  */
 export const PRELAUNCH = import.meta.env.VITE_PRELAUNCH === "1";
+
+/**
+ * Where a newcomer creates a Hive account. Carries the owner's referral, which
+ * the /start page DISCLOSES in words beside the button — a referral link that
+ * is not named as one is the kind of "hack" the old site's single header link
+ * was. It is the same address the previous LasseCash site used (found in
+ * hive-engine/outpost, branch `lassecash`, components/Header.vue).
+ *
+ * Nothing about what the referral earns is claimed anywhere on the site.
+ */
+export const HIVE_SIGNUP_URL = "https://signup.hive.io/?ref=lasseehlers";

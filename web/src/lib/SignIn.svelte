@@ -90,6 +90,7 @@
   </form>
 {:else if !open}
   <button onclick={() => (open = true)}>sign in</button>
+  <a class="signup" href="/start">sign up</a>
 {:else}
   <div class="sheet">
     <div class="head">
@@ -127,6 +128,7 @@
 {/if}
 
 <style>
+  .signup { margin-left: 0.6rem; font-size: 0.9rem; white-space: nowrap; }
   form { display: flex; gap: 0.35rem; }
   form input { width: 9rem; }
 

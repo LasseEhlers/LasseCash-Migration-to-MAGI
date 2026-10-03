@@ -26,6 +26,7 @@ export const GET: RequestHandler = async () => {
     { loc: SITE_URL, changefreq: "hourly", priority: "1.0" },
     { loc: `${SITE_URL}/about/short`, changefreq: "monthly", priority: "0.8" },
     { loc: `${SITE_URL}/about/full`, changefreq: "monthly", priority: "0.7" },
+    { loc: `${SITE_URL}/start`, changefreq: "monthly", priority: "0.7" },
     { loc: `${SITE_URL}/chain`, changefreq: "hourly", priority: "0.6" },
     { loc: `${SITE_URL}/pool`, changefreq: "hourly", priority: "0.5" },
     // High priority while the roll call runs: people will search for this
