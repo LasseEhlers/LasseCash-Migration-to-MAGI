@@ -48,10 +48,12 @@
     <li class="panel">
       <h2>2 · Install a wallet</h2>
       <p>
-        <a href="https://hive-keychain.com" target="_blank" rel="noopener">Hive Keychain</a>
-        is a browser extension and a phone app that holds your keys. LasseCash
-        never sees them: it asks the wallet to sign each action, and anything that
-        moves value asks for your approval at that moment.
+        Hive Keychain is a browser extension and a phone app that holds your keys.
+        LasseCash never sees them: it asks the wallet to sign each action, and
+        anything that moves value asks for your approval at that moment.
+      </p>
+      <p>
+        <a class="button" href="https://hive-keychain.com" target="_blank" rel="noopener">Get Hive Keychain →</a>
       </p>
     </li>
 
@@ -109,6 +111,8 @@
   li p { margin: 0 0 0.6rem; }
   li p:last-child { margin-bottom: 0; }
   .dim { color: var(--dim); font-size: 0.9rem; }
+  /* In-text links must read as links: the body copy is the same colour family. */
+  .start p a:not(.button) { text-decoration: underline; text-underline-offset: 2px; }
   .button {
     display: inline-block; padding: 0.5rem 0.9rem; border: 1px solid var(--gold-dim);
     border-radius: var(--r-sm, 4px); text-decoration: none; color: var(--gold);
