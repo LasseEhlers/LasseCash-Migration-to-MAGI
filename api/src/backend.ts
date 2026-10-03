@@ -259,6 +259,8 @@ export interface Backend {
    * `bal_` row not yet swept. Optional — the simulator has no token.
    */
   liquidBalance?(account: string): Promise<string>;
+  /** One account's calls of these kinds, with the contract's return value. */
+  accountCalls?(account: string, actions: string[]): Promise<import("./position-history.js").AccountCall[]>;
   /** This account's recent contract calls, newest first. Optional: the
    *  simulator keeps no transaction log. */
   accountOps?(account: string, limit?: number): Promise<AccountOp[]>;

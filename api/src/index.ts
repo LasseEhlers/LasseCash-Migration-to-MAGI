@@ -30,3 +30,4 @@ export * from "./market.js";
 export * from "./native-pool.js";
 export * from "./magi-nodes.js";
 export * from "./indexer.js";
+export * from "./position-history.js";

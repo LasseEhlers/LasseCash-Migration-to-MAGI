@@ -78,6 +78,14 @@ export class LasseCashClient {
     return this.backend.activity ? this.backend.activity(limit) : Promise.resolve([]);
   }
   txStatus(txId: string) { return this.backend.txStatus(txId); }
+  /** The calls that make up a mint's or a pool position's history. */
+  positionCalls(account: string) {
+    if (!this.backend.accountCalls) return Promise.resolve([]);
+    return this.backend.accountCalls(account, [
+      "mint", "claim_mint", "claim_migration", "add_liquidity", "remove_liquidity", "claim_pool",
+    ]);
+  }
+
   /** Liquid LASSECASH, base units, through the token. "0" where unknowable. */
   async liquidBalance(account: string): Promise<string> {
     if (this.backend.liquidBalance) return this.backend.liquidBalance(account);

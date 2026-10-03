@@ -15,6 +15,7 @@
 import { MAPPED_BALANCE_PREFIX } from "./magi-pools.js";
 import { magiFetch } from "./magi-nodes.js";
 import type { IndexedTx } from "./indexer.js";
+import type { AccountCall } from "./position-history.js";
 import { BackendError, type AccountActivity, type AccountOp, type PoolOp, type PoolLedgerEntry, type Backend, type Signer } from "./backend.js";
 import * as engine from "./engine.js";
 import { toUnits } from "./amount.js";
@@ -149,6 +150,67 @@ export class MagiBackend implements Backend {
    *
    * Simulations cost no RC, so this is a round trip, not money.
    */
+  /**
+   * One account's calls of the given kinds, each with what the contract
+   * RETURNED for it. History names the call; the output carries the settled
+   * figure ("claimed <n>"). Results are matched to calls BY INDEX among the
+   * transaction's call ops, as in poolLedger — never by action name.
+   * Outputs are fetched only for transactions that carry a wanted call.
+   */
+  async accountCalls(account: string, actions: string[]): Promise<AccountCall[]> {
+    const acct = account.includes(":") ? account : "hive:" + account;
+    type Row = { id: string; anchr_height: number; anchr_ts: string; status: string;
+                 output: { id: string }[] | null;
+                 ops: { type: string; data: { action?: string; payload?: string } | null }[] };
+    const rows: Row[] = [];
+    for (let p = 0; p < 20; p++) {
+      const data = await this.query<{ findTransaction: Row[] | null }>(
+        `query($c: String!, $a: String!, $o: Int!) { findTransaction(filterOptions: {byContract: $c, byAccount: $a, offset: $o, limit: 100}) {
+          id anchr_height anchr_ts status output { id } ops { type data } } }`,
+        { c: this.#contractId, a: acct, o: p * 100 },
+      );
+      const page = data.findTransaction ?? [];
+      rows.push(...page);
+      if (page.length < 100) break;
+    }
+    const want = new Set(actions);
+    const relevant = rows.filter((r) => r.status === "CONFIRMED"
+      && r.ops.some((o) => o.type === "call" && want.has(o.data?.action ?? "")));
+    const out: AccountCall[] = [];
+    for (let i = 0; i < relevant.length; i += 4) {
+      await Promise.all(relevant.slice(i, i + 4).map(async (tx) => {
+        // ONE OUTPUT PER CONTRACT: a transaction that also calls the token
+        // has two outputs; read each by its own id, keep ours, and map its
+        // results by operation (see resultsByOp). Found 2026-10-03.
+        const outputs: { inputs: string[]; results: { ok: boolean; ret: string | null }[] }[] = [];
+        try {
+          for (const { id } of tx.output ?? []) {
+            const o = await this.query<{ findContractOutput: { contract_id: string; inputs: string[]; results: { ok: boolean; ret: string | null }[] }[] | null }>(
+              `query($i: String!) { findContractOutput(filterOptions: {byId: $i, limit: 1}) { contract_id inputs results { ok ret } } }`,
+              { i: id },
+            );
+            outputs.push(...(o.findContractOutput ?? []).filter((x) => x.contract_id === this.#contractId));
+          }
+        } catch { /* figures stay unknown; the call is still listed */ }
+        const map = resultsByOp(outputs);
+        let callIdx = 0;
+        tx.ops.forEach((op, opIdx) => {
+          if (op.type !== "call") return;
+          const ci = callIdx++;
+          const action = op.data?.action ?? "";
+          if (!want.has(action)) return;
+          const r = resultFor(map, tx.id, opIdx, ci);
+          out.push({
+            txId: tx.id, height: tx.anchr_height, time: tx.anchr_ts,
+            action, payload: op.data?.payload ?? "",
+            ok: r?.ok ?? false, ret: r?.ret ?? "",
+          });
+        });
+      }));
+    }
+    return out.sort((a, b) => a.height - b.height);
+  }
+
   /** See Backend.liquidBalance. Same sum the account view makes. */
   async liquidBalance(account: string): Promise<string> {
     const acct = account.includes(":") ? account : "hive:" + account;
@@ -1246,7 +1308,7 @@ export class MagiBackend implements Backend {
 
     // Outputs land a beat after their transactions, so walk until the page is
     // older than the oldest transaction fetched (or history ends).
-    const resultsByTx = new Map<string, { ok: boolean; ret: string }[]>();
+    const outputs: { block_height: number; inputs: string[]; results: { ok: boolean; ret: string | null }[] }[] = [];
     const maxPages = Math.ceil(limit / PAGE) + 2;
     for (let p = 0; p < maxPages; p++) {
       const data = await this.query<{
@@ -1258,35 +1320,24 @@ export class MagiBackend implements Backend {
       );
       const page = data.findContractOutput ?? [];
       let reachedOlder = false;
+      outputs.push(...page);
       for (const out of page) {
-        const results = (out.results ?? []).map((r) => ({ ok: !!r.ok, ret: r.ret ?? "" }));
-        const inputs = out.inputs ?? [];
-        if (inputs.length === 1) {
-          resultsByTx.set(inputs[0]!, results);
-        } else if (inputs.every((id) => callCount.has(id))) {
-          let at = 0;
-          for (const id of inputs) {
-            const n = callCount.get(id)!;
-            resultsByTx.set(id, results.slice(at, at + n));
-            at += n;
-          }
-        }
         if (Number(out.block_height) < oldestHeight) reachedOlder = true;
       }
       if (page.length < PAGE || reachedOlder) break;
     }
 
+    const byOp = resultsByOp(outputs, callCount);
     const out: PoolLedgerEntry[] = [];
     for (const tx of txs) {
       if (tx.status !== "CONFIRMED") continue;
-      const results = resultsByTx.get(tx.id) ?? [];
       let callIdx = 0;
-      for (const op of tx.ops ?? []) {
+      for (const [opIdx, op] of (tx.ops ?? []).entries()) {
         if (op.type !== "call") continue;
         const i = callIdx++;
         const action = op.data?.action;
         if (!action || !wanted.has(action)) continue;
-        const r = results[i];
+        const r = resultFor(byOp, tx.id, opIdx, i);
         out.push({
           time: tx.anchr_ts,
           height: Number(tx.anchr_height) || 0,
@@ -2214,6 +2265,67 @@ function firstImage(body: string): string | null {
 }
 
 /** One contract transaction as discovery reads it, status included. */
+/** A contract call's result as an output reports it. */
+export interface OpResult { ok: boolean; ret: string }
+
+/**
+ * Which result belongs to which operation, across every output shape MAGI
+ * produces.
+ *
+ * ⚠️ ONE OUTPUT PER CONTRACT, KEYED BY OPERATION. Since the token ledger,
+ * a transaction can call two contracts (the token's increaseAllowance beside
+ * a mint or a swap). Each contract gets its own output, and that output's
+ * `inputs` name the OPERATIONS it covers — `txid` for operation 0, `txid-1`
+ * for operation 1 — with `results` aligned one-to-one with `inputs`. Keying
+ * by the bare transaction id lost every such call: on 2026-10-03 the market
+ * API read reconciled:false with last price, bid and ask all zero.
+ *
+ * Older single-contract outputs are handled too: one bare `txid` input with
+ * one result per CALL op (byCall), or one output covering several
+ * transactions, sliced by each transaction's call count.
+ */
+export function resultsByOp(
+  outputs: { inputs?: string[] | null; results?: { ok: boolean; ret: string | null }[] | null }[],
+  callCount: Map<string, number> = new Map(),
+): Map<string, { byOp: Map<number, OpResult>; byCall: OpResult[] }> {
+  const out = new Map<string, { byOp: Map<number, OpResult>; byCall: OpResult[] }>();
+  const slot = (tx: string) => {
+    let e = out.get(tx);
+    if (!e) { e = { byOp: new Map(), byCall: [] }; out.set(tx, e); }
+    return e;
+  };
+  for (const o of outputs) {
+    const inputs = o.inputs ?? [];
+    const results = (o.results ?? []).map((r) => ({ ok: !!r.ok, ret: r.ret ?? "" }));
+    const suffixed = inputs.some((i) => /-\d+$/.test(i));
+    if (inputs.length > 0 && inputs.length === results.length && (suffixed || inputs.length === 1 || new Set(inputs.map((i) => i.replace(/-\d+$/, ""))).size === 1)) {
+      inputs.forEach((input, k) => {
+        const m = /^(.*)-(\d+)$/.exec(input);
+        const tx = m ? m[1]! : input;
+        slot(tx).byOp.set(m ? Number(m[2]) : 0, results[k]!);
+      });
+    } else if (inputs.length === 1) {
+      slot(inputs[0]!).byCall = results;
+    } else if (inputs.every((id) => callCount.has(id))) {
+      let at = 0;
+      for (const id of inputs) {
+        const n = callCount.get(id)!;
+        slot(id).byCall = results.slice(at, at + n);
+        at += n;
+      }
+    }
+  }
+  return out;
+}
+
+/** The result for one operation of a transaction, whichever shape reported it. */
+export function resultFor(
+  map: ReturnType<typeof resultsByOp>, txId: string, opIndex: number, callIndex: number,
+): OpResult | undefined {
+  const e = map.get(txId);
+  return e?.byOp.get(opIndex) ?? e?.byCall[callIndex];
+}
+
 export interface DiscoverTx {
   anchr_ts?: string | null;
   status?: string | null;
