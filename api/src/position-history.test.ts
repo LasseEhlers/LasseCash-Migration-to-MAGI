@@ -37,6 +37,7 @@ test("a capital mint held to maturity and claimed", () => {
   assert.equal(s.gainPct, 0.886);
   assert.equal(s.endedEarly, false);
   assert.ok(s.annualisedPct! > 12 && s.annualisedPct! < 13);
+  assert.ok(Number(s.annualisedGain) > 3200 && Number(s.annualisedGain) < 3400, s.annualisedGain!);
 });
 
 test("a migration mint starts at genesis and points at the claim", () => {

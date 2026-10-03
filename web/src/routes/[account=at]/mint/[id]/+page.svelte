@@ -114,8 +114,9 @@
         <div><dt>{story.endedEarly ? "Result" : "Yield"}</dt>
           <dd class="mono" class:gold={(story.gainPct ?? 0) >= 0}>{lc(story.gain!, 2)}</dd>
           <dd class="dim mono">{pct(story.gainPct)} over {story.heldDays} days</dd></div>
-        <div><dt>Annualised</dt><dd class="mono">{pct(story.annualisedPct)}</dd>
-          <dd class="dim">this mint's own result scaled to a year — not a forecast</dd></div>
+        <div><dt>If it ran a year</dt><dd class="mono">{pct(story.annualisedPct)} <span class="unit">a year</span></dd>
+          {#if story.annualisedGain}<dd class="dim mono">≈ {lc(story.annualisedGain, 0)} LASSECASH a year on {lc(story.principal, 0)}</dd>{/if}
+          <dd class="dim">at the pace this mint earned — not a forecast</dd></div>
       </div>
       <p class="note dim">
         Claimed {story.claimTime ? shortDate(story.claimTime) : ""}.
@@ -161,6 +162,7 @@
   dd.mono { font-size: 1.2rem; font-variant-numeric: tabular-nums; }
   dd.dim { font-size: .75rem; }
   .gold { color: var(--gold); }
+  .unit { font-size: .7rem; color: var(--dim); }
   .note { font-size: .8rem; margin: .9rem 0 0; }
   .links { font-size: .85rem; }
   .links a, .crumbs a { text-decoration: underline; text-underline-offset: 2px; }

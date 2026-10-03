@@ -88,6 +88,8 @@ export interface MintStory {
   gainPct: number | null;
   /** gainPct scaled to 365 days of holding. Not a forecast. */
   annualisedPct: number | null;
+  /** The gain scaled to 365 days, in LASSECASH, floored. Same scaling, as an amount. */
+  annualisedGain: Amount | null;
   heldDays: number | null;
   endedEarly: boolean;
 }
@@ -120,6 +122,10 @@ export function mintStory(
   const annualisedPct = gainPct !== null && heldDays && heldDays >= 1
     ? Math.round((gainPct * 365 / heldDays) * 100) / 100 : null;
 
+  const heldHeights = claim ? BigInt(claim.height - startHeight) : 0n;
+  const annualisedGain = gain !== null && heldHeights >= BigInt(HEIGHTS_PER_DAY)
+    ? fromUnits((gain * BigInt(365 * HEIGHTS_PER_DAY)) / heldHeights) : null;
+
   return {
     id, origin,
     principal: fromUnits(principal),
@@ -133,7 +139,7 @@ export function mintStory(
     claimTime: claim?.time ?? null,
     paidOut: paid !== null ? fromUnits(paid) : null,
     gain: gain !== null ? fromUnits(gain) : null,
-    gainPct, annualisedPct,
+    gainPct, annualisedPct, annualisedGain,
     heldDays: heldDays !== null ? Math.round(heldDays * 10) / 10 : null,
     endedEarly: claim !== null && claim.height < startHeight + days * HEIGHTS_PER_DAY,
   };
