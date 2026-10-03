@@ -681,7 +681,7 @@
                call to make, not ours to advertise. -->
           <p class="note">
             <b>Getting BTC in</b> needs a deposit address MAGI issues through a service we
-            do not run — <a href="https://altera.magi.eco/deposit" target="_blank" rel="noopener">Altera handles that</a>.
+            do not run — <a href="https://alterawallet.com/deposit" target="_blank" rel="noopener">Altera handles that</a>.
             Once it is on MAGI, everything here works on it.
           </p>
         </div>
@@ -739,7 +739,7 @@
       {/if}
       <p class="note">
         <b>Want BTC?</b> Sell LASSECASH for HBD here, then swap HBD for BTC on
-        <a href="https://altera.magi.eco/swap" target="_blank" rel="noopener">Altera</a>.
+        <a href="https://alterawallet.com/swap" target="_blank" rel="noopener">Altera</a>.
         Both legs are on-chain swaps you sign yourself — nobody takes custody of your funds
         at any point, and no account or permission is granted to anyone.
       </p>
