@@ -10,7 +10,7 @@
    * ratchets with height and the volume thresholds are governed.
    */
   import { chain, client } from "$lib/chain.svelte.js";
-  import { toUnits } from "$api/index.js";
+  import { fromUnits, toUnits } from "$api/index.js";
   import { lc, mult } from "$lib/format.js";
   import Hbd from "$lib/Hbd.svelte";
   import {
@@ -189,6 +189,9 @@
   <label class="field">
     <span>Amount to lock</span>
     <input inputmode="decimal" bind:value={amount} placeholder="10000" />
+    <!-- What the amount is worth right now, through the same component and
+         pool estimate as every other HBD figure here. Lasse, 2026-10-03. -->
+    {#if safeUnits(amount) > 0n}<Hbd amount={fromUnits(safeUnits(amount))} block />{/if}
     <small class="dim">
       Balance {lc(balance)} LASSECASH{#if overBalance} · <span class="red">more than you hold</span>{/if}
       {#if needsLassecash}· <a href="/pool">Need LASSECASH? Buy some in the pool →</a>{/if}
