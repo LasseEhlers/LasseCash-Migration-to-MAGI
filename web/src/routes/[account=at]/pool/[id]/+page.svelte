@@ -89,7 +89,7 @@
       <dd class="mono">{story.depositHbd ? lc(story.depositHbd, 3) : "—"} <span class="unit">HBD</span></dd>
       <dd class="dim">{story.depositTime ? shortDate(story.depositTime) : ""}</dd></div>
     <div><dt>Rewards claimed</dt><dd class="mono gold">{lc(story.claimedTotal, 2)}</dd>
-      <dd class="dim">{story.claims.length} claim{story.claims.length === 1 ? "" : "s"}{#if claimedHbd}&nbsp;· ≈ {lc(claimedHbd, 3)} HBD when claimed{/if}</dd></div>
+      <dd class="dim">taken while the position stays open · {story.claims.length} claim{story.claims.length === 1 ? "" : "s"}{#if claimedHbd}&nbsp;· ≈ {lc(claimedHbd, 3)} HBD when claimed{/if}</dd></div>
     {#if story.withdrawTxId}
       <div><dt>Withdrawn</dt>
         <dd class="mono">{lc(story.withdrawLc!, 2)} <span class="unit">LASSECASH</span></dd>
@@ -115,7 +115,7 @@
 
   <p class="links dim">
     {#if story.depositTxId}<a href={tx(story.depositTxId)} target="_blank" rel="noopener">Deposit ↗</a>{/if}
-    {#each story.claims as c, i} · <a href={tx(c.txId)} target="_blank" rel="noopener">Claim {i + 1} ↗</a>{/each}
+    {#each story.claims as c, i} · <a href={tx(c.txId)} target="_blank" rel="noopener">Reward claim {i + 1} ↗</a>{/each}
     {#if story.withdrawTxId} · <a href={tx(story.withdrawTxId)} target="_blank" rel="noopener">Withdrawal ↗</a>{/if}
   </p>
 {/if}
