@@ -32,7 +32,7 @@
 
   type MintRow = {
     account: string; made: number; open: number;
-    locked: bigint; shares: bigint; longest: number;
+    minted: bigint; locked: bigint; shares: bigint; longest: number;
   };
   type LpRow = { account: string; positions: number; share: number; oldest: number };
   type MediaRow = { account: string; posts: number; replies: number; votes: number };
@@ -107,8 +107,9 @@
         const f = raw.split("|");
         if (Number(f[2] || 0) === info.genesis_height) continue; // migration mint
         const account = k.slice(5, k.lastIndexOf("_"));
-        const r = byAcct.get(account) ?? { account, made: 0, open: 0, locked: 0n, shares: 0n, longest: 0 };
+        const r = byAcct.get(account) ?? { account, made: 0, open: 0, minted: 0n, locked: 0n, shares: 0n, longest: 0 };
         r.made += 1;
+        r.minted += BigInt(f[0] || "0");
         if (f[5] !== "1") {
           r.open += 1;
           r.locked += BigInt(f[0] || "0");
@@ -117,8 +118,10 @@
         r.longest = Math.max(r.longest, Number(f[3] || 0));
         byAcct.set(account, r);
       }
+      // Biggest commitment first: what was minted, not what happens to be
+      // locked today — a mint held to maturity and claimed is a success, not a zero.
       mints = [...byAcct.values()].sort((a, b) =>
-        b.shares !== a.shares ? (b.shares > a.shares ? 1 : -1) : b.made - a.made);
+        b.minted !== a.minted ? (b.minted > a.minted ? 1 : -1) : b.made - a.made);
 
       // --- liquidity -----------------------------------------------------
       const lpBy = new Map<string, LpRow>();
@@ -140,6 +143,7 @@
   $effect(() => { if (chain.info && !loaded && !error) void load(); });
 
   const sumLocked = $derived(mints.reduce((t, r) => t + r.locked, 0n));
+  const sumMinted = $derived(mints.reduce((t, r) => t + r.minted, 0n));
   const name = (a: string) => a.replace(/^hive:/, "");
   const top = <T,>(xs: T[], k = 10) => xs.slice(0, k);
   let allMints = $state(false);
@@ -166,8 +170,8 @@
   <div class="panel summary">
     <div><dt>Active accounts</dt><dd class="mono gold">{active}</dd>
       <dd class="dim">{active7} in the last 7 days</dd></div>
-    <div><dt>New mints</dt><dd class="mono gold">{amt(sumLocked)}</dd>
-      <dd class="dim">LASSECASH locked by {mints.filter((m) => m.open > 0).length} accounts</dd></div>
+    <div><dt>Minted since launch</dt><dd class="mono gold">{amt(sumMinted)}</dd>
+      <dd class="dim">by {mints.length} accounts, {amt(sumLocked)} still locked</dd></div>
     <div><dt>Pool</dt><dd class="mono gold">{lc(chain.info?.amm_lc ?? "0", 0)}</dd>
       <dd class="dim">LASSECASH + {lc(chain.info?.amm_hbd ?? "0", 3)} HBD, {lps.length} providers</dd></div>
     <div><dt>LasseMedia</dt><dd class="mono gold">{totals.posts + totals.replies}</dd>
@@ -188,7 +192,7 @@
           <table>
             <thead><tr>
               <th class="num">#</th><th>Account</th><th class="num">Mints</th>
-              <th class="num">Locked now</th><th class="num">L-Shares</th><th class="num">Longest</th>
+              <th class="num">Minted</th><th class="num">Locked now</th><th class="num">L-Shares</th><th class="num">Longest</th>
             </tr></thead>
             <tbody>
               {#each (allMints ? mints : top(mints, 15)) as r, i}
@@ -196,8 +200,9 @@
                   <td class="num dim">{i + 1}</td>
                   <td><a href="/@{name(r.account)}">@{name(r.account)}</a></td>
                   <td class="num mono">{r.made}{#if r.open < r.made}<span class="dim"> ({r.open} open)</span>{/if}</td>
-                  <td class="num mono gold">{amt(r.locked)}</td>
-                  <td class="num mono">{amt(r.shares)}</td>
+                  <td class="num mono gold">{amt(r.minted)}</td>
+                  <td class="num mono" class:zero={r.locked === 0n}>{r.locked === 0n ? "claimed" : amt(r.locked)}</td>
+                  <td class="num mono" class:zero={r.shares === 0n}>{amt(r.shares)}</td>
                   <td class="num mono dim">{r.longest} d</td>
                 </tr>
               {/each}
