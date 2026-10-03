@@ -147,7 +147,7 @@ export interface TrancheStory {
   depositLc: Amount | null;
   depositHbd: Amount | null;
   /** Every reward claim, oldest first. */
-  claims: { txId: string; time: string; amount: Amount }[];
+  claims: { txId: string; height: number; time: string; amount: Amount }[];
   claimedTotal: Amount;
   withdrawTxId: string | null;
   withdrawTime: string | null;
@@ -170,7 +170,7 @@ export function trancheStory(id: number, calls: AccountCall[]): TrancheStory {
     .filter((c) => c.ok && c.action === "claim_pool" && mine(c))
     .map((c) => ({ c, v: parseClaimed(c.ret) }))
     .filter((x) => x.v !== null)
-    .map(({ c, v }) => ({ txId: c.txId, time: c.time, amount: fromUnits(v!) }));
+    .map(({ c, v }) => ({ txId: c.txId, height: c.height, time: c.time, amount: fromUnits(v!) }));
   const w = byAge.find((c) => c.ok && c.action === "remove_liquidity" && mine(c)) ?? null;
   const wAmt = w ? parseLiquidity(w.ret) : null;
   return {

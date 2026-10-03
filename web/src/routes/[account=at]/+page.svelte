@@ -162,6 +162,29 @@
 
   {/if}
 
+  <!-- Every mint and pool position, each linking to its own card. Finished
+       ones stay listed: a settled result is part of the account's record. -->
+  {#if view && (view.mints.length || view.tranches.length)}
+    <section class="panel positions">
+      <h2>Positions</h2>
+      <ul>
+        {#each [...view.mints].reverse() as m (m.id)}
+          <li>
+            <a href="/@{data.handle}/mint/{m.id}">Mint #{m.id}</a>
+            <span class="mono">{lc(m.principal, 2)}</span>
+            <span class="dim">{m.days} days · {m.ended ? "finished" : m.claimable ? "ready to claim" : m.mature ? "matured" : "locked"}</span>
+          </li>
+        {/each}
+        {#each [...view.tranches].reverse() as t (t.id)}
+          <li>
+            <a href="/@{data.handle}/pool/{t.id}">Pool position #{t.id}</a>
+            <span class="dim">{t.closed ? "withdrawn" : `open · day ${t.age_days}`}</span>
+          </li>
+        {/each}
+      </ul>
+    </section>
+  {/if}
+
   <section class="panel">
     <h2>Posts</h2>
     <!-- Discovery walks the whole contract history since launch (2026-10-03:
@@ -248,4 +271,8 @@
   }
   .blurb { margin: 0.35rem 0 0; color: var(--dim); font-size: var(--t-sm); line-height: 1.55; }
   .empty { padding: 1.2rem 1rem; }
+  .positions ul { list-style: none; margin: 0; padding: 0; display: grid; gap: .35rem; }
+  .positions li { display: flex; gap: .8rem; align-items: baseline; flex-wrap: wrap; font-size: .9rem; }
+  .positions a { text-decoration: underline; text-underline-offset: 2px; min-width: 9rem; }
+  .positions .mono { font-variant-numeric: tabular-nums; }
 </style>

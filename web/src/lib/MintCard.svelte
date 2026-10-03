@@ -77,7 +77,12 @@
 
 <article class="mint" class:alarm={bleeding} class:dead={gone}>
   <header>
-    <span class="id mono">MINT #{mint.id}</span>
+    <!-- The id opens the mint's own card, the shareable record of its life. -->
+    {#if chain.account}
+      <a class="id mono idlink" href="/@{chain.account.replace(/^hive:/, '')}/mint/{mint.id}">MINT #{mint.id}</a>
+    {:else}
+      <span class="id mono">MINT #{mint.id}</span>
+    {/if}
     <span class="term">
       {mint.days >= 365 ? `${(mint.days / 365).toFixed(1)} years` : `${mint.days} days`}
       <span class="dim">· matures {shortDate(mint.maturity_time)}</span>
@@ -238,4 +243,5 @@
   @media (prefers-reduced-motion: reduce) {
     footer :global(button.urgent) { animation: none; box-shadow: var(--glow-gold); }
   }
+  .idlink { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
 </style>
