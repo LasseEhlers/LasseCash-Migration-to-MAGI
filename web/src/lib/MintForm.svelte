@@ -75,6 +75,13 @@
     !!preview?.ok && safeUnits(amount) > toUnits(balance),
   );
   /**
+   * Signed in and cannot afford what is typed — which for nearly every newcomer
+   * means holding none at all. The form used to say "more than you hold" and
+   * stop there, a dead end for the one person who has just decided to try it.
+   * The pool is the only way to get LASSECASH, so the way there is named.
+   */
+  const needsLassecash = $derived(!!chain.account && (overBalance || toUnits(balance) === 0n));
+  /**
    * What this mint would earn per day at TODAY'S share base.
    *
    * Every number crosses the engine: the daily L-Share slice from
@@ -184,6 +191,7 @@
     <input inputmode="decimal" bind:value={amount} placeholder="10000" />
     <small class="dim">
       Balance {lc(balance)} LASSECASH{#if overBalance} · <span class="red">more than you hold</span>{/if}
+      {#if needsLassecash}· <a href="/pool">Need LASSECASH? Buy some in the pool →</a>{/if}
       {#if C}· minimum {lc(C.minMintAmount === "100000000" ? "1.00000000" : "1.00000000", 0)} LASSECASH{/if}
     </small>
   </label>
