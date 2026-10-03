@@ -74,6 +74,12 @@
     live?.claimable ? "Ready to claim" :
     live?.mature ? "Matured" : "Locked",
   );
+  /** Which day of its term an open mint is on: heights are 3 s, 28,800 a day. */
+  const dayOf = $derived(
+    story && !story.ended && chain.info
+      ? Math.min(story.days, Math.floor((chain.info.height - story.startHeight) / 28_800) + 1)
+      : null,
+  );
   const startHbd = $derived(story ? hbdAt(story.principal, story.startHeight) : null);
   const endHbd = $derived(story ? hbdAt(story.paidOut, story.claimHeight) : null);
   const tx = (id: string) => `https://vsc.techcoderx.com/tx/${id}`;
@@ -100,7 +106,7 @@
     <div><dt>Principal</dt><dd class="mono">{lc(story.principal, 2)}</dd>
       {#if startHbd}<dd class="dim mono">≈ {lc(startHbd, 3)} HBD then</dd>{/if}</div>
     <div><dt>Term</dt><dd class="mono">{story.days} days</dd>
-      <dd class="dim">{story.startTime ? shortDate(story.startTime) : `height ${story.startHeight.toLocaleString()}`}</dd></div>
+      <dd class="dim">{story.startTime ? shortDate(story.startTime) : `height ${story.startHeight.toLocaleString()}`}{#if dayOf} · day {dayOf} of {story.days}{/if}</dd></div>
     <div><dt>L-Shares</dt><dd class="mono">{lc(story.shares, 2)}</dd>
       <dd class="dim">{story.ended ? "ended with the mint" : "voting weight and yield weight"}</dd></div>
   </div>
@@ -135,7 +141,11 @@
         <div><dt>Matures</dt><dd class="mono">{shortDate(live.maturity_time)}</dd>
           <dd class="dim">{live.claimable ? "claimable now" : live.mature ? "claimable once the maturity day closes" : "yield stops at maturity"}</dd></div>
       </div>
-      <p class="note dim">An estimate from the engine: the yield depends on emission and on how many others mint.</p>
+      <p class="note dim">
+        An estimate from the engine: the yield depends on emission and on how many others mint.
+        Yield is credited as each day closes, and the chain writes that down with the next
+        transaction anyone makes — so a fresh mint can read 0 for a while without anything being lost.
+      </p>
     </section>
   {:else if story.ended}
     <div class="panel"><p class="dim">Closed without a claim by its owner — swept after it had bled to zero.</p></div>
