@@ -254,6 +254,11 @@ export interface Backend {
   /** Confirmed contract calls grouped by signer. Optional: the simulator keeps
    *  no transaction log, so it cannot answer this. */
   activity?(limit?: number): Promise<AccountActivity[]>;
+  /**
+   * Liquid LASSECASH in base units: the token's balanceOf plus any legacy
+   * `bal_` row not yet swept. Optional — the simulator has no token.
+   */
+  liquidBalance?(account: string): Promise<string>;
   /** This account's recent contract calls, newest first. Optional: the
    *  simulator keeps no transaction log. */
   accountOps?(account: string, limit?: number): Promise<AccountOp[]>;

@@ -175,12 +175,6 @@
     try { localStorage.setItem("lc_claims_note", String(Date.now())); } catch { /* fine */ }
   }
 
-  let dismissedFeedNote = $state(false);
-  const showFeedNote = $derived(WALLET_MODE && !dismissedFeedNote);
-  function dismissFeedNote() {
-    dismissedFeedNote = true;
-    try { localStorage.setItem("lc_feed_note", String(Date.now())); } catch { /* fine */ }
-  }
   function dismissDay30() {
     dismissedDay30 = true;
     try { localStorage.setItem("lc_day30_note", String(Date.now())); } catch { /* fine */ }
@@ -191,8 +185,6 @@
     try {
       const claimsAt = Number(localStorage.getItem("lc_claims_note") || 0);
       dismissedClaimsNote = claimsAt > 0 && Date.now() - claimsAt < DAY30_SNOOZE_MS;
-      const feedAt = Number(localStorage.getItem("lc_feed_note") || 0);
-      dismissedFeedNote = feedAt > 0 && Date.now() - feedAt < DAY30_SNOOZE_MS;
       const at = Number(localStorage.getItem("lc_day30_note") || 0);
       // A pre-existing "1" from the first build parses to 1 ms since epoch,
       // which is long lapsed — so those browsers simply see it once more.
@@ -339,20 +331,6 @@
       <button class="day30-dismiss" onclick={dismissClaimsNote} aria-label="dismiss">×</button>
     </div>
   {/if}
-  {#if showFeedNote}
-    <div class="day30 feednote" role="note">
-      <span>
-        <strong>The Feed and profiles only reach back about a month.</strong>
-        There is no index yet: every visit reads the chain's recent history
-        directly, so posts older than roughly thirty days drop out of the feed
-        and off their author's page. <strong>Nothing is lost</strong> — those
-        posts are still live at their own address, still earning, still in
-        search. An index that remembers them is the next thing we build. Posts,
-        payouts and every figure you see are settled on chain and real.
-      </span>
-      <button class="day30-dismiss" onclick={dismissFeedNote} aria-label="dismiss">×</button>
-    </div>
-  {/if}
   {#if chain.confirming}
     <div class="confirming" role="status">
       <span class="dot"></span> Signed — waiting for MAGI to confirm. The figures update by themselves.
@@ -418,7 +396,6 @@
   }
   .day30 strong { color: var(--gold); }
   .day30 a { color: var(--gold); }
-  .feednote { border-top: 0; }
   /* Third in the stack, so it carries no top border either and sits dimmer
      than the two above it: it explains a second of waiting, not money. */
   .speednote { border-top: 0; opacity: 0.85; }

@@ -163,25 +163,14 @@
   {/if}
 
   <section class="panel">
-    <h2>Recent posts</h2>
-    <!-- SAY WHAT THIS LIST IS. There is no author index — the contract cannot
-         enumerate its own posts — so discovery walks the last ~31 days of
-         transaction history and keeps the newest 200. A prolific author whose
-         work has aged past that looks silent, and the heading "Posts" with one
-         item underneath reads as "they wrote one thing". It is not true, and
-         the page should not imply it. Every post stays reachable by its own
-         address and in search; only this LIST is short-sighted. The fix is an
-         author index in the indexer, not a bigger number here. -->
-    <p class="scope dim">
-      Registered on LasseCash in the last month. Older posts are still live at
-      their own address — this list cannot reach back past the chain history
-      the page reads.
-    </p>
+    <h2>Posts</h2>
+    <!-- Discovery walks the whole contract history since launch (2026-10-03:
+         the old 31-day horizon dropped launch-week posts). The list is
+         complete until history outgrows the page cap; the indexer takes over
+         before that. -->
     {#if data.posts.length === 0}
       <p class="empty">
-        <strong>Nothing in the last month.</strong>
-        That is not the same as nothing published — posts older than the window
-        this page can read are still live at their own address.
+        <strong>No posts registered on LasseCash yet.</strong>
       </p>
     {:else}
       <ul class="posts">
@@ -222,7 +211,6 @@
 </div>
 
 <style>
-  .scope { font-size: 0.8rem; margin: -0.3rem 0 0.8rem; }
 
   .head { display: flex; align-items: center; gap: 1.4rem; flex-wrap: wrap; }
   .who { flex: 1 1 auto; min-width: 0; }

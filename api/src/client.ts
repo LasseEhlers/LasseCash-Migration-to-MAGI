@@ -78,6 +78,12 @@ export class LasseCashClient {
     return this.backend.activity ? this.backend.activity(limit) : Promise.resolve([]);
   }
   txStatus(txId: string) { return this.backend.txStatus(txId); }
+  /** Liquid LASSECASH, base units, through the token. "0" where unknowable. */
+  async liquidBalance(account: string): Promise<string> {
+    if (this.backend.liquidBalance) return this.backend.liquidBalance(account);
+    const acct = account.includes(":") ? account : "hive:" + account;
+    return (await this.state(["bal_" + acct]))["bal_" + acct] || "0";
+  }
 
   /** Content, newest first. */
   async posts(limit = 50): Promise<PostView[]> {

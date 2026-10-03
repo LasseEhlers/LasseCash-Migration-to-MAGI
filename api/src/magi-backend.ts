@@ -108,6 +108,16 @@ export class MagiBackend implements Backend {
    *
    * Simulations cost no RC, so this is a round trip, not money.
    */
+  /** See Backend.liquidBalance. Same sum the account view makes. */
+  async liquidBalance(account: string): Promise<string> {
+    const acct = account.includes(":") ? account : "hive:" + account;
+    const st = await this.state(["cfg_token", "bal_" + acct]);
+    const legacy = BigInt(st["bal_" + acct] || "0");
+    const tokenId = st["cfg_token"];
+    if (!tokenId) return legacy.toString();
+    return (BigInt(await this.tokenBalance(tokenId, acct)) + legacy).toString();
+  }
+
   async tokenBalance(tokenId: string, account: string): Promise<string> {
     const acct = account.includes(":") ? account : "hive:" + account;
     const data = await this.query<{
@@ -597,23 +607,17 @@ export class MagiBackend implements Backend {
     // ⚠️ ONE PAGE IS NOT A FEED. The node caps a page at 100 transactions,
     // and by 2026-09-03 — three days after launch — the newest 100 reached
     // back only to Sep 1 midday: every post registered on launch day had
-    // silently dropped out of the feed unless a recent vote re-surfaced it,
-    // and the horizon shortens with every claim, swap and transfer. So
-    // discovery PAGES (the node supports offset) until it has covered the
-    // deep payout window — beyond that no post can still be earning — or
-    // history ends, or the page cap trips. The cap is a rate-limit courtesy;
-    // if the chain ever outgrows it, the real fix is the indexer, not a
-    // bigger cap.
+    // silently dropped out of the feed unless a recent vote re-surfaced it.
+    // So discovery PAGES (the node supports offset).
     //
-    // The horizon prefers the engine's own constant, but postsMeta() runs in
-    // the Cloudflare worker where the engine is deliberately absent — there
-    // the fallback mirrors DeepPayoutDays, and being a day generous merely
-    // reads one page more than needed.
-    let horizonDays = 31;
-    try { horizonDays = Number(engine.constants().deepPayoutDays) + 1; } catch { /* worker: engine absent */ }
-    const horizonMs = Date.now() - horizonDays * 24 * 3_600_000;
-
-    const MAX_PAGES = 10;
+    // NO TIME HORIZON — removed 2026-10-03. It used to stop at the deep payout
+    // window (31 days), which a month after launch began dropping launch-week
+    // posts off the feed and off their author's profile, while the whole
+    // contract history was 318 transactions: four requests. Reading all of it
+    // costs the same as reading the window did. The page cap is the only
+    // bound, a rate-limit courtesy; when the chain outgrows 2,000 calls the
+    // fix is the indexer, not a bigger cap.
+    const MAX_PAGES = 20;
     const txs: DiscoverTx[] = [];
     for (let page = 0; page < MAX_PAGES; page++) {
       const data = await this.query<{ findTransaction: DiscoverTx[] }>(
@@ -629,8 +633,6 @@ export class MagiBackend implements Backend {
       const rows = data.findTransaction ?? [];
       txs.push(...rows);
       if (rows.length < 100) break; // history exhausted
-      const oldest = rows[rows.length - 1]?.anchr_ts;
-      if (oldest && Date.parse(isoUtc(oldest)) < horizonMs) break;
     }
     return discoveredCalls(txs, limit, action, accept);
   }

@@ -489,7 +489,7 @@
        snapshot RECORDS; it does not undertake. -->
   <p class="next">
     That is what the snapshot <em>recorded</em>, on 31 August.
-    <a href="/stats">See who has turned up since →</a>
+    <a href="/stats/migration">See who has turned up since →</a>
     <span class="dim">— live from the chain, updated as people claim.</span>
   </p>
 
