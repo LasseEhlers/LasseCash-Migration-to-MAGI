@@ -111,8 +111,8 @@
   </ol>
 
   <p class="dim">
-    A new account can mint and trade straight away. To post, you first need a
-    stake in L-Shares, which is what minting gives you. See
+    A new account can mint and trade straight away. To post, you first need
+    L-Shares, which you get by minting. See
     <a href="/thresholds">Thresholds</a> for the exact amounts, and
     <a href="/about">How it works</a> for the full rules.
   </p>
