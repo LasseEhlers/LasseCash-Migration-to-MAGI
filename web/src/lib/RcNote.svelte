@@ -47,9 +47,11 @@
       Credits are spent by every action and come back over five days.
     {/if}
     <span class="fix">
-      To act now, hold a little <strong>HBD on MAGI</strong>: 1 HBD adds 1,000
-      credits, and it is <strong>collateral, never spent</strong> — you can
-      withdraw it again whenever you like.
+      To act now, deposit <strong>HBD on MAGI</strong>: each 1 HBD adds 1,000
+      credits, and it is <strong>collateral, not a fee</strong> — you can withdraw
+      it whenever you like. As a guide, about 10 HBD covers occasional use, 25 HBD
+      voting and posting most days, and 100 HBD active trading or curating with
+      almost no waiting.
       <a href="/wallet">Deposit HBD →</a>
     </span>
   </div>

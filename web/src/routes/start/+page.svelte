@@ -70,8 +70,25 @@
       <p>
         HBD is Hive's dollar-pegged token. You need some for two things: to buy
         LASSECASH, and as action credits on MAGI, where 1 HBD adds 1,000 credits
-        and is held as collateral, never spent. A new account starts with some free
-        credits, enough for your first few actions.
+        and is held as collateral, never spent. A new account starts with 10,000
+        free credits, enough for your first few actions.
+      </p>
+      <p>
+        <b>How much to keep on MAGI.</b> Credits are used by every action and come
+        back in full over five days, so the right amount depends on how much you do
+        in a typical week:
+      </p>
+      <table class="tiers">
+        <tbody>
+          <tr><td class="mono">10 HBD</td><td class="mono">20,000 credits</td><td>An occasional mint, vote or trade</td></tr>
+          <tr><td class="mono">25 HBD</td><td class="mono">35,000 credits</td><td>Voting and posting most days</td></tr>
+          <tr><td class="mono">100 HBD</td><td class="mono">110,000 credits</td><td>Active curating, trading or liquidity, with almost no waiting</td></tr>
+        </tbody>
+      </table>
+      <p class="dim">
+        For scale: a vote uses about 1,000 credits, a post 1,000–2,000, a mint
+        2,500–3,500. Keep this amount apart from the HBD you buy LASSECASH with,
+        because HBD that goes into a swap or leaves MAGI takes its credits with it.
       </p>
       <p>
         Exchanges that list Hive let you buy HIVE or HBD and withdraw it to your
@@ -113,6 +130,9 @@
   .dim { color: var(--dim); font-size: 0.9rem; }
   /* In-text links must read as links: the body copy is the same colour family. */
   .start p a:not(.button) { text-decoration: underline; text-underline-offset: 2px; }
+  .tiers { width: 100%; border-collapse: collapse; margin: 0 0 0.6rem; font-size: 0.92rem; }
+  .tiers td { padding: 0.35rem 0.5rem; border-top: 1px solid var(--line, rgba(255, 255, 255, 0.08)); vertical-align: top; }
+  .tiers td.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--gold); }
   .button {
     display: inline-block; padding: 0.5rem 0.9rem; border: 1px solid var(--gold-dim);
     border-radius: var(--r-sm, 4px); text-decoration: none; color: var(--gold);
