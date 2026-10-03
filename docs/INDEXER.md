@@ -1,6 +1,8 @@
 # The transaction index
 
-Built 2026-10-03. Code: `api/src/indexer.ts` (the walk, pure, tested),
+Built 2026-10-03. **Dormant by choice:** Lasse decided the same day not to
+bind it (no off-chain dependency while the chain is small). Revisit near the
+2,000-call page cap. Code: `api/src/indexer.ts` (the walk, pure, tested),
 `web/src/lib/server/tx-index.ts` (D1 storage + when to sync),
 `web/src/routes/api/index/txs/+server.ts` (the endpoint).
 
