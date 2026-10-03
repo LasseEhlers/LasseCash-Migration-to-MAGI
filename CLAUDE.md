@@ -2261,6 +2261,18 @@ docs/NATIVE-POOL-PLAN.md) — that makes it visible, it already works.
 falls back to throwaway #9 when unset, so a forgotten export sends a production
 call to a dead test contract and reports success.
 
+## ✅ TRANSACTION INDEX — BUILT 2026-10-03, waits on a D1 binding
+
+The contract's log copied verbatim into Cloudflare D1, synced lazily by the
+site's own worker on request (no cron), served at `/api/index/txs`. Feed,
+profiles, comments and Stats read it first and fall back to the node on
+anything but a COMPLETE answer, so the site is identical with or without it.
+Live on Cloudflare's runtime against production: 318 tx backfilled in 6.8 s,
+reads 10 ms. **Off until Lasse creates `lassecash-index` and binds it as `DB`**
+— steps in docs/INDEXER.md. Same day: discovery's 31-day horizon REMOVED (the
+whole log was 4 requests), so feed and profiles reach back to launch even
+without the index; the page cap (2,000 calls) is the only bound left.
+
 ## ✅ EDIT A POST — BUILT 2026-10-01, and it never touches the chain
 
 An author edits their own post from `/compose?edit=@author/permlink`; the

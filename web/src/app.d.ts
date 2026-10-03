@@ -2,8 +2,12 @@
 
 declare global {
   namespace App {
-    // Cloudflare's platform bindings would go here if the app ever needed one.
-    // It does not: the worker reads the chain over fetch and holds no state.
+    // Cloudflare bindings. DB is the transaction index (D1), bound in the
+    // Pages dashboard as "DB"; optional because the site must work without
+    // it — every reader falls back to walking the node.
+    interface Platform {
+      env?: { DB?: import("$lib/server/tx-index").D1Like };
+    }
   }
 }
 

@@ -29,3 +29,4 @@ export * from "./magi-pools.js";
 export * from "./market.js";
 export * from "./native-pool.js";
 export * from "./magi-nodes.js";
+export * from "./indexer.js";

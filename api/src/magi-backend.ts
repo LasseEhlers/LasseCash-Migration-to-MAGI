@@ -14,6 +14,7 @@
  */
 import { MAPPED_BALANCE_PREFIX } from "./magi-pools.js";
 import { magiFetch } from "./magi-nodes.js";
+import type { IndexedTx } from "./indexer.js";
 import { BackendError, type AccountActivity, type AccountOp, type PoolOp, type PoolLedgerEntry, type Backend, type Signer } from "./backend.js";
 import * as engine from "./engine.js";
 import { toUnits } from "./amount.js";
@@ -31,6 +32,13 @@ export interface MagiBackendOptions {
   contractId: string;
   fetch?: typeof globalThis.fetch;
   timeoutMs?: number;
+  /**
+   * The site's transaction index (`/api/index/txs`). When set, history-based
+   * lists read it first and fall back to walking the node if it is absent,
+   * unconfigured or incomplete — so the index can only make lists faster or
+   * longer, never break them.
+   */
+  indexUrl?: string;
 }
 
 export class MagiBackend implements Backend {
@@ -39,6 +47,7 @@ export class MagiBackend implements Backend {
   readonly #contractId: string;
   readonly #fetch: typeof globalThis.fetch;
   readonly #timeoutMs: number;
+  readonly #indexUrl: string | undefined;
 
   constructor(opts: MagiBackendOptions) {
     // Undefined = the public nodes with failover (see magi-nodes.ts).
@@ -46,6 +55,38 @@ export class MagiBackend implements Backend {
     this.#contractId = opts.contractId;
     this.#fetch = opts.fetch ?? globalThis.fetch.bind(globalThis);
     this.#timeoutMs = opts.timeoutMs ?? 15_000;
+    this.#indexUrl = opts.indexUrl;
+  }
+
+  /**
+   * One page of the contract's transaction log, newest first, with the id and
+   * anchor height the index keys on. The server's indexer calls this; nothing
+   * in the browser needs it.
+   */
+  async fetchTxPage(offset: number, limit = 100): Promise<IndexedTx[]> {
+    const data = await this.query<{ findTransaction: IndexedTx[] | null }>(
+      `query($c: String!, $o: Int!, $l: Int!) { findTransaction(filterOptions: {byContract: $c, offset: $o, limit: $l}) {
+        id anchr_height anchr_ts status required_auths required_posting_auths ops { type data } } }`,
+      { c: this.#contractId, o: offset, l: limit },
+    );
+    return data.findTransaction ?? [];
+  }
+
+  /**
+   * The whole history from the index, or null when it cannot vouch for the
+   * whole history (not configured, unreachable, or still backfilling).
+   */
+  async #fromIndex(actions: string[] = []): Promise<DiscoverTx[] | null> {
+    if (!this.#indexUrl) return null;
+    try {
+      const q = actions.length ? `?actions=${actions.join(",")}` : "";
+      const res = await this.#fetch(this.#indexUrl + q);
+      if (!res.ok) return null;
+      const body = (await res.json()) as { complete?: boolean; txs?: DiscoverTx[] };
+      return body.complete && Array.isArray(body.txs) ? body.txs : null;
+    } catch {
+      return null;
+    }
   }
 
   async query<T>(query: string, variables: Record<string, unknown> = {}): Promise<T> {
@@ -617,6 +658,10 @@ export class MagiBackend implements Backend {
     // costs the same as reading the window did. The page cap is the only
     // bound, a rate-limit courtesy; when the chain outgrows 2,000 calls the
     // fix is the indexer, not a bigger cap.
+    // Posts are discovered from `post` calls AND first votes (see discoveredCalls).
+    const indexed = await this.#fromIndex(action === "post" ? ["post", "vote"] : [action]);
+    if (indexed) return discoveredCalls(indexed, limit, action, accept);
+
     const MAX_PAGES = 20;
     const txs: DiscoverTx[] = [];
     for (let page = 0; page < MAX_PAGES; page++) {
@@ -1275,20 +1320,8 @@ export class MagiBackend implements Backend {
    */
   async activity(limit = 2000): Promise<AccountActivity[]> {
     const by = new Map<string, { actions: Record<string, number>; calls: number; lastSeen: string }>();
-    const PAGE = 50;
-    for (let offset = 0; offset < limit; offset += PAGE) {
-      const data = await this.query<{
-        findTransaction: {
-          anchr_ts: string; status: string;
-          required_auths: string[]; required_posting_auths: string[];
-          ops: { type: string; data: { action?: string } }[];
-        }[];
-      }>(
-        `query($c: String!, $o: Int!, $l: Int!) { findTransaction(filterOptions: {byContract: $c, offset: $o, limit: $l}) {
-          anchr_ts status required_auths required_posting_auths ops { type data } } }`,
-        { c: this.#contractId, o: offset, l: PAGE },
-      );
-      const page = data.findTransaction ?? [];
+    const indexed = await this.#fromIndex();
+    const consume = (page: DiscoverTx[]) => {
       for (const tx of page) {
         if (tx.status !== "CONFIRMED") continue;
         const signer = (tx.required_auths ?? [])[0] ?? (tx.required_posting_auths ?? [])[0] ?? "";
@@ -1296,16 +1329,31 @@ export class MagiBackend implements Backend {
         for (const op of tx.ops ?? []) {
           const action = op.data?.action;
           if (op.type !== "call" || !action) continue;
-          const row = by.get(signer) ?? { actions: {}, calls: 0, lastSeen: tx.anchr_ts };
+          const ts = tx.anchr_ts ?? "";
+          const row = by.get(signer) ?? { actions: {}, calls: 0, lastSeen: ts };
           row.actions[action] = (row.actions[action] ?? 0) + 1;
           row.calls += 1;
           // The node answers newest-first, so the FIRST time we see an account
           // is its most recent call.
-          if (row.lastSeen < tx.anchr_ts) row.lastSeen = tx.anchr_ts;
+          if (row.lastSeen < ts) row.lastSeen = ts;
           by.set(signer, row);
         }
       }
-      if (page.length < PAGE) break;
+    };
+    if (indexed) {
+      consume(indexed.slice(0, limit));
+    } else {
+      const PAGE = 50;
+      for (let offset = 0; offset < limit; offset += PAGE) {
+        const data = await this.query<{ findTransaction: DiscoverTx[] | null }>(
+          `query($c: String!, $o: Int!, $l: Int!) { findTransaction(filterOptions: {byContract: $c, offset: $o, limit: $l}) {
+            anchr_ts status required_auths required_posting_auths ops { type data } } }`,
+          { c: this.#contractId, o: offset, l: PAGE },
+        );
+        const page = data.findTransaction ?? [];
+        consume(page);
+        if (page.length < PAGE) break;
+      }
     }
     return [...by.entries()]
       .map(([account, r]) => ({ account, ...r }))

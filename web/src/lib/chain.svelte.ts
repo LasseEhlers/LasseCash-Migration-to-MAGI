@@ -31,7 +31,12 @@ export const CONTRACT_ID = import.meta.env.VITE_CONTRACT_ID ?? "";
 export const WALLET_MODE = CONTRACT_ID !== "";
 
 const backend = WALLET_MODE
-  ? new MagiBackend({ contractId: CONTRACT_ID })
+  ? new MagiBackend({
+      contractId: CONTRACT_ID,
+      // The site's own transaction index; lists fall back to walking the
+      // node whenever it answers 503 or is still backfilling.
+      indexUrl: typeof window !== "undefined" ? "/api/index/txs" : undefined,
+    })
   : new DevBackend({ url: DEV_URL });
 
 /**
