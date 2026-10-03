@@ -316,7 +316,7 @@
   {#if showClaimsNote}
     <div class="day30 claimsnote" role="note">
       <span>
-        <strong>Claiming a mint is paused while we fix a backing error.</strong>
+        <strong>Large mint claims are paused while we fix a backing error; smaller claims are paid normally.</strong>
         Your tokens and your positions are safe and recorded on chain, and
         nothing expires — grace runs to 29 December. We found that the contract
         cannot currently pay out large claims: its books record
