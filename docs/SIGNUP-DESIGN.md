@@ -99,3 +99,18 @@ Use only if TSS is closed to user contracts or unreliable.
 
 Costs money, only on Lasse's yes and not before ~20 Oct: one throwaway dApp
 deploy to measure TSS; one real creation (~3 HIVE) as the final proof.
+
+## Who can pay, who can log in — answered 2026-10-03
+
+- **Pay:** HIVE and HBD are native (proven). BTC is mapped by
+  `btc_mainnet_mapping`; a BTC:HBD and an HBD:HIVE pool exist on MAGI and a
+  BTC sell already ran through our Wallet page — but a user contract
+  RECEIVING BTC directly is untested. LASSECASH is ours. Every route to the
+  3 HIVE fee exists today through the pools.
+- **Log in without Hive:** MAGI accounts are Hive, Ethereum wallets
+  (`did:pkh:…`, self-custodial only) and ed25519 DIDs. **Not Bitcoin
+  wallets.** lassecash.com has Hive sign-in only; a MetaMask sign-in is
+  separate work. A MetaMask-only user could hold, swap and mint but not post
+  or vote (content is on Hive) — which is exactly the person this signup is for.
+- **Unknown:** do `did:pkh` accounts get the 10,000 free credits? Ask TibFox
+  with the TSS questions.
