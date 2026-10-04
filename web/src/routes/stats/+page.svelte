@@ -118,10 +118,12 @@
         r.longest = Math.max(r.longest, Number(f[3] || 0));
         byAcct.set(account, r);
       }
-      // Biggest commitment first: what was minted, not what happens to be
-      // locked today — a mint held to maturity and claimed is a success, not a zero.
+      // What is locked NOW first (Lasse, 2026-10-04): live commitment is what
+      // a reader wants. Finished mints follow, by what they minted — a mint
+      // held to maturity and claimed is a success, so it stays listed.
       mints = [...byAcct.values()].sort((a, b) =>
-        b.minted !== a.minted ? (b.minted > a.minted ? 1 : -1) : b.made - a.made);
+        b.locked !== a.locked ? (b.locked > a.locked ? 1 : -1)
+        : b.minted !== a.minted ? (b.minted > a.minted ? 1 : -1) : b.made - a.made);
 
       // --- liquidity -----------------------------------------------------
       const lpBy = new Map<string, LpRow>();
@@ -192,7 +194,7 @@
           <table>
             <thead><tr>
               <th class="num">#</th><th>Account</th><th class="num">Mints</th>
-              <th class="num">Minted</th><th class="num">Locked now</th><th class="num">L-Shares</th><th class="num">Longest</th>
+              <th class="num">Locked now</th><th class="num">L-Shares</th><th class="num">Minted</th><th class="num">Longest</th>
             </tr></thead>
             <tbody>
               {#each (allMints ? mints : top(mints, 15)) as r, i}
@@ -200,9 +202,9 @@
                   <td class="num dim">{i + 1}</td>
                   <td><a href="/@{name(r.account)}">@{name(r.account)}</a></td>
                   <td class="num mono">{r.made}{#if r.open < r.made}<span class="dim"> ({r.open} open)</span>{/if}</td>
-                  <td class="num mono gold">{amt(r.minted)}</td>
-                  <td class="num mono" class:zero={r.locked === 0n}>{r.locked === 0n ? "claimed" : amt(r.locked)}</td>
+                  <td class="num mono" class:gold={r.locked > 0n} class:zero={r.locked === 0n}>{r.locked === 0n ? "claimed" : amt(r.locked)}</td>
                   <td class="num mono" class:zero={r.shares === 0n}>{amt(r.shares)}</td>
+                  <td class="num mono dim">{amt(r.minted)}</td>
                   <td class="num mono dim">{r.longest} d</td>
                 </tr>
               {/each}
