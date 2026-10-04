@@ -17,7 +17,7 @@
   import Seo from "$lib/Seo.svelte";
   import { SITE_URL } from "$lib/site.js";
   import {
-    HEIGHTS_PER_DAY, MIN_YEAR_DAYS, lcToHbd, mintStory, reservesAt, toBaseUnitArg, toUnits,
+    HEIGHTS_PER_DAY, MIN_YEAR_DAYS, dailyRewards, estimateRewardShare, fromUnits, lcToHbd, mintStory, reservesAt, toBaseUnitArg, toUnits,
     type Amount, type MintStory, type MintView, type PoolTrade,
   } from "$api/index.js";
   import type { PageData } from "./$types";
@@ -96,6 +96,29 @@
       perYear: days >= MIN_YEAR_DAYS ? Math.round((pctNow * 365 / days) * 100) / 100 : null,
     };
   });
+  /**
+   * FORWARD: what these shares earn at TODAY's share base — the same engine
+   * figure the Mint page shows for a new mint (dailyRewards' L-Share slice,
+   * split by estimateRewardShare), except this mint is already in the total.
+   * A mint made before the 30 September cliff reads low on "pace so far",
+   * because it shared with every migration mint; this is the fair picture of
+   * the choice today. Labelled an estimate: it falls as others mint.
+   */
+  const ahead = $derived.by(() => {
+    const info = chain.info;
+    if (!story || !live || live.ended || live.mature || !info || !chain.ready) return null;
+    try {
+      const daily = dailyRewards(info.genesis_height, info.height).lshare;
+      const mine = toBaseUnitArg(story.shares);
+      const total = toBaseUnitArg(info.total_shares);
+      if (BigInt(total) <= 0n) return null;
+      const perDay = estimateRewardShare(toBaseUnitArg(daily), mine, total);
+      const perYear = fromUnits(toUnits(perDay) * 365n);
+      const p = toUnits(story.principal);
+      const pctYear = p > 0n ? Number((toUnits(perYear) * 10_000n) / p) / 100 : null;
+      return { perDay, perYear, pctYear };
+    } catch { return null; }
+  });
   const startHbd = $derived(story ? hbdAt(story.principal, story.startHeight) : null);
   const endHbd = $derived(story ? hbdAt(story.paidOut, story.claimHeight) : null);
   const tx = (id: string) => `https://vsc.techcoderx.com/tx/${id}`;
@@ -160,6 +183,12 @@
             {#if pace.perYear !== null}<dd class="dim mono">≈ {pct(pace.perYear)} a year at this pace</dd>
             {:else}<dd class="dim">a yearly figure appears from day {MIN_YEAR_DAYS}</dd>{/if}
             <dd class="dim">backward-looking; the rate falls as others mint</dd>
+          {:else}<dd class="dim">—</dd>{/if}</div>
+        <div><dt>At today's share base</dt>
+          {#if ahead}
+            <dd class="mono gold">{pct(ahead.pctYear)} <span class="unit">a year</span></dd>
+            <dd class="dim mono">≈ {lc(ahead.perYear, 0)} LASSECASH a year · {lc(ahead.perDay, 2)} a day</dd>
+            <dd class="dim">estimate — falls as others mint</dd>
           {:else}<dd class="dim">—</dd>{/if}</div>
         <div><dt>Matures</dt><dd class="mono">{shortDate(live.maturity_time)}</dd>
           <dd class="dim">{live.claimable ? "claimable now" : live.mature ? "claimable once the maturity day closes" : "yield stops at maturity"}</dd></div>
