@@ -137,44 +137,6 @@
    * is respected, but a temporary notice that never comes back is a notice
    * nobody sees when it matters. Delete this block when the Feed is done.
    */
-  /**
-   * WHY THE BUTTONS PAUSE, said before anyone has to wonder.
-   *
-   * Every signed action asks the chain whether it would succeed before the
-   * wallet opens — a dry run plus a read of the account's credits, two to four
-   * round trips, 0.3 to 1.2 seconds. The old condenser sites felt instant
-   * because they checked nothing, and the price was a transaction that failed
-   * ninety seconds later with no explanation. We would rather spend the second.
-   *
-   * But most of that second is OUR doing, not MAGI's: the calls run one after
-   * another where they could run together, the credit meter is read several
-   * times per click, and the mint paths fetch chain state the page already
-   * has. Measured 2026-10-01 after Lasse noticed the delay on a claim. The fix
-   * is frontend-only and lands after the key burn, when changing the site
-   * carries no risk to anything frozen. Delete this note when it is done.
-   */
-  /**
-   * CLAIMS ARE PAUSED — the most important thing the site can say right now.
-   *
-   * The 8 Sep token handover left every contract-held position without token
-   * backing (docs/FLOAT-SHORTFALL.md), so a claim larger than the core's float
-   * is refused by the token with "Insufficient balance". The holders whose
-   * mints matured on the day-30 cliff hit that from 2 October, and an
-   * unexplained failure on a page that says READY TO CLAIM reads as a broken
-   * or dishonest project. Saying it plainly, with the number, costs far less
-   * than silence.
-   *
-   * GOLD, not red: red is reserved for value actively being lost, and nothing
-   * is being lost here — the positions are on chain and nothing expires before
-   * 29 December.
-   */
-  let dismissedClaimsNote = $state(false);
-  const showClaimsNote = $derived(WALLET_MODE && !dismissedClaimsNote);
-  function dismissClaimsNote() {
-    dismissedClaimsNote = true;
-    try { localStorage.setItem("lc_claims_note", String(Date.now())); } catch { /* fine */ }
-  }
-
   function dismissDay30() {
     dismissedDay30 = true;
     try { localStorage.setItem("lc_day30_note", String(Date.now())); } catch { /* fine */ }
@@ -183,8 +145,6 @@
   onMount(async () => {
     try { showMobileNote = !localStorage.getItem("lc_mobile_note"); } catch { showMobileNote = true; }
     try {
-      const claimsAt = Number(localStorage.getItem("lc_claims_note") || 0);
-      dismissedClaimsNote = claimsAt > 0 && Date.now() - claimsAt < DAY30_SNOOZE_MS;
       const at = Number(localStorage.getItem("lc_day30_note") || 0);
       // A pre-existing "1" from the first build parses to 1 ms since epoch,
       // which is long lapsed — so those browsers simply see it once more.
@@ -313,24 +273,6 @@
     </div>
   {/if}
 
-  {#if showClaimsNote}
-    <div class="day30 claimsnote" role="note">
-      <span>
-        <strong>Large mint claims are paused while we fix a backing error; smaller claims are paid normally.</strong>
-        Your tokens and your positions are safe and recorded on chain, and
-        nothing expires — grace runs to 29 December. We found that the contract
-        cannot currently pay out large claims: its books record
-        28,356,122 LASSECASH in existence while the token ledger has only ever
-        minted 19,166,961, so 9,189,161 of backing is missing. The September
-        ledger upgrade carried the account balances across and not the amounts
-        the contract itself holds — the mint principals and the pools. <strong>We are fixing that before anything is frozen, so
-        the key burn planned for 10 October is on hold.</strong> Balances,
-        transfers, swaps, posting and voting all work normally.
-        <a href="https://github.com/LasseEhlers/LasseCash-Migration-to-MAGI/blob/main/docs/FLOAT-SHORTFALL.md" target="_blank" rel="noreferrer">The full write-up, with the numbers →</a>
-      </span>
-      <button class="day30-dismiss" onclick={dismissClaimsNote} aria-label="dismiss">×</button>
-    </div>
-  {/if}
   {#if chain.confirming}
     <div class="confirming" role="status">
       <span class="dot"></span> Signed — waiting for MAGI to confirm. The figures update by themselves.
@@ -398,7 +340,6 @@
   .day30 a { color: var(--gold); }
   /* Third in the stack, so it carries no top border either and sits dimmer
      than the two above it: it explains a second of waiting, not money. */
-  .speednote { border-top: 0; opacity: 0.85; }
   .day30-dismiss {
     margin-left: auto;
     background: none;
