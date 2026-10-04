@@ -290,8 +290,9 @@
 
   {#if chain.confirming}
     <div class="confirming" role="status">
-      <span class="dot"></span> Signed — waiting for MAGI to confirm{#if waited > 0} · <span class="mono">{waited}s</span>{/if}.
-      {#if waited >= 120}Taking longer than usual — nothing is lost, it will land.{:else}Usually 30–90 seconds; the figures update by themselves.{/if}
+      <span class="dot"></span>
+      <span class="msg">Signed — waiting for MAGI to confirm. {#if waited >= 120}Taking longer than usual — nothing is lost, it will land.{:else}Usually 30–90 seconds; the figures update by themselves.{/if}</span>
+      {#if waited > 0}<span class="secs mono">{waited}s</span>{/if}
     </div>
   {/if}
   {#if chain.outage}
@@ -397,6 +398,8 @@
 
   /* Pinned to the viewport: a status the user cannot see is no status, and
      the Publish button sits at the bottom of a long page. */
+  .confirming .msg { flex: 1; }
+  .confirming .secs { margin-left: 0.8rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .confirming {
     position: fixed; left: 50%; bottom: 3.2rem; transform: translateX(-50%);
     z-index: 50; max-width: min(92vw, 720px); padding: 0.5rem 0.9rem;
