@@ -87,7 +87,7 @@
       </table>
       <p class="dim">
         For scale: a vote uses about 1,000 credits, a post 1,000–2,000, a mint
-        2,500–3,500. Keep this amount apart from the HBD you buy LASSECASH with,
+        about 6,000. Keep this amount apart from the HBD you buy LASSECASH with,
         because HBD that goes into a swap or leaves MAGI takes its credits with it.
       </p>
       <p>

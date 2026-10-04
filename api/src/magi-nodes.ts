@@ -132,13 +132,22 @@ export async function pickFastestNode(opts: MagiFetchOptions = {}): Promise<stri
   //
   // Cold, they look alike. Warm, one is three times the other — and the first
   // version of this probe kept the slow one. So: one throwaway request to open
-  // the connection, then time the second. Six cheap requests once per session.
+  // the connection, then time the next two and keep the better. Nine cheap
+  // requests, at load and again every few minutes (chain.svelte.ts).
   const timed = await Promise.all(MAGI_NODES.map(async (url, i) => {
     try {
       await ask(url);                       // warm up; cost not counted
-      const t0 = Date.now();
-      await ask(url);                       // this is the measurement
-      return { i, ms: Date.now() - t0 };
+      // TWO measurements, keep the better. One sample let a single slow
+      // moment on the fast node hand a whole session to the slow one —
+      // Lasse saw 2.5–3 s mints again on 2026-10-04 (okinoko 90–270 ms with
+      // spread, techcoderx a steady 600 ms).
+      let best = Infinity;
+      for (let k = 0; k < 2; k++) {
+        const t0 = Date.now();
+        await ask(url);
+        best = Math.min(best, Date.now() - t0);
+      }
+      return { i, ms: best };
     } catch {
       return null;                          // unreachable, rate-limited, refusing
     }

@@ -158,6 +158,12 @@ class ChainStore {
       // query should not queue behind it. Whichever node wins is used from
       // the next request onward, and ordinary failover still runs on top.
       void pickFastestNode({ url: import.meta.env.VITE_CHAIN_URL });
+      // And again every five minutes: one probe at load is one sample, and
+      // nodes change speed — a tab left open for an hour should not stay on
+      // whichever node won its first second. Cheap reads, never awaited.
+      if (typeof window !== "undefined") {
+        setInterval(() => { void pickFastestNode({ url: import.meta.env.VITE_CHAIN_URL }); }, 5 * 60_000);
+      }
 
       // The engine and the chain load in parallel; neither depends on the other.
       await Promise.all([

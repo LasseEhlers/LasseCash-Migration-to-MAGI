@@ -774,6 +774,13 @@ matches destinations as `DEST` (escapes included) and runs `unescapeDest()`
 before `safeUrl()`, which additionally rejects any backslash; the indexer's
 `firstImage()` applies the same rule. Both renderers must keep agreeing.
 
+## A MINT COSTS ~5,850 RC SINCE THE TOKEN LEDGER — measured 2026-10-04
+
+Simulated on production for @lasseehlers: `increaseAllowance` 369 RC +
+`mint` 5,475 RC (547M gas). The 2,400–3,100 figures elsewhere in this file
+are pre-handover. With sizeRc's 1.3× floor a mint needs ~7,600 free credits;
+RcNote's LOW is 8,000 for that reason. A 6,119 meter was refused live.
+
 ## ⚠️ HBD AND RC ARE ONE POT — the deposit rule, MEASURED 2026-09-01
 
 @daneamanda held 3.443 HBD on MAGI, tried to add 1,000 LC of liquidity
