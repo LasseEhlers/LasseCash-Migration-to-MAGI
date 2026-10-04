@@ -859,6 +859,20 @@ HBD send would leave under 1,000 RC; the MAGI-pool swap preflights the
 `awaitVerdict` re-asks for a FAILED transaction's reason, because the
 output DAG (which carries `errMsg`) lands a beat after the status flips.
 
+## 🔑 KEY BURN — NO DATE; CRITERIA, THEN AN ANNOUNCED HEIGHT (Lasse, 2026-10-04)
+
+After the float bug (found only because the key still existed) Lasse holds
+the key longer: no fixed date, no new deadline, no multisig (nobody active
+enough to share it with). A post in **2–4 weeks** explains what happened and
+the plan; it should report RESULTS, so ideally after the paid tests that wait
+for ~20 Oct (backdated-genesis halving throwaway, the three sweeps on a real
+chain) plus weeks of green hourly audits and rc-watch runs. He may burn
+earlier as confidence grows; the height is announced before the burn. His
+August line was "12 months of admin keys is disingenuous" — the post must
+own the change of stance and say why. Until the burn, every text must keep
+saying the contract is NOT yet immutable, and any update is announced before
+its 48 h timelock.
+
 ## ✅ PRODUCTION UPDATE #4 LIVE AND APPLIED — the float is backed, 2026-10-04
 
 Activated at 110,467,757 (04:36 CPH); live code `bafkreifrpanzly…6hzyii`,
