@@ -287,7 +287,7 @@
                 {/if}
                 {#if Number(post.curator_pot) > 0}
                   <dt>To curators</dt>
-                  <dd class="mono">{lc(post.curator_pot, 0)} <small class="dim">— still unclaimed</small></dd>
+                  <dd class="mono">{lc(post.curator_pot, 0)} <small class="dim">— owed to the curators, paid with their next vote or post</small></dd>
                 {/if}
               {:else}
                 <dt>Pending</dt>
@@ -337,9 +337,10 @@
             {:else if post.paid_out}
               <p class="auto">
                 <strong class="green">Settled.</strong>
-                Curators are paid automatically on the 1st — the chain remembers
-                what each one is owed, so nobody has to claim anything. Anything
-                still unclaimed after a year returns to the reward pool.
+                The chain remembers what each curator is owed, so nobody has to
+                claim anything: each share is paid with that curator's next vote,
+                post or comment, or when they next visit in a new month. Anything
+                still owed a year after payout returns to the reward pool.
               </p>
             {:else if post.payable}
               <button onclick={payout} disabled={chain.busy}>Settle payout</button>

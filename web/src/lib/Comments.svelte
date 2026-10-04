@@ -350,7 +350,7 @@
             {:else if view.payable}
               <span class="dim tiny">window closed — settles with the post</span>
             {:else}
-              <span class="dim tiny">settles on the 1st</span>
+              <span class="dim tiny">curators paid with their next vote</span>
             {/if}
             {#if view.registered !== false && clearsThreshold}
               <button class="ghost small" onclick={() => replyToComment(view.author, view.permlink)}>

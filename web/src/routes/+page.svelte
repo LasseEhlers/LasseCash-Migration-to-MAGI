@@ -539,7 +539,7 @@
               <!-- Nothing to click. Curation settles itself on the 1st: the
                    chain queues what each curator is owed and the monthly
                    settle drains it. See CLAUDE.md, curation queue. -->
-              <span class="auto dim">settles on the 1st</span>
+              <span class="auto dim">curators paid with their next vote</span>
             {:else if money.payable}
               <button class="small" onclick={() => payout(post)} disabled={chain.busy}>
                 Settle payout
