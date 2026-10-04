@@ -142,6 +142,21 @@
     try { localStorage.setItem("lc_day30_note", String(Date.now())); } catch { /* fine */ }
   }
 
+  /**
+   * How long the current confirmation has waited. A counter, not a promise:
+   * MAGI blocks every 30 s and a transaction usually lands in 30–90 s, but
+   * not always, so a stated number would often be wrong. Seconds ticking
+   * show the page is alive. The effect only WRITES `waited` (from a timer),
+   * never reads it — see CLAUDE.md on effects that read their own writes.
+   */
+  let waited = $state(0);
+  $effect(() => {
+    if (!chain.confirming) { waited = 0; return; }
+    const t0 = Date.now();
+    const id = setInterval(() => { waited = Math.floor((Date.now() - t0) / 1000); }, 1000);
+    return () => clearInterval(id);
+  });
+
   onMount(async () => {
     try { showMobileNote = !localStorage.getItem("lc_mobile_note"); } catch { showMobileNote = true; }
     try {
@@ -275,7 +290,8 @@
 
   {#if chain.confirming}
     <div class="confirming" role="status">
-      <span class="dot"></span> Signed — waiting for MAGI to confirm. The figures update by themselves.
+      <span class="dot"></span> Signed — waiting for MAGI to confirm{#if waited > 0} · <span class="mono">{waited}s</span>{/if}.
+      {#if waited >= 120}Taking longer than usual — nothing is lost, it will land.{:else}Usually 30–90 seconds; the figures update by themselves.{/if}
     </div>
   {/if}
   {#if chain.outage}
