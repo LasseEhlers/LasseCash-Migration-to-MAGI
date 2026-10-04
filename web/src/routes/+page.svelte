@@ -363,6 +363,11 @@
           <!-- The unit is spelled out. Beside a headline a bare "3,860" reads
                as a vote or a view count, which is the one thing it is not. -->
           <span class="amt mono gold">{lc(money?.pending_payout ?? "0", 0)} LASSECASH</span>
+          <!-- The dollar figure, the same estimate and toggle as every card
+               below it. No vote button here on purpose: curation has no
+               early-voter bonus on LasseCash, so a one-click vote on a title
+               would buy nobody anything but a vote cast unread. -->
+          <span class="hbdcol"><Hbd amount={money?.pending_payout} /></span>
         </a>
       {/each}
     </section>
@@ -517,6 +522,7 @@
   .hotrow .who { color: var(--dim); font-size: 0.85rem; white-space: nowrap; }
   .hotrow .t { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .hotrow .amt { white-space: nowrap; font-size: 0.85rem; }
+  .hotrow .hbdcol { white-space: nowrap; font-size: 0.75rem; opacity: 0.8; }
   .hotthumb {
     flex: 0 0 46px; height: 32px; border-radius: 3px; overflow: hidden;
     background: #05070a; border: 1px solid var(--line-soft);
