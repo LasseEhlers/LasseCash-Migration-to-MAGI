@@ -157,7 +157,7 @@
    * completely, where at least now a strong viral post can climb.
    */
   const HOT_SLOTS = 3;
-  const hot = $derived.by<PostMeta[]>(() => {
+  const rankedHot = $derived.by<PostMeta[]>(() => {
     if (filter !== "all" || sort !== "trending" || !hydrated) return [];
     return all
       .filter((p) => {
@@ -174,8 +174,8 @@
       .slice(0, HOT_SLOTS);
   });
 
-  const shown = $derived.by<Row[]>(() => {
-    const lifted = new Set(hot.map(key));
+  const rankedShown = $derived.by<Row[]>(() => {
+    const lifted = new Set(rankedHot.map(key));
     const base = (filter === "all" ? all : all.filter((p) => p.window === filter))
       // Shown above, so not repeated here — the same post twice on one screen
       // reads as a bug, and the strip is a promotion out of the list, not a
@@ -206,6 +206,54 @@
     // of them at the bottom of a list that is supposed to be chronological.
     out.sort((a, b) => a.created_time < b.created_time ? 1 : a.created_time > b.created_time ? -1 : 0);
     return out.map((post) => ({ post, slot: false }));
+  });
+
+  /**
+   * THE CARD YOU JUST VOTED ON DOES NOT RUN AWAY.
+   *
+   * A vote raises a post's pending payout, so the next load re-ranks it —
+   * often to the top, sometimes into What's hot — while the voter is still
+   * looking at the spot they clicked. Lasse lost his own vote that way on
+   * 2026-10-04. So a vote freezes the order on screen; the voted card is
+   * marked, and says where the ranking now puts it. "Re-sort" (or changing
+   * filter or sort) applies the new ranking. Nothing about the figures waits:
+   * they update in place, only the ORDER holds still.
+   */
+  let frozen = $state<{ hot: string[]; shown: { k: string; slot: boolean }[] } | null>(null);
+  let justVoted = $state<string | null>(null);
+
+  function voted(post: PostMeta) {
+    frozen = {
+      hot: rankedHot.map(key),
+      shown: rankedShown.map((r) => ({ k: key(r.post), slot: r.slot })),
+    };
+    justVoted = key(post);
+    void load();
+  }
+  function resort() { frozen = null; justVoted = null; }
+  $effect(() => { void filter; void sort; frozen = null; justVoted = null; });
+
+  const byKey = $derived(new Map(all.map((p) => [key(p), p])));
+  const hot = $derived<PostMeta[]>(
+    frozen ? frozen.hot.map((k) => byKey.get(k)).filter((p): p is PostMeta => !!p) : rankedHot,
+  );
+  const shown = $derived.by<Row[]>(() => {
+    if (!frozen) return rankedShown;
+    const seen = new Set(frozen.shown.map((r) => r.k));
+    const rows = frozen.shown
+      .map((r) => ({ post: byKey.get(r.k), slot: r.slot }))
+      .filter((r): r is Row => !!r.post);
+    // Anything that arrived after the freeze goes at the end, not lost.
+    for (const r of rankedShown) if (!seen.has(key(r.post))) rows.push(r);
+    return rows;
+  });
+  /** Where the live ranking now puts the voted post, in words. */
+  const movedTo = $derived.by(() => {
+    if (!frozen || !justVoted) return "";
+    const h = rankedHot.findIndex((p) => key(p) === justVoted);
+    if (h >= 0) return `now #${h + 1} in What's hot`;
+    const t = rankedShown.findIndex((r) => key(r.post) === justVoted);
+    return t >= 0 ? `now #${t + 1} in the list` : "";
   });
 
   /**
@@ -398,7 +446,12 @@
              card someone is reading visibly slides to its ranked place
              instead of teleporting out from under their eyes. -->
         <article class="post panel" animate:flip={{ duration: 450 }}
-                 class:settled={money?.paid_out} class:slotted={slot}>
+                 class:settled={money?.paid_out} class:slotted={slot}
+                 class:justvoted={justVoted === key(post)}>
+          {#if justVoted === key(post)}
+            <p class="votednote">✓ Your vote is in{#if movedTo} — {movedTo}{/if}.
+              <button class="link" onclick={resort}>Re-sort the feed</button></p>
+          {/if}
           {#if slot}
             <!-- The slot says WHY this row is here, in the row itself. A
                  promoted post that is not in a slot carries the same badge in
@@ -481,7 +534,7 @@
                    registers an author|permlink it does not recognise. So the
                    control stays enabled — this is the one button on the page
                    that turns a Hive post into a LasseCash post. -->
-              <VoteSlider post={money} onvoted={load} />
+              <VoteSlider post={money} onvoted={() => voted(post)} />
             {:else if money.paid_out}
               <!-- Nothing to click. Curation settles itself on the 1st: the
                    chain queues what each curator is owed and the monthly
@@ -492,7 +545,7 @@
                 Settle payout
               </button>
             {:else}
-              <VoteSlider post={money} onvoted={load} />
+              <VoteSlider post={money} onvoted={() => voted(post)} />
             {/if}
             {/if}
           </div>
@@ -621,4 +674,8 @@
 
   .actions { flex: 1 1 100%; align-items: stretch; padding: 0 0.85rem 0.85rem; }
   }
+  .post.justvoted { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold-dim); }
+  .votednote { margin: 0 0 .6rem; font-size: .8rem; color: var(--gold); }
+  .votednote .link { background: none; border: 0; padding: 0; margin-left: .4rem; font: inherit;
+                     color: var(--gold); text-decoration: underline; cursor: pointer; }
 </style>

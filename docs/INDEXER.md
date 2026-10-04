@@ -31,9 +31,11 @@ so the site behaves identically with or without the database.
 2. **Workers & Pages → lassecash → Settings → Bindings → Add → D1
    database** → variable name **`DB`** → database `lassecash-index` → Save.
    Do it for Production (Preview optional).
-3. Redeploy so the binding applies: Deployments → latest → **Retry
+3. Set the Pages environment variable `VITE_INDEX_URL=/api/index/txs`
+   (the browser only asks the index when it is set).
+4. Redeploy so the binding applies: Deployments → latest → **Retry
    deployment** (or push any commit).
-4. Check: `https://lassecash.com/api/index/txs?actions=post` should answer
+5. Check: `https://lassecash.com/api/index/txs?actions=post` should answer
    `"complete": true`. The tables create themselves on the first request.
 
 ## Reset

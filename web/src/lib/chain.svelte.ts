@@ -33,9 +33,10 @@ export const WALLET_MODE = CONTRACT_ID !== "";
 const backend = WALLET_MODE
   ? new MagiBackend({
       contractId: CONTRACT_ID,
-      // The site's own transaction index; lists fall back to walking the
-      // node whenever it answers 503 or is still backfilling.
-      indexUrl: typeof window !== "undefined" ? "/api/index/txs" : undefined,
+      // The site's own transaction index — DORMANT BY CHOICE (2026-10-03,
+      // docs/INDEXER.md). Only asked when VITE_INDEX_URL is set, so visitors
+      // do not each make a request that answers 503 while it is unbound.
+      indexUrl: typeof window !== "undefined" ? (import.meta.env.VITE_INDEX_URL || undefined) : undefined,
     })
   : new DevBackend({ url: DEV_URL });
 
