@@ -34,7 +34,7 @@ LasseCash is a social media platform and a set of financial rules sharing one to
 
 Content lives on Hive; the contract tracks only the money. Your article is a normal Hive post, readable on peakd, ecency or any Hive frontend, and readable a decade from now whether or not lassecash.com exists. The contract stores only author, permlink, payout window and accumulated vote weight, so LasseCash is never the sole custodian of anyone's writing.
 
-Every number here comes from one piece of code: the share formula, halving schedule, bleed curve and pool math are written once in Go and compiled twice — for the chain, and for your browser, so the site previews figures without drifting from what the chain pays. No accounting path uses floating point; everything is integers at eight decimals, and every rounding step floors, so the chain can under-pay by a base unit but never over-issue. About 40 days after launch, at an announced height, the owner key is destroyed: after that nobody can change the code, add an entrypoint or move a bound — not the founder, not the top ten, not anyone. What is below is what runs, permanently.
+Every number here comes from one piece of code: the share formula, halving schedule, bleed curve and pool math are written once in Go and compiled twice — for the chain, and for your browser, so the site previews figures without drifting from what the chain pays. No accounting path uses floating point; everything is integers at eight decimals, and every rounding step floors, so the chain can under-pay by a base unit but never over-issue. At an announced height the owner key is destroyed — not on a fixed date any more; section 8 says why — and after that nobody can change the code, add an entrypoint or move a bound — not the founder, not the top ten, not anyone. What is below is what runs; once the key is gone, permanently.
 
 ## 2. The numbers that never change
 
@@ -308,7 +308,7 @@ Nothing is confiscated, and that distinction is the point. A minter is paid up t
 
 The wallet lets you swap HBD, HIVE and BTC and move funds between Hive and MAGI. Those are not all the same kind of thing, and the differences are worth stating plainly rather than flattening into one word.
 
-**The LASSECASH:HBD pool is ours, and from 10 October nobody can change it.** No owner key, no upgrade path: the swap rule, the 0% fee and the reserves are frozen in code. LASSECASH is native to that contract, so nobody custodies it — there is no company holding it and no signature that could move it.
+**The LASSECASH:HBD pool is ours, and after the key burn nobody can change it.** No owner key, no upgrade path: the swap rule, the 0% fee and the reserves are fixed in code — and until the burn, any change to them would be public 48 hours before it took effect. LASSECASH is native to that contract, so nobody custodies it — there is no company holding it and no signature that could move it.
 
 **MAGI's own pools — HBD:HIVE and BTC:HBD — are not ours.** They are separate contracts that keep an owner and can be updated, and they charge 0.08% where ours charges nothing. Every swap there is still a trade you sign against a contract, with no account and nobody taking custody of the trade itself. What differs is that the code can change and we do not control it.
 
@@ -316,7 +316,7 @@ The wallet lets you swap HBD, HIVE and BTC and move funds between Hive and MAGI.
 
 **BTC carries one layer more.** Bitcoin on MAGI is *mapped*: real BTC is held off-chain by a mechanism we have not verified, so we make no claim about it. Withdrawing sends it to a Bitcoin address you control, which is the point at which it stops being anybody's IOU.
 
-So: everything inside the LasseCash contract is trustless from 10 October. Everything underneath it is as trustworthy as MAGI is, and bridging is where you rely on people rather than on code. Size that step deliberately.
+So: everything inside the LasseCash contract becomes trustless at the key burn; until then, any change is visible 48 hours ahead. Everything underneath it is as trustworthy as MAGI is, and bridging is where you rely on people rather than on code. Size that step deliberately.
 
 ## 7. Thresholds — the median of ten numbers
 
@@ -343,11 +343,13 @@ What the median does not defend against is one entity holding several seats. Tha
 
 ## 8. Immutability
 
-At an **announced block height, roughly 40 days after genesis**, the owner account's keys are destroyed — its owner, active, posting and memo authorities set to Hive's null public key — and the transaction id is published. MAGI resolves a contract update against the owner's active authority, so with no key in existence no update can ever be queued. It is not a promise not to; it is that nobody can.
+At an **announced block height**, the owner account's keys are destroyed — its owner, active, posting and memo authorities set to Hive's null public key — and the transaction id is published. MAGI resolves a contract update against the owner's active authority, so with no key in existence no update can ever be queued. It is not a promise not to; it is that nobody can.
+
+**Not yet.** The burn was planned for about day 40. On day 31 the first large claim found a real fault — the contract's books owed more LASSECASH than its token held — and it could be repaired, on 4 October, only because the key still existed. So the key now stays until the remaining tests have passed on a real chain and production has run clean for a while; the height is announced before the burn. **Until then the contract is not immutable**, and that is said everywhere it matters.
 
 Lasse's reasoning: *"No, it's necessary to claim it's real blockchain immutable, no admin keys. If I want to change anything in the future it's a real hardfork. I think I will burn the keys at launch and say it's 100% immutable — that's more earnest than having 100% admin keys for 12 months. That's disingenuous."*
 
-**Why wait 40 days instead of burning on day one.** The window covers the heaviest first-time events on the real chain: the first claims, the first daily accruals, the day-30 maturity of every migration mint at once, and the first FULL monthly Proof-of-Brain payout — the one with a whole month of earnings behind it. Forty days rather than thirty-five because a mainnet code update carries a 48-hour timelock, and thirty-five left that payout a single day of margin before the key was gone. Until the burn, the key's only power is to queue a **public, timelocked code update**, visible to anyone via `findPendingContractUpdates` for 48 hours before it can activate, and cancellable inside that window — the recovery path if the live chain surprises anyone. It **cannot touch anyone's tokens, balances, mints or votes**, before or after. The height and the reason are in the genesis post.
+**Why not burn on day one.** The window covers the heaviest first-time events on the real chain: the first claims, the first daily accruals, the day-30 maturity of every migration mint at once, and the first FULL monthly Proof-of-Brain payout — the one with a whole month of earnings behind it. The first of those events is exactly what found the fault above. Until the burn, the key's only power is to queue a **public, timelocked code update**, visible to anyone via `findPendingContractUpdates` for 48 hours before it can activate, and cancellable inside that window — the recovery path if the live chain surprises anyone. It cannot move anyone's tokens directly, but be precise about the limit: **new code could change any rule**, which is why every update is public two days before it can take effect, and why the key has to go. Every use of it so far is announced and on chain.
 
 | Wish | After the burn |
 |---|---|

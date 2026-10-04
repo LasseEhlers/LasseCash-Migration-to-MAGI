@@ -146,9 +146,9 @@
       L-Shares buy a seat, not extra weight within it — each seat contributes
       exactly one number to the median, so an extreme vote is self-neutralising.
       Even parity takes the lower median, in exact integers, so every node
-      computes the same value. Everything NOT listed below is immutable: the
-      51M hardcap, the halving curve, the 0% swap fee, both 1.5x ceilings, the
-      50/25/25 split.
+      computes the same value. Everything NOT listed below is out of the top
+      ten's reach, hardcoded: the 51M hardcap, the halving curve, the 0% swap
+      fee, both 1.5x ceilings, the 50/25/25 split.
     </p>
   </section>
 

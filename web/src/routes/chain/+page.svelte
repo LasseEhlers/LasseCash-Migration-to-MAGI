@@ -211,7 +211,7 @@
       <div class="addr">
         <span class="k">Core — the economy</span>
         <a class="mono" href="https://vsc.techcoderx.com/contract/{CONTRACT_ID}" target="_blank" rel="noopener">{CONTRACT_ID}</a>
-        <small class="dim">Mints, pools, Proof-of-Brain, thresholds. Admin key burns 10 October; after that nobody can change it.</small>
+        <small class="dim">Mints, pools, Proof-of-Brain, thresholds. The admin key burns at a height announced in advance; until then any code change is public 48 hours before it takes effect.</small>
       </div>
       <div class="addr">
         <span class="k">Token — LASSECASH itself</span>

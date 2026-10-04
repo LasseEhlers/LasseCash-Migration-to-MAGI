@@ -106,7 +106,7 @@
 <Seo
   title={data.edition === "short" ? `${SITE_NAME} in a minute` : `About ${SITE_NAME}`}
   description={data.edition === "short"
-    ? "Three ways to earn LASSECASH — write, lock, provide — on a token nobody can change. The one-minute version."
+    ? "Three ways to earn LASSECASH — write, lock, provide — on a token whose rules are code. The one-minute version."
     : SITE_DESCRIPTION}
   canonical={`${SITE_URL}/about/${data.edition}`}
   image={SITE_OG_IMAGE}

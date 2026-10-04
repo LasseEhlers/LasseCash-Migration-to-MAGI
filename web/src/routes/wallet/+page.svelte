@@ -603,8 +603,8 @@
       </button>
 
       <p class="note trust">
-        <b>Ours becomes unchangeable on 10 October</b> — the LASSECASH:HBD pool above, no
-        owner key, no fee. These two are MAGI's own contracts and charge 0.08%.
+        <b>Ours has no fee, and becomes unchangeable at the key burn</b> — the LASSECASH:HBD pool
+        above; until then any code change is public 48 hours ahead. These two are MAGI's own contracts and charge 0.08%.
         <a href="/about#what-you-are-trusting-layer-by-layer">What you are trusting →</a>
       </p>
     </section>
