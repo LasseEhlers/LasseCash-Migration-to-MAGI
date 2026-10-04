@@ -97,6 +97,14 @@
    */
   const onCouncil = $derived(chain.info?.consensus_group.includes(account) ?? false);
   const isMe = $derived(chain.account === account);
+  /** Positions: what is still running first, newest first within each, 7 shown. */
+  const SHOW = 7;
+  let allMints = $state(false);
+  let allLps = $state(false);
+  const mintList = $derived([...(view?.mints ?? [])].sort((a, b) =>
+    Number(a.ended) - Number(b.ended) || b.id - a.id));
+  const lpList = $derived([...(view?.tranches ?? [])].sort((a, b) =>
+    Number(a.closed) - Number(b.closed) || b.id - a.id));
   const openMints = $derived((view?.mints ?? []).filter((m) => !m.ended).length);
 
   const description = $derived(
@@ -199,20 +207,26 @@
     <section class="panel positions">
       <h2>Positions</h2>
       <ul>
-        {#each [...view.mints].reverse() as m (m.id)}
+        {#each (allMints ? mintList : mintList.slice(0, SHOW)) as m (m.id)}
           <li>
             <a href="/@{data.handle}/mint/{m.id}">Mint #{m.id}</a>
             <span class="mono">{lc(m.principal, 2)}</span>
             <span class="dim">{m.days} days · {m.ended ? "finished" : m.claimable ? "ready to claim" : m.mature ? "matured" : "locked"}</span>
           </li>
         {/each}
-        {#each [...view.tranches].reverse() as t (t.id)}
+        {#each (allLps ? lpList : lpList.slice(0, SHOW)) as t (t.id)}
           <li>
             <a href="/@{data.handle}/pool/{t.id}">Pool position #{t.id}</a>
             <span class="dim">{t.closed ? "withdrawn" : `open · day ${t.age_days}`}</span>
           </li>
         {/each}
       </ul>
+      {#if mintList.length > SHOW || lpList.length > SHOW}
+        <p class="more">
+          {#if mintList.length > SHOW}<button class="link" onclick={() => (allMints = !allMints)}>{allMints ? "Fewer mints" : `Show all ${mintList.length} mints`}</button>{/if}
+          {#if lpList.length > SHOW}<button class="link" onclick={() => (allLps = !allLps)}>{allLps ? "Fewer pool positions" : `Show all ${lpList.length} pool positions`}</button>{/if}
+        </p>
+      {/if}
     </section>
   {/if}
 
@@ -312,4 +326,6 @@
   .positions li { display: flex; gap: .8rem; align-items: baseline; flex-wrap: wrap; font-size: .9rem; }
   .positions a { text-decoration: underline; text-underline-offset: 2px; min-width: 9rem; }
   .positions .mono { font-variant-numeric: tabular-nums; }
+  .positions .more { margin: .7rem 0 0; display: flex; gap: 1.2rem; font-size: .85rem; }
+  .positions .link { background: none; border: 0; padding: 0; font: inherit; color: var(--gold); text-decoration: underline; cursor: pointer; }
 </style>
