@@ -116,7 +116,13 @@
       const perYear = fromUnits(toUnits(perDay) * 365n);
       const p = toUnits(story.principal);
       const pctYear = p > 0n ? Number((toUnits(perYear) * 10_000n) / p) / 100 : null;
-      return { perDay, perYear, pctYear };
+      // BY MATURITY: what is already earned plus today's daily rate for the
+      // days left. For a short mint this is the honest headline — a 7-day
+      // mint never runs a year, so its yearly figure is hypothetical.
+      const left = Math.max(0, live.maturity_height - info.height) / HEIGHTS_PER_DAY;
+      const byEnd = toUnits(live.pending_yield) + (toUnits(perDay) * BigInt(Math.round(left * 1000))) / 1000n;
+      const pctEnd = p > 0n ? Number((byEnd * 10_000n) / p) / 100 : null;
+      return { perDay, perYear, pctYear, byEnd: fromUnits(byEnd), pctEnd };
     } catch { return null; }
   });
   const startHbd = $derived(story ? hbdAt(story.principal, story.startHeight) : null);
@@ -188,6 +194,7 @@
           {#if ahead}
             <dd class="mono gold">{pct(ahead.pctYear)} <span class="unit">a year</span></dd>
             <dd class="dim mono">≈ {lc(ahead.perYear, 0)} LASSECASH a year · {lc(ahead.perDay, 2)} a day</dd>
+            <dd class="mono">by maturity ≈ {lc(ahead.byEnd, 0)} <span class="unit">LASSECASH</span> ({pct(ahead.pctEnd)})</dd>
             <dd class="dim">estimate — falls as others mint</dd>
           {:else}<dd class="dim">—</dd>{/if}</div>
         <div><dt>Matures</dt><dd class="mono">{shortDate(live.maturity_time)}</dd>
