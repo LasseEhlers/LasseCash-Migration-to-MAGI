@@ -178,3 +178,21 @@ export function describeCall(action: string, payload: string): string {
   }
   return payload;
 }
+
+/**
+ * What a call PAID, from the contract's own return value, in words — or "".
+ * The amounts are base units (1e8, HBD included on our side), formatted here
+ * and never derived: the chain already settled them.
+ */
+export function describeResult(action: string, ret: string | undefined): string {
+  if (!ret) return "";
+  let m: RegExpExecArray | null;
+  if ((m = /^claimed (\d+) liquid/.exec(ret))) return `received ${amt(m[1], 2)} LASSECASH liquid`;
+  if ((m = /^claimed (\d+)/.exec(ret))) return `received ${amt(m[1], 2)} LASSECASH`;
+  if ((m = /^withdrew (\d+) (?:LASSECASH|LC) and (\d+) HBD/.exec(ret)))
+    return `received ${amt(m[1], 2)} LASSECASH + ${amt(m[2], 3)} HBD`;
+  if ((m = /^swapped for (\d+) (HBD|LASSECASH|LC)/.exec(ret)))
+    return `received ${amt(m[1], m[2] === "HBD" ? 3 : 2)} ${m[2] === "HBD" ? "HBD" : "LASSECASH"}`;
+  if ((m = /^paid author (\d+)/.exec(ret))) return `author paid ${amt(m[1], 2)} LASSECASH`;
+  return "";
+}

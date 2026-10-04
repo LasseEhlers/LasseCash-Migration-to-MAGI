@@ -219,6 +219,8 @@ export interface AccountOp {
   action: string;
   payload: string;
   status: "confirmed" | "failed" | "pending";
+  /** The contract's return value, for calls that pay something out. */
+  ret?: string;
 }
 
 /** Read access to chain state. */

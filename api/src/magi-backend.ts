@@ -1099,23 +1099,57 @@ export class MagiBackend implements Backend {
       findTransaction: {
         id: string; anchr_ts: string; status: string;
         required_auths: string[]; required_posting_auths: string[];
+        output: { id: string }[] | null;
         ops: { type: string; data: { action?: string; payload?: string } }[];
       }[];
     }>(
       `query($a: String!, $l: Int!) { findTransaction(filterOptions: {byAccount: $a, limit: $l}) {
-        id anchr_ts status required_auths required_posting_auths ops { type data } } }`,
+        id anchr_ts status required_auths required_posting_auths output { id } ops { type data } } }`,
       { a: addr, l: Math.min(100, limit) },
     );
+
+    // WHAT CAME BACK. A row that says "Closed mint #1" without the amount
+    // paid hides the one figure the owner wants (Lasse, 2026-10-04, on his
+    // 7,063,213 claim). Calls that pay out carry the settled amount in their
+    // RETURN VALUE; fetch it for those transactions only, four at a time.
+    const PAYS = new Set(["claim_mint", "claim_pool", "claim_curation", "claim_migration",
+      "remove_liquidity", "swap_lassecash_hbd", "swap_hbd_lassecash", "swap_lc_hbd", "swap_hbd_lc",
+      "payout", "sweep_mint", "sweep_tranche"]);
+    const txs = data.findTransaction ?? [];
+    const rets = new Map<string, ReturnType<typeof resultsByOp>>();
+    const wanted = txs.filter((t) => t.status === "CONFIRMED"
+      && (t.ops ?? []).some((o) => o.type === "call" && PAYS.has(o.data?.action ?? "")));
+    for (let i = 0; i < wanted.length; i += 4) {
+      await Promise.all(wanted.slice(i, i + 4).map(async (tx) => {
+        const outputs: { inputs: string[]; results: { ok: boolean; ret: string | null }[] }[] = [];
+        try {
+          for (const { id } of tx.output ?? []) {
+            const o = await this.query<{ findContractOutput: { contract_id: string; inputs: string[]; results: { ok: boolean; ret: string | null }[] }[] | null }>(
+              `query($i: String!) { findContractOutput(filterOptions: {byId: $i, limit: 1}) { contract_id inputs results { ok ret } } }`,
+              { i: id },
+            );
+            outputs.push(...(o.findContractOutput ?? []).filter((x) => x.contract_id === this.#contractId));
+          }
+        } catch { /* the row still shows; only the amount is missing */ }
+        rets.set(tx.id, resultsByOp(outputs));
+      }));
+    }
+
     const out: AccountOp[] = [];
-    for (const tx of data.findTransaction ?? []) {
-      for (const op of tx.ops ?? []) {
+    for (const tx of txs) {
+      let callIdx = 0;
+      for (const [opIdx, op] of (tx.ops ?? []).entries()) {
         if (op.type !== "call" || !op.data?.action) continue;
+        const ci = callIdx++;
+        const map = rets.get(tx.id);
+        const r = map ? resultFor(map, tx.id, opIdx, ci) : undefined;
         out.push({
           id: tx.id,
           time: tx.anchr_ts,
           action: op.data.action,
           payload: op.data.payload ?? "",
           status: tx.status === "CONFIRMED" ? "confirmed" : tx.status === "FAILED" ? "failed" : "pending",
+          ...(r?.ok && r.ret ? { ret: r.ret } : {}),
         });
       }
     }

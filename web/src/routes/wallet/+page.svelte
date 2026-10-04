@@ -18,7 +18,7 @@
   import { chain, client } from "$lib/chain.svelte.js";
   import { lc } from "$lib/format.js";
   import Hbd from "$lib/Hbd.svelte";
-  import { describeCall } from "$lib/callSummary.js";
+  import { describeCall, describeResult } from "$lib/callSummary.js";
   import CallText from "$lib/CallText.svelte";
   import AssetChips from "$lib/AssetChips.svelte";
   import CoinIcon from "$lib/CoinIcon.svelte";
@@ -829,6 +829,7 @@
                   <td class="clip" title="{o.action.replace(/^\+/, '')} · {o.payload}">
                     {#if o.action.startsWith("+")}<span class="in">in</span>{/if}
                     <CallText text={describeCall(o.action, o.payload)} />
+                    {#if describeResult(o.action, o.ret)}<span class="got">→ {describeResult(o.action, o.ret)}</span>{/if}
                   </td>
                   <td><span class="pill {o.status}">{o.status}</span></td>
                 </tr>
@@ -967,4 +968,5 @@
 
 
   .warn { margin: 1rem 0 0; font-size: var(--t-sm); color: var(--gold); line-height: 1.6; }
+  .got { color: var(--gold); margin-left: .4rem; white-space: nowrap; }
 </style>
