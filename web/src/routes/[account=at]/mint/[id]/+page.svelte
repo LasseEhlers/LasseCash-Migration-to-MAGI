@@ -17,7 +17,7 @@
   import Seo from "$lib/Seo.svelte";
   import { SITE_URL } from "$lib/site.js";
   import {
-    lcToHbd, mintStory, reservesAt, toBaseUnitArg,
+    HEIGHTS_PER_DAY, MIN_YEAR_DAYS, lcToHbd, mintStory, reservesAt, toBaseUnitArg, toUnits,
     type Amount, type MintStory, type MintView, type PoolTrade,
   } from "$api/index.js";
   import type { PageData } from "./$types";
@@ -80,6 +80,22 @@
       ? Math.min(story.days, Math.floor((chain.info.height - story.startHeight) / 28_800) + 1)
       : null,
   );
+  /** What an open mint has earned so far, as a share of its principal —
+   *  presentation of two engine figures, scaled to a year only from day 7. */
+  const pace = $derived.by(() => {
+    if (!story || !live || live.ended || !chain.info) return null;
+    const p = toUnits(story.principal);
+    if (p === 0n) return null;
+    const heights = chain.info.height - story.startHeight;
+    if (heights <= 0) return null;
+    const pctNow = Number((toUnits(live.pending_yield) * 1_000_000n) / p) / 10_000;
+    const days = heights / HEIGHTS_PER_DAY;
+    return {
+      pct: pctNow,
+      days: Math.round(days * 10) / 10,
+      perYear: days >= MIN_YEAR_DAYS ? Math.round((pctNow * 365 / days) * 100) / 100 : null,
+    };
+  });
   const startHbd = $derived(story ? hbdAt(story.principal, story.startHeight) : null);
   const endHbd = $derived(story ? hbdAt(story.paidOut, story.claimHeight) : null);
   const tx = (id: string) => `https://vsc.techcoderx.com/tx/${id}`;
@@ -138,6 +154,13 @@
           <dd><Hbd amount={live.pending_yield} /></dd></div>
         <div><dt>If claimed now</dt><dd class="mono">{lc(live.if_claimed_now, 2)}</dd>
           <dd><Hbd amount={live.if_claimed_now} /></dd></div>
+        <div><dt>Pace so far</dt>
+          {#if pace}
+            <dd class="mono">{pct(pace.pct)} <span class="unit">in {pace.days} days</span></dd>
+            {#if pace.perYear !== null}<dd class="dim mono">≈ {pct(pace.perYear)} a year at this pace</dd>
+            {:else}<dd class="dim">a yearly figure appears from day {MIN_YEAR_DAYS}</dd>{/if}
+            <dd class="dim">backward-looking; the rate falls as others mint</dd>
+          {:else}<dd class="dim">—</dd>{/if}</div>
         <div><dt>Matures</dt><dd class="mono">{shortDate(live.maturity_time)}</dd>
           <dd class="dim">{live.claimable ? "claimable now" : live.mature ? "claimable once the maturity day closes" : "yield stops at maturity"}</dd></div>
       </div>

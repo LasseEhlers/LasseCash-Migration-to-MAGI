@@ -35,7 +35,13 @@ export interface AccountCall {
 }
 
 /** Heights per day: 3-second Hive blocks. */
-const HEIGHTS_PER_DAY = 28_800;
+export const HEIGHTS_PER_DAY = 28_800;
+
+/**
+ * Below this many days a result is NOT scaled to a year. Four days stretched
+ * to 365 is a number nobody should act on; the period result is shown alone.
+ */
+export const MIN_YEAR_DAYS = 7;
 
 const num = (s: string | undefined) => (s && /^\d+$/.test(s) ? BigInt(s) : null);
 
@@ -119,11 +125,11 @@ export function mintStory(
   const gain = paid !== null ? paid - principal : null;
   const heldDays = claim ? (claim.height - startHeight) / HEIGHTS_PER_DAY : null;
   const gainPct = gain !== null && principal > 0n ? Number((gain * 1_000_000n) / principal) / 10_000 : null;
-  const annualisedPct = gainPct !== null && heldDays && heldDays >= 1
+  const annualisedPct = gainPct !== null && heldDays && heldDays >= MIN_YEAR_DAYS
     ? Math.round((gainPct * 365 / heldDays) * 100) / 100 : null;
 
   const heldHeights = claim ? BigInt(claim.height - startHeight) : 0n;
-  const annualisedGain = gain !== null && heldHeights >= BigInt(HEIGHTS_PER_DAY)
+  const annualisedGain = gain !== null && heldHeights >= BigInt(MIN_YEAR_DAYS * HEIGHTS_PER_DAY)
     ? fromUnits((gain * BigInt(365 * HEIGHTS_PER_DAY)) / heldHeights) : null;
 
   return {
@@ -156,6 +162,7 @@ export interface TrancheStory {
   claims: { txId: string; height: number; time: string; amount: Amount }[];
   claimedTotal: Amount;
   withdrawTxId: string | null;
+  withdrawHeight: number | null;
   withdrawTime: string | null;
   withdrawLc: Amount | null;
   withdrawHbd: Amount | null;
@@ -189,6 +196,7 @@ export function trancheStory(id: number, calls: AccountCall[]): TrancheStory {
     claims,
     claimedTotal: fromUnits(claims.reduce((t, c) => t + toUnits(c.amount), 0n)),
     withdrawTxId: w?.txId ?? null,
+    withdrawHeight: w?.height ?? null,
     withdrawTime: w?.time ?? null,
     withdrawLc: wAmt ? fromUnits(wAmt.lc) : null,
     withdrawHbd: wAmt ? fromUnits(wAmt.hbd) : null,

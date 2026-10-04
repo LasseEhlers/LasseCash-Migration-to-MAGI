@@ -11,7 +11,7 @@
   import Seo from "$lib/Seo.svelte";
   import { SITE_URL } from "$lib/site.js";
   import {
-    fromUnits, lcToHbd, reservesAt, toBaseUnitArg, toUnits, trancheStory,
+    HEIGHTS_PER_DAY, MIN_YEAR_DAYS, fromUnits, lcToHbd, reservesAt, toBaseUnitArg, toUnits, trancheStory,
     type Amount, type PoolTrade, type TrancheStory, type TrancheView,
   } from "$api/index.js";
   import type { PageData } from "./$types";
@@ -64,6 +64,49 @@
     }
     return fromUnits(total);
   });
+  /** LASSECASH at today's pool price, through the engine. */
+  function hbdNow(amount: Amount | null): Amount | null {
+    if (!amount || !chain.info) return null;
+    try { return lcToHbd(toBaseUnitArg(amount), toBaseUnitArg(chain.info.amm_lc), toBaseUnitArg(chain.info.amm_hbd)); }
+    catch { return null; }
+  }
+
+  /**
+   * THE RESULT IN HBD. An LP holds two assets whose mix changes with every
+   * trade, so counting LASSECASH alone would call a gain a loss. Value in =
+   * the HBD deposited + the LASSECASH deposited at that moment's price. Value
+   * out = what came back, plus every reward claim at its own moment's price;
+   * for an open position, what it is worth now plus the reward waiting.
+   */
+  const result = $derived.by(() => {
+    if (!story?.depositHbd || !story.depositLc || story.depositHeight === null || !chain.info) return null;
+    const lcIn = hbdAt(story.depositLc, story.depositHeight);
+    if (lcIn === null) return null;
+    const vin = toUnits(story.depositHbd) + toUnits(lcIn);
+    const claimed = story.claims.length ? (claimedHbd ? toUnits(claimedHbd) : null) : 0n;
+    if (claimed === null) return null;
+    let vout: bigint; let endHeight: number;
+    if (story.withdrawTxId && story.withdrawLc && story.withdrawHbd && story.withdrawHeight !== null) {
+      const lcOut = hbdAt(story.withdrawLc, story.withdrawHeight);
+      if (lcOut === null) return null;
+      vout = toUnits(story.withdrawHbd) + toUnits(lcOut) + claimed;
+      endHeight = story.withdrawHeight;
+    } else if (live && !live.closed) {
+      const lcNow = hbdNow(live.value_lc); const pend = hbdNow(live.pending_reward);
+      if (lcNow === null || pend === null) return null;
+      vout = toUnits(live.value_hbd) + toUnits(lcNow) + toUnits(pend) + claimed;
+      endHeight = chain.info.height;
+    } else return null;
+    const days = (endHeight - story.depositHeight) / HEIGHTS_PER_DAY;
+    const pctR = vin > 0n ? Number(((vout - vin) * 1_000_000n) / vin) / 10_000 : null;
+    return {
+      vin: fromUnits(vin), vout: fromUnits(vout), gain: fromUnits(vout - vin), pct: pctR,
+      days: Math.round(days * 10) / 10,
+      perYear: pctR !== null && days >= MIN_YEAR_DAYS ? Math.round((pctR * 365 / days) * 100) / 100 : null,
+      open: !story.withdrawTxId,
+    };
+  });
+  const pct = (n: number | null) => n === null ? "—" : `${n >= 0 ? "+" : ""}${n.toFixed(2)}%`;
   const tx = (id: string) => `https://vsc.techcoderx.com/tx/${id}`;
 </script>
 
@@ -97,6 +140,22 @@
         <dd class="dim">{story.withdrawTime ? shortDate(story.withdrawTime) : ""} · includes rewards not yet claimed</dd></div>
     {/if}
   </div>
+
+  {#if result}
+    <section class="panel">
+      <h2>Result in HBD <span class="dim">— {result.open ? "so far, if withdrawn now" : "final"}</span></h2>
+      <div class="grid">
+        <div><dt>Value in</dt><dd class="mono">{lc(result.vin, 3)} <span class="unit">HBD</span></dd>
+          <dd class="dim">both sides, at the deposit's price</dd></div>
+        <div><dt>{result.open ? "Value now" : "Value out"}</dt><dd class="mono gold">{lc(result.vout, 3)} <span class="unit">HBD</span></dd>
+          <dd class="dim">{result.open ? "position + reward waiting + rewards taken" : "withdrawal + rewards taken, each at its moment's price"}</dd></div>
+        <div><dt>Result</dt><dd class="mono" class:gold={(result.pct ?? 0) >= 0}>{pct(result.pct)} <span class="unit">in {result.days} days</span></dd>
+          {#if result.perYear !== null}<dd class="dim mono">≈ {pct(result.perYear)} a year at this pace — not a forecast</dd>
+          {:else}<dd class="dim">too short to scale to a year (under {MIN_YEAR_DAYS} days)</dd>{/if}</div>
+      </div>
+      <p class="note dim">Counted in HBD because a pool position holds both assets and their mix changes with every trade.</p>
+    </section>
+  {/if}
 
   {#if live && !live.closed}
     <section class="panel">
