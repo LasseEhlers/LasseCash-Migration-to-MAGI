@@ -71,7 +71,7 @@
         HBD is Hive's dollar-pegged token. You need some for two things: to buy
         LASSECASH, and as action credits on MAGI, where 1 HBD adds 1,000 credits
         and is held as collateral, never spent. A new account starts with 10,000
-        free credits, enough for your first few actions.
+        free credits — enough for one mint or a handful of votes, refilling over five days.
       </p>
       <p>
         <b>How much to keep on MAGI.</b> Credits are used by every action and come
