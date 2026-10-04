@@ -1,0 +1,21 @@
+# What each action costs in MAGI credits, measured weekly against the figures
+# the site publishes (Start page, low-credits banner). Read-only dry runs: no
+# secrets, no key, no RC, nothing broadcast. Fails — and GitHub emails the
+# owner — when a figure drifts more than 25%. See tools/rc-watch.py.
+name: rc-watch
+
+on:
+  workflow_dispatch: {}
+  schedule:
+    - cron: "41 6 * * 1"   # Mondays 06:41 UTC
+
+jobs:
+  rc-watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python3 tools/rc-watch.py

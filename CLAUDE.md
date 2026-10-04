@@ -780,6 +780,9 @@ Simulated on production for @lasseehlers: `increaseAllowance` 369 RC +
 `mint` 5,475 RC (547M gas). The 2,400–3,100 figures elsewhere in this file
 are pre-handover. With sizeRc's 1.3× floor a mint needs ~7,600 free credits;
 RcNote's LOW is 8,000 for that reason. A 6,119 meter was refused live.
+Watched weekly by `tools/rc-watch.py` (GitHub job `rc-watch`): vote ~1,070,
+post ~1,750, buy ~520, sell ~1,220, send ~2,930, add liquidity ~2,800,
+mint ~5,850; a >25% drift fails the job — update its table and the texts.
 
 ## ⚠️ HBD AND RC ARE ONE POT — the deposit rule, MEASURED 2026-09-01
 
