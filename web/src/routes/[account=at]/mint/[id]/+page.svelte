@@ -149,7 +149,7 @@
 
   <div class="panel grid">
     <div><dt>Principal</dt><dd class="mono">{lc(story.principal, 2)}</dd>
-      {#if startHbd}<dd class="dim mono">≈ {lc(startHbd, 3)} HBD then</dd>{/if}</div>
+      {#if startHbd}<dd class="dim mono">≈ {lc(startHbd, 3)} HBD when minted</dd>{/if}</div>
     <div><dt>Term</dt><dd class="mono">{story.days} days</dd>
       <dd class="dim">{story.startTime ? shortDate(story.startTime) : `height ${story.startHeight.toLocaleString()}`}{#if dayOf} · day {dayOf} of {story.days}{/if}</dd></div>
     <div><dt>L-Shares</dt><dd class="mono">{lc(story.shares, 2)}</dd>

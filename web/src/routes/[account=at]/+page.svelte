@@ -249,7 +249,7 @@
                   {#if paid.get(p.permlink)}
                     {@const pd = paid.get(p.permlink)!}
                     <span class="mono gold">{lc(pd.lc, 2)} LASSECASH to the author</span>
-                    {#if pd.hbd}<span class="mono">≈ {lc(pd.hbd, 3)} HBD then</span>{/if}
+                    {#if pd.hbd}<span class="mono">≈ {lc(pd.hbd, 3)} HBD when paid</span>{/if}
                   {/if}
                 {:else}
                   <span class="mono gold">{lc(m.pending_payout)} LASSECASH</span>
