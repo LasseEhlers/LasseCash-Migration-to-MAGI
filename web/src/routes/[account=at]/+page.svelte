@@ -20,7 +20,8 @@
   import { displayName, lc, shortDate, durationWords } from "$lib/format.js";
   import Seo from "$lib/Seo.svelte";
   import { SITE_NAME, SITE_OG_IMAGE, SITE_URL, metaDescription, profileUrl } from "$lib/site.js";
-  import type { AccountView, PostView } from "$api/index.js";
+  import Hbd from "$lib/Hbd.svelte";
+  import { lcToHbd, reservesAt, toBaseUnitArg, type AccountView, type Amount, type PoolTrade, type PostView } from "$api/index.js";
   import type { PageData } from "./$types";
 
   let { data }: { data: PageData } = $props();
@@ -42,11 +43,41 @@
       view = a;
       money = all.filter((p) => p.author === name);
       error = null;
+      void loadPaid();
     } catch (e) {
       error = e instanceof Error ? e.message : String(e);
     } finally {
       loading = false;
     }
+  }
+
+  /**
+   * WHAT A PAID-OUT POST EARNED. "paid out" alone hides the one figure the
+   * author wants. The author's share comes from the payout call's own return
+   * value (payoutLedger), and its HBD value at the pool price of THAT moment —
+   * the same rule as the mint and pool cards. Loaded after the list, so a slow
+   * history read never holds up the page.
+   */
+  let paid = $state(new Map<string, { lc: Amount; hbd: Amount | null }>());
+  async function loadPaid() {
+    const settled = money.filter((p) => p.paid_out);
+    if (!settled.length) return;
+    try {
+      const [hits, pool] = await Promise.all([
+        Promise.all(settled.map((p) => client.postPayout(p.author, p.permlink).catch(() => null))),
+        client.poolTrades().catch(() => ({ trades: [] as PoolTrade[] })),
+      ]);
+      const next = new Map<string, { lc: Amount; hbd: Amount | null }>();
+      settled.forEach((p, i) => {
+        const h = hits[i];
+        if (!h) return;
+        const r = reservesAt(pool.trades, h.height);
+        let v: Amount | null = null;
+        try { v = r ? lcToHbd(toBaseUnitArg(h.author), toBaseUnitArg(r.lc), toBaseUnitArg(r.hbd)) : null; } catch { v = null; }
+        next.set(p.permlink, { lc: h.author, hbd: v });
+      });
+      paid = next;
+    } catch { /* the pill still says paid out */ }
   }
 
   // Covers the first load AND every later one: clicking a voter's name from
@@ -215,8 +246,14 @@
                 <span class="mono">{m.votes} vote{m.votes === 1 ? "" : "s"}</span>
                 {#if m.paid_out}
                   <span class="pill ok">paid out</span>
+                  {#if paid.get(p.permlink)}
+                    {@const pd = paid.get(p.permlink)!}
+                    <span class="mono gold">{lc(pd.lc, 2)} LASSECASH to the author</span>
+                    {#if pd.hbd}<span class="mono">≈ {lc(pd.hbd, 3)} HBD then</span>{/if}
+                  {/if}
                 {:else}
                   <span class="mono gold">{lc(m.pending_payout)} LASSECASH</span>
+                  <Hbd amount={m.pending_payout} />
                   <span>
                     {m.payable ? "window closed" : `pays in ${durationWords(m.payout_height - height)}`}
                   </span>

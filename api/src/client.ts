@@ -290,12 +290,12 @@ export class LasseCashClient {
    * still owed rather than what was allotted — which is why the two figures
    * are reported separately and never summed for the reader by this method.
    */
-  async postPayout(author: string, permlink: string): Promise<{ author: Amount; txId: string } | null> {
+  async postPayout(author: string, permlink: string): Promise<{ author: Amount; txId: string; height: number } | null> {
     const b = this.backend as { payoutLedger?: (n?: number) => Promise<Map<string, { units: string; height: number; txId: string }>> };
     if (!b.payoutLedger) return null;
     const key = `${author.startsWith("hive:") ? author : `hive:${author}`}|${permlink}`;
     const hit = (await b.payoutLedger()).get(key);
-    return hit ? { author: fromUnits(BigInt(hit.units)), txId: hit.txId } : null;
+    return hit ? { author: fromUnits(BigInt(hit.units)), txId: hit.txId, height: hit.height } : null;
   }
 
   /**
