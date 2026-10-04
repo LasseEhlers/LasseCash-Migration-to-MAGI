@@ -110,6 +110,12 @@
     </li>
   </ol>
 
+  <p>
+    <b>Vote here to make it count.</b> Posts are on Hive and readable on every
+    site, but only a vote cast on LasseCash moves LasseCash rewards — a vote on
+    PeakD or another Hive site stays a Hive vote.
+  </p>
+
   <p class="dim">
     A new account can mint and trade straight away. To post, you first need
     L-Shares, which you get by minting. See

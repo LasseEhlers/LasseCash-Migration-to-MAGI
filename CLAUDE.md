@@ -1132,6 +1132,19 @@ Production contract: 27 entrypoints. Frontend (reply box, comment list,
 preflight, Hive-side display filter) follows; the comment WRITE path through
 Aioha is verified at the wallet evening like every other signed call.
 
+## Only LasseCash votes count — DESIGN, confirmed by Lasse 2026-10-04
+
+A Hive vote cast on PeakD/Ecency never reaches the contract, so it never
+counts — registered post or not. Not a bug and not changeable: the old tribe
+counted Hive votes because a central bot (scotbot) read Hive history; the
+contract only knows calls sent to it, and counting outside votes would need a
+trusted relay — an oracle, the one thing a keyless contract must not trust.
+It is an OPT-IN REWARD LAYER ON AN OPEN PROTOCOL, not a walled garden:
+content stays on Hive, the contract is public, and any frontend may send the
+same `vote` call. Lasse: the friction is accepted; educate by repetition
+("vote on LasseCash to make it count"), and the stake gate plus deliberate
+votes are what lift quality. Do not re-propose counting outside votes.
+
 ## No downvotes, no reputation — DECIDED 2026-08-22 (made explicit)
 
 The contract accepts vote weights 1..100% only; zero or negative is refused
