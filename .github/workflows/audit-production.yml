@@ -2,17 +2,15 @@
 # Read-only: public GraphQL queries and simulations. No secrets, no key, no RC,
 # no HBD, nothing is broadcast. See tools/audit-production.py for the why.
 #
-# ⚠️ THE HOURLY SCHEDULE IS DELIBERATELY OFF until update #4 activates (Sunday
-# 4 October, after 04:36 CPH) and the audit reads green. The `backing` check is
-# RED today, correctly, and a scheduled run would email a failure every hour
-# for two days about a fault we already know. Switch it on by uncommenting the
-# two `schedule` lines AFTER the first green manual run.
+# Hourly since 2026-10-04: update #4 activated, reconcile_float minted the
+# missing backing (tx abcab9d8cca9bd68cf42825a1bb5edf00edcb35c) and the first
+# run afterwards read ALL CHECKS PASS. A red run now is a real alarm.
 name: audit-production
 
 on:
   workflow_dispatch: {}
-  # schedule:
-  #   - cron: "17 * * * *"
+  schedule:
+    - cron: "17 * * * *"
 
 jobs:
   audit:

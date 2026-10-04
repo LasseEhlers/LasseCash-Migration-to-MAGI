@@ -1405,10 +1405,12 @@ export class AiohaSigner implements Signer {
       if (/Insufficient balance/.test(sim.msg)) {
         return {
           ok: false, height: 0,
-          msg: "Claiming is paused while we fix a backing error — the contract "
-            + "cannot pay out large claims yet. Your position is safe and "
-            + "recorded on chain, and nothing expires: grace runs to 29 "
-            + "December. The fix is queued and activates 4 October.",
+          // Since reconcile_float (4 Oct 2026, tx abcab9d8…) books and token
+          // agree to the base unit, so reaching this means the fault is back.
+          msg: "The contract could not pay this out: its token reported too "
+            + "little backing. That should not happen since the 4 October fix — "
+            + "please report it on the LasseCash Discord. Your position is safe "
+            + "and recorded on chain, and nothing has been spent.",
         };
       }
       if (entrypoint in AiohaSigner.HBD_DRAW_OPS && /insufficient balance/i.test(sim.msg)) {

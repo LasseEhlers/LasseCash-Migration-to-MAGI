@@ -849,7 +849,23 @@ HBD send would leave under 1,000 RC; the MAGI-pool swap preflights the
 `awaitVerdict` re-asks for a FAILED transaction's reason, because the
 output DAG (which carries `errMsg`) lands a beat after the status flips.
 
-## ⏳ PRODUCTION UPDATE #4 QUEUED — the float fix, activates Sun 4 Oct 02:36 UTC
+## ✅ PRODUCTION UPDATE #4 LIVE AND APPLIED — the float is backed, 2026-10-04
+
+Activated at 110,467,757 (04:36 CPH); live code `bafkreifrpanzly…6hzyii`,
+queue empty. Before the broadcast: `reconcile_float` simulated as owner
+answered "minted 9,189,161.46721902 of backing", as anyone else "owner only";
+the state diff's FAIL was the tool (19 keys, every one traced to 11 ordinary
+transactions since 2 Oct; supply keys untouched); Lasse's claim simulated
+"Insufficient balance" at `:65460:` — the control. **Broadcast 07:5x CPH by
+Claude on Lasse's explicit "broadcast it": tx
+`abcab9d8cca9bd68cf42825a1bb5edf00edcb35c`, CONFIRMED at 110,471,447, "minted
+9,189,161.46721902 of backing".** After: `audit-production.py` ALL CHECKS
+PASS (books = minted = 28,374,387.09851756, missing 0); a second call answers
+"already backed"; Lasse's claim simulates "claimed 7,063,213.22979180". The
+hourly GitHub audit is ON. **Still to do: Lasse's real claim (the on-chain
+proof), then take the claims banner down, then choose a burn height.**
+
+### (history) PRODUCTION UPDATE #4 QUEUED — the float fix, activates Sun 4 Oct 02:36 UTC
 
 **`reconcile_float` is queued on production.** Queue tx
 `b6f0a4887b2679fc3570311573b9bcebf0f45ca3`, code
