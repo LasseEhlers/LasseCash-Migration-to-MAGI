@@ -181,7 +181,7 @@
       <div class="grid">
         <div><dt>Yield so far</dt><dd class="mono gold">{lc(live.pending_yield, 2)}</dd>
           <dd><Hbd amount={live.pending_yield} /></dd></div>
-        <div><dt>If claimed now</dt><dd class="mono">{lc(live.if_claimed_now, 2)}</dd>
+        <div><dt>{live.mature ? "If claimed now" : "If ended now"}</dt><dd class="mono">{lc(live.if_claimed_now, 2)}</dd>
           <dd><Hbd amount={live.if_claimed_now} /></dd></div>
         <div><dt>Pace so far</dt>
           {#if pace}
