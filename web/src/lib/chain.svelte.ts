@@ -9,7 +9,7 @@
  * chain or the engine, never from arithmetic in this file.
  */
 import {
-  AiohaWallet, DevBackend, DevSigner, LasseCashClient, MagiBackend,
+  AiohaSigner, AiohaWallet, DevBackend, DevSigner, LasseCashClient, MagiBackend,
   engineReady, loadEngine, pickFastestNode,
   type AccountView, type ChainInfo, type Providers, type ResourceCredits,
 } from "$api/index.js";
@@ -60,6 +60,17 @@ export const wallet = WALLET_MODE && typeof window !== "undefined"
   : null;
 
 export const client = new LasseCashClient({ backend });
+// When MAGI cannot show an account's credits, ask before sending rather than
+// guessing (see AiohaSigner.confirmUnreadableRc). A plain browser dialog: it
+// is rare, it must not be missed, and it needs no component of its own.
+if (typeof window !== "undefined") {
+  AiohaSigner.confirmUnreadableRc = async (needs) => window.confirm(
+    `MAGI can't show your action credits right now. This needs about ${needs.toLocaleString()}. ` +
+    `If you have less, the chain refuses it and still uses credits.\n\n` +
+    `Holding a few HBD on MAGI (Wallet) fixes both. Send anyway?`,
+  );
+}
+
 
 /**
  * A node refusal, said in words someone can act on.

@@ -1445,8 +1445,27 @@ export class AiohaSigner implements Signer {
       if (avail < floor) return AiohaSigner.rcRefusal(floor, avail);
       return avail;
     }
+    // AN UNREADABLE METER: ASK, DON'T GUESS. Refusing blind once blocked an
+    // affordable deposit (2026-09-17), so an unreadable meter never refuses —
+    // but sending blind cost @cinqowy three failed mints on 2026-10-07: MAGI
+    // answers "internal system error" for an account that has never held HBD
+    // on MAGI, the mint needed ~7,400 he no longer had, and each failure ate
+    // what credits he had left. So the person decides, told what it needs.
+    if (avail === null && AiohaSigner.confirmUnreadableRc) {
+      const needs = Math.max(Math.ceil(need * 1.3), tableFloor);
+      if (!(await AiohaSigner.confirmUnreadableRc(needs))) {
+        return { ok: false, height: 0, msg: "Cancelled — nothing was sent, no credits used." };
+      }
+    }
     return sized;
   }
+
+  /**
+   * Set by the page: asked when the RC meter cannot be read, with the credits
+   * the call needs. Resolve true to send anyway. Unset (tests, scripts) keeps
+   * the old behaviour: send.
+   */
+  static confirmUnreadableRc?: ((needs: number) => Promise<boolean>) | undefined;
 
   /** The one wording for "you are out of RC", so every path explains the meter. */
   static rcRefusal(needed: number, avail: number): TxResult {

@@ -244,5 +244,33 @@ test("the token's refusal is translated, never shown raw", async () => {
   assert.equal(res.ok, false);
   assert.doesNotMatch(res.msg, /file:|65460/, "a file offset reached the user");
   assert.match(res.msg, /safe/i, "it must say the position is safe");
-  assert.match(res.msg, /29 December/, "it must say nothing expires");
+  assert.match(res.msg, /report/i, "since the 4 Oct fix it means the fault is back: ask for a report");
+});
+
+test("an unreadable credit meter asks first, and a cancel sends nothing", async () => {
+  // @cinqowy, 2026-10-07: MAGI answered "internal system error" for his
+  // credits, the site sent three mints blind, and each failure ate credits.
+  let broadcasts = 0;
+  const wallet = {
+    async simulate() { return { ok: true as const, gas: 740_000_000, msg: "", gasLimitHit: false }; },
+    async availableRc() { return null; },
+    async tokenContract() { return undefined; },
+    forgetRc() {},
+    async callContract() { broadcasts++; return { ok: true, msg: "", height: 1 }; },
+    async broadcastCalls() { broadcasts++; return { ok: true, msg: "", height: 1 }; },
+  } as unknown as import("./aioha-signer.js").AiohaWallet;
+
+  const { AiohaSigner } = await import("./aioha-signer.js");
+  let asked = 0;
+  AiohaSigner.confirmUnreadableRc = async (needs) => { asked = needs; return false; };
+  try {
+    const signer = new AiohaSigner(wallet, "hive:alice", "vsc1Test", 2_000);
+    const res = await signer.submit("transfer", "hive:bob|100000000");
+    assert.equal(res.ok, false);
+    assert.match(res.msg, /nothing was sent/i);
+    assert.ok(asked > 7_000, `it must say what the call needs (asked with ${asked})`);
+    assert.equal(broadcasts, 0, "a cancelled call must never reach the wallet");
+  } finally {
+    AiohaSigner.confirmUnreadableRc = undefined;
+  }
 });
