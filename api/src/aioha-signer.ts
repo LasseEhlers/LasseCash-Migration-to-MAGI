@@ -619,7 +619,13 @@ export class AiohaWallet {
       // as a real reading would make the preflight refuse every call the
       // account ever tries.
       if (rc && typeof rc.amount === "number" && rc.max_rcs) return rc.amount;
-      return AiohaWallet.FREE_RC;
+      // NO RECORD IS NOT A FULL METER. This used to assume the free 10,000,
+      // but an account that never held HBD on MAGI has no record AND may have
+      // spent its free credits. @cinqowy, 2026-10-08: assumed 10,000, mint
+      // sent at rc_limit 10,000, failed "cost limit exceeded" — a fourth time,
+      // and the confirm-before-sending dialog never appeared because the
+      // meter looked readable. Unknown is null; the signer then asks.
+      return null;
     } catch {
       return null;
     }
