@@ -867,7 +867,11 @@ enough to share it with). A post in **2–4 weeks** explains what happened and
 the plan; it should report RESULTS, so ideally after the paid tests that wait
 for ~20 Oct (backdated-genesis halving throwaway, the three sweeps on a real
 chain) plus weeks of green hourly audits and rc-watch runs. He may burn
-earlier as confidence grows; the height is announced before the burn. His
+earlier as confidence grows; the height is announced before the burn.
+**Added 2026-10-08:** MAGI is preparing a "huge change" (TibFox). Do not burn
+before it has landed and production has run clean on it — hourly audit green,
+rc-watch within tolerance, ordinary calls succeeding — because a change to the
+runtime, gas pricing or host calls is exactly what only the key could repair. His
 August line was "12 months of admin keys is disingenuous" — the post must
 own the change of stance and say why. Until the burn, every text must keep
 saying the contract is NOT yet immutable, and any update is announced before
