@@ -154,6 +154,9 @@ class ChainStore {
    * simulation cap.
    */
   rc = $state<ResourceCredits | null>(null);
+  /** Signed in, but MAGI could not show the meter at all — typically an
+   *  account that has never held HBD on MAGI. The banner says so. */
+  rcUnknown = $state(false);
 
   async init() {
     try {
@@ -217,8 +220,11 @@ class ChainStore {
       this.info = await client.chain();
       if (this.account) this.me = await client.accountOf(this.account);
       // Never let the meter read break the page: it is advisory.
-      if (this.account) void client.resourceCredits().then((r) => (this.rc = r)).catch(() => {});
-      else this.rc = null;
+      if (this.account) {
+        void client.resourceCredits()
+          .then((r) => { this.rc = r; this.rcUnknown = r === null; })
+          .catch(() => { this.rcUnknown = true; });
+      } else { this.rc = null; this.rcUnknown = false; }
       this.error = null;
       this.failures = 0;
     } catch (e) {

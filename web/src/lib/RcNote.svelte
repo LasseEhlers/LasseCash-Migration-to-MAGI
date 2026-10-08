@@ -38,7 +38,20 @@
   const n = (x: number) => Math.trunc(x).toLocaleString();
 </script>
 
-{#if show && rc}
+{#if chain.account && chain.rcUnknown && !rc}
+  <!-- MAGI cannot show this account's meter (no HBD record yet, 2026-10-08:
+       @cinqowy failed four mints without ever seeing a warning). -->
+  <div class="rcnote">
+    <strong>MAGI can't show your action credits yet.</strong>
+    Accounts that have never held HBD on MAGI only have the free credits, which are
+    not enough for a mint.
+    <span class="fix">
+      Deposit a few <strong>HBD on MAGI</strong> — about 5 is plenty: each 1 HBD adds 1,000
+      credits, it is <strong>collateral, not a fee</strong>, and it makes your credits visible.
+      <a href="/wallet">Deposit HBD →</a>
+    </span>
+  </div>
+{:else if show && rc}
   <div class="rcnote">
     <strong>You are low on action credits.</strong>
     <span class="mono">{n(rc.amount)}</span> of <span class="mono">{n(rc.max)}</span> left.
