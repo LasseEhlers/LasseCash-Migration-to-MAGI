@@ -238,13 +238,47 @@ export class AiohaWallet {
   async withdrawBtc(sats: bigint, toAddress: string): Promise<TxResult> {
     const user = this.aioha.getCurrentUser();
     if (!user) throw new BackendError("not signed in");
+    const payload = { amount: sats.toString(), to: toAddress, deduct_fee: true };
+
+    // MEASURED, NOT FIXED. A Bitcoin withdrawal is heavy for MAGI's bridge:
+    // 2.64B gas = ~26,400 credits on 2026-10-08. It used to go out at a fixed
+    // rc_limit of 10,000 and therefore failed every time ("cost limit
+    // exceeded"), using up the sender's credits. Now: dry-run it, size the
+    // limit from the measured gas with a small margin, and refuse in words
+    // BEFORE the wallet opens if the account cannot cover it.
+    let rcLimit = 30_000;
+    try {
+      const res = await magiFetch(JSON.stringify({
+        query: `query($i: SimulateContractCallsInput!) {
+          simulateContractCalls(input: $i) { success err_msg gas_used } }`,
+        variables: { i: { tx_id: "sim", required_auths: `hive:${user}`, calls: [{
+          contract_id: AiohaWallet.BTC_MAPPING_CONTRACT, action: "unmap",
+          payload: JSON.stringify(payload), rc_limit: 100_000, intents: [],
+        }] } },
+      }), { url: this.#chainUrl });
+      const row = ((await res.json()) as { data?: { simulateContractCalls?: { success: boolean; err_msg?: string | null; gas_used: number }[] } })
+        .data?.simulateContractCalls?.[0];
+      if (row && !row.success) return { ok: false, height: 0, msg: row.err_msg ?? "MAGI refused the withdrawal" };
+      if (row) rcLimit = Math.min(100_000, Math.ceil((row.gas_used / 100_000) * 1.08));
+    } catch { /* keep the safe default */ }
+    const avail = await this.availableRc(`hive:${user}`);
+    if (avail !== null && avail < rcLimit) {
+      const gap = ((rcLimit - avail) / 1000).toFixed(2);
+      return {
+        ok: false, height: 0,
+        msg: `A Bitcoin withdrawal needs about ${rcLimit.toLocaleString()} credits and you have `
+          + `${Math.trunc(avail).toLocaleString()}. Hold about ${gap} more HBD on MAGI (each HBD is `
+          + `1,000 credits, available at once), then try again. Nothing was sent.`,
+      };
+    }
+
     const json = JSON.stringify({
       net_id: this.#netId,
       caller: `hive:${user}`,
       contract_id: AiohaWallet.BTC_MAPPING_CONTRACT,
       action: "unmap",
-      payload: { amount: sats.toString(), to: toAddress, deduct_fee: true },
-      rc_limit: 10_000,
+      payload,
+      rc_limit: rcLimit,
     });
     return this.#broadcast(
       [["custom_json", {
