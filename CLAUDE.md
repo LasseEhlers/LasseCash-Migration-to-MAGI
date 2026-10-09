@@ -877,6 +877,28 @@ own the change of stance and say why. Until the burn, every text must keep
 saying the contract is NOT yet immutable, and any update is announced before
 its 48 h timelock.
 
+## ⚠️ LEGACY ROWS DOUBLE-MINT AFTER reconcile_float — FOUND 2026-10-09, fix before the burn
+
+The hourly audit went red at 22:07 CPH: token supply exceeded the books by
+**0.08692782**. Cause, exact to the base unit: @shopnilhasan claimed on 5 Sep
+(before the handover), so his liquid sat in a legacy `bal_` row that
+`migrate_ledger`'s 21 names never covered. `reconcile_float` (4 Oct) minted
+backing for every unminted book entry — including that row. On 9 Oct his
+`claim_mint` ran `ensureMigrated`, which **MINTS** the row again instead of
+moving the backing already in the float. Nobody gains or loses (he gets his
+balance once; the duplicate sits idle in the core float), but total supply
+drifts above the books by each row touched.
+
+**12 rows still stand, 225,158.58392707 LASSECASH** — @fighter4-freedom alone
+218,514.54 — and each will double-mint when its owner next acts. Hardcap room
+(22.58M) is not at risk, but the supply figure must not quietly grow by 225k.
+The audit now expects exactly `LEGACY_AT_RECONCILE − rows still standing` as
+surplus (tools/audit-production.py) and fails on anything else, so it is green
+again and still catches real faults. **Fix, before any key burn:** a code
+update making `ensureMigrated` TRANSFER from the core float (already backed)
+instead of minting; do NOT call `migrate_ledger` for the 12 first — it runs the
+same minting path and would double 225k at once.
+
 ## ✅ PRODUCTION UPDATE #4 LIVE AND APPLIED — the float is backed, 2026-10-04
 
 Activated at 110,467,757 (04:36 CPH); live code `bafkreifrpanzly…6hzyii`,

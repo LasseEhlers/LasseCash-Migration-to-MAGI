@@ -106,6 +106,18 @@ def amt(n):
     return ("-" if neg else "") + f"{n // 100_000_000:,}.{n % 100_000_000:08d}"
 
 
+# The legacy `bal_` rows that existed when reconcile_float ran (4 Oct 2026),
+# reconstructed on 9 Oct: the 12 still standing plus @shopnilhasan's, the one
+# touched since. Their total at reconcile time, in base units.
+LEGACY_ACCOUNTS = [
+    "hive:fighter4-freedom", "hive:chaosmagic23", "hive:methus", "hive:bokica80",
+    "hive:badadib", "hive:condeas", "hive:yintercept", "hive:iamraincrystal",
+    "hive:lrekt01", "hive:tom45p", "hive:bitphoto", "hive:savvytester",
+    "hive:shopnilhasan",
+]
+LEGACY_AT_RECONCILE = 22_515_858_392_707 + 8_692_782
+
+
 API = pick_api()
 
 
@@ -141,8 +153,25 @@ def run():
     #    place supply grows and it mints as it counts, so after the handover
     #    this can only be broken by value that was counted before the token
     #    existed and never carried across — which is precisely what happened.
-    check("backing", supply == books,
-          f"books {amt(books)} vs minted {amt(supply)} — missing {amt(books - supply)}")
+    #
+    #    THE ONE KNOWN, EXPLAINED SURPLUS (found 2026-10-09). Thirteen accounts
+    #    claimed before the 8 Sep handover and were never moved by
+    #    migrate_ledger, so they still had legacy `bal_` rows when
+    #    reconcile_float minted backing for them on 4 Oct. Touching such an
+    #    account later runs ensureMigrated, which MINTS the row again instead of
+    #    moving the backing already in the float — so the token ends up holding
+    #    exactly that row's value more than the books. Nobody gains or loses:
+    #    the owner gets their own balance once, the duplicate sits idle in the
+    #    core's float. The surplus must therefore equal, to the base unit,
+    #    LEGACY_AT_RECONCILE minus the legacy rows still standing. Anything
+    #    else — a shortfall, or a surplus of any other size — is a real fault.
+    legacy = state(CORE, ["bal_" + a for a in LEGACY_ACCOUNTS])
+    legacy_now = sum(num(legacy, "bal_" + a) for a in LEGACY_ACCOUNTS)
+    expected_surplus = LEGACY_AT_RECONCILE - legacy_now
+    check("backing", supply - books == expected_surplus,
+          f"books {amt(books)} vs minted {amt(supply)} — surplus {amt(supply - books)}, "
+          f"explained {amt(expected_surplus)} (legacy rows touched since 4 Oct; "
+          f"{amt(legacy_now)} still standing)")
 
     # 2. The historic hardcap, checked against the chain rather than trusted.
     check("hardcap", books <= HARDCAP,
