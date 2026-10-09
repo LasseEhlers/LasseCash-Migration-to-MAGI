@@ -21,7 +21,7 @@
    */
   import { chain } from "$lib/chain.svelte.js";
   import { CONTRACT_ID, WALLET_MODE } from "$lib/chain.svelte.js";
-  import { KEY_BURN_HEIGHTS, MAGI_GRAPHQL } from "$lib/site.js";
+  import { KEY_BURN_HEIGHT, MAGI_GRAPHQL } from "$lib/site.js";
   import { currentMagiNode, magiFetch } from "$api/index.js";
 
   type Pending = {
@@ -39,10 +39,10 @@
 
   const info = $derived(chain.info);
   /** The announced burn height, derived from genesis so it cannot be typed wrong. */
-  const burnHeight = $derived(info ? info.genesis_height + KEY_BURN_HEIGHTS : 0);
-  const burned = $derived(!!info && info.height >= burnHeight);
+  const burnHeight = KEY_BURN_HEIGHT;
+  const burned = $derived(!!info && burnHeight !== null && info.height >= burnHeight);
   const daysLeft = $derived(
-    info && !burned ? Math.max(0, (burnHeight - info.height) / 28_800) : 0,
+    info && burnHeight !== null && !burned ? Math.max(0, (burnHeight - info.height) / 28_800) : 0,
   );
 
   /**
@@ -88,14 +88,21 @@
       </p>
     {:else}
       <p class="verdict live">
-        The owner key still exists, and will be destroyed at block
-        <b class="mono">{burnHeight.toLocaleString()}</b> —
-        <b class="mono">{daysLeft.toFixed(1)}</b> days from now.
+        {#if burnHeight !== null}
+          The owner key still exists, and will be destroyed at block
+          <b class="mono">{burnHeight.toLocaleString()}</b> —
+          <b class="mono">{daysLeft.toFixed(1)}</b> days from now.
+        {:else}
+          The owner key still exists. It will be destroyed at a block announced in
+          advance — no date is set yet, until the last fixes and tests are done.
+          <a href="/about">Why →</a>
+        {/if}
       </p>
       <p class="dim small">
         Until then it can do exactly one thing: propose a code update. It cannot
-        move anyone's tokens. Every proposal is visible here for 48 hours before
-        it can take effect, and can be cancelled inside that window.
+        move tokens directly, but new code could change any rule — which is why
+        every proposal is visible here for 48 hours before it can take effect,
+        and can be cancelled inside that window.
       </p>
     {/if}
 

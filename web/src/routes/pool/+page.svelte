@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { KEY_BURN_HEIGHT } from "$lib/site.js";
   /**
    * LASSECASH:HBD pool.
    *
@@ -296,8 +297,7 @@
    * happened before trusting the wording — this switches on the ANNOUNCED
    * height, and an announcement is a plan until the transaction is published.
    */
-  const KEY_BURN_HEIGHT = 110_664_118;
-  const keysBurned = $derived(!!info && info.height >= KEY_BURN_HEIGHT);
+  const keysBurned = $derived(!!info && KEY_BURN_HEIGHT !== null && info.height >= KEY_BURN_HEIGHT);
 
   const RC_RESERVE_MILLI = 5_500;
 

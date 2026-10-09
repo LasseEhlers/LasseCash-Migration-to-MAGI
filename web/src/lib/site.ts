@@ -126,6 +126,17 @@ export function xmlEscape(s: string): string {
  */
 export const KEY_BURN_HEIGHTS = 40 * 28_800;
 
+/**
+ * THE KEY BURN HAS NO HEIGHT YET (Lasse, 2026-10-04). The day-40 plan above is
+ * history: the float fault was found on day 31, so the key stays until the
+ * remaining fixes and tests are done, and the height is announced before the
+ * burn. Set this to that announced Hive block height when it exists — every
+ * page reads it from here. While it is null, NO page may say the keys are
+ * burned: on 2026-10-09 three pages were a day away from saying so on their
+ * own, because they derived the old day-40 height.
+ */
+export const KEY_BURN_HEIGHT: number | null = null;
+
 /** The MAGI node this site reads consensus facts from. */
 export const MAGI_GRAPHQL =
   (import.meta.env.VITE_CHAIN_URL as string | undefined) ??

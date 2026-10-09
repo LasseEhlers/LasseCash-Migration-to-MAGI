@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { KEY_BURN_HEIGHT } from "$lib/site.js";
   /**
    * LASSECASH:HBD — every trade since the pool opened.
    *
@@ -21,8 +22,7 @@
 
   // Same words as the Pool page's tile: the fee is a hardcoded zero, and once
   // the owner key burns (block 110,664,118) nobody can ever reintroduce one.
-  const KEY_BURN_HEIGHT = 110_664_118;
-  const keysBurned = $derived(!!chain.info && chain.info.height >= KEY_BURN_HEIGHT);
+  const keysBurned = $derived(!!chain.info && KEY_BURN_HEIGHT !== null && chain.info.height >= KEY_BURN_HEIGHT);
 
   let trades = $state<PoolTrade[]>([]);
   let reconciled = $state(false);
