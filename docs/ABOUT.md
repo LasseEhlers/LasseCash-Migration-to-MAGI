@@ -320,7 +320,7 @@ So: everything inside the LasseCash contract becomes trustless at the key burn; 
 
 ## 7. Thresholds — the median of ten numbers
 
-**There are no proposals.** You cannot verify on-chain that a funded proposal was ever delivered, so an immutable protocol should not pretend otherwise. There is no inflation slice for proposals, marketing or onboarding either.
+**There are no proposals.** You cannot verify on-chain that a funded proposal was ever delivered, so a protocol whose rules are code should not pretend otherwise. There is no inflation slice for proposals, marketing or onboarding either.
 
 Instead, the **ten largest holders of live L-Shares** hold seats, each keeping a **standing preferred value** for every threshold, changeable at any moment. The **median of those preferences is the value in force**, continuously — no quorum, no round, nothing to time or snipe. Losing a seat drops your preference at once; seats with no preference are skipped, not counted as zero; with an even count the **lower** median is used, so the arithmetic is exact and every node agrees. Median rather than average, because extreme votes neutralise themselves: demanding 10,000% moves the result no further than voting a notch above the median. L-Shares win you a seat, not a louder voice within it, which is why there is no whale-weight cap.
 
