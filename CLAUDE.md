@@ -898,6 +898,12 @@ again and still catches real faults. **Fix, before any key burn:** a code
 update making `ensureMigrated` TRANSFER from the core float (already backed)
 instead of minting; do NOT call `migrate_ledger` for the 12 first — it runs the
 same minting path and would double 225k at once.
+**DECIDED 2026-10-11 (Lasse): no hurry — batch it into one code update around
+New Year** with any other findings, to pay the 10 HBD fee once. Waiting is
+safe: nobody loses, the duplicate sits idle in the float, the audit expects it
+exactly, the hardcap is untouched. Only hard rule: fixed before the key burns.
+Keep @lassecashmagi's 500 HP delegation until the update is done (it needs
+Hive RC to broadcast, plus 10 HBD on its Hive L1 wallet for the fee).
 
 ## ✅ PRODUCTION UPDATE #4 LIVE AND APPLIED — the float is backed, 2026-10-04
 
