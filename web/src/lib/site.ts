@@ -29,8 +29,8 @@ export const SITE_NAME = "LasseCash";
 
 export const SITE_DESCRIPTION =
   "LasseCash is an anarcho-capitalist social economy: publish, earn LASSECASH " +
-  "from Proof-of-Brain rewards, and time-lock it into L-Shares. Immutable " +
-  "contracts on MAGI, 51,000,000 hardcap, no admin keys.";
+  "from Proof-of-Brain rewards, and time-lock it into L-Shares. Rules in code " +
+  "on MAGI, zero fees, 51,000,000 hardcap.";
 
 /**
  * The default share-card image — 1200x630, the standard OpenGraph size.
@@ -40,7 +40,11 @@ export const SITE_DESCRIPTION =
  * against. `absolute()` derives it from the same SITE_URL everything else
  * uses, so it never drifts when the site moves.
  */
-export const SITE_OG_IMAGE = absolute("/og-card-3.png");
+// og-card-4 (2026-10-10): the subline said "immutable · no admin keys" while
+// the key is still held; it now says "rules in code on MAGI · zero fees".
+// Switch back to an immutability line only once the burn tx exists. A NEW
+// filename each time, because unfurlers cache images by URL.
+export const SITE_OG_IMAGE = absolute("/og-card-4.png");
 
 /**
  * Strip the chain's namespace for display and for URLs.

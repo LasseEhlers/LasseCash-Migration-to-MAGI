@@ -30,7 +30,7 @@ export const GET: RequestHandler = async () => {
     "## About",
     "",
     `- [About ${SITE_NAME}](${SITE_URL}/about.md): what LasseCash is, how the`,
-    "  economics work, and what is immutable about them.",
+    "  economics work, and which rules are hardcoded.",
     "",
     "## Posts",
     "",
