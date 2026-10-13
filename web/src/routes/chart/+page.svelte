@@ -13,7 +13,6 @@
    * Every figure is replayed through the engine (`client.poolTrades`), and
    * the replay is CHECKED against live reserves rather than trusted.
    */
-  import { onMount } from "svelte";
   import { chain, client } from "$lib/chain.svelte.js";
   import { displayName, lc } from "$lib/format.js";
   import Seo from "$lib/Seo.svelte";
@@ -29,7 +28,17 @@
   let loading = $state(true);
   let error = $state<string | null>(null);
 
-  onMount(async () => {
+  // WAIT FOR THE ENGINE. The replay prices every trade through the engine, and
+  // on a fresh reload this page used to ask before the WASM had loaded:
+  // "engine not loaded — await loadEngine() first" (seen 2026-10-12). A plain
+  // flag, not $state: an effect must not read state it writes.
+  let started = false;
+  $effect(() => {
+    if (!chain.ready || started) return;
+    started = true;
+    void loadTrades();
+  });
+  async function loadTrades() {
     try {
       const res = await client.poolTrades();
       trades = res.trades;
@@ -39,7 +48,7 @@
     } finally {
       loading = false;
     }
-  });
+  }
 
   const priced = $derived(trades.filter((t) => Number(t.price) > 0));
   const first = $derived(priced[0] ?? null);

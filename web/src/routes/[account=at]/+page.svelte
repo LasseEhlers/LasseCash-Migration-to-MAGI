@@ -62,6 +62,9 @@
   async function loadPaid() {
     const settled = money.filter((p) => p.paid_out);
     if (!settled.length) return;
+    // HBD values need the engine; on a fresh load wait for it rather than
+    // silently showing LASSECASH only.
+    for (let i = 0; i < 100 && !chain.ready; i++) await new Promise((r) => setTimeout(r, 100));
     try {
       const [hits, pool] = await Promise.all([
         Promise.all(settled.map((p) => client.postPayout(p.author, p.permlink).catch(() => null))),
