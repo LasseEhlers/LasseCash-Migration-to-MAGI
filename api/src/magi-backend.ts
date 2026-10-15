@@ -2487,8 +2487,9 @@ export function visibleHiveReplies(
 }
 
 /**
- * True when every line is a tip-bot command (`!BEER`, `!PIZZA 2`) or a
- * "Posted using …" footer, and there is at least one command. A reply with
+ * True when every line is a tip-bot command (`!BEER`, `!PIZZA 2`), a
+ * "Posted using …" footer, or a bare image/link, and there is at least one
+ * command. A reply with
  * any real sentence in it is NOT caught.
  */
 export function isBotCommandsOnly(text: string | undefined | null): boolean {
@@ -2498,6 +2499,10 @@ export function isBotCommandsOnly(text: string | undefined | null): boolean {
   for (const l of lines) {
     if (/^(?:!\w+(?:\s+\S+)?\s*)+$/.test(l)) { commands++; continue; }
     if (/^posted using\b/i.test(l)) continue;
+    // A line that is ONLY an image or ONLY a link adds no words: @andy4475's
+    // "!HEARTBEAT" + a screenshot slipped through on 2026-10-15. Neutral, like
+    // the footer — a picture or link with no command is still never caught.
+    if (/^!\[[^\]]*\]\([^)]*\)$/.test(l) || /^https?:\/\/\S+$/.test(l)) continue;
     return false;
   }
   return commands > 0;

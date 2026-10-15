@@ -273,6 +273,8 @@ test("tip-bot command replies are hidden and never import their parent", async (
   assert.equal(isBotCommandsOnly("!BBH\nPosted using The BBH Project"), true);
   assert.equal(isBotCommandsOnly("!PIZZA great photo, where was it?"), false);
   assert.equal(isBotCommandsOnly("Nice post!"), false);
+  assert.equal(isBotCommandsOnly("!HEARTBEAT\n\n![shot.png](https://files.peakd.com/x.png)\n"), true);
+  assert.equal(isBotCommandsOnly("![my photo](https://files.peakd.com/x.png)"), false);
   const v = (author: string, permlink: string, pa: string, pp: string, body: string) =>
     ({ author, permlink, parent_author: pa, parent_permlink: pp, body_excerpt: body } as unknown as import("./types.js").PostView);
   const post = v("hive:barski", "nostalgia", "", "", "");
