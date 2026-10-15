@@ -36,6 +36,7 @@
   };
   type LpRow = { account: string; positions: number; share: number; oldest: number };
   type MediaRow = { account: string; posts: number; replies: number; votes: number };
+  type HolderRow = { account: string; liquid: bigint; locked: bigint; total: bigint };
 
   let loaded = $state(false);
   let error = $state<string | null>(null);
@@ -47,6 +48,8 @@
   let mints = $state<MintRow[]>([]);
   let lps = $state<LpRow[]>([]);
   let media = $state<MediaRow[]>([]);
+  let holders = $state<HolderRow[]>([]);
+  let heldTotal = $state(0n);
 
   /** Base units (1e8) to a decimal string, exactly — no float in between. */
   const dec = (v: bigint): string => {
@@ -102,9 +105,15 @@
       }
       const recs = keys.length ? await client.state(keys) : {};
       const byAcct = new Map<string, MintRow>();
+      /** Principal still locked in ANY open mint, migration mints included. */
+      const lockedAll = new Map<string, bigint>();
       for (const k of keys) {
         const raw = recs[k]; if (!raw) continue;
         const f = raw.split("|");
+        if (f[5] !== "1") {
+          const who = k.slice(5, k.lastIndexOf("_"));
+          lockedAll.set(who, (lockedAll.get(who) ?? 0n) + BigInt(f[0] || "0"));
+        }
         if (Number(f[2] || 0) === info.genesis_height) continue; // migration mint
         const account = k.slice(5, k.lastIndexOf("_"));
         const r = byAcct.get(account) ?? { account, made: 0, open: 0, minted: 0n, locked: 0n, shares: 0n, longest: 0 };
@@ -124,6 +133,39 @@
       mints = [...byAcct.values()].sort((a, b) =>
         b.locked !== a.locked ? (b.locked > a.locked ? 1 : -1)
         : b.minted !== a.minted ? (b.minted > a.minted ? 1 : -1) : b.made - a.made);
+
+      // --- holders -------------------------------------------------------
+      // WHO HOLDS WHAT, openly — the founder included (Lasse, 2026-10-15:
+      // "its true its earnest"). Liquid comes from MAGI's own token index (one
+      // query, every balance; CORS-open to this site) plus the few legacy
+      // `bal_` rows never moved to the token; locked is principal in open
+      // mints. @null (burned) and contract accounts (the pool, the float) are
+      // not holders. The index can lag a transaction by minutes; it says so.
+      const liquid = new Map<string, bigint>();
+      try {
+        const res = await fetch("https://indexer.magi.milohpr.com/v1/graphql", {
+          method: "POST", headers: { "content-type": "application/json" },
+          body: JSON.stringify({ query: `{ magi_token_balances(where:{contract_id:{_eq:"${info.token_contract}"},balance:{_gt:0}}){ account balance } }` }),
+        });
+        const rows = ((await res.json()) as { data?: { magi_token_balances?: { account: string; balance: number | string }[] } })
+          .data?.magi_token_balances ?? [];
+        for (const r of rows) liquid.set(r.account, BigInt(String(r.balance)));
+      } catch { /* the table shows mints only */ }
+      const legacy = await client.state(universe.map((a) => `bal_${a}`)).catch(() => ({} as Record<string, string>));
+      for (const a of universe) {
+        const v = BigInt(legacy[`bal_${a}`] || "0");
+        if (v > 0n) liquid.set(a, (liquid.get(a) ?? 0n) + v);
+      }
+      const all = new Set([...liquid.keys(), ...lockedAll.keys()]);
+      const rowsH: HolderRow[] = [];
+      for (const a of all) {
+        if (NOT_PEOPLE.has(a) || a.startsWith("contract:")) continue;
+        const l = liquid.get(a) ?? 0n, m = lockedAll.get(a) ?? 0n;
+        if (l + m > 0n) rowsH.push({ account: a, liquid: l, locked: m, total: l + m });
+      }
+      rowsH.sort((x, y) => (y.total > x.total ? 1 : y.total < x.total ? -1 : 0));
+      holders = rowsH;
+      heldTotal = rowsH.reduce((t, r) => t + r.total, 0n);
 
       // --- liquidity -----------------------------------------------------
       const lpBy = new Map<string, LpRow>();
@@ -150,6 +192,7 @@
   const top = <T,>(xs: T[], k = 10) => xs.slice(0, k);
   let allMints = $state(false);
   let allMedia = $state(false);
+  let allHolders = $state(false);
 </script>
 
 <Seo
@@ -278,6 +321,40 @@
       {/if}
     {/if}
     <p class="more"><a href="/feed">Read the feed →</a></p>
+  </section>
+{/if}
+
+{#if loaded && holders.length}
+  <section class="panel media">
+    <h2>Holders <span class="dim">— {holders.length} accounts</span></h2>
+    <p class="note dim">
+      Everyone holding LASSECASH, liquid and locked in mints, the founder included.
+      Burned tokens (@null) and the contracts' own pools are not holders. Liquid
+      balances come from MAGI's token index, which can trail the chain by a few minutes.
+    </p>
+    <div class="scroll">
+      <table>
+        <thead><tr>
+          <th class="num">#</th><th>Account</th><th class="num">Liquid</th>
+          <th class="num">In mints</th><th class="num">Total</th><th class="num">Share</th>
+        </tr></thead>
+        <tbody>
+          {#each (allHolders ? holders : top(holders, 20)) as r, i}
+            <tr>
+              <td class="num dim">{i + 1}</td>
+              <td><a href="/@{name(r.account)}">@{name(r.account)}</a></td>
+              <td class="num mono" class:zero={r.liquid === 0n}>{amt(r.liquid)}</td>
+              <td class="num mono" class:zero={r.locked === 0n}>{amt(r.locked)}</td>
+              <td class="num mono gold">{amt(r.total)}</td>
+              <td class="num mono">{heldTotal > 0n ? (Number((r.total * 10000n) / heldTotal) / 100).toFixed(2) : "0.00"}%</td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+    </div>
+    {#if holders.length > 20}
+      <button onclick={() => allHolders = !allHolders}>{allHolders ? "Show fewer" : `Show all ${holders.length}`}</button>
+    {/if}
   </section>
 {/if}
 
