@@ -116,6 +116,13 @@
     PeakD or another Hive site stays a Hive vote.
   </p>
 
+  <p>
+    <b>Write here to choose deep.</b> A post written on LasseCash can be deep — paid
+    over 30 days from three quarters of the post rewards. A post tagged
+    <code>lassecash</code> from another Hive site joins the feed with its first vote here,
+    but always as viral.
+  </p>
+
   <p class="dim">
     A new account can mint and trade straight away. To post, you first need
     L-Shares, which you get by minting. See
