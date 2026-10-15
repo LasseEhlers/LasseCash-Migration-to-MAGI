@@ -14,6 +14,7 @@
    */
   import { chain, client, wallet } from "$lib/chain.svelte.js";
   import { lc, fractionPct } from "$lib/format.js";
+  import Hbd from "$lib/Hbd.svelte";
   import { voteCost, voteWeight, votePower, toBaseUnitArg, type PostView } from "$api/index.js";
 
   let { post, onvoted }: { post: PostView; onvoted?: () => void } = $props();
@@ -281,6 +282,7 @@
           <span class="dim">Adds about</span>
           <b class="gold mono">{lc(estimate.added, 4)}</b>
           <span class="dim">LASSECASH to this post</span>
+          <Hbd amount={estimate.added} />
         </div>
         <p class="estimate">
           Estimate — the pool grows every block and other votes are still
