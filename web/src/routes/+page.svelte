@@ -675,7 +675,8 @@
   .actions { flex: 1 1 100%; align-items: stretch; padding: 0 0.85rem 0.85rem; }
   }
   .post.justvoted { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold-dim); }
-  .votednote { margin: 0 0 .6rem; font-size: .8rem; color: var(--gold); }
+  /* Above the card-wide link (.cardlink, z-index 0), or the click opens the post. */
+  .votednote { position: relative; z-index: 1; margin: 0 0 .6rem; font-size: .8rem; color: var(--gold); }
   .votednote .link { background: none; border: 0; padding: 0; margin-left: .4rem; font: inherit;
                      color: var(--gold); text-decoration: underline; cursor: pointer; }
 </style>
