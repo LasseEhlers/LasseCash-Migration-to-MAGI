@@ -41,6 +41,9 @@
   /** The replies, with their bodies attached. */
   type Reply = { view: PostView; body: string };
   let replies = $state<Reply[]>([]);
+  /** Tip-bot command replies (`!BEER !PIZZA`), hidden unless asked for. */
+  let showBots = $state(false);
+  const botCount = $derived(replies.filter((r) => r.view.bot_commands).length);
   let loading = $state(true);
   let error = $state<string | null>(null);
 
@@ -124,10 +127,11 @@
     // parent is missing from the list (filtered below threshold, or not yet
     // discovered) renders at top level rather than disappearing.
     const rootKey = `${post.author}/${post.permlink}`;
-    const byKey = new Set(replies.map((r) => `${r.view.author}/${r.view.permlink}`));
+    const list = showBots ? replies : replies.filter((r) => !r.view.bot_commands);
+    const byKey = new Set(list.map((r) => `${r.view.author}/${r.view.permlink}`));
     const children = new Map<string, Reply[]>();
     const roots: Reply[] = [];
-    for (const r of replies) {
+    for (const r of list) {
       const pk = `${r.view.parent_author}/${r.view.parent_permlink}`;
       if (pk !== rootKey && byKey.has(pk)) {
         const list = children.get(pk) ?? [];
@@ -297,9 +301,15 @@
 
   {#if loading}
     <p class="dim empty-note">Reading the chain…</p>
-  {:else if ranked.length === 0}
+  {:else if ranked.length === 0 && botCount === 0}
     <p class="dim empty-note">No comments yet.</p>
   {:else}
+    {#if botCount > 0}
+      <p class="dim botnote">
+        {botCount} tip-bot {botCount === 1 ? "reply" : "replies"} hidden (only commands like !BEER).
+        <button class="link" onclick={() => (showBots = !showBots)}>{showBots ? "hide" : "show"}</button>
+      </p>
+    {/if}
     <ul class="list">
       {#each ranked as { r: { view, body }, depth } (view.author + "/" + view.permlink)}
         <!-- Indent is CAPPED: past three levels the thread stops marching
@@ -449,4 +459,6 @@
 
   .cactions { display: flex; justify-content: flex-end; }
   .tiny { font-size: var(--t-micro); font-family: var(--mono); }
+  .botnote { font-size: .8rem; margin: 0 0 .6rem; }
+  .botnote .link { background: none; border: 0; padding: 0; font: inherit; color: var(--gold); text-decoration: underline; cursor: pointer; }
 </style>

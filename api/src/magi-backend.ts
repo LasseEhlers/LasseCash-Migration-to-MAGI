@@ -2445,8 +2445,19 @@ export function discoveredCalls(
  */
 export function visibleHiveReplies(
   registered: PostView[],
-  hive: { view: PostView; qualifies: boolean }[],
+  hiveAll: { view: PostView; qualifies: boolean }[],
 ): PostView[] {
+  // TIP-BOT COMMANDS ARE NOT CONVERSATION (Lasse, 2026-10-15). A Hive-only
+  // reply made of nothing but `!BEER !PIZZA !LOLZ` triggers Hive-Engine tip
+  // tokens elsewhere and means nothing here; worse, a staked author's command
+  // reply used to pull the bot comments above it in as "context". Such a
+  // reply never qualifies and never imports a parent; it is returned flagged,
+  // and the page hides it behind a toggle. Display only — Hive is untouched.
+  // The FULL body where present: the excerpt stops at 220 characters, and a
+  // reply whose real sentence comes after a run of commands must not be caught.
+  const text = (v: PostView) => (v as PostView & { body?: string }).body ?? v.body_excerpt;
+  const bots = hiveAll.filter((h) => isBotCommandsOnly(text(h.view)));
+  const hive = hiveAll.filter((h) => !isBotCommandsOnly(text(h.view)));
   const visible = new Set(registered.map((c) => `${c.author}/${c.permlink}`));
   for (const h of hive) {
     if (h.qualifies) visible.add(`${h.view.author}/${h.view.permlink}`);
@@ -2463,7 +2474,31 @@ export function visibleHiveReplies(
       if (hasVisibleChild) { visible.add(key); grew = true; }
     }
   }
-  return hive
-    .filter((h) => visible.has(`${h.view.author}/${h.view.permlink}`))
-    .map((h) => (h.qualifies ? h.view : { ...h.view, shown_for_context: true }));
+  return [
+    ...hive
+      .filter((h) => visible.has(`${h.view.author}/${h.view.permlink}`))
+      .map((h) => (h.qualifies ? h.view : { ...h.view, shown_for_context: true })),
+    // Only bot replies that hang off something visible are worth a "hidden"
+    // count; the rest of a bot-only thread stays out entirely.
+    ...bots
+      .filter((h) => visible.has(`${h.view.parent_author}/${h.view.parent_permlink}`))
+      .map((h) => ({ ...h.view, bot_commands: true })),
+  ];
+}
+
+/**
+ * True when every line is a tip-bot command (`!BEER`, `!PIZZA 2`) or a
+ * "Posted using …" footer, and there is at least one command. A reply with
+ * any real sentence in it is NOT caught.
+ */
+export function isBotCommandsOnly(text: string | undefined | null): boolean {
+  if (!text) return false;
+  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  let commands = 0;
+  for (const l of lines) {
+    if (/^(?:!\w+(?:\s+\S+)?\s*)+$/.test(l)) { commands++; continue; }
+    if (/^posted using\b/i.test(l)) continue;
+    return false;
+  }
+  return commands > 0;
 }

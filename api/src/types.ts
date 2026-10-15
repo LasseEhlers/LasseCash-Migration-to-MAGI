@@ -209,6 +209,9 @@ export interface PostView {
    * Absent everywhere else.
    */
   shown_for_context?: boolean;
+  /** A Hive-only reply made of nothing but tip-bot commands (`!BEER !PIZZA`).
+   *  Hidden behind a toggle on LasseCash; never counts toward visibility. */
+  bot_commands?: boolean;
 }
 
 /**

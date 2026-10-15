@@ -266,3 +266,23 @@ test("a qualified author who later holds nothing takes un-anchored comments with
   ]);
   assert.equal(out.length, 0, "borrowed visibility returns when the collateral is gone");
 });
+
+test("tip-bot command replies are hidden and never import their parent", async () => {
+  const { visibleHiveReplies, isBotCommandsOnly } = await import("./magi-backend.js");
+  assert.equal(isBotCommandsOnly("!DIY\n!PEPE\n!BEER"), true);
+  assert.equal(isBotCommandsOnly("!BBH\nPosted using The BBH Project"), true);
+  assert.equal(isBotCommandsOnly("!PIZZA great photo, where was it?"), false);
+  assert.equal(isBotCommandsOnly("Nice post!"), false);
+  const v = (author: string, permlink: string, pa: string, pp: string, body: string) =>
+    ({ author, permlink, parent_author: pa, parent_permlink: pp, body_excerpt: body } as unknown as import("./types.js").PostView);
+  const post = v("hive:barski", "nostalgia", "", "", "");
+  // eii (no stake) tips; barski (staked) answers with commands only.
+  const eii = v("hive:eii", "re-1", "hive:barski", "nostalgia", "!BEER");
+  const reply = v("hive:barski", "re-2", "hive:eii", "re-1", "!DIY\n!PEPE");
+  const out = visibleHiveReplies([post], [
+    { view: eii, qualifies: false },
+    { view: reply, qualifies: true },
+  ]);
+  assert.ok(!out.some((x) => x.permlink === "re-1" && !x.bot_commands), "a bot comment is never shown as context");
+  assert.ok(!out.some((x) => x.permlink === "re-2" && !x.bot_commands));
+});
