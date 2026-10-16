@@ -1480,6 +1480,21 @@ export class AiohaSigner implements Signer {
     // to affordable slices by design ("never above what they hold").
     const tableFloor = entrypoint === "advance" ? 0 : Math.ceil(tableLimit * 0.6);
     const avail = await rcRead;
+    // AN HBD DRAW SHARES THE POT WITH ITS OWN LIMIT. Admission reserves the
+    // rc_limit (beyond the free tier) out of the HBD balance BEFORE the draw
+    // is checked, so for HBD_DRAW_OPS the usable ceiling is available − draw −
+    // margin, not available. The probe already respected this; the FINAL
+    // limit did not, and @barski's two add_liquidity calls (0.354 and 0.862
+    // HBD, rc_limit 5,850/6,354) failed "insufficient balance" on 2026-10-15.
+    if (avail !== null && entrypoint in AiohaSigner.HBD_DRAW_OPS) {
+      const drawMilli = AiohaSigner.drawMilli(entrypoint, args);
+      if (drawMilli !== null) {
+        const room = Math.trunc(avail) - drawMilli - AiohaSigner.PROBE_MARGIN_MILLI;
+        const floor = Math.max(Math.ceil(need * 1.3), tableFloor);
+        if (room < floor) return AiohaSigner.rcRefusal(floor + drawMilli + AiohaSigner.PROBE_MARGIN_MILLI, Math.trunc(avail));
+        return Math.min(sized, room);
+      }
+    }
     if (avail !== null && sized > avail) {
       const floor = Math.max(Math.ceil(need * 1.3), tableFloor);
       if (avail < floor) return AiohaSigner.rcRefusal(floor, avail);
