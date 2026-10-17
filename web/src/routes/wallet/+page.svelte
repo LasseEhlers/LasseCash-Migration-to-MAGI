@@ -177,7 +177,7 @@
   }
 
   /** What client.magiSwap reserves on MAGI's router (api/src/client.ts). */
-  const MAGI_SWAP_RC = 3_000;
+  const MAGI_SWAP_RC = 700;
 
   async function doMagiSwap() {
     if (!quote) return;

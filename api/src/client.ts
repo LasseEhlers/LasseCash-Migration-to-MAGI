@@ -991,10 +991,13 @@ export class LasseCashClient {
         recipient: qualifyAddress(this.account ?? ""),
       }),
       intents: [swapIntent(assetIn, q.amountInUnits)],
-      // Their pool, their gas: measured ~94 RC for a swap on this router.
-      // 3,000 is the same order as our own swap limit and errs high, since a
-      // refused call freezes the limit exactly as a successful one does.
-      rcLimit: 3_000,
+      // Their pool, their gas. Measured by simulation: ~94 RC on the BTC/HBD
+      // pool, 332 RC on HIVE/HBD (17 Oct 2026, 220 HIVE -> 11.323 HBD). The
+      // node refuses a call whose limit exceeds the account's available
+      // credits, so a limit far above the real cost locks people out for no
+      // reason: on 17 Oct a 417-credit meter was turned away by a 3,000 limit
+      // for a swap that costs 332. 700 is about twice the dearest measurement.
+      rcLimit: 700,
       // Selling a MAPPED asset: the router pulls it from the mapping
       // contract, which requires this account's allowance. Granted for the
       // exact amount, in the same transaction, every time — additive
