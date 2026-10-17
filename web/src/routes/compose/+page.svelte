@@ -12,6 +12,7 @@
    *  2. The PAYOUT MODE is frozen with the post. "Burn" destroys the author's
    *     whole reward, so it is confirmed rather than clicked.
    */
+  import { onMount } from "svelte";
   import { goto } from "$app/navigation";
   import { page } from "$app/state";
 
@@ -372,6 +373,55 @@
     }
   }
 
+  /**
+   * THE DRAFT LIVES IN THIS BROWSER. Closing the tab or reloading used to throw
+   * away a finished article, and nothing else on this page saved it.
+   *
+   * Only the typed fields are kept. The payout mode and the burn confirmation
+   * are deliberately NOT restored: a destroyed reward must be confirmed afresh
+   * every time, never remembered from an earlier session. Storage can be
+   * blocked or cleared (private window), so every access is guarded and the
+   * page works the same without it — this is a convenience, not a guarantee.
+   * `draftRestored` is a plain variable on purpose: the saving effect must not
+   * read state it writes, and must not save the empty form over a draft before
+   * the restore has run.
+   */
+  const DRAFT_KEY = "lassecash:compose-draft";
+  const DRAFT_MAX_AGE_MS = 30 * 86_400_000;
+  let draftRestored = false;
+  onMount(() => {
+    if (!editing) {
+      try {
+        const raw = localStorage.getItem(DRAFT_KEY);
+        const d = raw ? JSON.parse(raw) : null;
+        if (d && typeof d === "object" && Date.now() - Number(d.t) < DRAFT_MAX_AGE_MS && !title && !body) {
+          title = String(d.title ?? "");
+          link = String(d.link ?? "");
+          linkTouched = !!d.linkTouched;
+          body = String(d.body ?? "");
+          summary = String(d.summary ?? "");
+          tags = Array.isArray(d.tags) ? d.tags.map(String).slice(0, 20) : [];
+          window_ = d.window_ === 1 ? 1 : 0;
+        }
+      } catch { /* blocked or malformed: start empty */ }
+    }
+    draftRestored = true;
+  });
+  $effect(() => {
+    const snapshot = { title, link, linkTouched, body, summary, tags: [...tags], window_ };
+    if (!draftRestored || editing) return;
+    const timer = setTimeout(() => {
+      try {
+        if (!snapshot.title && !snapshot.body) localStorage.removeItem(DRAFT_KEY);
+        else localStorage.setItem(DRAFT_KEY, JSON.stringify({ ...snapshot, t: Date.now() }));
+      } catch { /* the draft is a convenience */ }
+    }, 600);
+    return () => clearTimeout(timer);
+  });
+  function clearDraft() {
+    try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
+  }
+
   async function publish() {
     if (editing) return save();
     error = null;
@@ -405,6 +455,7 @@
       summary = "";
       tags = [];
       burnConfirmed = false;
+      clearDraft();
       await chain.refresh();
       // Hive-style: you see your post, not the empty editor.
       if (author) await goto(`/@${author}/${res.permlink}`);
