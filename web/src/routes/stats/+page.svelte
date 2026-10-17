@@ -25,6 +25,10 @@
   import { lc } from "$lib/format.js";
   import Seo from "$lib/Seo.svelte";
   import { SITE_URL } from "$lib/site.js";
+  import { readGovernance } from "$lib/governance.js";
+  import {
+    Param, dailyRewards, estimateRewardShare, mintQuote, toBaseUnitArg, toUnits,
+  } from "$api/index.js";
 
   const ACTIVITY_CAP = 3000;
   /** Protocol accounts are not people turning up. */
@@ -193,6 +197,42 @@
   let allMints = $state(false);
   let allMedia = $state(false);
   let allHolders = $state(false);
+
+  /**
+   * WHAT A NEW MINT EARNS TODAY — the same engine path the Mint form uses for
+   * the amount typed there: mintQuote for the shares, dailyRewards' L-Share
+   * slice, estimateRewardShare for this mint's part once it joins the
+   * denominator. Shown for two reference mints because the multipliers make
+   * the percentage depend on size and term. An ESTIMATE, labelled so: it
+   * falls as others mint. The only arithmetic here is a/day -> %/year.
+   */
+  const REF_AMOUNT = "10000";
+  let shareRate = $state("1"), volStart = $state("0"), volEnd = $state("0"), govLoaded = $state(false);
+  $effect(() => {
+    if (!chain.ready || govLoaded) return;
+    govLoaded = true;
+    void client.quoteMint("1", 1).then((q) => { shareRate = q.share_rate; }).catch(() => {});
+    void readGovernance([Param.VolumeStart, Param.VolumeEnd]).then((g) => {
+      const vs = g.values.get(Param.VolumeStart), ve = g.values.get(Param.VolumeEnd);
+      if (vs?.ok) volStart = vs.value;
+      if (ve?.ok) volEnd = ve.value;
+    }).catch(() => {});
+  });
+  function yearPct(days: number): number | null {
+    const info = chain.info;
+    if (!info || !chain.ready || shareRate === "1" || volEnd === "0") return null;
+    try {
+      const q = mintQuote(toBaseUnitArg(REF_AMOUNT), days, toBaseUnitArg(shareRate),
+        toBaseUnitArg(volStart), toBaseUnitArg(volEnd));
+      if (!q.ok) return null;
+      const mine = toBaseUnitArg(q.shares);
+      const total = (BigInt(toBaseUnitArg(info.total_shares)) + BigInt(mine)).toString();
+      const perDay = estimateRewardShare(toBaseUnitArg(dailyRewards(info.genesis_height, info.height).lshare), mine, total);
+      return Number((toUnits(perDay) * 365n * 10_000n) / toUnits(REF_AMOUNT)) / 100;
+    } catch { return null; }
+  }
+  const yield3y = $derived(yearPct(1095));
+  const yield7d = $derived(yearPct(7));
 </script>
 
 <Seo
@@ -219,6 +259,9 @@
       <dd class="dim">by {mints.length} accounts, {amt(sumLocked)} still in open mints</dd></div>
     <div><dt>Pool</dt><dd class="mono gold">{lc(chain.info?.amm_lc ?? "0", 0)}</dd>
       <dd class="dim">LASSECASH + {lc(chain.info?.amm_hbd ?? "0", 3)} HBD, {lps.length} providers</dd></div>
+    <div><dt>New mint today</dt>
+      <dd class="mono gold">{yield3y === null ? "…" : `+${yield3y.toFixed(1)}%`} <span class="unit">a year</span></dd>
+      <dd class="dim">10,000 for 3 years at today's share base{#if yield7d !== null} · 7 days: +{yield7d.toFixed(1)}%{/if} — an estimate, falls as others mint · <a href="/">Mint →</a></dd></div>
     <div><dt>LasseMedia</dt><dd class="mono gold">{totals.posts + totals.replies}</dd>
       <dd class="dim">posts and replies, {totals.votes} votes</dd></div>
   </div>
@@ -371,6 +414,7 @@
   h1 { margin: 0 0 .3rem; }
   .lede { margin: 0 0 1.2rem; font-size: .9rem; }
   h2 { font-size: 1rem; margin: 0 0 .5rem; }
+  .unit { font-size: .7rem; color: var(--dim); }
   .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: 1rem; margin-bottom: 1rem; }
   .summary dt { font-size: .7rem; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); }
   .summary dd { margin: .2rem 0 0; font-size: 1.25rem; }
