@@ -1797,7 +1797,7 @@ export class MagiBackend implements Backend {
     const body = (await res.json()) as {
       result?: {
         author?: string; title?: string; body?: string; json_metadata?: string;
-        category?: string; parent_permlink?: string;
+        category?: string; parent_permlink?: string; created?: string;
       };
     };
     const post = body.result;
@@ -1821,6 +1821,7 @@ export class MagiBackend implements Backend {
     return {
       title: post.title ?? "", body: post.body ?? "", tags, summary,
       ...(category ? { category } : {}),
+      ...(post.created ? { created: isoUtc(post.created) } : {}),
       ...(metadata ? { metadata } : {}),
     };
   }

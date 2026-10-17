@@ -146,7 +146,7 @@ export function toArticle(
     summary,
     tags: content?.tags ?? post?.tags ?? [],
     cover: body ? coverImage(body) : null,
-    created: post?.created_time ?? null,
+    created: post?.created_time ?? content?.created ?? null,
     window: post?.window ?? null,
     // A post the indexer found under the `lassecash` tag but that nobody has
     // voted on yet is NOT registered — it carries no contract record. Reading

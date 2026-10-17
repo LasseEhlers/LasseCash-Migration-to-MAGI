@@ -353,6 +353,12 @@ export interface Content {
    */
   category?: string;
   /**
+   * When Hive recorded the post, ISO UTC. The only date an UNREGISTERED post
+   * has: the contract's record supplies one for registered posts, a post that
+   * never reached the contract has just this. Absent on the simulator.
+   */
+  created?: string;
+  /**
    * The post's `json_metadata`, parsed — carried so an EDIT can merge into it
    * instead of replacing it. See `editMetadata`: another app's post keeps its
    * own identity fields, because those are what it gets paid on.
