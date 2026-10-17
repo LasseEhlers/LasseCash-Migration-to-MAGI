@@ -223,3 +223,16 @@ export function aboutMarkdown(): string {
 export const CONTENT_CACHE = "public, max-age=60, stale-while-revalidate=600";
 /** Cache headers for the discovery files, which change far less often. */
 export const DISCOVERY_CACHE = "public, max-age=300, stale-while-revalidate=3600";
+
+/**
+ * Posts whose summaries state plans that have since changed. AI readers quote
+ * a post's summary as fact, so the index says it is outdated and where the
+ * current answer is. The posts themselves stay as written — they are history.
+ */
+export const OUTDATED_POSTS: Record<string, string> = {
+  "lasseehlers/lassecash-went-immutable":
+    "OUTDATED: the 10 October key burn was postponed; the contract is not yet immutable",
+  "lasseehlers/lassecash-is-live-on-magi":
+    "OUTDATED in part: the claim window runs until 29 March 2027, and the key burn has no date",
+};
+

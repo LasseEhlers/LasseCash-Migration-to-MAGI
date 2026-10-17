@@ -9,7 +9,7 @@
  * real post index exists this should page rather than truncate silently.
  */
 import type { RequestHandler } from "./$types";
-import { listArticles, aboutMarkdown, DISCOVERY_CACHE } from "$lib/server/content.js";
+import { listArticles, aboutMarkdown, DISCOVERY_CACHE, OUTDATED_POSTS } from "$lib/server/content.js";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "$lib/site.js";
 
 export const GET: RequestHandler = async () => {
@@ -41,6 +41,7 @@ export const GET: RequestHandler = async () => {
       ...(a.created ? [`- Published: ${a.created}`] : []),
       `- Canonical: ${a.canonical}`,
       ...(a.tags.length ? [`- Tags: ${a.tags.join(", ")}`] : []),
+      ...(OUTDATED_POSTS[`${a.handle}/${a.permlink}`] ? [`- Note: ${OUTDATED_POSTS[`${a.handle}/${a.permlink}`]}`] : []),
       "",
       a.published ? a.body.trim() : "_Registered on-chain; body not published._",
       "",

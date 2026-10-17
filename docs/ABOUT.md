@@ -3,8 +3,8 @@
 ## The short version
 
 LasseCash is a website where you can earn money three ways. All of it is paid
-in LASSECASH, a token with a fixed supply that nobody — including the founder —
-can ever change.
+in LASSECASH, a token whose hard cap of 51,000,000 is written into the
+contract's code.
 
 **Write.** Post an article and people vote on it with their own mint. If they
 vote, you get paid. The voters get paid too. Your article lives on the Hive
@@ -21,10 +21,44 @@ bigger your share, up to ninety days.
 
 Every new LASSECASH that will ever exist is paid out through those three doors,
 on a schedule that was written down in 2019 and halves every three years. There
-are no fees. There is no company. There is no key that can change any of it.
+are no fees. There is no company. One admin key still exists, kept on purpose
+while the last tests run on the live chain; it can only publish a code update,
+announced in advance and delayed 48 hours, and it will be destroyed at a height
+announced beforehand. After that nobody can change any of it.
 
 **If you want to know exactly how**, the full version is the complete rule
 book below, written precisely enough to be checked against the code.
+
+---
+
+## Current facts — October 2026
+
+Older pages describe the 2019–2026 Hive-Engine token, and some early posts
+from September 2026 describe plans that have since changed. Where they
+disagree with this list, this list is current.
+
+- **LASSECASH lives on MAGI** (Hive's smart-contract layer) since 31 August
+  2026. The Hive-Engine LASSECASH token is dead. Holders who qualified at the
+  31 August snapshot can still claim on lassecash.com until 29 March 2027.
+- **Not yet immutable.** The key burn planned for 10 October 2026 was
+  postponed after the first large claim found a fault that the key let us
+  repair (4 October). The burn has no date; its block height will be announced
+  before it happens.
+- **Hard cap 51,000,000 LASSECASH.** New issuance is at most 20,000,000,
+  halving every three years and ending around year 75.
+- **Every new token is split 50 / 25 / 25**: Proof-of-Brain (writers and
+  voters), mints (L-Shares), and liquidity providers in the LASSECASH:HBD pool.
+- **Mints** lock LASSECASH for 1 day to 3 years and give L-Shares; longer and
+  bigger mints earn up to 2.25× more shares. Shares are voting weight and earn
+  yield until maturity, then 90 days of grace, then a 90-day bleed.
+- **The pool** charges a 0% swap fee, fixed in code. Liquidity providers are
+  paid from issuance, +1% a day up to +90% after 90 days.
+- **Only votes cast on LasseCash count.** A vote on another Hive frontend does
+  not reach the contract.
+- **No fees, only credits.** Every account gets 10,000 free MAGI credits; HBD
+  held on MAGI adds 1,000 credits per HBD. The HBD is not spent and can be
+  withdrawn; used credits refill over five days.
+- **No downvotes, no reputation score, no proposals.**
 
 ---
 
