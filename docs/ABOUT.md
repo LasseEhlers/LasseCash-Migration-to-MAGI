@@ -264,7 +264,7 @@ The **share rate** is what one L-Share costs. It starts at 1.00000000 LASSECASH 
 
 ### What the yield actually is, and what it is not
 
-The L-Share pool is **25% of emission** — in era 1 that is **833,333 LASSECASH a year**, and it does not grow. Your rate is that pool divided by the LASSECASH locked in mints, so it falls as more people mint:
+The L-Share pool is **25% of emission** — in era 1 that is **833,333 LASSECASH a year**, and it does not grow. Your rate is that pool divided by the LASSECASH locked in mints, so, counted in LASSECASH, it falls as more people mint (what that is worth in HBD depends on demand):
 
 | Share of supply locked | Rate |
 |---|---|

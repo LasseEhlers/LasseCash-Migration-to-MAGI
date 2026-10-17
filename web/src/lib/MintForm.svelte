@@ -117,8 +117,8 @@
       const share = claimable > 0 ? lockedNet / claimable : 0;
       const why =
         share < 0.25 ? "high because little of the supply is minted yet"
-        : share < 0.6 ? "as much of the supply is minted, this keeps falling"
-        : "most of the supply is minted, so this is near its floor";
+        : share < 0.6 ? "as more of the supply is minted, this keeps falling in LASSECASH"
+        : "most of the supply is minted, so this is near its floor in LASSECASH";
       return { perDay, pctYear, why };
     } catch { return null; }
   });
@@ -286,7 +286,7 @@
         </div>
         <div class="subline">
           <span class="dim">
-            Paid in LASSECASH, and the rate <b>falls as more people mint</b>.
+            Paid in LASSECASH. The rate <b>falls in LASSECASH as more people mint</b>; what it is worth in HBD depends on demand.
             <a href="/about/full#4-mint--lassemint-and-l-shares">Why →</a>
           </span>
         </div>

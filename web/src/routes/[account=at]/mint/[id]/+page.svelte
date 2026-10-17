@@ -188,14 +188,14 @@
             <dd class="mono">{pct(pace.pct)} <span class="unit">in {pace.days} days</span></dd>
             {#if pace.perYear !== null}<dd class="dim mono">≈ {pct(pace.perYear)} a year at this pace</dd>
             {:else}<dd class="dim">a yearly figure appears from day {MIN_YEAR_DAYS}</dd>{/if}
-            <dd class="dim">backward-looking; the rate falls as others mint</dd>
+            <dd class="dim">backward-looking; in LASSECASH the rate changes as others mint</dd>
           {:else}<dd class="dim">—</dd>{/if}</div>
         <div><dt>At today's share base</dt>
           {#if ahead}
             <dd class="mono gold">{pct(ahead.pctYear)} <span class="unit">a year</span></dd>
             <dd class="dim mono">≈ {lc(ahead.perYear, 0)} LASSECASH a year · {lc(ahead.perDay, 2)} a day</dd>
             <dd class="mono">by maturity ≈ {lc(ahead.byEnd, 0)} <span class="unit">LASSECASH</span> ({pct(ahead.pctEnd)})</dd>
-            <dd class="dim">estimate — falls as others mint</dd>
+            <dd class="dim">estimate in LASSECASH — changes as others mint</dd>
           {:else}<dd class="dim">—</dd>{/if}</div>
         <div><dt>Matures</dt><dd class="mono">{shortDate(live.maturity_time)}</dd>
           <dd class="dim">{live.claimable ? "claimable now" : live.mature ? "claimable once the maturity day closes" : "yield stops at maturity"}</dd></div>

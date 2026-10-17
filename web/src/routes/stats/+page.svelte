@@ -261,7 +261,7 @@
       <dd class="dim">LASSECASH + {lc(chain.info?.amm_hbd ?? "0", 3)} HBD, {lps.length} providers</dd></div>
     <div><dt>New mint today</dt>
       <dd class="mono gold">{yield3y === null ? "…" : `+${yield3y.toFixed(1)}%`} <span class="unit">a year</span></dd>
-      <dd class="dim">10,000 for 3 years at today's share base{#if yield7d !== null} · 7 days: +{yield7d.toFixed(1)}%{/if} — an estimate, falls as others mint · <a href="/">Mint →</a></dd></div>
+      <dd class="dim">10,000 for 3 years at today's share base{#if yield7d !== null} · 7 days: +{yield7d.toFixed(1)}%{/if} — an estimate in LASSECASH, changes as others mint, can hold in value if demand grows · <a href="/">Mint →</a></dd></div>
     <div><dt>LasseMedia</dt><dd class="mono gold">{totals.posts + totals.replies}</dd>
       <dd class="dim">posts and replies, {totals.votes} votes</dd></div>
   </div>
