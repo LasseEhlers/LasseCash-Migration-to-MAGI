@@ -35,6 +35,12 @@ import json, os, sys, urllib.request
 
 CORE  = os.environ.get("CONTRACT_ID", "vsc1Be4TTjUiHgzhHAfqFn6s3PDAExH2X59fXV")
 TOKEN = os.environ.get("TOKEN_ID",    "vsc1BUDsVccMPGycTmpc98WsQYSKyTBsZqFq4h")
+# The vsc-eco dex contract owned by hive:lassecashdapps (the "native pool").
+POOL  = os.environ.get("NATIVE_POOL_ID", "vsc1BrBFAwZ3Mr8L4ijRqT9RPEPvhK9FWDaYSr")
+# Update ids Lasse queued himself and expects (comma separated). While a planned
+# update waits out its 48 h timelock, list its id here so the check stays green;
+# anything NOT listed turns it red.
+EXPECTED_PENDING = {x for x in os.environ.get("EXPECTED_PENDING", "").split(",") if x}
 
 # The 51M historic hardcap. It is enforced in Go on chain; no state key holds
 # it, so it is written out here as the independent second opinion.
@@ -192,6 +198,28 @@ def run():
     lag = day_now - acc_day
     check("accrual", lag <= MAX_ACCRUAL_LAG_DAYS,
           f"walked to day {acc_day}, chain is at day {day_now} (lag {lag})")
+
+    # THE 48-HOUR WINDOW IS ONLY A DEFENCE IF SOMEBODY IS LOOKING. A code update
+    # on any contract that holds other people's money must wait 48 h on a public
+    # timelock, and the legitimate owner can cancel it in that time. This check
+    # is the looking: it asks every watched contract for pending updates every
+    # run, and goes red on one nobody announced. If the query itself fails the
+    # check also fails, because "could not look" must never read as "all clear".
+    pending, unreadable = [], []
+    for name, cid in (("core", CORE), ("native pool", POOL), ("token", TOKEN)):
+        try:
+            rows = gql("query($i:String!){findPendingContractUpdates(filterOptions:{byId:$i}){id}}",
+                       {"i": cid})["findPendingContractUpdates"] or []
+        except Exception as e:  # noqa: BLE001
+            unreadable.append(f"{name} ({str(e)[:40]})")
+            continue
+        for r in rows:
+            if r.get("id") not in EXPECTED_PENDING:
+                pending.append(f"{name}: {r.get('id')}")
+    check("updates", not pending and not unreadable,
+          ("none pending on core, native pool and token" if not pending and not unreadable else
+           "; ".join(([f"UNEXPECTED PENDING {', '.join(pending)}"] if pending else [])
+                     + ([f"could not read {', '.join(unreadable)}"] if unreadable else []))))
 
     # Not a pass/fail — the float is SUPPOSED to be small, it is a working
     # balance. It is reported because it is what decides whether a given claim
