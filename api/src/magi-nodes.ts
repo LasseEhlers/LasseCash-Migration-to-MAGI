@@ -16,10 +16,18 @@
  * waiting out the dead one again.
  */
 
+// ORDER MATTERS ON THE SERVER. A browser remembers which node answered last
+// and goes straight to it; a Cloudflare worker has no such memory, so every
+// cold request starts at the top of this list. api.vsc.eco went silent on
+// 17 Oct 2026 (no answer, not even a refusal), and because it was first, every
+// cold post page waited the full failover for it: 1-8 s, which is longer than
+// X's card crawler will wait, so shared posts had no thumbnail. Put a node that
+// answers FIRST, and keep the others behind it; the dead one stays in the list
+// for the day it comes back. Re-check this order when a node changes.
 export const MAGI_NODES: readonly string[] = [
-  "https://api.vsc.eco/api/v1/graphql",
   "https://api.okinoko.io/api/v1/graphql",
   "https://vsc.techcoderx.com/api/v1/graphql",
+  "https://api.vsc.eco/api/v1/graphql",
 ];
 
 /**
@@ -29,7 +37,9 @@ export const MAGI_NODES: readonly string[] = [
  * second; a healthy-but-slow node that misses this merely hands the request
  * to another healthy node.
  */
-const FAILOVER_MS = 6_000;
+// Shorter on the server: there a miss costs a visitor or a crawler, who will
+// not wait six seconds, and the data centre has no slow mobile link to excuse.
+const FAILOVER_MS = typeof window === "undefined" ? 2_500 : 6_000;
 
 /**
  * ⚠️ A RATE LIMIT ARRIVES AS HTTP 200. The public nodes cap simulations —
