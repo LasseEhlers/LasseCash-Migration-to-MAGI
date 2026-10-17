@@ -30,12 +30,14 @@
   import PromotedBadge from "$lib/PromotedBadge.svelte";
   import VoteSlider from "$lib/VoteSlider.svelte";
   import VoterList from "$lib/VoterList.svelte";
-  import { SITE_NAME, SITE_OG_IMAGE, SITE_URL, absolute, metaDescription, profileUrl } from "$lib/site.js";
+  import { SITE_NAME, SITE_OG_IMAGE, SITE_URL, absolute, metaDescription, profileUrl, beforeMigration } from "$lib/site.js";
   import { PayoutMode, constants, type PostView } from "$api/index.js";
   import type { PageData } from "./$types";
 
   let { data }: { data: PageData } = $props();
   const a = $derived(data.article);
+  /** Written before the move to MAGI: shown with a label, never in the lists. */
+  const legacy = $derived(beforeMigration(a?.created));
 
   /** The chain half: fetched in the browser, never server-rendered. */
   let post = $state<PostView | null>(null);
@@ -188,6 +190,13 @@
   {#if !a.registered && !a.published}
     <p class="empty"><strong>Not found.</strong> This post is not registered on-chain.</p>
   {:else}
+    {#if legacy}
+      <p class="legacy">
+        <strong>Written before LasseCash moved to MAGI</strong> on 31 August 2026.
+        There are no rewards on this page.
+        <a href="https://hive.blog/@{a.handle}/{a.permlink}" target="_blank" rel="noopener">Read the original on Hive ↗</a>
+      </p>
+    {/if}
     <div class="row layout">
       <article class="panel article">
         <div class="meta">
@@ -408,6 +417,10 @@
   }
   .edit:hover, .edit:focus-visible { color: var(--gold); border-color: var(--gold); }
 
+  .legacy { margin: 0 0 1rem; padding: .6rem .9rem; border: 1px solid var(--gold-dim); border-radius: 4px;
+            font-size: var(--t-sm); color: var(--dim); }
+  .legacy strong { color: var(--gold); }
+  .legacy a { text-decoration: underline; text-underline-offset: 2px; }
   .back { color: var(--cyan); font-family: var(--mono); font-size: var(--t-sm); }
   .layout { align-items: flex-start; }
   .article { flex: 1 1 600px; }

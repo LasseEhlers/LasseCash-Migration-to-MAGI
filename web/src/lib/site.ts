@@ -57,6 +57,20 @@ export function bareName(account: string): string {
   return account.startsWith("hive:") ? account.slice(5) : account;
 }
 
+/**
+ * The moment LasseCash went live on MAGI: genesis block 109,512,118,
+ * 2026-08-31 18:00 UTC. A page written before it belongs to the Hive-Engine
+ * era, and says so.
+ */
+export const MIGRATION_GENESIS_ISO = "2026-08-31T18:00:00Z";
+
+/** True for a post created before the migration. Hive timestamps carry no zone; they are UTC. */
+export function beforeMigration(created: string | null | undefined): boolean {
+  if (!created) return false;
+  const t = Date.parse(/[zZ]|[+-]\d\d:?\d\d$/.test(created) ? created : created + "Z");
+  return Number.isFinite(t) && t < Date.parse(MIGRATION_GENESIS_ISO);
+}
+
 /** The canonical URL of a post: `https://site/@author/permlink`. */
 export function postUrl(author: string, permlink: string): string {
   return `${SITE_URL}/@${bareName(author)}/${permlink}`;
