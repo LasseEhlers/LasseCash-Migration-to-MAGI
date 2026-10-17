@@ -804,6 +804,31 @@ export class MagiBackend implements Backend {
     return [...await this.#hydrate(out), ...await this.#tagged(found)];
   }
 
+  async postMeta(author: string, permlink: string): Promise<PostMeta | null> {
+    const key = `post_${author}_${permlink}`;
+    const [records, height] = await Promise.all([this.state([key]), this.height()]);
+    const raw = records[key];
+    if (!raw) return null;
+    const f = raw.split("|");
+    // Same two rules postsMeta() applies: a short record is not one of ours,
+    // and a reply (field 9 is its parent) is not an article.
+    if (f.length < 6 || f[9]) return null;
+    const created = Number(f[1] ?? 0) || 0;
+    return {
+      author,
+      permlink,
+      window: f[0] === "1" ? "deep" : "viral",
+      created_height: created,
+      created_time: new Date(Date.now() - (height - created) * 3_000).toISOString(),
+      // Presentation fields come from the content layer, as in postsMeta().
+      title: "",
+      summary: "",
+      body_excerpt: "",
+      tags: null,
+      registered: true,
+    };
+  }
+
   async posts(limit = 50): Promise<PostView[]> {
     const found = await this.#discover(limit);
     const [views, tagged] = await Promise.all([

@@ -172,11 +172,16 @@ export async function getArticle(
   author: string,
   permlink: string,
 ): Promise<ArticleMeta> {
-  const [content, posts] = await Promise.all([
+  const b = chain();
+  // ONE direct read when the backend offers it. The scan below is the
+  // fallback (dev chain), and it is SLOW on the live one: a cold post page took
+  // 1-8 s, and X's card crawler gave up, so shared posts had no thumbnail.
+  const [content, post] = await Promise.all([
     getContent(author, permlink),
-    listPosts(200),
+    b.postMeta
+      ? b.postMeta(author, permlink).catch(() => null)
+      : listPosts(200).then((ps) => ps.find((p) => p.author === author && p.permlink === permlink) ?? null),
   ]);
-  const post = posts.find((p) => p.author === author && p.permlink === permlink) ?? null;
   return toArticle(author, permlink, content, post);
 }
 

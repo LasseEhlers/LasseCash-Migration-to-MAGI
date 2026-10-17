@@ -277,6 +277,14 @@ export interface Backend {
    */
   postsMeta(limit?: number): Promise<PostMeta[]>;
   /**
+   * ONE post's registration by a direct key read, or null when it is not a
+   * registered article (or is a reply). Optional: a backend without it makes
+   * callers fall back to scanning `postsMeta()`, which is correct but slow —
+   * on the live chain the scan made a cold post page take 1-8 s, and X's card
+   * crawler gives up after a few seconds.
+   */
+  postMeta?(author: string, permlink: string): Promise<PostMeta | null>;
+  /**
    * Who voted on a post, and with what weight.
    *
    * The contract cannot enumerate its own vote records — unbounded iteration
