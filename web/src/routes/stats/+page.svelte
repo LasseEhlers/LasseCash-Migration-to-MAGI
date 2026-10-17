@@ -216,7 +216,7 @@
     <div><dt>Active accounts</dt><dd class="mono gold">{active}</dd>
       <dd class="dim">{active7} in the last 7 days</dd></div>
     <div><dt>Minted since launch</dt><dd class="mono gold">{amt(sumMinted)}</dd>
-      <dd class="dim">by {mints.length} accounts, {amt(sumLocked)} still locked</dd></div>
+      <dd class="dim">by {mints.length} accounts, {amt(sumLocked)} still in open mints</dd></div>
     <div><dt>Pool</dt><dd class="mono gold">{lc(chain.info?.amm_lc ?? "0", 0)}</dd>
       <dd class="dim">LASSECASH + {lc(chain.info?.amm_hbd ?? "0", 3)} HBD, {lps.length} providers</dd></div>
     <div><dt>LasseMedia</dt><dd class="mono gold">{totals.posts + totals.replies}</dd>
@@ -228,7 +228,7 @@
       <h2>Minted since launch <span class="dim">— {mints.length}</span></h2>
       <p class="note dim">
         Mints made after the migration: by hand, or the monthly mint of post and
-        curation earnings. Migration mints are on the <a href="/stats/migration">migration page</a>.
+        curation earnings. Migration mints are on the <a href="/stats/migration">migration page</a>. <b>Open</b> = not claimed yet: still locked, or matured and waiting in its 90-day grace.
       </p>
       {#if mints.length === 0}
         <p class="dim">No new mints yet.</p>
@@ -236,15 +236,16 @@
         <div class="scroll">
           <table>
             <thead><tr>
-              <th class="num">#</th><th>Account</th><th class="num">Mints</th>
-              <th class="num">Locked now</th><th class="num">L-Shares</th><th class="num">Minted</th><th class="num">Longest</th>
+              <th class="num">#</th><th>Account</th><th class="num">Mints</th><th class="num">Open</th>
+              <th class="num">In open mints</th><th class="num">L-Shares</th><th class="num">Minted</th><th class="num">Longest</th>
             </tr></thead>
             <tbody>
               {#each (allMints ? mints : top(mints, 15)) as r, i}
                 <tr>
                   <td class="num dim">{i + 1}</td>
                   <td><a href="/@{name(r.account)}">@{name(r.account)}</a></td>
-                  <td class="num mono">{r.made}{#if r.open < r.made}<span class="dim"> ({r.open} open)</span>{/if}</td>
+                  <td class="num mono">{r.made}</td>
+                  <td class="num mono" class:zero={r.open === 0}>{r.open}</td>
                   <td class="num mono" class:gold={r.locked > 0n} class:zero={r.locked === 0n}>{r.locked === 0n ? "claimed" : amt(r.locked)}</td>
                   <td class="num mono" class:zero={r.shares === 0n}>{amt(r.shares)}</td>
                   <td class="num mono dim">{amt(r.minted)}</td>
