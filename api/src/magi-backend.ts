@@ -91,11 +91,15 @@ export class MagiBackend implements Backend {
     }
   }
 
-  async query<T>(query: string, variables: Record<string, unknown> = {}): Promise<T> {
+  async query<T>(query: string, variables: Record<string, unknown> = {}, patient = false): Promise<T> {
     let res: Response;
     try {
       res = await magiFetch(JSON.stringify({ query, variables }), {
         url: this.#url, fetch: this.#fetch, timeoutMs: this.#timeoutMs,
+        // PATIENT reads (deep history pages) wait up to 15 s before failing over:
+        // a healthy node takes 5-10 s for them, and the short server failover
+        // made every attempt give up, which emptied the feed and the chart.
+        ...(patient ? { failoverMs: 15_000 } : {}),
       });
     } catch (cause) {
       // The message names every node tried and WHY each failed — a timeout, a
@@ -743,6 +747,7 @@ export class MagiBackend implements Backend {
         `query($c: String!, $o: Int!) { findTransaction(filterOptions: {byContract: $c, limit: 100, offset: $o}) {
           anchr_ts status required_auths required_posting_auths ops { type data } } }`,
         { c: this.#contractId, o: page * 100 },
+        true,
       );
       return data.findTransaction ?? [];
     };
@@ -1406,6 +1411,7 @@ export class MagiBackend implements Backend {
           `query($c: String!, $o: Int!, $l: Int!) { findTransaction(filterOptions: {byContract: $c, offset: $o, limit: $l}) {
             id anchr_ts anchr_height status required_auths required_posting_auths ops { type data } } }`,
           { c: this.#contractId, o: offset, l: PAGE },
+          true,
         );
         return data.findTransaction ?? [];
       }));
@@ -1432,6 +1438,7 @@ export class MagiBackend implements Backend {
           `query($c: String!, $o: Int!, $l: Int!) { findContractOutput(filterOptions: {byContract: $c, offset: $o, limit: $l}) {
             block_height inputs results { ok ret } } }`,
           { c: this.#contractId, o: p * PAGE, l: PAGE },
+          true,
         );
         return data.findContractOutput ?? [];
       }));

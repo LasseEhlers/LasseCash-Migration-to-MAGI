@@ -183,6 +183,10 @@ export interface MagiFetchOptions {
   fetch?: typeof globalThis.fetch | undefined;
   /** Budget for the LAST attempt; earlier attempts fail over sooner. */
   timeoutMs?: number | undefined;
+  /** How long a node may take before the NEXT one is tried. Defaults to the
+   *  short FAILOVER_MS. Deep history pages legitimately take 5-10 s on a healthy
+   *  node, so those reads pass a longer one rather than abandoning the node. */
+  failoverMs?: number | undefined;
 }
 
 export class MagiUnreachableError extends Error {
@@ -207,7 +211,7 @@ export async function magiFetch(body: string, opts: MagiFetchOptions = {}): Prom
     const url = (custom ? order[k] : MAGI_NODES[order[k] as number]) as string;
     const last = k === order.length - 1;
     const ctrl = new AbortController();
-    const limit = last ? timeoutMs : Math.min(timeoutMs, FAILOVER_MS);
+    const limit = last ? timeoutMs : Math.min(timeoutMs, opts.failoverMs ?? FAILOVER_MS);
     const timer = setTimeout(() => ctrl.abort(), limit);
     try {
       const res = await doFetch(url, {
