@@ -1371,7 +1371,22 @@ export class MagiBackend implements Backend {
     return out;
   }
 
+  #ledgerMemo = new Map<string, { at: number; rows: Promise<PoolLedgerEntry[]> }>();
+
+  /** The same walk is asked for by the Pool page, the Chart and the market API
+   *  within seconds of each other; share one answer for a minute. A failed walk
+   *  is not remembered. */
   async #callLedger(wanted: Set<string>, limit: number): Promise<PoolLedgerEntry[]> {
+    const key = [...wanted].sort().join(",") + "|" + limit;
+    const hit = this.#ledgerMemo.get(key);
+    if (hit && Date.now() - hit.at < 60_000) return hit.rows;
+    const rows = this.#callLedgerWalk(wanted, limit);
+    this.#ledgerMemo.set(key, { at: Date.now(), rows });
+    rows.catch(() => { if (this.#ledgerMemo.get(key)?.rows === rows) this.#ledgerMemo.delete(key); });
+    return rows;
+  }
+
+  async #callLedgerWalk(wanted: Set<string>, limit: number): Promise<PoolLedgerEntry[]> {
     const PAGE = 100;
 
     type Tx = {
@@ -1379,16 +1394,24 @@ export class MagiBackend implements Backend {
       required_auths: string[]; required_posting_auths: string[];
       ops: { type: string; data: { action?: string; payload?: string } }[];
     };
+    // PAGES FOUR AT A TIME (18 Oct 2026). The node answers a deep page in 5-10 s,
+    // and this walk used to be two sequential loops, so the Chart and Pool pages
+    // sat on "Replaying the pool's history…" for 20+ seconds. Order is kept.
+    const BATCH = 4;
     const txs: Tx[] = [];
-    for (let offset = 0; offset < limit; offset += PAGE) {
-      const data = await this.query<{ findTransaction: Tx[] | null }>(
-        `query($c: String!, $o: Int!, $l: Int!) { findTransaction(filterOptions: {byContract: $c, offset: $o, limit: $l}) {
-          id anchr_ts anchr_height status required_auths required_posting_auths ops { type data } } }`,
-        { c: this.#contractId, o: offset, l: PAGE },
-      );
-      const page = data.findTransaction ?? [];
-      txs.push(...page);
-      if (page.length < PAGE) break;
+    for (let start = 0; start * PAGE < limit; start += BATCH) {
+      const offsets = Array.from({ length: BATCH }, (_, i) => (start + i) * PAGE).filter((o) => o < limit);
+      const pages = await Promise.all(offsets.map(async (offset) => {
+        const data = await this.query<{ findTransaction: Tx[] | null }>(
+          `query($c: String!, $o: Int!, $l: Int!) { findTransaction(filterOptions: {byContract: $c, offset: $o, limit: $l}) {
+            id anchr_ts anchr_height status required_auths required_posting_auths ops { type data } } }`,
+          { c: this.#contractId, o: offset, l: PAGE },
+        );
+        return data.findTransaction ?? [];
+      }));
+      let done = false;
+      for (const page of pages) { txs.push(...page); if (page.length < PAGE) { done = true; break; } }
+      if (done) break;
     }
     if (txs.length === 0) return [];
 
@@ -1400,21 +1423,24 @@ export class MagiBackend implements Backend {
     // older than the oldest transaction fetched (or history ends).
     const outputs: { block_height: number; inputs: string[]; results: { ok: boolean; ret: string | null }[] }[] = [];
     const maxPages = Math.ceil(limit / PAGE) + 2;
-    for (let p = 0; p < maxPages; p++) {
-      const data = await this.query<{
-        findContractOutput: { block_height: number; inputs: string[]; results: { ok: boolean; ret: string | null }[] }[] | null;
-      }>(
-        `query($c: String!, $o: Int!, $l: Int!) { findContractOutput(filterOptions: {byContract: $c, offset: $o, limit: $l}) {
-          block_height inputs results { ok ret } } }`,
-        { c: this.#contractId, o: p * PAGE, l: PAGE },
-      );
-      const page = data.findContractOutput ?? [];
-      let reachedOlder = false;
-      outputs.push(...page);
-      for (const out of page) {
-        if (Number(out.block_height) < oldestHeight) reachedOlder = true;
+    for (let start = 0; start < maxPages; start += BATCH) {
+      const idx = Array.from({ length: Math.min(BATCH, maxPages - start) }, (_, i) => start + i);
+      const pages = await Promise.all(idx.map(async (p) => {
+        const data = await this.query<{
+          findContractOutput: { block_height: number; inputs: string[]; results: { ok: boolean; ret: string | null }[] }[] | null;
+        }>(
+          `query($c: String!, $o: Int!, $l: Int!) { findContractOutput(filterOptions: {byContract: $c, offset: $o, limit: $l}) {
+            block_height inputs results { ok ret } } }`,
+          { c: this.#contractId, o: p * PAGE, l: PAGE },
+        );
+        return data.findContractOutput ?? [];
+      }));
+      let stop = false;
+      for (const page of pages) {
+        outputs.push(...page);
+        if (page.length < PAGE || page.some((out) => Number(out.block_height) < oldestHeight)) { stop = true; break; }
       }
-      if (page.length < PAGE || reachedOlder) break;
+      if (stop) break;
     }
 
     const byOp = resultsByOp(outputs, callCount);
