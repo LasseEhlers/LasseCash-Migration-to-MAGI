@@ -106,13 +106,34 @@ export interface ArticleMeta {
  * pending payout, and the engine is a browser-side WASM binary. Server
  * rendering must not need it and must not show money anyway.
  */
+// THE LIST IS BUILT FROM THE WHOLE CONTRACT HISTORY, which takes seconds on a
+// cold worker, and the feed, the sitemap, the RSS feed, llms.txt and every post
+// page all ask for it. Callers within a minute share one answer; a request that
+// arrives while it is being built joins that build instead of starting another;
+// and if a rebuild fails the last good list is served rather than an empty page.
+const LIST_TTL_MS = 60_000;
+const listCache = new Map<number, { at: number; posts: PostMeta[] }>();
+const listBuilding = new Map<number, Promise<PostMeta[]>>();
+
 export async function listPosts(limit = 50): Promise<PostMeta[]> {
-  try {
-    return await chain().postsMeta(limit);
-  } catch (e) {
-    console.warn("[lassecash] server postsMeta() failed:", (e as Error).message);
-    return [];
-  }
+  const hit = listCache.get(limit);
+  if (hit && Date.now() - hit.at < LIST_TTL_MS) return hit.posts;
+  const running = listBuilding.get(limit);
+  if (running) return running;
+  const build = (async () => {
+    try {
+      const posts = await chain().postsMeta(limit);
+      if (posts.length) listCache.set(limit, { at: Date.now(), posts });
+      return posts.length ? posts : (hit?.posts ?? posts);
+    } catch (e) {
+      console.warn("[lassecash] server postsMeta() failed:", (e as Error).message);
+      return hit?.posts ?? [];
+    } finally {
+      listBuilding.delete(limit);
+    }
+  })();
+  listBuilding.set(limit, build);
+  return build;
 }
 
 /** The body of one post. Null when it was registered but never published. */
