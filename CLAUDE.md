@@ -3509,3 +3509,15 @@ curation queue — is internal and may change freely on a throwaway deploy.
 
 `.md` files are generated from the `.odt` originals. If an `.odt` is updated,
 regenerate rather than editing the `.md` by hand.
+
+## ✅ NATIVE POOL WHITELISTED AND TRADING — 2026-10-18
+
+MAGI's side landed overnight: tibfox swapped 10 HBD at 00:22 CPH and added
+liquidity at 01:01 and 01:07; Lasse's 3 HBD -> 6,749.13 LASSECASH swap confirmed
+at 07:27. **Swaps go through the ROUTER** (`execute` with a `swap` payload and
+`recipient`), never straight to the pool: a direct `swap` on the pool now answers
+"from address [] invalid". `quoteNativeSwap` and `swapNativePool` were moved to
+the router the same morning. Reserves moved with the trades (about 17.6-19.1 HBD
+against 3.5M... check live; never quote a stale figure). The Pool page's "not open
+yet" box is kept only as a guard. Core pool (0% fee, owner @lassecashmagi) and
+native pool (0.08% fee + slip, owner @lassecashdapps) remain two separate pools.

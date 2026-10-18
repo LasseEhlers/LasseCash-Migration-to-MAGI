@@ -758,32 +758,40 @@ export class AiohaWallet {
     if (!user) return { ok: false, height: 0, msg: "not signed in" };
     if (amountIn <= 0n) return { ok: false, height: 0, msg: "amount must be positive" };
     const to = `hive:${user}`;
+    // THROUGH THE ROUTER, NOT THE POOL. Since the whitelist landed (18 Oct
+    // 2026) the pool answers a direct `swap` with "from address [] invalid";
+    // the router's `execute` is the path that works, and it is what Altera
+    // sends. The pool (`poolId`) is still the contract whose reserves we read.
+    const ROUTER = "vsc1Brvi4YZHLkocYNAFd7Gf1JpsPjzNnv4i45";
     const swap = {
-      action: "swap",
-      payload: JSON.stringify(
-        direction === "lc_hbd"
-          ? { asset_in: "lassecash", amount_in: amountIn.toString(), asset_out: "hbd", to, min_amount_out: minOut.toString() }
-          : { asset_in: "hbd", amount_in: amountIn.toString(), asset_out: "lassecash", to, min_amount_out: minOut.toString() },
-      ),
+      action: "execute",
+      payload: JSON.stringify({
+        type: "swap", version: "1.0.0",
+        asset_in: direction === "lc_hbd" ? "LASSECASH" : "HBD",
+        asset_out: direction === "lc_hbd" ? "HBD" : "LASSECASH",
+        amount_in: amountIn.toString(),
+        min_amount_out: minOut.toString(),
+        recipient: to,
+      }),
       rcLimit: 4_000,
       intents:
         direction === "hbd_lc"
           ? [{ type: "transfer.allow", args: { token: "hbd", limit: milliLimitStr(amountIn) } }]
           : [],
-      contractId: poolId,
+      contractId: ROUTER,
     };
-    if (direction === "hbd_lc") return this.broadcastCalls([swap], poolId, KeyTypes.Active);
+    if (direction === "hbd_lc") return this.broadcastCalls([swap], ROUTER, KeyTypes.Active);
 
     const tokenContractId = await this.tokenContract();
     if (!tokenContractId) return { ok: false, height: 0, msg: "token contract unknown" };
     return this.broadcastCalls([
       {
         action: "increaseAllowance",
-        payload: JSON.stringify({ spender: `contract:${poolId}`, amount: amountIn.toString() }),
+        payload: JSON.stringify({ spender: `contract:${ROUTER}`, amount: amountIn.toString() }),
         rcLimit: 1_500, intents: [], contractId: tokenContractId,
       },
       swap,
-    ], poolId, KeyTypes.Active);
+    ], ROUTER, KeyTypes.Active);
   }
 
   /** Several contract calls in one signed transaction (a user's call + side calls). */

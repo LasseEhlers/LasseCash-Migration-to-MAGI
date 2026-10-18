@@ -8,7 +8,7 @@
  * owned by `hive:vsc.dao` — so this is the first pool on MAGI deployed by
  * anyone outside the team.
  *
- * ⚠️ IT CANNOT TRADE UNTIL MAGI'S WITNESSES WHITELIST IT. The node's fee
+ * ✅ WHITELISTED 18 Oct 2026 (it was: ⚠️ IT CANNOT TRADE UNTIL MAGI'S WITNESSES WHITELIST IT). The node's fee
  * module (`incentive-pendulum`) checks the calling contract against
  * `pendulumPoolWhitelist` in the node's own system config — today exactly the
  * two DAO pools — and refuses everything else with `contract not whitelisted`.
@@ -109,6 +109,9 @@ export interface NativeQuote {
   msg: string;
 }
 
+/** The DAO router every pool swap goes through. */
+export const NATIVE_ROUTER_ID = "vsc1Brvi4YZHLkocYNAFd7Gf1JpsPjzNnv4i45";
+
 /**
  * What the chain says this swap would pay, without broadcasting.
  *
@@ -130,14 +133,19 @@ export async function quoteNativeSwap(
   const who = qualify(account);
   if (amountIn <= 0n) return { ok: false, amountOut: 0n, whitelisted: true, msg: "" };
 
+  // Quoted through the ROUTER, the same call the swap itself sends. A direct
+  // call to the pool is refused since the whitelist landed (18 Oct 2026).
   const swapCall = {
-    contract_id: NATIVE_POOL_ID,
-    action: "swap",
-    payload: JSON.stringify(
-      direction === "lc_hbd"
-        ? { asset_in: "lassecash", amount_in: amountIn.toString(), asset_out: "hbd", to: who }
-        : { asset_in: "hbd", amount_in: amountIn.toString(), asset_out: "lassecash", to: who },
-    ),
+    contract_id: NATIVE_ROUTER_ID,
+    action: "execute",
+    payload: JSON.stringify({
+      type: "swap", version: "1.0.0",
+      asset_in: direction === "lc_hbd" ? "LASSECASH" : "HBD",
+      asset_out: direction === "lc_hbd" ? "HBD" : "LASSECASH",
+      amount_in: amountIn.toString(),
+      min_amount_out: "1",
+      recipient: who,
+    }),
     rc_limit: 4000,
     intents:
       direction === "hbd_lc"
@@ -150,7 +158,7 @@ export async function quoteNativeSwap(
           {
             contract_id: tokenContractId,
             action: "increaseAllowance",
-            payload: JSON.stringify({ spender: `contract:${NATIVE_POOL_ID}`, amount: amountIn.toString() }),
+            payload: JSON.stringify({ spender: `contract:${NATIVE_ROUTER_ID}`, amount: amountIn.toString() }),
             rc_limit: 1500,
             intents: [],
           },

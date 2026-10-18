@@ -510,9 +510,10 @@
    * the exact swap — the output is computed by the node's fee module, which
    * our engine does not implement and must not.
    *
-   * It cannot trade until MAGI's witnesses whitelist the contract in their
-   * node config; until then every swap comes back "contract not whitelisted"
-   * and the panel says so rather than offering a button that fails.
+   * WHITELISTED 18 Oct 2026: it trades now (tibfox swapped and deposited
+   * overnight, Lasse's swap confirmed 07:27 CPH). Swaps go through the DAO
+   * router, not the pool. The "not open yet" panel below stays as a guard: it
+   * only appears if a node ever answers "contract not whitelisted" again.
    */
   const gql = $derived.by(() => {
     const b = client.backend as unknown as { query?: <T>(q: string, v?: Record<string, unknown>) => Promise<T> };
