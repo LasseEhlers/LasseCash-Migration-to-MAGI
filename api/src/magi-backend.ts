@@ -12,6 +12,7 @@
  *     quotes are produced without broadcasting
  *   - `localNodeInfo.last_processed_block` is the Hive height (3s per unit)
  */
+import { NATIVE_ROUTER_ID } from "./native-pool.js";
 import { MAPPED_BALANCE_PREFIX } from "./magi-pools.js";
 import { magiFetch } from "./magi-nodes.js";
 import type { IndexedTx } from "./indexer.js";
@@ -1139,9 +1140,13 @@ export class MagiBackend implements Backend {
     // RETURN VALUE; fetch it for those transactions only, four at a time.
     const PAYS = new Set(["claim_mint", "claim_pool", "claim_curation", "claim_migration",
       "remove_liquidity", "swap_lassecash_hbd", "swap_hbd_lassecash", "swap_lc_hbd", "swap_hbd_lc",
-      "payout", "sweep_mint", "sweep_tranche"]);
+      "payout", "sweep_mint", "sweep_tranche",
+      // The DAO router's swap answers with the amount it paid out; without this
+      // the wallet showed a router swap with no "received" (18 Oct 2026).
+      "execute"]);
     const txs = data.findTransaction ?? [];
     const rets = new Map<string, ReturnType<typeof resultsByOp>>();
+    const routerRets = new Map<string, string>();
     const wanted = txs.filter((t) => t.status === "CONFIRMED"
       && (t.ops ?? []).some((o) => o.type === "call" && PAYS.has(o.data?.action ?? "")));
     for (let i = 0; i < wanted.length; i += 4) {
@@ -1154,6 +1159,15 @@ export class MagiBackend implements Backend {
               { i: id },
             );
             outputs.push(...(o.findContractOutput ?? []).filter((x) => x.contract_id === this.#contractId));
+            // The ROUTER answers a native-pool swap, in an output of its own
+            // keyed by the bare transaction id (one result, whatever the op
+            // index), so it is kept apart: mixed into `outputs` it would land
+            // on op 0 and collide with the allowance a sell carries in front.
+            for (const x of o.findContractOutput ?? []) {
+              if (x.contract_id !== NATIVE_ROUTER_ID) continue;
+              const r = x.results?.[0];
+              if (r?.ok && r.ret) routerRets.set(tx.id, r.ret);
+            }
           }
         } catch { /* the row still shows; only the amount is missing */ }
         rets.set(tx.id, resultsByOp(outputs));
@@ -1174,7 +1188,9 @@ export class MagiBackend implements Backend {
           action: op.data.action,
           payload: op.data.payload ?? "",
           status: tx.status === "CONFIRMED" ? "confirmed" : tx.status === "FAILED" ? "failed" : "pending",
-          ...(r?.ok && r.ret ? { ret: r.ret } : {}),
+          ...(op.data.action === "execute" && routerRets.has(tx.id)
+            ? { ret: routerRets.get(tx.id)! }
+            : r?.ok && r.ret ? { ret: r.ret } : {}),
         });
       }
     }
