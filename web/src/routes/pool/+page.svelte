@@ -25,6 +25,18 @@
 
   let direction = $state<SwapDirection>("lc_hbd");
   let amountIn = $state("1000");
+  /**
+   * A SENSIBLE STARTING AMOUNT FOR EACH SIDE. "1000" means very different
+   * things as LASSECASH (about 1 HBD) and as HBD (about 880,000 LASSECASH, a 95%
+   * price impact against this pool), so switching to Buy used to open a
+   * quote that looked like an error. The default follows the side, and a number
+   * the user typed themselves is never replaced.
+   */
+  const DEFAULT_SELL = "1000", DEFAULT_BUY = "1";
+  function defaultFor(d: SwapDirection, current: string): string {
+    if (d === "hbd_lc") return current === DEFAULT_SELL ? DEFAULT_BUY : current;
+    return current === DEFAULT_BUY ? DEFAULT_SELL : current;
+  }
   let slippagePct = $state(1);
   let swapError = $state<string | null>(null);
   let lpError = $state<string | null>(null);
@@ -680,8 +692,8 @@
     <section class="panel swap">
       <h2>Swap</h2>
       <div class="dir">
-        <button class="ghost" class:active={sellingLC} onclick={() => (direction = "lc_hbd")}>Sell LASSECASH</button>
-        <button class="ghost" class:active={!sellingLC} onclick={() => (direction = "hbd_lc")}>Buy LASSECASH</button>
+        <button class="ghost" class:active={sellingLC} onclick={() => { direction = "lc_hbd"; amountIn = defaultFor("lc_hbd", amountIn); }}>Sell LASSECASH</button>
+        <button class="ghost" class:active={!sellingLC} onclick={() => { direction = "hbd_lc"; amountIn = defaultFor("hbd_lc", amountIn); }}>Buy LASSECASH</button>
       </div>
 
       <div class="field">
@@ -789,9 +801,9 @@
 
         <div class="nrow">
           <button class="tab" class:on={nativeDir === "lc_hbd"}
-            onclick={() => { nativeDir = "lc_hbd"; scheduleNativeQuote(); }}>Sell LASSECASH</button>
+            onclick={() => { nativeDir = "lc_hbd"; nativeAmount = defaultFor("lc_hbd", nativeAmount); scheduleNativeQuote(); }}>Sell LASSECASH</button>
           <button class="tab" class:on={nativeDir === "hbd_lc"}
-            onclick={() => { nativeDir = "hbd_lc"; scheduleNativeQuote(); }}>Buy LASSECASH</button>
+            onclick={() => { nativeDir = "hbd_lc"; nativeAmount = defaultFor("hbd_lc", nativeAmount); scheduleNativeQuote(); }}>Buy LASSECASH</button>
         </div>
         <div class="nrow">
           <input class="mono" bind:value={nativeAmount} oninput={scheduleNativeQuote}
