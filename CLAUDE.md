@@ -3521,3 +3521,56 @@ the router the same morning. Reserves moved with the trades (about 17.6-19.1 HBD
 against 3.5M... check live; never quote a stale figure). The Pool page's "not open
 yet" box is kept only as a guard. Core pool (0% fee, owner @lassecashmagi) and
 native pool (0.08% fee + slip, owner @lassecashdapps) remain two separate pools.
+
+## ⚠️ SLOW HISTORY READS, THE SITE AT SCALE — learned 2026-10-18
+
+**There is no post/trade index, so every cold view replays contract history from a
+public node.** Measured 18 Oct: a deep history page takes 5-10 s on a healthy node;
+the pool ledger took ~20 s and the post list ~13 s from a cold start. That is fine at
+40 users and breaks at thousands (node cap ~30 requests/min). The real fix is the
+dormant D1 transaction index (docs/INDEXER.md): a read-only copy of public data with
+the chain as fallback. Lasse (18 Oct): "let's do that later", with a load test of
+50-100 concurrent visitors to find the next break. Do not forget it before driving
+traffic (a viral video, a post to a big account).
+
+**What was done the same day (all committed on main):**
+- Discovery and the pool ledger fetch history pages 4 at a time (order kept);
+  `listPosts` shares one build per minute and serves the last good list on failure;
+  `#callLedger` is memoised for a minute. Deep reads pass `failoverMs: 15_000`
+  (`query(..., patient=true)`), because the SERVER failover is 2.5 s (browser 6 s) and
+  a 2.5 s limit made every deep page give up on all nodes.
+- `MAGI_NODES` order is a live node FIRST (`api.okinoko.io`): `api.vsc.eco` has been
+  dead since 17 Oct and a Cloudflare worker has no memory of the last good node.
+- The feed's server load answers a client navigation within 1.5 s (empty list; the
+  browser reads posts itself and shows "reading the chain…"); document requests and
+  crawlers still wait for the full list. A slow load used to freeze the Feed menu item.
+- Post pages read ONE record (`MagiBackend.postMeta`) instead of scanning history; that
+  and the node order fixed X link cards that showed no thumbnail.
+- **Public MAGI nodes now return HTTP 403 to a bare Python request: ALWAYS send a
+  User-Agent** (the hourly audit went red twice on 18 Oct because it did not).
+- The audit also watches core, native pool and token for unexpected pending code
+  updates (`EXPECTED_PENDING` env lists one Lasse queued himself).
+
+## ✅ NATIVE POOL, TWO POOLS, ROUTER — 2026-10-18
+
+Native pool (vsc-eco dex, owner @lassecashdapps, fee 0.08% + slip) swaps through the
+ROUTER `vsc1Brvi4YZ…` (`execute` with a `swap` payload); a direct `swap` on the pool is
+refused. Core pool (0% fee, owner @lassecashmagi) is separate. Prices were equalised by
+hand on 18 Oct (sell in core, buy in native): 0.000721 vs 0.000719; total depth only
+~64 HBD, so the thin pools are the honest limit. Altera cannot SELL LASSECASH
+("Insufficient balance", wrong decimals; reported to TibFox 18 Oct); buying works, and
+lassecash.com/pool can sell on the native pool (simulated, not yet broadcast).
+Wallet history now shows what a router swap paid and which pool; allowances name their
+asset by the contract they went to.
+
+## 🧾 DECISIONS AND OPEN ITEMS, 2026-10-18
+
+- DHF proposal DROPPED (needs more votes than the Return Proposal, ~50.6M HP, and would
+  end "built with no VC or proposal money"). Keep that claim true; never re-suggest.
+- Outreach: ten 0.001 HIVE memos sent from @lassecashdapps to the ten largest unclaimed
+  accounts (312 unclaimed, 2.35M LC); watch `mig_<acct>` receipts and pool reserves.
+- Still ahead: ~20 Oct paid tests (backdated-genesis throwaway, three sweeps) only with
+  Lasse's yes; the legacy `ensureMigrated` double-mint fix batched around New Year,
+  before any key burn; keep the 500 HP delegation to @lassecashmagi until then; key-burn
+  post in 2-4 weeks; CoinMarketCap needs 60 days (30 Oct) plus volume; ask Altera for
+  the price list and a round icon mid-November, politely, never via reminders to TibFox.
