@@ -28,20 +28,26 @@ import { listPosts, CONTENT_CACHE } from "$lib/server/content.js";
  * request (a crawler, a first visit) still waits for the real list, because the
  * raw HTML is what makes every article URL discoverable.
  */
-const LIMIT_MS = 1500;
+const LIMIT_MS = 1500;      // client navigation: the browser fills the list itself
+const DOC_LIMIT_MS = 7000;  // full document: wait longer for crawlers, but never hang
 let lastGood: Awaited<ReturnType<typeof listPosts>> | null = null;
 
+/**
+ * ⚠️ A FULL DOCUMENT MUST NEVER HANG (found 2026-10-18, while Lasse and TibFox
+ * both saw the front page "loading endlessly"). After deep history reads were
+ * made patient (they used to give up and return an empty list quickly), a cold
+ * build of the list took 40+ s and the whole page waited for it. A visitor
+ * will not wait that long, and a crawler gets nothing useful from a timeout
+ * either. So the document waits DOC_LIMIT_MS, then answers with the last good
+ * list or an empty one (the browser reads the posts itself right after), and the
+ * short answer is not cached, so the next request tries again.
+ */
 export const load: PageServerLoad = async ({ setHeaders, isDataRequest }) => {
   const fresh = listPosts(50).then((p) => { if (p.length) lastGood = p; return p; });
-  let posts: Awaited<typeof fresh>;
-  if (isDataRequest) {
-    const late = Symbol("late");
-    const r = await Promise.race([fresh, new Promise<typeof late>((res) => setTimeout(() => res(late), LIMIT_MS))]);
-    posts = r === late ? (lastGood ?? []) : r;
-  } else {
-    posts = await fresh;
-  }
-  // A short answer must not be cached for the usual minute.
-  setHeaders({ "cache-control": posts.length || !isDataRequest ? CONTENT_CACHE : "no-store" });
+  const late = Symbol("late");
+  const limit = isDataRequest ? LIMIT_MS : DOC_LIMIT_MS;
+  const r = await Promise.race([fresh, new Promise<typeof late>((res) => setTimeout(() => res(late), limit))]);
+  const posts = r === late ? (lastGood ?? []) : r;
+  setHeaders({ "cache-control": posts.length ? CONTENT_CACHE : "no-store" });
   return { posts };
 };
