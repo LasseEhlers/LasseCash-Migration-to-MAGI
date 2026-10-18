@@ -53,9 +53,12 @@ HEIGHTS_PER_DAY = int(os.environ.get("HEIGHTS_PER_DAY", 28_800))
 # nobody has transacted and the next claimer pays for the whole catch-up.
 MAX_ACCRUAL_LAG_DAYS = 3
 
-NODES = ("https://api.vsc.eco/api/v1/graphql",
-         "https://api.okinoko.io/api/v1/graphql",
-         "https://vsc.techcoderx.com/api/v1/graphql")
+# LIVE NODES FIRST. api.vsc.eco has not answered since 17 Oct 2026 (it swallows
+# the connection, it does not refuse it), so trying it first cost a 30 s
+# timeout before anything else was asked. It stays last for the day it returns.
+NODES = ("https://api.okinoko.io/api/v1/graphql",
+         "https://vsc.techcoderx.com/api/v1/graphql",
+         "https://api.vsc.eco/api/v1/graphql")
 
 
 def pick_api():
@@ -71,9 +74,13 @@ def pick_api():
 
 
 def post(url, body):
+    # A User-Agent is REQUIRED: the public nodes now answer a bare Python
+    # request with HTTP 403 (seen 18 Oct 2026, which turned the hourly audit red
+    # twice while the chain was perfectly healthy).
     req = urllib.request.Request(url, data=json.dumps(body).encode(),
-                                 headers={"Content-Type": "application/json"})
-    return urllib.request.urlopen(req, timeout=30).read().decode()
+                                 headers={"Content-Type": "application/json",
+                                          "User-Agent": "lassecash-audit"})
+    return urllib.request.urlopen(req, timeout=20).read().decode()
 
 
 def gql(query, variables=None):
