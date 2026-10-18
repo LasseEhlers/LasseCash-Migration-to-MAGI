@@ -432,7 +432,12 @@
 
   {#if error}<div class="panel err">{error}</div>{/if}
 
-  {#if shown.length === 0}
+  {#if shown.length === 0 && !hydrated && !error}
+    <!-- The server may answer a menu click with an EMPTY list so the page
+         switches at once (see +page.server.ts); the browser then reads the
+         posts itself. Until it has, say so, instead of "Nothing here yet". -->
+    <p class="reading-chain empty-loading">● reading the chain…</p>
+  {:else if shown.length === 0}
     <p class="empty">
       <strong>Nothing here yet.</strong>
       {filter === "all" ? "Be the first to publish." : `No ${filter} posts.`}
@@ -599,6 +604,7 @@
     margin: 0 0 12px; animation: reading-pulse 1.6s ease-in-out infinite;
   }
   @keyframes reading-pulse { 50% { opacity: 0.55; } }
+  .empty-loading { text-align: center; margin: 3rem 0; }
 
   .settle { border-color: var(--gold-dim); font-size: var(--t-sm); }
   .err { color: var(--red); }
