@@ -29,6 +29,10 @@ function amt(raw: string | undefined, dp = 3): string {
  */
 function magiAmount(raw: string | undefined, asset: string): string {
   if (!raw) return "";
+  // LASSECASH is a magi_token with EIGHT decimals. It was missing from
+  // ASSET_SCALE, so it fell through to the milli default and a 6,668 LASSECASH
+  // floor printed as 666,862,083 (found on Lasse's wallet, 18 Oct 2026).
+  if (asset.toUpperCase() === "LASSECASH") return amt(raw, 2);
   try {
     const scale = ASSET_SCALE[asset] ?? 1_000n;
     return unitsToDecimal(BigInt(raw), scale);
@@ -117,9 +121,9 @@ export function describeCall(action: string, payload: string): string {
     // Both sides quote a MINIMUM out: the floor you accepted, not the fill.
     // Old spellings stay: they are in every swap on chain before the 2026-09 rename.
     case "swap_lassecash_hbd":
-    case "swap_lc_hbd":  return `Sold ${amt(f[0])} LASSECASH · at least ${amt(f[1], 6)} HBD`;
+    case "swap_lc_hbd":  return `Sold ${amt(f[0])} LASSECASH · at least ${amt(f[1], 6)} HBD · core pool`;
     case "swap_hbd_lassecash":
-    case "swap_hbd_lc":  return `Bought with ${amt(f[0], 6)} HBD · at least ${amt(f[1])} LASSECASH`;
+    case "swap_hbd_lc":  return `Bought with ${amt(f[0], 6)} HBD · at least ${amt(f[1])} LASSECASH · core pool`;
     case "add_liquidity":    return `Added ${amt(f[0])} LASSECASH + ${amt(f[1], 6)} HBD`;
     case "remove_liquidity": return `Withdrew tranche #${f[0]}`;
     case "claim_pool":       return `Claimed rewards on tranche #${f[0]}`;
@@ -168,7 +172,10 @@ export function describeCall(action: string, payload: string): string {
         const inAmt = magiAmount(j.amount_in, j.asset_in);
         const floor = magiAmount(j.min_amount_out, j.asset_out);
         const tail = floor ? ` · at least ${floor} ${j.asset_out}` : ` for ${j.asset_out}`;
-        return `Swapped ${inAmt} ${j.asset_in}${tail}`;
+        // WHICH POOL: the only router pool with LASSECASH in it is the native
+        // (DEX) pool, as opposed to the core pool the swap_lassecash_* calls use.
+        const pool = [j.asset_in, j.asset_out].some((a) => a.toUpperCase() === "LASSECASH") ? " · native pool" : "";
+        return `Swapped ${inAmt} ${j.asset_in}${tail}${pool}`;
       }
       if (j.type === "deposit" && j.asset0 && j.asset1) {
         return `Added ${magiAmount(j.amount0, j.asset0)} ${j.asset0} + ${magiAmount(j.amount1, j.asset1)} ${j.asset1}`;
@@ -184,9 +191,19 @@ export function describeCall(action: string, payload: string): string {
  * The amounts are base units (1e8, HBD included on our side), formatted here
  * and never derived: the chain already settled them.
  */
-export function describeResult(action: string, ret: string | undefined): string {
+export function describeResult(action: string, ret: string | undefined, payload?: string): string {
   if (!ret) return "";
   let m: RegExpExecArray | null;
+  // A ROUTER swap answers {"amount_out":"<base units>","pool_state":{...}}; the
+  // asset it paid out is named in the call's own payload, in that asset's scale.
+  if (ret.startsWith("{") && payload?.startsWith("{")) {
+    try {
+      const r = JSON.parse(ret) as { amount_out?: string };
+      const p = JSON.parse(payload) as { type?: string; asset_out?: string };
+      if (p.type === "swap" && r.amount_out && p.asset_out)
+        return `received ${magiAmount(r.amount_out, p.asset_out)} ${p.asset_out}`;
+    } catch { /* not a swap answer: fall through */ }
+  }
   if ((m = /^claimed (\d+) liquid/.exec(ret))) return `received ${amt(m[1], 2)} LASSECASH liquid`;
   if ((m = /^claimed (\d+)/.exec(ret))) return `received ${amt(m[1], 2)} LASSECASH`;
   if ((m = /^withdrew (\d+) (?:LASSECASH|LC) and (\d+) HBD/.exec(ret)))

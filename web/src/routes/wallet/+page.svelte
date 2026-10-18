@@ -829,7 +829,7 @@
                   <td class="clip" title="{o.action.replace(/^\+/, '')} · {o.payload}">
                     {#if o.action.startsWith("+")}<span class="in">in</span>{/if}
                     <CallText text={describeCall(o.action, o.payload)} />
-                    {#if describeResult(o.action, o.ret)}<span class="got">→ {describeResult(o.action, o.ret)}</span>{/if}
+                    {#if describeResult(o.action, o.ret, o.payload)}<span class="got">→ {describeResult(o.action, o.ret, o.payload)}</span>{/if}
                   </td>
                   <td><span class="pill {o.status}">{o.status}</span></td>
                 </tr>
