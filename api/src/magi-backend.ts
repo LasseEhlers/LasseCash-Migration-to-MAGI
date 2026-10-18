@@ -1146,7 +1146,7 @@ export class MagiBackend implements Backend {
         id: string; anchr_ts: string; status: string;
         required_auths: string[]; required_posting_auths: string[];
         output: { id: string }[] | null;
-        ops: { type: string; data: { action?: string; payload?: string } }[];
+        ops: { type: string; data: { action?: string; payload?: string; contract_id?: string } }[];
       }[];
     }>(
       `query($a: String!, $l: Int!) { findTransaction(filterOptions: {byAccount: $a, limit: $l}) {
@@ -1207,6 +1207,7 @@ export class MagiBackend implements Backend {
           time: tx.anchr_ts,
           action: op.data.action,
           payload: op.data.payload ?? "",
+          ...(op.data.contract_id ? { contract: op.data.contract_id } : {}),
           status: tx.status === "CONFIRMED" ? "confirmed" : tx.status === "FAILED" ? "failed" : "pending",
           ...(op.data.action === "execute" && routerRets.has(tx.id)
             ? { ret: routerRets.get(tx.id)! }

@@ -221,6 +221,8 @@ export interface AccountOp {
   status: "confirmed" | "failed" | "pending";
   /** The contract's return value, for calls that pay something out. */
   ret?: string;
+  /** The contract the call was sent to, when the node says (it does for every call). */
+  contract?: string;
 }
 
 /** Read access to chain state. */

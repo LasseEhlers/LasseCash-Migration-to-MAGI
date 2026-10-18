@@ -74,7 +74,11 @@ const PARAMS: Record<string, { what: string; unit: string }> = {
   "promote.min_burn":       { what: "promoting a post should cost at least",          unit: "LASSECASH" },
 };
 
-export function describeCall(action: string, payload: string): string {
+/** The BTC mapping contract (see api/src/magi-pools.ts). Any other contract's
+ *  allowance is LASSECASH, which has 8 decimals; this one's is sats. */
+const BTC_MAPPING = "vsc1BdrQ6EtbQ64rq2PkPd21x4MaLnVRcJj85d";
+
+export function describeCall(action: string, payload: string, contract?: string): string {
   const f = payload.split("|");
 
   // Rows the account did NOT sign — money arriving. Marked with a leading "+"
@@ -100,9 +104,18 @@ export function describeCall(action: string, payload: string): string {
         return `Sent ${unitsToDecimal(BigInt(j.amount), 100_000_000n)} BTC to ${who(j.to)}`;
       }
       if (action === "increaseAllowance" && j.spender && j.amount) {
-        // The spender is a contract id; naming it reads as noise. In practice
-        // it is MAGI's swap router — the approve our BTC-sell bundles.
-        return `Allowed MAGI's swap contract to draw ${unitsToDecimal(BigInt(j.amount), 100_000_000n)} BTC`;
+        // The spender is a contract id; naming it reads as noise. Which ASSET
+        // it covers is decided by the contract the call went to: the BTC
+        // mapping contract (sats) or the LASSECASH token (8 decimals). It used
+        // to say BTC for both, so a LASSECASH sale's allowance read "draw
+        // 4000 BTC" (found on Lasse's wallet, 18 Oct 2026). Unknown: say
+        // nothing about the asset rather than guess.
+        const amount = unitsToDecimal(BigInt(j.amount), 100_000_000n);
+        const isBtc = contract === BTC_MAPPING || contract === undefined;
+        const spenderIsCore = j.spender.replace(/^contract:/, "").startsWith("vsc1Be4TTjU");
+        return isBtc && contract !== undefined
+          ? `Allowed MAGI's swap contract to draw ${amount} BTC`
+          : `Allowed ${spenderIsCore ? "the LASSECASH pool" : "MAGI's swap contract"} to draw ${lc(amount, 2)} LASSECASH`;
       }
     } catch { /* not JSON after all: fall through to the cases below */ }
   }
