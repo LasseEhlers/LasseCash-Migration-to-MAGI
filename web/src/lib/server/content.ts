@@ -115,24 +115,63 @@ const LIST_TTL_MS = 60_000;
 const listCache = new Map<number, { at: number; posts: PostMeta[] }>();
 const listBuilding = new Map<number, Promise<PostMeta[]>>();
 
+// THE EDGE COPY (18 Oct 2026). A worker isolate's memory is empty after every
+// cold start, and a cold build of the list takes 10-40 s when the public MAGI
+// nodes are slow, so the front page and every discovery file hung or came back
+// empty. Cloudflare's own cache (`caches.default`, no binding or setup) is shared
+// by the isolates in a data centre: the last good list is stored there and
+// served at once, while a rebuild is given a short time to replace it. It is
+// ONLY the public list of posts (content, no money), and the chain stays the
+// source: a stale copy is replaced on the next successful build.
+const EDGE_KEY = "https://lassecash.internal/post-list-v1";
+const EDGE_FRESH_MS = 60_000;
+const EDGE_WAIT_MS = 2_500;
+
+type Edge = { at: number; posts: PostMeta[] } | null;
+async function edgeGet(): Promise<Edge> {
+  try {
+    const c = (globalThis as unknown as { caches?: { default?: Cache } }).caches?.default;
+    const r = c ? await c.match(EDGE_KEY) : undefined;
+    const j = r ? ((await r.json()) as { at?: number; posts?: PostMeta[] }) : null;
+    return j && Array.isArray(j.posts) && j.posts.length ? { at: Number(j.at) || 0, posts: j.posts } : null;
+  } catch { return null; }
+}
+async function edgePut(posts: PostMeta[]): Promise<void> {
+  try {
+    const c = (globalThis as unknown as { caches?: { default?: Cache } }).caches?.default;
+    if (!c || !posts.length) return;
+    await c.put(EDGE_KEY, new Response(JSON.stringify({ at: Date.now(), posts }),
+      { headers: { "content-type": "application/json", "cache-control": "public, max-age=21600" } }));
+  } catch { /* the copy is a convenience */ }
+}
+
 export async function listPosts(limit = 50): Promise<PostMeta[]> {
   const hit = listCache.get(limit);
   if (hit && Date.now() - hit.at < LIST_TTL_MS) return hit.posts;
   const running = listBuilding.get(limit);
   if (running) return running;
+  const edge = limit === 50 ? await edgeGet() : null;
+  if (edge && Date.now() - edge.at < EDGE_FRESH_MS) return edge.posts;
   const build = (async () => {
     try {
       const posts = await chain().postsMeta(limit);
-      if (posts.length) listCache.set(limit, { at: Date.now(), posts });
-      return posts.length ? posts : (hit?.posts ?? posts);
+      if (posts.length) { listCache.set(limit, { at: Date.now(), posts }); if (limit === 50) void edgePut(posts); }
+      return posts.length ? posts : (hit?.posts ?? edge?.posts ?? posts);
     } catch (e) {
       console.warn("[lassecash] server postsMeta() failed:", (e as Error).message);
-      return hit?.posts ?? [];
+      return hit?.posts ?? edge?.posts ?? [];
     } finally {
       listBuilding.delete(limit);
     }
   })();
   listBuilding.set(limit, build);
+  // A stale copy exists: give the rebuild a moment, then answer with the copy.
+  const stale = hit?.posts ?? edge?.posts;
+  if (stale) {
+    const late = Symbol("late");
+    const r = await Promise.race([build, new Promise<typeof late>((res) => setTimeout(() => res(late), EDGE_WAIT_MS))]);
+    return r === late ? stale : r;
+  }
   return build;
 }
 
