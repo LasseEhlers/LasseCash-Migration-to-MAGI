@@ -421,6 +421,15 @@
   function clearDraft() {
     try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
   }
+  /** Start over: empty every field and forget the saved draft. Asks first when
+   *  there is real text, because this cannot be undone. The payout mode is
+   *  reset too, so a fresh post never inherits an earlier burn choice. */
+  function startOver() {
+    if ((title.trim() || body.trim()) && !confirm("Clear this draft? The title, text, summary and tags will be removed.")) return;
+    title = ""; link = ""; linkTouched = false; body = ""; summary = "";
+    tags = []; tagInput = ""; burnConfirmed = false; mode = PayoutMode.Split; error = null;
+    clearDraft();
+  }
 
   async function publish() {
     if (editing) return save();
@@ -487,7 +496,11 @@
   <div class="split">
     <!-- EDITOR -->
     <section class="panel editor">
-      <h2>{editing ? "Edit" : "Write"}</h2>
+      <h2>{editing ? "Edit" : "Write"}
+        {#if !editing && (title || body || summary || tags.length)}
+          <button class="clear" type="button" onclick={startOver}>Clear draft</button>
+        {/if}
+      </h2>
 
       {#if editing}
         <p class="note edit">
@@ -754,6 +767,10 @@
           border: 1px solid var(--gold-dim); border-radius: 4px; }
   .gate strong { color: var(--gold); }
   .gate a { color: var(--gold); }
+  .clear { margin-left: .8rem; font: inherit; font-size: .7rem; letter-spacing: .08em; text-transform: uppercase;
+           background: none; color: var(--dim); border: 1px solid var(--border, #2a3340); border-radius: 3px;
+           padding: .15rem .55rem; cursor: pointer; vertical-align: middle; }
+  .clear:hover { color: var(--gold); border-color: var(--gold-dim); }
   .win {
     flex: 1; display: flex; flex-direction: column; gap: 0.15rem;
     background: transparent; border: 1px solid var(--line); color: var(--dim);
