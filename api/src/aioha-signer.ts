@@ -1539,10 +1539,9 @@ export class AiohaSigner implements Signer {
     const gapHbd = (Math.ceil((needed - avail) / 10) / 100).toFixed(2);
     return {
       ok: false, height: 0,
-      msg: `Not enough resource credits (needs ~${needed.toLocaleString()}, you have `
-        + `${avail.toLocaleString()}). Deposit about ${gapHbd} more HBD to your MAGI `
-        + `balance — Wallet → Move funds between Hive and MAGI — then try again; it `
-        + `takes effect immediately.`,
+      msg: `Needs ~${needed.toLocaleString()} credits, you have ${avail.toLocaleString()}. `
+        + `Add ~${gapHbd} HBD on MAGI (Wallet → Move funds) to fix it at once, `
+        + `or wait: credits refill over 5 days.`,
     };
   }
 
