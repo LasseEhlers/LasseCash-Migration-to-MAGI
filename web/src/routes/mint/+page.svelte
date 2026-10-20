@@ -264,12 +264,11 @@
            earn a nav slot, and this is the tile that poses the question. The
            control only unfolds when asked for, so the tile stays a figure. -->
       {#if me && chain.settleDue}
-        <div class="sub locklen">
-          <b class="gold">ready to mint</b>
-          <button class="linky" onclick={settleNow} disabled={chain.busy}>
-            {chain.busy ? "settling…" : "settle now"}
-          </button>
-        </div>
+        <!-- The most common thing this tile is used for, so a real button: a
+             text link next to "change" read as a setting. -->
+        <button class="small settlebtn" onclick={settleNow} disabled={chain.busy}>
+          {chain.busy ? "Settling…" : "Settle now → mint it"}
+        </button>
         {#if settleError}<div class="sub" style="color: var(--red, #ff5a5f)">{settleError}</div>{/if}
       {/if}
       {#if me}
@@ -492,6 +491,7 @@
 
   /* Same two-column shape as .charts below, so each value sits over its own
      chart at every width. */
+  .settlebtn { margin-top: 0.55rem; width: 100%; }
   .locklen { margin-top: 0.35rem; }
   .locklen b { color: var(--fg); }
   .linky { background: none; border: 0; padding: 0 0 0 0.35rem; font: inherit;
