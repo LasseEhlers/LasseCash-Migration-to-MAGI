@@ -3594,6 +3594,15 @@ Fix, site only, no contract change: `api/src/settle.ts` `settleIsDue` (pure,
 tested) mirrors the contract's own gate — anchored epoch, month turned, at least
 1 LASSECASH — from the new `pending_epoch` field (second field of the `pend_`
 record). `settleOwed` now keys on it, and the Mint page shows "ready to mint ·
-settle now" when it is true. The RC guard (25% of the meter) is unchanged.
-Known and accepted: the automatic path signs, so Keychain prompts; the button is
-the manual route.
+settle now" when it is true.
+
+**DECIDED 2026-10-20 (Lasse): NO automatic settle.** The first version also
+fired `settle_pending` on page load; Lasse's objection was right — a wallet
+prompt nobody asked for trains people to approve prompts they did not ask for.
+`chain.settleOwed`, its RC guard and the "Paused — resource credits low" line
+are gone. The ONLY route is the button, which signs for the user's own account.
+Trade-off, accepted: an account that never opens the Mint page never settles, so
+its pending balance earns and votes nothing until someone calls `settle_pending`
+for it (permissionless; the caller pays the RC). Vote and post piggybacking of
+curation entries (`PiggybackDrain`) is unchanged — those ride inside the user's
+own transaction and prompt nothing extra.

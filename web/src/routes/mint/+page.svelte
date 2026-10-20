@@ -296,8 +296,9 @@
             {#if durErr}<p class="err small">{durErr}</p>{/if}
             <!-- THERE IS NO DEADLINE, and saying so is the point. The contract
                  reads this value at the moment the mint is created, and that
-                 moment is LAZY — the mint is made the first time the account is
-                 touched after the calendar month turns, not at a fixed instant.
+                 moment is LAZY — the mint is made when `settle_pending` is called
+                 for the account after the calendar month turns, and the Mint
+                 page offers that as a button.
                  So there is nothing to grey out and no cutoff to miss, and a
                  change made on the 1st still counts.
                  Left unsaid, the natural assumption is a deadline somewhere. -->
@@ -308,17 +309,11 @@
               created.
               <br />
               <b>No deadline.</b> The value set here when the mint is made is the
-              one used, and the mint is made the first time your account is
-              touched after the month turns — so a change on the 1st still counts.
+              one used, and the mint is made when you press <b>settle now</b> after
+              the month turns — so a change on the 1st still counts.
             </p>
           </div>
         {/if}
-      {/if}
-      {#if chain.settleStoppedForRc}
-        <div class="sub amber">
-          Paused — your resource credits are low. The rest settles once they
-          recharge; nothing is lost.
-        </div>
       {/if}
     </div>
     <div class="panel stat">

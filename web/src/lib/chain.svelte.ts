@@ -231,27 +231,16 @@ class ChainStore {
       this.error = e instanceof Error ? e.message : String(e);
       this.failures++;
     }
-    this.#maybeSettleForNewMonth();
   }
 
   /** Something for `settle_pending` to do: a pending balance whose month has
-      turned, or queued curation. Pure — see api/src/settle.ts. */
+      turned, or queued curation. Pure — see api/src/settle.ts.
+
+      It is OFFERED, never fired. A wallet prompt nobody asked for trains people
+      to approve prompts they did not ask for, which is the habit an attacker
+      needs. The Mint page shows a "settle now" button; the user presses it. */
   get settleDue(): boolean {
     return settleIsDue(this.me, this.info?.epoch ?? 0);
-  }
-
-  /**
-   * Settle when the calendar month turns, not just when someone signs in.
-   *
-   * A tab left open for weeks would otherwise never settle, because sign-in
-   * happens once and never again. Fire-and-forget so a refresh is never held up
-   * by housekeeping.
-   */
-  #maybeSettleForNewMonth() {
-    const epoch = this.info?.epoch ?? 0;
-    if (!this.account || epoch === 0 || epoch === this.#settledEpoch) return;
-    this.#settledEpoch = epoch;
-    void this.settleOwed();
   }
 
   /**
@@ -275,13 +264,11 @@ class ChainStore {
     if (WALLET_MODE) throw new Error("dev sign-in is disabled against a real chain");
     client.setSigner(new DevSigner(account, backend as DevBackend));
     localStorage.setItem("lassecash:account", account);
-    // refresh() settles for the current month via #maybeSettleForNewMonth.
     await this.refresh();
   }
 
   signOut() {
     if (wallet) void wallet.logout();
-    this.#settledEpoch = 0;
     this.account = null;
     this.me = null;
     client.setSigner(undefined);
@@ -398,65 +385,6 @@ class ChainStore {
       if (this.me?.hbd !== before) return;
       await new Promise((r) => setTimeout(r, 5_000));
       await this.refresh();
-    }
-  }
-
-  /** True when background settling stopped because RC ran low, not because it finished. */
-  settleStoppedForRc = $state(false);
-
-  /**
-   * The month we last settled for. Zero means "not yet this session".
-   *
-   * Hive users stay signed in for months — a settle that only ran on sign-in
-   * would almost never fire. So the trigger is the CALENDAR crossing, which is
-   * also exactly when there is something to settle: the monthly mint.
-   */
-  #settledEpoch = 0;
-
-  /**
-   * Settle everything the signed-in account is owed.
-   *
-   * The chain caps each settle at MaxCurationDrain claims so no transaction
-   * does unbounded work. That is a chain-side necessity, not something a user
-   * should have to know about, so the app calls it repeatedly.
-   *
-   * BUT IT SPENDS THE USER'S RC. On MAGI there are no fees — RC is the cost of
-   * everything — and draining it silently would leave someone unable to post,
-   * vote or transfer, with no idea why. So the loop stops while a comfortable
-   * majority of their meter is still intact, and says so rather than failing
-   * quietly. Whatever is left stays owed and settles on the next visit.
-   *
-   * Failures are otherwise swallowed: this is housekeeping the user did not ask
-   * for and must never raise an error dialog.
-   */
-  async settleOwed(maxRounds = 12): Promise<void> {
-    if (!this.account) return;
-    this.settleStoppedForRc = false;
-
-    for (let i = 0; i < maxRounds; i++) {
-      // Due = queued curation OR a pending balance whose month has turned. It
-      // used to key on the curation count alone, which the real chain reports
-      // as 0, so on mainnet this never sent a single transaction.
-      if (!this.settleDue) return;
-      const before = JSON.stringify([this.me?.pending_curation, this.me?.pending, this.me?.pending_epoch]);
-
-      // Check BEFORE spending, not after — the point is to leave headroom.
-      if (!(await client.hasRcHeadroom(0.25))) {
-        this.settleStoppedForRc = true;
-        return;
-      }
-
-      try {
-        const res = await client.settlePending();
-        if (!res.ok) return; // "not due yet" is the normal stopping point
-      } catch {
-        return;
-      }
-      await this.refresh();
-
-      // Stop as soon as a round stops making progress, so a permanently stuck
-      // entry cannot spin the loop.
-      if (JSON.stringify([this.me?.pending_curation, this.me?.pending, this.me?.pending_epoch]) === before) return;
     }
   }
 
