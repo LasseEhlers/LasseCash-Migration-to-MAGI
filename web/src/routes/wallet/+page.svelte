@@ -25,7 +25,7 @@
   import Seo from "$lib/Seo.svelte";
   import { SITE_OG_IMAGE, SITE_URL } from "$lib/site.js";
   import {
-    ASSET_DP, ASSET_SCALE, counterparts, fromUnits, unitsToDecimal,
+    ASSET_DP, ASSET_SCALE, counterparts, fromUnits, unitsToDecimal, hideSpentAllowances,
     type AccountOp, type ResourceCredits,
   } from "$api/index.js";
 
@@ -275,11 +275,13 @@
   }
 
   // --- recent activity ------------------------------------------------------
-  let ops = $state<AccountOp[]>([]);
+  let rawOps = $state<AccountOp[]>([]);
+  /** See api/src/activity.ts: a confirmed allowance is plumbing, a failed one is not. */
+  const ops = $derived(hideSpentAllowances(rawOps));
   let opsLoaded = $state(false);
   async function loadOps() {
     if (!chain.account) return;
-    try { ops = await client.accountOps(30); } catch { ops = []; }
+    try { rawOps = await client.accountOps(30); } catch { rawOps = []; }
     opsLoaded = true;
   }
   /**

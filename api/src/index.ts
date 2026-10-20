@@ -32,3 +32,4 @@ export * from "./magi-nodes.js";
 export * from "./indexer.js";
 export * from "./position-history.js";
 export * from "./settle.js";
+export * from "./activity.js";
