@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { settleIsDue } from "./settle.js";
+import { settleIsDue, currentMonthEpoch } from "./settle.js";
 
 const acct = (pending: string, pending_epoch: number, pending_curation = 0) =>
   ({ pending, pending_epoch, pending_curation });
@@ -30,4 +30,17 @@ test("queued curation makes it worth sending even with nothing pending", () => {
 test("no account or no epoch means nothing is due", () => {
   assert.equal(settleIsDue(null, 24322), false);
   assert.equal(settleIsDue(acct("100.00000000", 24321), 0), false);
+});
+
+test("the month epoch matches the contract's year*12+month (Sept 2026 = 24321)", () => {
+  assert.equal(currentMonthEpoch(new Date("2026-09-09T00:42:36Z")), 24321);
+  assert.equal(currentMonthEpoch(new Date("2026-10-20T12:00:00Z")), 24322);
+  assert.equal(currentMonthEpoch(new Date("2026-12-31T23:59:59Z")), 24324);
+  assert.equal(currentMonthEpoch(new Date("2027-01-01T00:00:00Z")), 24325);
+});
+
+test("the due check uses the calendar when the backend reports epoch 0", () => {
+  // MagiBackend reports epoch 0; the caller falls back to currentMonthEpoch().
+  const epoch = 0 || currentMonthEpoch(new Date("2026-10-20T12:00:00Z"));
+  assert.equal(settleIsDue(acct("39950.45606572", 24321), epoch), true);
 });

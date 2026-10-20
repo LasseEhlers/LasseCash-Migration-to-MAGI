@@ -36,3 +36,18 @@ export function settleIsDue(
   if (epoch <= anchored) return false;       // the month has not turned yet
   return toUnits(me.pending) >= MIN_MINT_UNITS;
 }
+
+/**
+ * The contract's epoch for a moment in time: `year * 12 + month`, from the
+ * block timestamp in UTC (`monthEpoch` in contract/app/main.go).
+ *
+ * `MagiBackend.chain()` reports `epoch: 0` because the contract derives epochs
+ * from timestamps it alone sees, so the site works the month out itself. It is a
+ * calendar mapping, not economics, and the contract still has the last word: a
+ * call made a little early is answered "not due yet" and moves nothing. Without
+ * this, `settleIsDue` always saw epoch 0 and the "settle now" button never
+ * appeared (found the first time Lasse looked for it, 2026-10-20).
+ */
+export function currentMonthEpoch(now: Date = new Date()): number {
+  return now.getUTCFullYear() * 12 + (now.getUTCMonth() + 1);
+}

@@ -10,7 +10,7 @@
  */
 import {
   AiohaSigner, AiohaWallet, DevBackend, DevSigner, LasseCashClient, MagiBackend,
-  engineReady, loadEngine, pickFastestNode, settleIsDue,
+  engineReady, loadEngine, pickFastestNode, settleIsDue, currentMonthEpoch,
   type AccountView, type ChainInfo, type Providers, type ResourceCredits,
 } from "$api/index.js";
 import { SITE_URL } from "$lib/site.js";
@@ -240,7 +240,9 @@ class ChainStore {
       to approve prompts they did not ask for, which is the habit an attacker
       needs. The Mint page shows a "settle now" button; the user presses it. */
   get settleDue(): boolean {
-    return settleIsDue(this.me, this.info?.epoch ?? 0);
+    // MagiBackend reports epoch 0 (the contract alone sees block timestamps),
+    // so fall back to the calendar month in UTC.
+    return settleIsDue(this.me, this.info?.epoch || currentMonthEpoch());
   }
 
   /**
