@@ -68,6 +68,18 @@
     claimAllError = await chain.submit(() => client.claimAllMintRewards());
   }
 
+  let settleError = $state<string | null>(null);
+  /**
+   * Turn the pending balance into this month's mint. The contract does this
+   * only when somebody CALLS settle_pending — MAGI has no timer — so when the
+   * month has turned and the site's own attempt has not run (or was held back
+   * for RC), this is the way to do it by hand. It signs for the user's own
+   * account; the call is permissionless but pays only that account.
+   */
+  async function settleNow() {
+    settleError = await chain.submit(() => client.settlePending());
+  }
+
   /**
    * Today's mint rewards: the L-Share slice of today's emission — a constant
    * within an era — and the caller's cut of it at the current share split.
@@ -251,6 +263,15 @@
            It belongs here rather than on a settings page: one setting does not
            earn a nav slot, and this is the tile that poses the question. The
            control only unfolds when asked for, so the tile stays a figure. -->
+      {#if me && chain.settleDue}
+        <div class="sub locklen">
+          <b class="gold">ready to mint</b>
+          <button class="linky" onclick={settleNow} disabled={chain.busy}>
+            {chain.busy ? "settling…" : "settle now"}
+          </button>
+        </div>
+        {#if settleError}<div class="sub" style="color: var(--red, #ff5a5f)">{settleError}</div>{/if}
+      {/if}
       {#if me}
         <div class="sub locklen">
           locked for <b>{durationWords(durSaved * Number(constants().heightsPerDay))}</b>

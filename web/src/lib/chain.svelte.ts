@@ -10,7 +10,7 @@
  */
 import {
   AiohaSigner, AiohaWallet, DevBackend, DevSigner, LasseCashClient, MagiBackend,
-  engineReady, loadEngine, pickFastestNode,
+  engineReady, loadEngine, pickFastestNode, settleIsDue,
   type AccountView, type ChainInfo, type Providers, type ResourceCredits,
 } from "$api/index.js";
 import { SITE_URL } from "$lib/site.js";
@@ -234,6 +234,12 @@ class ChainStore {
     this.#maybeSettleForNewMonth();
   }
 
+  /** Something for `settle_pending` to do: a pending balance whose month has
+      turned, or queued curation. Pure — see api/src/settle.ts. */
+  get settleDue(): boolean {
+    return settleIsDue(this.me, this.info?.epoch ?? 0);
+  }
+
   /**
    * Settle when the calendar month turns, not just when someone signs in.
    *
@@ -428,8 +434,11 @@ class ChainStore {
     this.settleStoppedForRc = false;
 
     for (let i = 0; i < maxRounds; i++) {
-      const before = this.me?.pending_curation ?? 0;
-      if (before === 0) return;
+      // Due = queued curation OR a pending balance whose month has turned. It
+      // used to key on the curation count alone, which the real chain reports
+      // as 0, so on mainnet this never sent a single transaction.
+      if (!this.settleDue) return;
+      const before = JSON.stringify([this.me?.pending_curation, this.me?.pending, this.me?.pending_epoch]);
 
       // Check BEFORE spending, not after — the point is to leave headroom.
       if (!(await client.hasRcHeadroom(0.25))) {
@@ -447,7 +456,7 @@ class ChainStore {
 
       // Stop as soon as a round stops making progress, so a permanently stuck
       // entry cannot spin the loop.
-      if ((this.me?.pending_curation ?? 0) >= before) return;
+      if (JSON.stringify([this.me?.pending_curation, this.me?.pending, this.me?.pending_epoch]) === before) return;
     }
   }
 

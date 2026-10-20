@@ -672,6 +672,7 @@ export class MagiBackend implements Backend {
       shares: units(base["shr_" + acct]),
       pending: units((base["pend_" + acct] ?? "0").split("|")[0]),
       pending_curation: 0, // informational only; needs the queue cursors
+      pending_epoch: num((base["pend_" + acct] ?? "0|0").split("|")[1]),
       // An account that never called set_duration gets the contract's default,
       // which is the migration-mint length (DefaultDurationDays in
       // contract/state/mint.go). Only true once the 2026-09 code update is

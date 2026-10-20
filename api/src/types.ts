@@ -138,6 +138,12 @@ export interface AccountView {
    * Informational — the user never has to act on it.
    */
   pending_curation: number;
+  /**
+   * The epoch (calendar month) the pending balance is anchored to: it mints
+   * once the chain's epoch is later than this. 0 = never anchored. Read from
+   * the second field of the contract's `pend_` record.
+   */
+  pending_epoch?: number;
   mint_duration_days: number;
   hbd: number;
   /**

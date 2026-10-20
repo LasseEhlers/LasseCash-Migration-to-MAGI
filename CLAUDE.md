@@ -3557,9 +3557,12 @@ Native pool (vsc-eco dex, owner @lassecashdapps, fee 0.08% + slip) swaps through
 ROUTER `vsc1Brvi4YZ…` (`execute` with a `swap` payload); a direct `swap` on the pool is
 refused. Core pool (0% fee, owner @lassecashmagi) is separate. Prices were equalised by
 hand on 18 Oct (sell in core, buy in native): 0.000721 vs 0.000719; total depth only
-~64 HBD, so the thin pools are the honest limit. Altera cannot SELL LASSECASH
-("Insufficient balance", wrong decimals; reported to TibFox 18 Oct); buying works, and
-lassecash.com/pool can sell on the native pool (simulated, not yet broadcast).
+~64 HBD, so the thin pools are the honest limit. Altera could not SELL LASSECASH
+at first ("Insufficient balance", wrong decimals; reported to TibFox 18 Oct) — FIXED
+the same day by TibFox, and Lasse sold on Altera that evening and it worked. The
+LASSECASH icon there still showed the grey "LAS" placeholder; Lasse sent TibFox
+`lassecash.com/logo/lassecash-circle-512.png` and TibFox said he will fix it.
+lassecash.com/pool can also sell on the native pool.
 Wallet history now shows what a router swap paid and which pool; allowances name their
 asset by the contract they went to.
 
@@ -3574,3 +3577,23 @@ asset by the contract they went to.
   before any key burn; keep the 500 HP delegation to @lassecashmagi until then; key-burn
   post in 2-4 weeks; CoinMarketCap needs 60 days (30 Oct) plus volume; ask Altera for
   the price list and a round icon mid-November, politely, never via reminders to TibFox.
+
+## ⚠️ THE MONTHLY MINT NEVER RAN — FOUND AND FIXED 2026-10-20
+
+The contract turns an account's pending Proof-of-Brain balance into its monthly
+mint ONLY when somebody calls `settle_pending`; MAGI has no timer. The site's
+automatic settle (`chain.settleOwed`) keyed on `pending_curation`, which
+`MagiBackend` reports as a hard-coded 0, so on mainnet it returned at once and
+never sent a transaction. The whole contract history held exactly ONE
+`settle_pending` — Lasse's own on 9 September — so the 1 October mint did not
+happen for anyone. Nothing was lost (pending balances sit intact, and the call
+is permissionless for any account), but they earned nothing and carried no
+vote until settled.
+
+Fix, site only, no contract change: `api/src/settle.ts` `settleIsDue` (pure,
+tested) mirrors the contract's own gate — anchored epoch, month turned, at least
+1 LASSECASH — from the new `pending_epoch` field (second field of the `pend_`
+record). `settleOwed` now keys on it, and the Mint page shows "ready to mint ·
+settle now" when it is true. The RC guard (25% of the meter) is unchanged.
+Known and accepted: the automatic path signs, so Keychain prompts; the button is
+the manual route.
