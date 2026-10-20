@@ -618,7 +618,10 @@ export class AiohaWallet {
       // the account is broke — see MagiBackend.resourceCredits. Treating it
       // as a real reading would make the preflight refuse every call the
       // account ever tries.
-      if (rc && typeof rc.amount === "number" && rc.max_rcs) return rc.amount;
+      if (rc && typeof rc.amount === "number" && rc.max_rcs) {
+        this.#lastMaxRc = rc.max_rcs;
+        return rc.amount;
+      }
       // NO RECORD IS NOT A FULL METER. This used to assume the free 10,000,
       // but an account that never held HBD on MAGI has no record AND may have
       // spent its free credits. @cinqowy, 2026-10-08: assumed 10,000, mint
@@ -661,6 +664,15 @@ export class AiohaWallet {
   /** How long one reading of the meter may be reused — under a block, so it
    *  can never describe a chain that has moved on. Cleared on any broadcast. */
   static readonly RC_CACHE_MS = 2_500;
+
+  /**
+   * The account's CAPACITY from the latest reading: HBD on MAGI in milli plus
+   * the 10,000 free allowance. A call that needs more than this can never
+   * succeed by waiting — spent credits thaw back toward the capacity, not past
+   * it — so the refusal message must say "add HBD", not "wait".
+   */
+  #lastMaxRc: number | null = null;
+  maxRc(): number | null { return this.#lastMaxRc; }
 
   /** The in-flight or recent meter reading (see availableRc). */
   #rc: { account: string; p: Promise<number | null>; at: number } | null = null;
@@ -1414,7 +1426,7 @@ export class AiohaSigner implements Signer {
       // admission still checks rc_limit against AVAILABLE RC, so a broadcast
       // the account cannot cover is known doomed even without a dry run.
       const avail = await rcRead;
-      if (avail !== null && avail < tableLimit) return AiohaSigner.rcRefusal(tableLimit, avail);
+      if (avail !== null && avail < tableLimit) return AiohaSigner.rcRefusal(tableLimit, avail, this.wallet.maxRc?.());
       return tableLimit;
     }
     if (!sim.ok) {
@@ -1499,13 +1511,13 @@ export class AiohaSigner implements Signer {
       if (drawMilli !== null) {
         const room = Math.trunc(avail) - drawMilli - AiohaSigner.PROBE_MARGIN_MILLI;
         const floor = Math.max(Math.ceil(need * 1.3), tableFloor);
-        if (room < floor) return AiohaSigner.rcRefusal(floor + drawMilli + AiohaSigner.PROBE_MARGIN_MILLI, Math.trunc(avail));
+        if (room < floor) return AiohaSigner.rcRefusal(floor + drawMilli + AiohaSigner.PROBE_MARGIN_MILLI, Math.trunc(avail), this.wallet.maxRc?.());
         return Math.min(sized, room);
       }
     }
     if (avail !== null && sized > avail) {
       const floor = Math.max(Math.ceil(need * 1.3), tableFloor);
-      if (avail < floor) return AiohaSigner.rcRefusal(floor, avail);
+      if (avail < floor) return AiohaSigner.rcRefusal(floor, avail, this.wallet.maxRc?.());
       return avail;
     }
     // AN UNREADABLE METER: ASK, DON'T GUESS. Refusing blind once blocked an
@@ -1531,16 +1543,27 @@ export class AiohaSigner implements Signer {
   static confirmUnreadableRc?: ((needs: number) => Promise<boolean>) | undefined;
 
   /** The one wording for "you are out of RC", so every path explains the meter. */
-  static rcRefusal(needed: number, avail: number): TxResult {
+  static rcRefusal(needed: number, avail: number, max?: number | null): TxResult {
     // 1 RC == 1 milli-HBD in capacity terms (capacity = HBD milli + 10,000
     // free), so the gap converts to an exact HBD figure — telling someone
     // "you need ~10,468" means nothing if they have never touched HBD;
     // "deposit about 0.47 more HBD" is something they can actually go do.
     const gapHbd = (Math.ceil((needed - avail) / 10) / 100).toFixed(2);
+    const head = `Needs ~${needed.toLocaleString()} credits, you have ${avail.toLocaleString()}. `;
+    // WAITING ONLY HELPS IF THE CALL FITS THE ACCOUNT'S CAPACITY. Credits thaw
+    // back toward the capacity (HBD + 10,000), never past it, so an account with
+    // little HBD that needs more than it can ever hold would wait forever.
+    if (max != null && needed > max) {
+      const forever = (Math.ceil((needed - max) / 10) / 100).toFixed(2);
+      return {
+        ok: false, height: 0,
+        msg: head + `That is more than your meter can hold (${max.toLocaleString()}), so waiting `
+          + `will not help. Add ~${forever} HBD on MAGI (Wallet → Move funds); it works at once.`,
+      };
+    }
     return {
       ok: false, height: 0,
-      msg: `Needs ~${needed.toLocaleString()} credits, you have ${avail.toLocaleString()}. `
-        + `Add ~${gapHbd} HBD on MAGI (Wallet → Move funds) to fix it at once, `
+      msg: head + `Add ~${gapHbd} HBD on MAGI (Wallet → Move funds) to fix it at once, `
         + `or wait: credits refill over 5 days.`,
     };
   }

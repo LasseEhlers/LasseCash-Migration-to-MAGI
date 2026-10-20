@@ -205,3 +205,20 @@ test("a bare Aioha name is qualified before it reaches the node", () => {
   assert.equal(qualifyAuth("hive:lasseehlers"), "hive:lasseehlers");
   assert.equal(qualifyAuth("did:pkh:eip155:1:0xabc"), "did:pkh:eip155:1:0xabc");
 });
+
+test("a call bigger than the account's capacity says waiting will not help", () => {
+  // An account with no HBD holds at most 10,000. A 20,113 call can never fit.
+  const never = AiohaSigner.rcRefusal(20_113, 4_000, 10_000);
+  assert.match(never.msg, /waiting will not help/i);
+  assert.match(never.msg, /more than your meter can hold \(10,000\)/);
+  assert.match(never.msg, /Add ~10\.12 HBD/);
+  assert.doesNotMatch(never.msg, /or wait/i);
+});
+
+test("a call that fits the capacity still offers waiting as the free way out", () => {
+  const fits = AiohaSigner.rcRefusal(20_113, 12_338, 40_295);
+  assert.match(fits.msg, /Add ~7\.78 HBD/);
+  assert.match(fits.msg, /or wait/i);
+  // Capacity unknown: do not claim waiting is hopeless.
+  assert.match(AiohaSigner.rcRefusal(5_000, 100, null).msg, /or wait/i);
+});
