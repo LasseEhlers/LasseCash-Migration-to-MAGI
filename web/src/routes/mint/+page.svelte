@@ -173,7 +173,7 @@
     if (!chain.ready || !chain.info) return;
     const g = genesis;
     const perDay = Number(constants().heightsPerDay) || 28800;
-    void client.poolTrades(500)
+    void client.poolTrades()
       .then(({ trades }) => {
         const pts = trades
           .filter((t) => t.shareHbd && t.height)

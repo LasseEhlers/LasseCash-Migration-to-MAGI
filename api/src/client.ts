@@ -41,6 +41,9 @@ function units(raw: string | undefined): string {
   return fromUnits(BigInt(raw || "0"));
 }
 
+/** Pool history is walked to its beginning; 100 per request, so this is 50 requests at most. */
+const POOL_HISTORY_LIMIT = 5000;
+
 export class LasseCashClient {
   readonly backend: Backend;
   #signer: Signer | undefined;
@@ -320,7 +323,7 @@ export class LasseCashClient {
    * priced at the pool's own ratio, which is why the first one is the only
    * one that sets a price.
    */
-  async poolTrades(limit = 500): Promise<{ trades: PoolTrade[]; reconciled: boolean }> {
+  async poolTrades(limit = POOL_HISTORY_LIMIT): Promise<{ trades: PoolTrade[]; reconciled: boolean }> {
     const [ops, info] = await Promise.all([this.backend.poolOps(limit), this.chain()]);
     const trades: PoolTrade[] = [];
     let lc = 0n;
@@ -1084,15 +1087,22 @@ export class LasseCashClient {
     owner: string; id: number; shares: string; ageDays: number;
     loyalty: string; valueLc: Amount; valueHbd: Amount; share: number;
   }[]> {
-    const [ops, info] = await Promise.all([this.backend.poolOps(500), this.chain()]);
+    const [ops, info] = await Promise.all([this.backend.poolOps(POOL_HISTORY_LIMIT), this.chain()]);
 
-    const seq = new Map<string, number>();
+    // Ids come from the CHAIN, never from counting calls. The history walk is
+    // newest-first and bounded; counting add_liquidity calls from a truncated
+    // window numbers tranches from the wrong start and reads the wrong rows
+    // (found 2026-10-31: once the log passed 500 transactions the oldest
+    // deposit fell off, every id shifted by one, and the largest tranche was
+    // never read — a 75% holder showed as 35%). The history is only used to
+    // learn WHO has deposited; `lpseq_<acct>` says how many tranches each has.
+    const signers = [...new Set(ops.filter((o) => o.action === "add_liquidity" && o.signer).map((o) => o.signer))];
+    if (!signers.length) return [];
+    const seqs = await this.state(signers.map((s) => `lpseq_${s}`));
     const wanted: { owner: string; id: number }[] = [];
-    for (const op of ops) {
-      if (op.action !== "add_liquidity" || !op.signer) continue;
-      const id = (seq.get(op.signer) ?? 0) + 1;
-      seq.set(op.signer, id);
-      wanted.push({ owner: op.signer, id });
+    for (const owner of signers) {
+      const n = Number(seqs[`lpseq_${owner}`] ?? 0) || 0;
+      for (let id = 1; id <= n; id++) wanted.push({ owner, id });
     }
     if (!wanted.length) return [];
 
