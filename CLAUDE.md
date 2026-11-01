@@ -3606,3 +3606,23 @@ its pending balance earns and votes nothing until someone calls `settle_pending`
 for it (permissionless; the caller pays the RC). Vote and post piggybacking of
 curation entries (`PiggybackDrain`) is unchanged — those ride inside the user's
 own transaction and prompt nothing extra.
+
+## ⚠️ THE MARKET API STOPPED RECONCILING AT TRANSACTION 501 — FIXED 2026-11-01
+
+`/api/market/tickers` began answering `reconciled: false` (found by Lasse looking
+at the pool, not by an alert). The replayed reserves were short of the chain by
+exactly **10,000 LASSECASH and 5.21 HBD** — the launch deposit of 31 Aug. Cause:
+`MagiBackend.poolLedger`/`poolOps` read only the newest **500** transactions and
+the contract passed **508** on 31 Oct, so the OLDEST events fell off the end. A
+reserve is the sum of everything, so a walk that drops its oldest events can
+never be right; every new transaction would have dropped another. The flag did
+its job — it reported the failure instead of hiding it. Both defaults are now
+`POOL_WALK_LIMIT = 2,000` (the Chart page already passed 5,000). Verified: the
+replay equals live `amm_lc`/`amm_hbd` to the base unit.
+
+**Next ceiling is ~2,000 transactions** (about 42 subrequests per cold walk, the
+Workers free-plan cap is 50). Before then the D1 transaction index
+(docs/INDEXER.md) has to be bound — it is the real fix and is still dormant by
+Lasse's choice. A listing aggregator reading `reconciled: false` for days would
+have been a bad first impression for CMC/CoinGecko.
+

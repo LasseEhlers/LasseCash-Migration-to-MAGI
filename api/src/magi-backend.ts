@@ -1299,7 +1299,7 @@ export class MagiBackend implements Backend {
    * FAILED transactions are dropped: a refused swap moved nothing, and
    * charting it would draw a price that never existed.
    */
-  async poolOps(limit = 500): Promise<PoolOp[]> {
+  async poolOps(limit = POOL_WALK_LIMIT): Promise<PoolOp[]> {
     // Both swap spellings: the 2026-09 rename left the old ones in history.
     const wanted = new Set(["add_liquidity", "remove_liquidity", "swap_lassecash_hbd", "swap_hbd_lassecash", "swap_lc_hbd", "swap_hbd_lc"]);
     const out: PoolOp[] = [];
@@ -1352,7 +1352,7 @@ export class MagiBackend implements Backend {
    * the split needs each one's call count. Anything unmatched surfaces as
    * `ok:false, ret:""` rather than a guess.
    */
-  async poolLedger(limit = 500): Promise<PoolLedgerEntry[]> {
+  async poolLedger(limit = POOL_WALK_LIMIT): Promise<PoolLedgerEntry[]> {
     return this.#callLedger(new Set(["add_liquidity", "remove_liquidity", "swap_lassecash_hbd", "swap_hbd_lassecash", "swap_lc_hbd", "swap_hbd_lc"]), limit);
   }
 
@@ -2348,6 +2348,21 @@ function units(raw: string | undefined): string {
 function num(raw: string | undefined): number {
   return Number(raw || "0");
 }
+
+/**
+ * How many of the contract's transactions a pool-history walk reads, newest first.
+ *
+ * It was 500, and the contract passed 508 on 31 Oct 2026: the oldest eight —
+ * including the launch deposit — fell off the end, the replayed reserves came
+ * out 10,000 LASSECASH and 5.21 HBD short of the chain, and the market API
+ * rightly reported `reconciled: false`. A walk that drops its OLDEST events
+ * cannot be right about reserves, which are the sum of everything.
+ *
+ * 2,000 matches the documented page cap and stays inside a Worker's subrequest
+ * budget (about 20 transaction pages + 22 output pages). Past that the real fix
+ * is the dormant D1 transaction index (docs/INDEXER.md), not a bigger number.
+ */
+const POOL_WALK_LIMIT = 2_000;
 
 function notWired(what: string): string {
   return `MagiBackend.${what} is not wired yet. ` +
