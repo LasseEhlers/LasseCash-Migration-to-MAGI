@@ -665,8 +665,8 @@
           <input type="radio" bind:group={mode} value={PayoutMode.Split} />
           <span class="mname">20% liquid · 80% minted</span>
           <span class="mdesc">
-            A fifth arrives spendable. The rest accrues and becomes one mint on
-            the 1st, at your chosen duration.
+            A fifth arrives spendable. The rest accrues, and from the 1st you turn
+            it into one mint with one press on the Mint page, at your chosen duration.
           </span>
         </label>
         <label class:sel={mode === PayoutMode.PowerUp}>

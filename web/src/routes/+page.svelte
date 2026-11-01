@@ -541,9 +541,8 @@
                    that turns a Hive post into a LasseCash post. -->
               <VoteSlider post={money} onvoted={() => voted(post)} />
             {:else if money.paid_out}
-              <!-- Nothing to click. Curation settles itself on the 1st: the
-                   chain queues what each curator is owed and the monthly
-                   settle drains it. See CLAUDE.md, curation queue. -->
+              <!-- Nothing to click here. The chain queues what each curator
+                   is owed; their votes and the Mint page's settle drain it. See CLAUDE.md, curation queue. -->
               <span class="auto dim">curators paid with their next vote</span>
             {:else if money.payable}
               <button class="small" onclick={() => payout(post)} disabled={chain.busy}>

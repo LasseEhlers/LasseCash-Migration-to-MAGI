@@ -424,7 +424,7 @@
           <div class="panel stat">
             <div class="label">Pending rewards</div>
             <div class="value">{lc(me.pending)}</div>
-            <div class="sub">mints into one position on the 1st</div>
+            <div class="sub">one press on the Mint page makes it one mint, from the 1st</div>
           </div>
         </div>
       </div>

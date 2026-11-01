@@ -251,7 +251,7 @@
       <div class="label">Pending rewards</div>
       <div class="value">{me ? lcShort(me.pending) : "—"}</div>
       <div class="sub">
-        mints on the 1st&nbsp;{#if me}<Hbd amount={me.pending} />{/if}{#if me && me.pending_curation > 0}
+        {chain.settleDue ? "waiting for you to mint it" : "you mint it from the 1st"}&nbsp;{#if me}<Hbd amount={me.pending} />{/if}{#if me && me.pending_curation > 0}
           · {me.pending_curation} curation claim{me.pending_curation > 1 ? "s" : ""} queued
         {/if}
       </div>
@@ -299,7 +299,7 @@
                  for the account after the calendar month turns, and the Mint
                  page offers that as a button.
                  So there is nothing to grey out and no cutoff to miss, and a
-                 change made on the 1st still counts.
+                 change made any time before the press still counts.
                  Left unsaid, the natural assumption is a deadline somewhere. -->
             <p class="durnote dim">
               Applies to the mint the chain creates from your post and curation
@@ -309,7 +309,7 @@
               <br />
               <b>No deadline.</b> The value set here when the mint is made is the
               one used, and the mint is made when you press <b>settle now</b> after
-              the month turns — so a change on the 1st still counts.
+              the month turns — so a change any time before that still counts.
             </p>
           </div>
         {/if}
