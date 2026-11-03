@@ -18,7 +18,7 @@ LASSECASH is no longer a row in Hive-Engine's database. It is a contract on MAGI
 
 Nothing is pushed to you. You claim, with a Merkle proof, paying your own Resource Credits — a fresh account's free allowance covers it.
 
-**https://lassecash.com** — the claim panel is on the front page: log in with your Hive account, press Claim. Ten seconds. **Use a desktop browser with Hive Keychain**; phone support follows in the first week.
+**https://lassecash.com** — the claim panel is on the front page: log in with your Hive account, press Claim. Ten seconds of your time, and the chain confirms within a minute or two. **Use a desktop browser with Hive Keychain.** Phone wallets are untested and not a priority right now. They may work, but if anything looks wrong, use a desktop. A failed attempt costs you nothing.
 
 Balances migrate 1:1. Your liquid LASSECASH arrives liquid. Your LASSECASH POWER becomes a 30-day mint whose L-Shares equal your staked amount exactly — same weight you had, no bonus, no penalty.
 
