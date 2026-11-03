@@ -1147,7 +1147,7 @@ export class MagiBackend implements Backend {
         id: string; anchr_ts: string; status: string;
         required_auths: string[]; required_posting_auths: string[];
         output: { id: string }[] | null;
-        ops: { type: string; data: { action?: string; payload?: string; contract_id?: string } }[];
+        ops: { type: string; data: { action?: string; payload?: string; contract_id?: string; from?: string; to?: string; amount?: string; asset?: string } }[];
       }[];
     }>(
       `query($a: String!, $l: Int!) { findTransaction(filterOptions: {byAccount: $a, limit: $l}) {
@@ -1225,26 +1225,17 @@ export class MagiBackend implements Backend {
     // landed correctly and looked lost.
     //
     // So the contract's recent calls are scanned for transfers naming this
-    // account, and the HBD/HIVE ledger is read the same way. Incoming rows
-    // are marked with a leading "+" on the action, which is all the UI needs
-    // to tell the two apart.
+    // account. Incoming rows are marked with a leading "+" on the action, which
+    // is all the UI needs to tell the two apart.
     const me = qualified(account);
     try {
-      const [incoming, ledger] = await Promise.all([
-        this.query<{ findTransaction: { id: string; anchr_ts: string; status: string;
-          required_auths: string[]; required_posting_auths: string[];
-          ops: { type: string; data: { action?: string; payload?: string } }[] }[] }>(
-          `query($c: String!) { findTransaction(filterOptions: {byContract: $c, limit: 100}) {
-            id anchr_ts status required_auths required_posting_auths ops { type data } } }`,
-          { c: this.#contractId },
-        ),
-        this.query<{ findTransaction: { id: string; anchr_ts: string; status: string;
-          ops: { type: string; data: Record<string, string> }[] }[] }>(
-          `query($a: String!) { findTransaction(filterOptions: {byLedgerToFrom: $a, limit: 30}) {
-            id anchr_ts status ops { type data } } }`,
-          { a: me },
-        ),
-      ]);
+      const incoming = await this.query<{ findTransaction: { id: string; anchr_ts: string; status: string;
+        required_auths: string[]; required_posting_auths: string[];
+        ops: { type: string; data: { action?: string; payload?: string } }[] }[] }>(
+        `query($c: String!) { findTransaction(filterOptions: {byContract: $c, limit: 100}) {
+          id anchr_ts status required_auths required_posting_auths ops { type data } } }`,
+        { c: this.#contractId },
+      );
 
       for (const tx of incoming.findTransaction ?? []) {
         if (tx.status !== "CONFIRMED") continue;
@@ -1264,20 +1255,23 @@ export class MagiBackend implements Backend {
           });
         }
       }
-
-      for (const tx of ledger.findTransaction ?? []) {
-        for (const op of tx.ops ?? []) {
-          if (op.type !== "transfer") continue;
-          const incomingToUs = op.data?.["to"] === me;
-          out.push({
-            id: tx.id, time: tx.anchr_ts,
-            action: incomingToUs ? "+ledger" : "ledger",
-            payload: `${op.data?.["from"] ?? ""}|${op.data?.["to"] ?? ""}|${op.data?.["amount"] ?? ""}|${op.data?.["asset"] ?? ""}`,
-            status: tx.status === "CONFIRMED" ? "confirmed" : tx.status === "FAILED" ? "failed" : "pending",
-          });
-        }
-      }
     } catch { /* the account's own calls are still worth showing */ }
+
+    // HBD AND HIVE MOVES. `byAccount` already returns them, sent AND received.
+    // They used to come from a `byLedgerToFrom` filter, which the nodes no
+    // longer define: the query was refused and, sharing a try with the scan
+    // above, took the incoming LASSECASH rows down with it (found 2026-11-03).
+    for (const tx of txs) {
+      for (const op of tx.ops ?? []) {
+        if (op.type !== "transfer") continue;
+        out.push({
+          id: tx.id, time: tx.anchr_ts,
+          action: op.data?.to === me ? "+ledger" : "ledger",
+          payload: `${op.data?.from ?? ""}|${op.data?.to ?? ""}|${op.data?.amount ?? ""}|${op.data?.asset ?? ""}`,
+          status: tx.status === "CONFIRMED" ? "confirmed" : tx.status === "FAILED" ? "failed" : "pending",
+        });
+      }
+    }
 
     // Newest first, and de-duplicated: a self-transfer would otherwise appear
     // once as sent and once as received.
