@@ -24,7 +24,7 @@
   import Seo from "$lib/Seo.svelte";
   import ClaimMigration from "$lib/ClaimMigration.svelte";
   import { SITE_DESCRIPTION, SITE_NAME, SITE_OG_IMAGE, SITE_URL, postPath } from "$lib/site.js";
-  import { compare, isPositive, PayoutMode, type PostMeta, type PostView } from "$api/index.js";
+  import { compare, isOlderPaidOut, isPositive, PayoutMode, trendingTier, type PostMeta, type PostView } from "$api/index.js";
   import type { PageData } from "./$types";
 
   let { data }: { data: PageData } = $props();
@@ -174,27 +174,44 @@
       .slice(0, HOT_SLOTS);
   });
 
+  /** How many older posts "Show older posts" has opened, 20 per press. Forgotten on reload and on a filter or sort change. */
+  const OLDER_PAGE = 20;
+  let olderOpen = $state(0);
+  const newestFirst = (a: PostMeta, b: PostMeta) =>
+    a.created_time < b.created_time ? 1 : a.created_time > b.created_time ? -1 : 0;
+  const listed = $derived(filter === "all" ? all : all.filter((p) => p.window === filter));
+  /** Trending only: paid-out posts past the limit, see api/src/feed-order.ts. */
+  const older = $derived(
+    sort === "trending" && hydrated
+      ? listed.filter((p) => isOlderPaidOut(rewards.get(key(p)), height)).sort(newestFirst)
+      : [],
+  );
+
   const rankedShown = $derived.by<Row[]>(() => {
     const lifted = new Set(rankedHot.map(key));
-    const base = (filter === "all" ? all : all.filter((p) => p.window === filter))
+    const base = listed
       // Shown above, so not repeated here — the same post twice on one screen
       // reads as a bug, and the strip is a promotion out of the list, not a
       // copy of it.
       .filter((p) => !lifted.has(key(p)));
     const out = [...base];
     if (sort === "trending" && hydrated) {
-      out.sort((a, b) => {
-        // Registered posts rank above unregistered ones, always. An
-        // unregistered post has no payout to compare — the tie would be
-        // decided by two zeroes — and Trending is a ranking BY REWARD, so a
-        // post that cannot yet earn belongs below every post that can.
-        if (a.registered !== b.registered) return a.registered ? -1 : 1;
-        return compare(
-          rewards.get(key(b))?.pending_payout ?? "0",
-          rewards.get(key(a))?.pending_payout ?? "0",
-        );
+      const hidden = new Set(older.map(key));
+      const tier = (p: PostMeta) => trendingTier(p.registered, rewards.get(key(p))?.paid_out);
+      const visible = out.filter((p) => !hidden.has(key(p))).sort((a, b) => {
+        // Trending ranks by what can still earn: a post that cannot yet earn
+        // sits below every post that can, and one that never will again sits
+        // below both. Two zeroes have no reward to compare, so newest wins.
+        return tier(a) - tier(b)
+          || compare(
+            rewards.get(key(b))?.pending_payout ?? "0",
+            rewards.get(key(a))?.pending_payout ?? "0",
+          )
+          || newestFirst(a, b);
       });
-      return withPromotedSlots(out);
+      const rows = withPromotedSlots(visible);
+      rows.push(...older.slice(0, olderOpen).map((post) => ({ post, slot: false })));
+      return rows;
     }
     // Newest-first is also the pre-hydration order: "trending" is a fact
     // about money the browser has not read yet, and inventing an order for it
@@ -204,7 +221,7 @@
     // BY TIME, not by height: a post that arrived by tag has no registration
     // height (there is no record), so ordering on height would bury every one
     // of them at the bottom of a list that is supposed to be chronological.
-    out.sort((a, b) => a.created_time < b.created_time ? 1 : a.created_time > b.created_time ? -1 : 0);
+    out.sort(newestFirst);
     return out.map((post) => ({ post, slot: false }));
   });
 
@@ -231,7 +248,7 @@
     void load();
   }
   function resort() { frozen = null; justVoted = null; }
-  $effect(() => { void filter; void sort; frozen = null; justVoted = null; });
+  $effect(() => { void filter; void sort; frozen = null; justVoted = null; olderOpen = 0; });
 
   const byKey = $derived(new Map(all.map((p) => [key(p), p])));
   const hot = $derived<PostMeta[]>(
@@ -437,7 +454,7 @@
          switches at once (see +page.server.ts); the browser then reads the
          posts itself. Until it has, say so, instead of "Nothing here yet". -->
     <p class="reading-chain empty-loading">● reading the chain…</p>
-  {:else if shown.length === 0}
+  {:else if shown.length === 0 && older.length === 0}
     <p class="empty">
       <strong>Nothing here yet.</strong>
       {filter === "all" ? "Be the first to publish." : `No ${filter} posts.`}
@@ -557,9 +574,16 @@
       {/each}
     </div>
   {/if}
+
+  {#if older.length > olderOpen}
+    <button class="ghost older" onclick={() => (olderOpen += OLDER_PAGE)}>
+      Show older posts ({older.length - olderOpen} more)
+    </button>
+  {/if}
 </div>
 
 <style>
+  .older { display: block; margin: 1rem auto 0; }
   /* A compact strip, deliberately NOT the full card: it keeps Trending above
      the fold and reads as a different thing rather than a duplicate. One
      column at every width, so it behaves identically on a phone. */
