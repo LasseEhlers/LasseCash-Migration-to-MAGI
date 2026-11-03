@@ -1273,11 +1273,12 @@ export class MagiBackend implements Backend {
       }
     }
 
-    // Newest first, and de-duplicated: a self-transfer would otherwise appear
-    // once as sent and once as received.
+    // Newest first, and de-duplicated. The payload is part of the key: several
+    // calls of one kind can share a transaction (a claim-all), and keying on the
+    // action alone showed only the first of them.
     const seen = new Set<string>();
     return out
-      .filter((o) => { const k = `${o.id}:${o.action}`; if (seen.has(k)) return false; seen.add(k); return true; })
+      .filter((o) => { const k = `${o.id}:${o.action}:${o.payload}`; if (seen.has(k)) return false; seen.add(k); return true; })
       .sort((a, b) => b.time.localeCompare(a.time))
       .slice(0, limit);
   }

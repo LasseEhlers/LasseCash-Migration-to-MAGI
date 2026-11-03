@@ -139,7 +139,11 @@ export function describeCall(action: string, payload: string, contract?: string)
     case "swap_hbd_lc":  return `Bought with ${amt(f[0], 6)} HBD · at least ${amt(f[1])} LASSECASH · core pool`;
     case "add_liquidity":    return `Added ${amt(f[0])} LASSECASH + ${amt(f[1], 6)} HBD`;
     case "remove_liquidity": return `Withdrew tranche #${f[0]}`;
-    case "claim_pool":       return `Claimed rewards on tranche #${f[0]}`;
+    case "claim_pool": {
+      // groupPoolClaims joins a claim-all's tranche ids with commas.
+      const ids = (f[0] ?? "").split(",");
+      return `Claimed rewards on tranche${ids.length > 1 ? "s" : ""} ${ids.map((i) => `#${i}`).join(", ")}`;
+    }
     case "sweep_tranche":    return `Evicted ${who(f[0])}'s dormant tranche #${f[1]}`;
 
     case "post":    return `${f[0]} · ${WINDOW[Number(f[1])] ?? "?"} · ${MODE[Number(f[2])] ?? "?"}`;

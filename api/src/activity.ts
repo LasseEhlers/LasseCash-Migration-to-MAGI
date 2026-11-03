@@ -21,3 +21,35 @@ export function hideSpentAllowances(ops: AccountOp[]): AccountOp[] {
   }
   return ops.filter((o) => !(o.action === "increaseAllowance" && o.status === "confirmed" && consumed.has(o.id)));
 }
+
+/**
+ * One line per transaction for a "claim all" on pool rewards.
+ *
+ * Claim-all sends up to five `claim_pool` calls in one signed transaction, so
+ * six tranches arrive as two transactions. Each becomes one row naming its
+ * tranches, with the total the chain reported paying. The sum is of settled
+ * figures from the return values, not a calculation of what is owed. If any
+ * figure is missing the total is left out rather than understated.
+ */
+export function groupPoolClaims(ops: AccountOp[]): AccountOp[] {
+  const out: AccountOp[] = [];
+  const groups = new Map<string, AccountOp[]>();
+  for (const o of ops) {
+    if (o.action !== "claim_pool" || o.status !== "confirmed") { out.push(o); continue; }
+    const g = groups.get(o.id);
+    if (g) { g.push(o); continue; }
+    groups.set(o.id, [o]);
+    out.push(o);
+  }
+  return out.map((o) => {
+    const g = o.action === "claim_pool" && o.status === "confirmed" ? groups.get(o.id) : undefined;
+    if (!g || g.length < 2) return o;
+    const paid = g.map((c) => /^claimed (\d+)$/.exec(c.ret ?? "")?.[1]);
+    const { ret: _ret, ...row } = o;
+    return {
+      ...row,
+      payload: g.map((c) => c.payload).join(","),
+      ...(paid.every(Boolean) ? { ret: `claimed ${paid.reduce((a, b) => a + BigInt(b!), 0n)}` } : {}),
+    };
+  });
+}

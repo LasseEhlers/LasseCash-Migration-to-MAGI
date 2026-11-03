@@ -25,7 +25,7 @@
   import Seo from "$lib/Seo.svelte";
   import { SITE_OG_IMAGE, SITE_URL } from "$lib/site.js";
   import {
-    ASSET_DP, ASSET_SCALE, counterparts, fromUnits, unitsToDecimal, hideSpentAllowances,
+    ASSET_DP, ASSET_SCALE, counterparts, fromUnits, unitsToDecimal, hideSpentAllowances, groupPoolClaims,
     type AccountOp, type ResourceCredits,
   } from "$api/index.js";
 
@@ -277,7 +277,7 @@
   // --- recent activity ------------------------------------------------------
   let rawOps = $state<AccountOp[]>([]);
   /** See api/src/activity.ts: a confirmed allowance is plumbing, a failed one is not. */
-  const ops = $derived(hideSpentAllowances(rawOps));
+  const ops = $derived(groupPoolClaims(hideSpentAllowances(rawOps)));
   let opsLoaded = $state(false);
   async function loadOps() {
     if (!chain.account) return;
@@ -825,7 +825,7 @@
                  and the raw payload, which is where a debugging eye looks. -->
             <thead><tr><th>When</th><th>What it did</th><th>Status</th></tr></thead>
             <tbody>
-              {#each ops as o (o.id + o.action + o.time)}
+              {#each ops as o (o.id + o.action + o.payload)}
                 <tr>
                   <td class="mono dim">{when(o.time)}</td>
                   <td class="clip" title="{o.action.replace(/^\+/, '')} · {o.payload}">
