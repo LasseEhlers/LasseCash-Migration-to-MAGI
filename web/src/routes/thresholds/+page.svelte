@@ -60,6 +60,10 @@
     return gap > 0n ? fromUnits(gap) : null;
   });
 
+  // A node can answer "block not found locally" for a moment after a new block,
+  // and this page reads only once, so a first read that fails tries again.
+  let loadRetries = 0;
+
   async function load() {
     try {
       view = await readGovernance(params.map((p) => p.key));
@@ -70,10 +74,14 @@
       drafts = next;
       error = null;
     } catch (e) {
+      if (!view && loadRetries < 3) {
+        loadRetries++;
+        setTimeout(() => void load(), 4_000);
+        return;
+      }
       error = e instanceof Error ? e.message : String(e);
-    } finally {
-      loading = false;
     }
+    loading = false;
   }
 
   // Waits for the engine: the parameter KEYS come out of `constants()`, so

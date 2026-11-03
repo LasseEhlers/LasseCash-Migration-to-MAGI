@@ -51,6 +51,19 @@ test("when every node is rate-limited the error is reported, not swallowed", asy
   assert.match(await res.text(), /rate limit exceeded/, "the last node's answer is handed back honestly");
 });
 
+test("a node that has not fetched the block yet moves to the next node", async () => {
+  // The live shape, 2026-11-03: HTTP 200, GraphQL error, no data.
+  const seen: string[] = [];
+  const missing = '{"errors":[{"message":"block was not found locally (offline): ipld: could not find bafkreiap2"}]}';
+  const f = as(async (url) => {
+    seen.push(url);
+    return seen.length === 1 ? new Response(missing, { status: 200 }) : ok();
+  });
+  const res = await magiFetch("{}", { fetch: f });
+  assert.equal(seen.length, 2);
+  assert.equal(await res.text(), '{"data":{}}');
+});
+
 test("a private node is used alone", async () => {
   const seen: string[] = [];
   const f = as(async (url) => { seen.push(url); throw new TypeError("down"); });

@@ -56,6 +56,15 @@ const FAILOVER_MS = typeof window === "undefined" ? 2_500 : 6_000;
  */
 const RATE_LIMITED = /rate limit exceeded/i;
 
+/**
+ * A node that has heard of a new block but not yet fetched its state answers,
+ * also as a 200: "block was not found locally (offline): ipld: could not find
+ * bafk…". Seen live 2026-11-03 on the Thresholds page, a minute after a mint
+ * confirmed; the same read succeeded moments later. Another node may already
+ * hold the block, so this is failover's job too.
+ */
+const STATE_NOT_READY = /not found locally/i;
+
 const REMEMBER_KEY = "lc_magi_node";
 
 /** Remembered per browser, so a reload does not wait out a dead node again.
@@ -232,6 +241,11 @@ export async function magiFetch(body: string, opts: MagiFetchOptions = {}): Prom
       if (RATE_LIMITED.test(text) && !last) {
         lastCause = new Error("rate limited");
         tried.push(`${url} (rate limited)`);
+        continue;
+      }
+      if (STATE_NOT_READY.test(text) && !last) {
+        lastCause = new Error("block not fetched yet");
+        tried.push(`${url} (block not fetched yet)`);
         continue;
       }
       if (!custom && order[k] !== preferred) prefer(order[k] as number);
