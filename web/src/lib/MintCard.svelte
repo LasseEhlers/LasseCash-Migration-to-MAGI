@@ -135,7 +135,7 @@
       <Hbd amount={mint.pending_yield} block />
     </div>
     <div>
-      <span class="k">{mint.mature ? "If claimed now" : "If ended now"}</span>
+      <span class="k">{mint.claimable ? "If claimed now" : mint.mature ? "When the day closes, at least" : "If ended now"}</span>
       <span class="v mono" class:green={mint.mature && !bleeding} class:red={early || bleeding}>
         {lc(mint.if_claimed_now)}
       </span>

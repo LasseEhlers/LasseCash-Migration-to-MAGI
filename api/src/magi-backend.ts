@@ -557,28 +557,20 @@ export class MagiBackend implements Backend {
       // chain accepted at that moment (Lasse, 2026-09-08 22:44).
       const today = Math.floor((height - genesis) / hpd);
       const claimable = mature && today > matDay;
-      // Matured but today's checkpoint isn't written yet (accDay <= matDay):
-      // a real claim_mint is refused outright, not partially paid (see
-      // contract/state/mint.go endMint, fixed 2026-08-23). accEnd = accStart
-      // routes through the same engine.entitlement call below to zero,
-      // rather than a second hardcoded "0" case — one formula, one path.
-      // Found 2026-08-24: this line used to read `accPer` (the live,
-      // still-growing accumulator) here, showing a plausible non-zero
-      // preview for a claim the chain would refuse entirely.
       // accEnd, the accumulator reading this mint stops earning at:
       //  - not mature: the live accumulator (still earning)
       //  - mature and the day's checkpoint is written: that checkpoint (exact)
-      //  - mature, day closed by height, checkpoint not yet written: the live
-      //    accumulator as a FLOOR. It has accrued through the previous day; the
-      //    claim walks the maturity day in before paying, so it pays at least
-      //    this. Measured 2026-09-08: preview 2.13, chain paid 2.39. The old
-      //    code showed 0.000 here — Lasse read that as "no yield at this size".
-      //  - mature on the maturity day itself: zero, because the claim is
-      //    refused outright until the day closes (mint.go, 2026-08-23).
-      const accEnd = !mature ? accPer
-        : accDay > matDay ? (accAt["accAt_" + matDay] || "0")
-        : today > matDay ? accPer
-        : accStart;
+      //  - mature, checkpoint not yet written: the live accumulator as a FLOOR.
+      //    It has accrued through the previous day and the checkpoint can only
+      //    be higher, so the claim pays at least this. Measured 2026-09-08:
+      //    preview 2.13, chain paid 2.39. On the maturity day itself the chain
+      //    still refuses the claim until the day closes (mint.go, 2026-08-23);
+      //    `claimable` says so and the pages label the figure accordingly.
+      //    Showing zero that day (2026-08-24) read as a mint that earned
+      //    nothing — Lasse, on a 7-day mint, 2026-11-04.
+      const accEnd = mature && accDay > matDay
+        ? (accAt["accAt_" + matDay] || "0")
+        : accPer;
       const accrued = engine.entitlement(shares ?? "0", accStart, accEnd);
       const view = engine.previewMintClose(
         {

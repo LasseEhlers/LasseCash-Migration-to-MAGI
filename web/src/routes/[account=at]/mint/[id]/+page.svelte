@@ -89,7 +89,8 @@
     const heights = chain.info.height - story.startHeight;
     if (heights <= 0) return null;
     const pctNow = Number((toUnits(live.pending_yield) * 1_000_000n) / p) / 10_000;
-    const days = heights / HEIGHTS_PER_DAY;
+    // Yield stops at maturity, so the pace is measured over the term at most.
+    const days = Math.min(heights / HEIGHTS_PER_DAY, story.days);
     return {
       pct: pctNow,
       days: Math.round(days * 10) / 10,
@@ -181,7 +182,7 @@
       <div class="grid">
         <div><dt>Yield so far</dt><dd class="mono gold">{lc(live.pending_yield, 2)}</dd>
           <dd><Hbd amount={live.pending_yield} /></dd></div>
-        <div><dt>{live.mature ? "If claimed now" : "If ended now"}</dt><dd class="mono">{lc(live.if_claimed_now, 2)}</dd>
+        <div><dt>{live.claimable ? "If claimed now" : live.mature ? "When the day closes, at least" : "If ended now"}</dt><dd class="mono">{lc(live.if_claimed_now, 2)}</dd>
           <dd><Hbd amount={live.if_claimed_now} /></dd></div>
         <div><dt>Pace so far</dt>
           {#if pace}
