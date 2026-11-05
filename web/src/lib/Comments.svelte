@@ -257,7 +257,7 @@
       {#if replyTo}
         <p class="dim tiny replying">
           Replying to <b>{displayName(replyTo.author)}</b> ·
-          <button class="linkish" onclick={() => (replyTo = null)}>reply to the post instead</button>
+          <button class="linkish" disabled={posting} onclick={() => (replyTo = null)}>reply to the post instead</button>
         </p>
       {/if}
       <textarea
@@ -363,7 +363,7 @@
               <span class="dim tiny">curators paid with their next vote</span>
             {/if}
             {#if view.registered !== false && clearsThreshold}
-              <button class="ghost small" onclick={() => replyToComment(view.author, view.permlink)}>
+              <button class="ghost small" disabled={posting} onclick={() => replyToComment(view.author, view.permlink)}>
                 Reply
               </button>
             {/if}
