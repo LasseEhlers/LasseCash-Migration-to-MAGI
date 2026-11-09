@@ -774,15 +774,26 @@ matches destinations as `DEST` (escapes included) and runs `unescapeDest()`
 before `safeUrl()`, which additionally rejects any backslash; the indexer's
 `firstImage()` applies the same rule. Both renderers must keep agreeing.
 
-## A MINT COSTS ~5,850 RC SINCE THE TOKEN LEDGER — measured 2026-10-04
+## A MINT COSTS ~7,000 RC — measured 2026-11-09 (5,850 on 2026-10-04)
 
 Simulated on production for @lasseehlers: `increaseAllowance` 369 RC +
-`mint` 5,475 RC (547M gas). The 2,400–3,100 figures elsewhere in this file
-are pre-handover. With sizeRc's 1.3× floor a mint needs ~7,600 free credits;
-RcNote's LOW is 8,000 for that reason. A 6,119 meter was refused live.
-Watched weekly by `tools/rc-watch.py` (GitHub job `rc-watch`): vote ~1,070,
-post ~1,750, buy ~520, sell ~1,220, send ~2,930, add liquidity ~2,800,
-mint ~5,850; a >25% drift fails the job — update its table and the texts.
+`mint` 5,475 RC (547M gas) on 4 Oct; 7,160 with the allowance on 9 Nov. The
+2,400–3,100 figures elsewhere in this file are pre-handover. With sizeRc's
+1.3× floor a mint needs ~9,300 free credits; RcNote's LOW is 9,300 for that
+reason. A 6,119 meter was refused live.
+Watched weekly by `tools/rc-watch.py` (GitHub job `rc-watch`): FIRST vote
+~3,000, changed vote ~1,250, post ~1,750, buy ~520, sell ~1,220, send ~2,930,
+add liquidity ~2,800, mint ~7,000; a >25% drift fails the job — update its
+table and the texts.
+
+⚠️ **A FIRST VOTE COSTS ~2.5× A CHANGED ONE — found 2026-11-09.** The job
+used to vote on whichever post was newest; while @lasseehlers had already
+voted on it, it measured a re-vote (~1,070) and the site said "a vote uses
+about 1,000 credits". The first post he had not voted on read 3,453 and
+failed the job. A first vote writes a new `pv_` record and a curation-queue
+entry; @beelshops (empty queue) paid 3,324 too, so it is not queue depth. The
+job now measures both on purpose (first vote on a post with no `pv_` record).
+A fresh account's 10,000 free credits buy about three first votes, not ten.
 
 ## ⚠️ HBD AND RC ARE ONE POT — the deposit rule, MEASURED 2026-09-01
 

@@ -24,11 +24,11 @@
    */
   import { chain } from "$lib/chain.svelte.js";
 
-  /** A mint is ~5,850 credits since the token ledger (5,475 mint + 369
-   *  allowance, measured 2026-10-04) and the site keeps a 30% margin, so it
-   *  needs ~7,600 free; a claim ~9,500; a vote ~1,000. Below this the most
-   *  common action is refused, which is the moment to say something. */
-  const LOW = 8_000;
+  /** A mint is ~7,160 credits with its allowance (measured 2026-11-09; it was
+   *  ~5,850 on 2026-10-04) and the site keeps a 30% margin, so it needs ~9,300
+   *  free; a claim ~9,500; a first vote ~3,000. Below this the most common
+   *  action is refused, which is the moment to say something. */
+  const LOW = 9_300;
   /** Capacity with no HBD deposited: the free allowance and nothing else. */
   const FREE_ONLY = 10_000;
 

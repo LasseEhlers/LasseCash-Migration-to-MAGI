@@ -37,13 +37,14 @@ TOLERANCE = 0.25
 # The figures the site publishes, total credits per action (allowance included
 # where the action needs one). Measured on production 2026-10-04.
 PUBLISHED = {
-    "vote": 1_070,
+    "vote": 3_000,     # a FIRST vote on a post
+    "revote": 1_250,   # changing the weight of an existing vote
     "post": 1_750,
     "sell": 1_220,
     "buy": 520,
     "send": 2_930,
     "add_liquidity": 2_800,
-    "mint": 5_850,
+    "mint": 7_000,
 }
 
 
@@ -113,13 +114,28 @@ def measure():
         r = simulate(calls)
         out[name] = (sum(x["rc_used"] or 0 for x in r), all(x["success"] for x in r),
                      next((x["err_msg"] for x in r if not x["success"]), ""))
-    out["vote"] = (0, False, "no open post found")
+    # A FIRST vote writes a new vote record and queue entry; a changed vote
+    # rewrites one. They differ ~2.5x, so each is measured on purpose: the
+    # first on a post the account has NOT voted on (no `pv_` record), the
+    # change as the second call of a vote-then-revote pair. Measuring "a vote"
+    # on whatever post was newest flipped between the two (found 2026-11-09).
+    out["vote"] = (0, False, "no open post without a vote from " + WHO)
+    out["revote"] = (0, False, "no open post found")
     for target in list(open_post())[:8]:
-        r = simulate([call("vote", f"{target}|10")])
-        if r[0]["success"]:
+        author, permlink = target.split("|", 1)
+        key = f"pv_{author}_{permlink}_{WHO}"
+        voted = gql('query($c:String!,$k:[String!]!){getStateByKeys(contractId:$c,keys:$k)}',
+                    {"c": CORE, "k": [key]})["getStateByKeys"].get(key)
+        r = simulate([call("vote", f"{target}|10"), call("vote", f"{target}|20")])
+        if not all(x["success"] for x in r):
+            if out["revote"][1] is False:
+                out["revote"] = (0, False, (next(x["err_msg"] for x in r if not x["success"]) or "")[:60])
+            continue
+        if out["revote"][1] is False:
+            out["revote"] = (r[1]["rc_used"], True, "")
+        if not voted:
             out["vote"] = (r[0]["rc_used"], True, "")
             break
-        out["vote"] = (0, False, (r[0]["err_msg"] or "")[:60])
     return out
 
 
