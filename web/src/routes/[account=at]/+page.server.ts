@@ -17,11 +17,31 @@ import { listPosts, getContent, CONTENT_CACHE } from "$lib/server/content.js";
 import { bareName, postPath } from "$lib/site.js";
 import { excerpt } from "$lib/markdown.js";
 
-export const load: PageServerLoad = async ({ params, setHeaders }) => {
+/**
+ * ⚠️ THE SAME TIME LIMIT AS THE FEED (found 2026-11-09). Lasse's own profile
+ * took 43 s to answer on a cold worker: this load waited for the whole post
+ * list, the exact hang the feed was cured of on 2026-10-18. The browser reads
+ * the same list itself (`money` in the page) and shows it when the server had
+ * none, so a navigation answers within LIMIT_MS and a document within
+ * DOC_LIMIT_MS. A short answer is not cached, so the next request tries again.
+ */
+const LIMIT_MS = 1500;      // client navigation
+const DOC_LIMIT_MS = 7000;  // full document: wait longer for crawlers, but never hang
+
+export const load: PageServerLoad = async ({ params, setHeaders, isDataRequest }) => {
   const raw = decodeURIComponent(params.account).replace(/^@/, "");
   const account = raw.includes(":") ? raw : `hive:${raw}`;
 
-  const mine = (await listPosts(200)).filter((p) => p.author === account);
+  const late = Symbol("late");
+  const r = await Promise.race([
+    listPosts(200),
+    new Promise<typeof late>((res) => setTimeout(() => res(late), isDataRequest ? LIMIT_MS : DOC_LIMIT_MS)),
+  ]);
+  if (r === late) {
+    setHeaders({ "cache-control": "no-store" });
+    return { account, handle: bareName(account), posts: [], postCount: 0, partial: true };
+  }
+  const mine = r.filter((p) => p.author === account);
 
   // Bodies only for the newest handful: a summary is all the list shows, and
   // against MAGI each one is a separate Hive call.
@@ -46,5 +66,7 @@ export const load: PageServerLoad = async ({ params, setHeaders }) => {
     posts: withBodies,
     /** How many the indexer found in total, before the body cap above. */
     postCount: mine.length,
+    /** True when the list was not ready in time; the browser fills it in. */
+    partial: false,
   };
 };

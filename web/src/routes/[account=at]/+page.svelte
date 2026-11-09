@@ -22,6 +22,8 @@
   import { SITE_NAME, SITE_OG_IMAGE, SITE_URL, metaDescription, profileUrl } from "$lib/site.js";
   import Hbd from "$lib/Hbd.svelte";
   import { lcToHbd, reservesAt, toBaseUnitArg, type AccountView, type Amount, type PoolTrade, type PostView } from "$api/index.js";
+  import { postPath } from "$lib/site.js";
+  import { excerpt } from "$lib/markdown.js";
   import type { PageData } from "./$types";
 
   let { data }: { data: PageData } = $props();
@@ -59,6 +61,23 @@
    * history read never holds up the page.
    */
   let paid = $state(new Map<string, { lc: Amount; hbd: Amount | null }>());
+
+  /**
+   * The list shown. The server's, normally; the browser's own read when the
+   * server answered before its list was ready (`data.partial`, a cold worker).
+   */
+  const shown = $derived(
+    data.posts.length || !data.partial
+      ? data.posts
+      : money.slice(0, 20).map((p) => ({
+          permlink: p.permlink,
+          title: p.title || p.permlink,
+          summary: p.summary || excerpt(p.body_excerpt ?? "", 200),
+          created: p.created_time,
+          window: p.window,
+          path: postPath(p.author, p.permlink),
+        })),
+  );
   async function loadPaid() {
     const settled = money.filter((p) => p.paid_out);
     if (!settled.length) return;
@@ -239,13 +258,15 @@
          the old 31-day horizon dropped launch-week posts). The list is
          complete until history outgrows the page cap; the indexer takes over
          before that. -->
-    {#if data.posts.length === 0}
+    {#if shown.length === 0 && data.partial && loading}
+      <p class="empty dim">Reading the chain…</p>
+    {:else if shown.length === 0}
       <p class="empty">
         <strong>No posts registered on LasseCash yet.</strong>
       </p>
     {:else}
       <ul class="posts">
-        {#each data.posts as p (p.permlink)}
+        {#each shown as p (p.permlink)}
           {@const m = rewards.get(p.permlink)}
           <li>
             <a href={p.path}>
