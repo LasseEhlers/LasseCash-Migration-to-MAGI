@@ -11,7 +11,7 @@
  * paints them once the browser has read the chain. See `hydrated` in the page.
  */
 import type { PageServerLoad } from "./$types";
-import { listPosts, hasContent, CONTENT_CACHE } from "$lib/server/content.js";
+import { listPosts, hasContent, CONTENT_CACHE, serverBackend } from "$lib/server/content.js";
 
 /**
  * WHY A TIME LIMIT, BUT ONLY FOR NAVIGATION (found 2026-10-18).
@@ -48,6 +48,11 @@ export const load: PageServerLoad = async ({ setHeaders, isDataRequest }) => {
   const limit = isDataRequest ? LIMIT_MS : DOC_LIMIT_MS;
   const r = await Promise.race([fresh, new Promise<typeof late>((res) => setTimeout(() => res(late), limit))]);
   const posts = r === late ? (lastGood ?? []) : r;
-  setHeaders({ "cache-control": posts.length ? CONTENT_CACHE : "no-store" });
+  const hiveErr = (serverBackend() as { lastHiveError?: string }).lastHiveError;
+  setHeaders({
+    "cache-control": posts.length ? CONTENT_CACHE : "no-store",
+    // Diagnosis of the 2026-11-11 titleless feed: the last Hive failure this worker saw.
+    ...(hiveErr ? { "x-lassecash-hive": hiveErr.replace(/[^\x20-\x7e]/g, "?") } : {}),
+  });
   return { posts };
 };

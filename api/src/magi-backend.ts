@@ -93,6 +93,8 @@ export class MagiBackend implements Backend {
   readonly #fetch: typeof globalThis.fetch;
   readonly #timeoutMs: number;
   readonly #indexUrl: string | undefined;
+  /** The last Hive failure, for diagnosis only (served as a response header). */
+  lastHiveError = "";
 
   constructor(opts: MagiBackendOptions) {
     // Undefined = the public nodes with failover (see magi-nodes.ts).
@@ -1189,6 +1191,7 @@ export class MagiBackend implements Backend {
         return body.result ?? null;
       } catch (e) {
         last = e;
+        this.lastHiveError = `${new Date().toISOString()} ${method} ${node}: ${(e as Error)?.message ?? e}`.slice(0, 300);
       }
     }
     throw last instanceof Error ? last : new Error("no Hive node answered");
@@ -1224,6 +1227,7 @@ export class MagiBackend implements Backend {
         return out;
       } catch (e) {
         last = e;
+        this.lastHiveError = `${new Date().toISOString()} ${method} ${node}: ${(e as Error)?.message ?? e}`.slice(0, 300);
       }
     }
     throw last instanceof Error ? last : new Error("no Hive node answered");
