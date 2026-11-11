@@ -1025,9 +1025,14 @@ export class MagiBackend implements Backend {
   async #boardPosts(): Promise<HiveTaggedPost[]> {
     const st = await this.state(["gov_board"]);
     const members = (st["gov_board"] || "").split("|").filter(Boolean).slice(0, 20);
-    const lists = await Promise.all(members.map(async (acct) => {
-      const rows = await this.#hiveRpc<HiveTaggedPost[]>("bridge.get_account_posts",
-        { sort: "posts", account: acct.replace(/^hive:/, ""), limit: 10 }).catch(() => null);
+    // ONE batch request for every member, not one each (2026-11-11): the
+    // per-member calls were up to 20 of a Worker's 50 subrequests per page
+    // view, and with the history walk they pushed the feed past the cap.
+    const all = await this.#hiveBatch<HiveTaggedPost[]>("bridge.get_account_posts",
+      members.map((acct) => ({ sort: "posts", account: acct.replace(/^hive:/, ""), limit: 10 })))
+      .catch(() => members.map(() => null));
+    const lists = members.map((acct, i) => {
+      const rows = all[i];
       if (rows === null) return this.#boardCache.get(acct) ?? [];
       const tagged = (rows ?? []).filter((p) => {
         const meta = p.json_metadata;
@@ -1038,7 +1043,7 @@ export class MagiBackend implements Backend {
       });
       this.#boardCache.set(acct, tagged);
       return tagged;
-    }));
+    });
     return lists.flat();
   }
 
