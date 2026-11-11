@@ -32,6 +32,38 @@ const HIVE_NODES = [
   "https://techcoderx.com",
 ];
 const HIVE_NODE_TIMEOUT_MS = 5_000;
+
+type HiveContent = {
+  author?: string; title?: string; body?: string; json_metadata?: string;
+  category?: string; parent_permlink?: string; created?: string;
+};
+
+/** A `condenser_api.get_content` answer as our Content; null when no such post. */
+function toContent(post: HiveContent | null | undefined): Content | null {
+  if (!post?.author) return null;
+  let tags: string[] = [];
+  let summary = "";
+  let metadata: Record<string, unknown> | undefined;
+  try {
+    const meta = JSON.parse(post.json_metadata || "{}");
+    if (meta && typeof meta === "object" && !Array.isArray(meta)) {
+      metadata = meta as Record<string, unknown>;
+    }
+    if (Array.isArray(meta.tags)) tags = meta.tags.slice(0, 21);
+    if (typeof meta.description === "string") summary = meta.description;
+  } catch {
+    // malformed author metadata is the author's problem, not a crash
+  }
+  // `category` and `parent_permlink` are the same string on a root post;
+  // taking either is what lets an edit send the parent back unchanged.
+  const category = post.category || post.parent_permlink || "";
+  return {
+    title: post.title ?? "", body: post.body ?? "", tags, summary,
+    ...(category ? { category } : {}),
+    ...(post.created ? { created: isoUtc(post.created) } : {}),
+    ...(metadata ? { metadata } : {}),
+  };
+}
 import type {
   AccountView, ChainInfo, Content, GovernanceMember, LiquidityQuote, MintQuote,
   PostMeta, PostVote, PostView, PublishResult, ResourceCredits, SwapDirection,
@@ -1158,6 +1190,41 @@ export class MagiBackend implements Backend {
   }
 
   /**
+   * Many calls of ONE method in a single JSON-RPC batch, with the same node
+   * failover as `#hiveRpc`. Answers come back in input order; an item the
+   * node answered with an error (Hive's reply for a post that does not exist)
+   * is null.
+   *
+   * WHY A BATCH (2026-11-11). The feed filled 50 posts with 50 separate Hive
+   * requests on top of the chain history walk, and a Cloudflare Worker on the
+   * free plan may make only 50 outgoing requests per page view. Past the cap
+   * every Hive read was refused, and the feed lost all its titles and covers.
+   */
+  async #hiveBatch<T>(method: string, paramsList: unknown[]): Promise<(T | null)[]> {
+    if (!paramsList.length) return [];
+    let last: unknown;
+    for (const node of HIVE_NODES) {
+      try {
+        const res = await this.#fetch(node, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "User-Agent": "lassecash.com" },
+          body: JSON.stringify(paramsList.map((params, id) => ({ jsonrpc: "2.0", method, params, id }))),
+          signal: AbortSignal.timeout(HIVE_NODE_TIMEOUT_MS * 2),
+        });
+        if (!res.ok) throw new Error(`${node} HTTP ${res.status}`);
+        const rows = (await res.json()) as { id?: number; result?: T }[];
+        if (!Array.isArray(rows)) throw new Error(`${node} answered a batch with a single reply`);
+        const out: (T | null)[] = paramsList.map(() => null);
+        for (const r of rows) if (typeof r.id === "number" && r.id < out.length) out[r.id] = r.result ?? null;
+        return out;
+      } catch (e) {
+        last = e;
+      }
+    }
+    throw last instanceof Error ? last : new Error("no Hive node answered");
+  }
+
+  /**
    * This account's recent contract calls, newest first.
    *
    * The answer to "did that go through?", which is otherwise a GraphQL query
@@ -1882,6 +1949,27 @@ export class MagiBackend implements Backend {
     return p;
   }
 
+  /** Put every not-yet-cached post into the content cache with ONE batch
+   *  request, chunked at 50. If the batch fails, nothing is cached and
+   *  `#contentCached` falls back to reading posts one by one. */
+  async #prefetchContent(views: { author: string; permlink: string }[]): Promise<void> {
+    const todo = views.filter((v) => !this.#contentCache.has(`${v.author}/${v.permlink}`));
+    for (let i = 0; i < todo.length; i += 50) {
+      const chunk = todo.slice(i, i + 50);
+      try {
+        const rows = await this.#hiveBatch<HiveContent>("condenser_api.get_content",
+          chunk.map((v) => [v.author.replace(/^hive:/, ""), v.permlink]));
+        chunk.forEach((v, j) => {
+          const c = toContent(rows[j]);
+          // An empty answer is not cached: it may be a node's hiccup on one item.
+          if (c) this.#contentCache.set(`${v.author}/${v.permlink}`, Promise.resolve(c));
+        });
+      } catch {
+        return;
+      }
+    }
+  }
+
   /**
    * Fill the presentation fields of freshly assembled views from Hive, in
    * parallel. The chain says WHICH posts exist and what they earn; Hive says
@@ -1889,6 +1977,7 @@ export class MagiBackend implements Backend {
    * rendered as a bare permlink, because nothing ever called content().
    */
   async #hydrate<T extends { author: string; permlink: string; title: string; summary: string; body_excerpt: string; tags: string[] | null }>(views: T[]): Promise<T[]> {
+    await this.#prefetchContent(views);
     await Promise.all(views.map(async (v) => {
       const c = await this.#contentCached(v.author, v.permlink);
       if (!c) return;
@@ -1902,34 +1991,9 @@ export class MagiBackend implements Backend {
 
   async content(author: string, permlink: string): Promise<Content | null> {
     const hiveUser = author.replace(/^hive:/, "");
-    const post = await this.#hiveRpc<{
-      author?: string; title?: string; body?: string; json_metadata?: string;
-      category?: string; parent_permlink?: string; created?: string;
-    }>("condenser_api.get_content", [hiveUser, permlink]);
-    if (!post?.author) return null;
-    let tags: string[] = [];
-    let summary = "";
-    let metadata: Record<string, unknown> | undefined;
-    try {
-      const meta = JSON.parse(post.json_metadata || "{}");
-      if (meta && typeof meta === "object" && !Array.isArray(meta)) {
-        metadata = meta as Record<string, unknown>;
-      }
-      if (Array.isArray(meta.tags)) tags = meta.tags.slice(0, 21);
-      if (typeof meta.description === "string") summary = meta.description;
-    } catch {
-      // malformed author metadata is the author's problem, not a crash
-    }
-    // `category` and `parent_permlink` are the same string on a root post;
-    // taking either is what lets an edit send the parent back unchanged.
-    const category = post.category || post.parent_permlink || "";
-    return {
-      title: post.title ?? "", body: post.body ?? "", tags, summary,
-      ...(category ? { category } : {}),
-      ...(post.created ? { created: isoUtc(post.created) } : {}),
-      ...(metadata ? { metadata } : {}),
-    };
+    return toContent(await this.#hiveRpc<HiveContent>("condenser_api.get_content", [hiveUser, permlink]));
   }
+
   /**
    * Publish an article: Hive FIRST, contract SECOND.
    *
