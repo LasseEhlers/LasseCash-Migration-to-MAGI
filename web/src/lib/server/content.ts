@@ -128,18 +128,30 @@ const EDGE_FRESH_MS = 60_000;
 const EDGE_WAIT_MS = 2_500;
 
 type Edge = { at: number; posts: PostMeta[] } | null;
+
+/**
+ * A list whose posts have no titles was built while Hive did not answer
+ * (2026-11-11): the chain half arrived, the content half did not. It must
+ * never be KEPT — the edge copy lives six hours and is served whenever a
+ * rebuild takes longer than EDGE_WAIT_MS, so one such list blanked every feed
+ * card long after Hive was back. It may still be shown once, as better than
+ * nothing, but it is never stored and a stored one is never trusted.
+ */
+export function hasContent(posts: PostMeta[]): boolean {
+  return posts.some((p) => !!p.title && p.title !== p.permlink);
+}
 async function edgeGet(): Promise<Edge> {
   try {
     const c = (globalThis as unknown as { caches?: { default?: Cache } }).caches?.default;
     const r = c ? await c.match(EDGE_KEY) : undefined;
     const j = r ? ((await r.json()) as { at?: number; posts?: PostMeta[] }) : null;
-    return j && Array.isArray(j.posts) && j.posts.length ? { at: Number(j.at) || 0, posts: j.posts } : null;
+    return j && Array.isArray(j.posts) && j.posts.length && hasContent(j.posts) ? { at: Number(j.at) || 0, posts: j.posts } : null;
   } catch { return null; }
 }
 async function edgePut(posts: PostMeta[]): Promise<void> {
   try {
     const c = (globalThis as unknown as { caches?: { default?: Cache } }).caches?.default;
-    if (!c || !posts.length) return;
+    if (!c || !posts.length || !hasContent(posts)) return;
     await c.put(EDGE_KEY, new Response(JSON.stringify({ at: Date.now(), posts }),
       { headers: { "content-type": "application/json", "cache-control": "public, max-age=21600" } }));
   } catch { /* the copy is a convenience */ }
@@ -155,8 +167,8 @@ export async function listPosts(limit = 50): Promise<PostMeta[]> {
   const build = (async () => {
     try {
       const posts = await chain().postsMeta(limit);
-      if (posts.length) { listCache.set(limit, { at: Date.now(), posts }); if (limit === 50) void edgePut(posts); }
-      return posts.length ? posts : (hit?.posts ?? edge?.posts ?? posts);
+      if (posts.length && hasContent(posts)) { listCache.set(limit, { at: Date.now(), posts }); if (limit === 50) void edgePut(posts); }
+      return posts.length && hasContent(posts) ? posts : (hit?.posts ?? edge?.posts ?? posts);
     } catch (e) {
       console.warn("[lassecash] server postsMeta() failed:", (e as Error).message);
       return hit?.posts ?? edge?.posts ?? [];

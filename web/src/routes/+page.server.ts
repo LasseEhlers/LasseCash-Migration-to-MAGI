@@ -11,7 +11,7 @@
  * paints them once the browser has read the chain. See `hydrated` in the page.
  */
 import type { PageServerLoad } from "./$types";
-import { listPosts, CONTENT_CACHE } from "$lib/server/content.js";
+import { listPosts, hasContent, CONTENT_CACHE } from "$lib/server/content.js";
 
 /**
  * WHY A TIME LIMIT, BUT ONLY FOR NAVIGATION (found 2026-10-18).
@@ -43,7 +43,7 @@ let lastGood: Awaited<ReturnType<typeof listPosts>> | null = null;
  * short answer is not cached, so the next request tries again.
  */
 export const load: PageServerLoad = async ({ setHeaders, isDataRequest }) => {
-  const fresh = listPosts(50).then((p) => { if (p.length) lastGood = p; return p; });
+  const fresh = listPosts(50).then((p) => { if (p.length && hasContent(p)) lastGood = p; return p; });
   const late = Symbol("late");
   const limit = isDataRequest ? LIMIT_MS : DOC_LIMIT_MS;
   const r = await Promise.race([fresh, new Promise<typeof late>((res) => setTimeout(() => res(late), limit))]);
