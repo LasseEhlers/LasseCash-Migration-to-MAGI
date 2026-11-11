@@ -21,6 +21,17 @@ import { BackendError, type AccountActivity, type AccountOp, type PoolOp, type P
 import * as engine from "./engine.js";
 import { toUnits } from "./amount.js";
 import type { TxStatus } from "./types.js";
+
+/** Public Hive API nodes, in order of preference. api.hive.blog stopped
+ *  answering Cloudflare's servers on 2026-11-11; it stays in the list for
+ *  browsers, after nodes that answered from both. */
+const HIVE_NODES = [
+  "https://api.deathwing.me",
+  "https://api.openhive.network",
+  "https://api.hive.blog",
+  "https://techcoderx.com",
+];
+const HIVE_NODE_TIMEOUT_MS = 5_000;
 import type {
   AccountView, ChainInfo, Content, GovernanceMember, LiquidityQuote, MintQuote,
   PostMeta, PostVote, PostView, PublishResult, ResourceCredits, SwapDirection,
@@ -1114,14 +1125,36 @@ export class MagiBackend implements Backend {
     }
   }
 
+  /**
+   * One Hive API call, tried node by node.
+   *
+   * ONE HIVE NODE IS NOT A NETWORK EITHER (2026-11-11). api.hive.blog kept
+   * answering browsers but stopped answering Cloudflare's servers, so every
+   * server-rendered post page read "never published" and lost its body, cover
+   * and og:image, while the same feed in a browser looked fine. A node that
+   * refuses, errors or takes longer than HIVE_NODE_TIMEOUT_MS hands over to the
+   * next. A JSON answer with `result: null` is an ANSWER (no such post) and is
+   * returned, not retried.
+   */
   async #hiveRpc<T>(method: string, params: unknown): Promise<T | null> {
-    const res = await this.#fetch("https://api.hive.blog", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ jsonrpc: "2.0", method, params, id: 1 }),
-    });
-    const body = (await res.json()) as { result?: T };
-    return body.result ?? null;
+    let last: unknown;
+    for (const node of HIVE_NODES) {
+      try {
+        const res = await this.#fetch(node, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "User-Agent": "lassecash.com" },
+          body: JSON.stringify({ jsonrpc: "2.0", method, params, id: 1 }),
+          signal: AbortSignal.timeout(HIVE_NODE_TIMEOUT_MS),
+        });
+        if (!res.ok) throw new Error(`${node} HTTP ${res.status}`);
+        const body = (await res.json()) as { result?: T; error?: { message?: string } };
+        if (body.error && body.result === undefined) throw new Error(`${node} ${body.error.message ?? "error"}`);
+        return body.result ?? null;
+      } catch (e) {
+        last = e;
+      }
+    }
+    throw last instanceof Error ? last : new Error("no Hive node answered");
   }
 
   /**
@@ -1862,23 +1895,10 @@ export class MagiBackend implements Backend {
 
   async content(author: string, permlink: string): Promise<Content | null> {
     const hiveUser = author.replace(/^hive:/, "");
-    const res = await this.#fetch("https://api.hive.blog", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        jsonrpc: "2.0",
-        method: "condenser_api.get_content",
-        params: [hiveUser, permlink],
-        id: 1,
-      }),
-    });
-    const body = (await res.json()) as {
-      result?: {
-        author?: string; title?: string; body?: string; json_metadata?: string;
-        category?: string; parent_permlink?: string; created?: string;
-      };
-    };
-    const post = body.result;
+    const post = await this.#hiveRpc<{
+      author?: string; title?: string; body?: string; json_metadata?: string;
+      category?: string; parent_permlink?: string; created?: string;
+    }>("condenser_api.get_content", [hiveUser, permlink]);
     if (!post?.author) return null;
     let tags: string[] = [];
     let summary = "";
