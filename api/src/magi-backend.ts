@@ -1869,7 +1869,14 @@ export class MagiBackend implements Backend {
     const key = `${author}/${permlink}`;
     let p = this.#contentCache.get(key);
     if (!p) {
-      p = this.content(author, permlink).catch(() => null);
+      // A FAILED read is not remembered (2026-11-11). It used to be cached as
+      // null, and a server isolate lives for hours, so one Hive outage left
+      // every feed card titleless and imageless long after Hive was back.
+      // Only a real answer — including "no such post" — is kept.
+      p = this.content(author, permlink).catch(() => {
+        this.#contentCache.delete(key);
+        return null;
+      });
       this.#contentCache.set(key, p);
     }
     return p;
