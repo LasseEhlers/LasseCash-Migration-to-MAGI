@@ -123,7 +123,8 @@ const listBuilding = new Map<number, Promise<PostMeta[]>>();
 // served at once, while a rebuild is given a short time to replace it. It is
 // ONLY the public list of posts (content, no money), and the chain stays the
 // source: a stale copy is replaced on the next successful build.
-const EDGE_KEY = "https://lassecash.internal/post-list-v1";
+// v2 (2026-11-11): v1 copies built during the Hive outage hold blank titles.
+const EDGE_KEY = "https://lassecash.internal/post-list-v2";
 const EDGE_FRESH_MS = 60_000;
 const EDGE_WAIT_MS = 2_500;
 
@@ -138,7 +139,12 @@ type Edge = { at: number; posts: PostMeta[] } | null;
  * nothing, but it is never stored and a stored one is never trusted.
  */
 export function hasContent(posts: PostMeta[]): boolean {
-  return posts.some((p) => !!p.title && p.title !== p.permlink);
+  // Judged on the REGISTERED posts only: tagged-but-unregistered posts carry
+  // titles from Hive's tag listing itself, so five of them made a list whose
+  // 35 registered posts were all blank look healthy (found the same day).
+  const reg = posts.filter((p) => p.registered);
+  const titled = reg.filter((p) => !!p.title && p.title !== p.permlink).length;
+  return reg.length === 0 ? posts.length > 0 : titled * 2 >= reg.length;
 }
 async function edgeGet(): Promise<Edge> {
   try {
