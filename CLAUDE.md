@@ -3637,3 +3637,26 @@ Workers free-plan cap is 50). Before then the D1 transaction index
 Lasse's choice. A listing aggregator reading `reconciled: false` for days would
 have been a bad first impression for CMC/CoinGecko.
 
+
+## ⚠️ THE FEED LOST ITS TITLES — Hive reads from the Worker, FIXED 2026-11-11
+
+Post pages read "never published" and feed cards had no title or cover, for
+hours, while Hive held every post. Four faults stacked:
+
+1. **One Hive node.** api.hive.blog stopped answering Cloudflare (browsers were
+   fine). `#hiveRpc` now fails over across `HIVE_NODES` (deathwing first).
+2. **50 Hive requests per feed build** (one `get_content` per post, one
+   `get_account_posts` per board member) on top of the history walk — past the
+   Workers free plan's **50 subrequests per page view**. Both are now ONE
+   JSON-RPC batch each (`#hiveBatch`; every listed node accepts batches). A full
+   feed build is 17 requests, measured against production.
+3. **Failures were cached.** `#contentCached` kept a failed read as null for
+   the isolate's life; now only real answers are kept.
+4. **A blank list was kept and trusted.** The edge copy lives six hours and is
+   served whenever a rebuild exceeds 2.5 s. `hasContent()` now refuses to
+   store or trust a list unless at least half its REGISTERED posts have titles
+   — tagged posts carry titles from Hive's tag listing and fooled the first
+   version. Edge key bumped to `post-list-v2`.
+
+**Rule: count a Worker page's outgoing requests before adding one per item.**
+Anything per post or per account must be a batch.
