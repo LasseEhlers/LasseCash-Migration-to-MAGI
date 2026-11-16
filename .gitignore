@@ -42,3 +42,6 @@ tools/memo-fill/
 contract/artifacts/probe.wasm
 contract/artifacts/magi-token.wasm
 contract/artifacts/main-tokenledger.wasm
+
+# Post drafts, covers and notes: private working files, never published from here
+docs/posts/
