@@ -28,9 +28,26 @@ import { excerpt } from "$lib/markdown.js";
 const LIMIT_MS = 1500;      // client navigation
 const DOC_LIMIT_MS = 7000;  // full document: wait longer for crawlers, but never hang
 
-export const load: PageServerLoad = async ({ params, setHeaders, isDataRequest }) => {
-  const raw = decodeURIComponent(params.account).replace(/^@/, "");
+export const load: PageServerLoad = async (event) => {
+  const raw = decodeURIComponent(event.params.account).replace(/^@/, "");
   const account = raw.includes(":") ? raw : `hive:${raw}`;
+  // ⚠️ A profile must never be a 500 (2026-11-17: every profile with posts
+  // answered "Internal Error" on Cloudflare while the same build worked
+  // locally). The browser fills the list in itself, so a failure here degrades
+  // to the same empty-and-partial answer as a slow list. The header names the
+  // cause for diagnosis; it carries no money and no private data.
+  try {
+    return await profileLoad(event, account);
+  } catch (e) {
+    event.setHeaders({ "cache-control": "no-store", "x-profile-error": String((e as Error)?.message ?? e).slice(0, 200).replace(/[^\x20-\x7e]/g, "?") });
+    return { account, handle: bareName(account), posts: [], postCount: 0, partial: true };
+  }
+};
+
+async function profileLoad(
+  { setHeaders, isDataRequest }: Parameters<PageServerLoad>[0],
+  account: string,
+) {
 
   const late = Symbol("late");
   const r = await Promise.race([
@@ -69,4 +86,4 @@ export const load: PageServerLoad = async ({ params, setHeaders, isDataRequest }
     /** True when the list was not ready in time; the browser fills it in. */
     partial: false,
   };
-};
+}
