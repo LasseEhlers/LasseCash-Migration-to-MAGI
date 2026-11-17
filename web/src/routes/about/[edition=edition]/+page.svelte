@@ -137,7 +137,7 @@
     {#if data.edition === "short"}
       <a class="post-card" href="/@lasseehlers/what-lassecash-is-built-on">
         <img src="/posts/what-lassecash-is-built-on.jpg" alt="What LasseCash is built on — from Satoshi to Rothbard" width="800" height="447" loading="lazy" />
-        <span><strong>What LasseCash is built on</strong> — the ideas behind it, from Satoshi to Rothbard to HEX, and what each one does in the code →</span>
+        <span><strong>What LasseCash is built on</strong> — the ideas behind it, from Satoshi to Rothbard, and what each one does in the code →</span>
       </a>
       <p class="more"><a href="/about/full">Read the full version →</a> — every rule, precisely enough to be checked against the code.</p>
     {/if}
