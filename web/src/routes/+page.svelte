@@ -448,7 +448,7 @@
            used to name a count and leave the reader to hunt (Lasse, 17 Nov). -->
       <ul class="settle-list">
         {#each awaitingPayout as p (p.author + "/" + p.permlink)}
-          <li><a href={postPath(p.author, p.permlink)}>{p.title || p.permlink}</a> <span class="dim">· settle it on the post page →</span></li>
+          <li><a href={postPath(p.author, p.permlink)}>{p.title || p.permlink} <span class="dim">· settle it on the post page →</span></a></li>
         {/each}
       </ul>
     </div>

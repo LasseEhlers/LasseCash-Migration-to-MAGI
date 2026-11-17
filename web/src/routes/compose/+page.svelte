@@ -402,13 +402,16 @@
           summary = String(d.summary ?? "");
           tags = Array.isArray(d.tags) ? d.tags.map(String).slice(0, 20) : [];
           window_ = d.window_ === 1 ? 1 : 0;
+          // The payout mode is remembered too; the burn CONFIRMATION is not —
+          // destroying a reward must be ticked again after every reload.
+          if (Object.values(PayoutMode).includes(d.mode)) mode = d.mode;
         }
       } catch { /* blocked or malformed: start empty */ }
     }
     draftRestored = true;
   });
   $effect(() => {
-    const snapshot = { title, link, linkTouched, body, summary, tags: [...tags], window_ };
+    const snapshot = { title, link, linkTouched, body, summary, tags: [...tags], window_, mode };
     if (!draftRestored || editing) return;
     const timer = setTimeout(() => {
       try {

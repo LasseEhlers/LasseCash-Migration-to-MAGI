@@ -15,8 +15,12 @@ import { aboutMarkdown } from "$lib/server/content.js";
 export const prerender = true;
 export const entries: EntryGenerator = () => [{ edition: "short" }, { edition: "full" }];
 
-/** The heading that ends the short version and starts the full one. */
-const SPLIT = "\n---\n\n## 1. ";
+/**
+ * The heading that ends the short version and starts the full one.
+ * "Current facts" opens the full edition since 2026-11-17: the short one is
+ * the one-minute read, the facts list belongs with the rule book.
+ */
+const SPLIT = "\n---\n\n## Current facts";
 
 export const load: PageServerLoad = ({ params }) => {
   const md = aboutMarkdown();

@@ -135,6 +135,10 @@
       {/each}
     </div>
     {#if data.edition === "short"}
+      <a class="post-card" href="/@lasseehlers/what-lassecash-is-built-on">
+        <img src="/posts/what-lassecash-is-built-on.jpg" alt="What LasseCash is built on — from Satoshi to Rothbard" width="800" height="447" loading="lazy" />
+        <span><strong>What LasseCash is built on</strong> — the ideas behind it, from Satoshi to Rothbard to HEX, and what each one does in the code →</span>
+      </a>
       <p class="more"><a href="/about/full">Read the full version →</a> — every rule, precisely enough to be checked against the code.</p>
     {/if}
     <p class="raw"><a href="/about.md" rel="alternate" type="text/markdown">read as markdown</a></p>
@@ -149,6 +153,11 @@
   }
   .editions a:hover { color: var(--ink); }
   .editions a.active { color: var(--gold); border-bottom-color: var(--gold); }
+  .post-card { display: block; margin: 1.6rem 0 0; max-width: 420px; text-decoration: none; color: var(--ink); }
+  .post-card img { display: block; width: 100%; height: auto; border-radius: 4px; border: 1px solid var(--line); }
+  .post-card span { display: block; margin-top: 0.5rem; font-size: 0.95rem; line-height: 1.5; }
+  .post-card strong { color: var(--gold); }
+  .post-card:hover strong { text-decoration: underline; }
   .more { margin: 1.6rem 0 0; padding: 0.9rem 1rem; background: var(--panel-2); border-left: 3px solid var(--gold); border-radius: 4px; }
   .more a { color: var(--gold); font-weight: 600; }
   .rendered { line-height: 1.75; }
