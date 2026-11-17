@@ -27,6 +27,7 @@ import { DevBackend } from "$api/dev-backend.js";
 import { MagiBackend } from "$api/magi-backend.js";
 import type { Backend } from "$api/backend.js";
 import type { Content, PostMeta } from "$api/types.js";
+import { isCrossRequestError } from "$api/shared-promise.js";
 import { coverImage, excerpt } from "$lib/markdown.js";
 import { bareName, postPath, postUrl } from "$lib/site.js";
 
@@ -166,8 +167,14 @@ async function edgePut(posts: PostMeta[]): Promise<void> {
 export async function listPosts(limit = 50): Promise<PostMeta[]> {
   const hit = listCache.get(limit);
   if (hit && Date.now() - hit.at < LIST_TTL_MS) return hit.posts;
+  // A build started by an earlier request may belong to a request that has
+  // already answered; Workers then refuses to let us await it (2026-11-17,
+  // every profile answered 500). On that refusal we build our own.
   const running = listBuilding.get(limit);
-  if (running) return running;
+  if (running) {
+    try { return await running; }
+    catch (e) { if (!isCrossRequestError(e)) throw e; if (listBuilding.get(limit) === running) listBuilding.delete(limit); }
+  }
   const edge = limit === 50 ? await edgeGet() : null;
   if (edge && Date.now() - edge.at < EDGE_FRESH_MS) return edge.posts;
   const build = (async () => {

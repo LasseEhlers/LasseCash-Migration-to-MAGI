@@ -21,6 +21,7 @@ import { BackendError, type AccountActivity, type AccountOp, type PoolOp, type P
 import * as engine from "./engine.js";
 import { toUnits } from "./amount.js";
 import type { TxStatus } from "./types.js";
+import { joinShared } from "./shared-promise.js";
 
 /** Public Hive API nodes, in order of preference. api.hive.blog stopped
  *  answering Cloudflare's servers on 2026-11-11; it stays in the list for
@@ -972,11 +973,12 @@ export class MagiBackend implements Backend {
 
   #taggedCached(): Promise<HiveTaggedPost[]> {
     const now = Date.now();
-    if (!this.#taggedList || now - this.#taggedAt >= TAGGED_CACHE_MS) {
-      this.#taggedAt = now;
-      this.#taggedList = this.#fetchTagged().catch(() => []);
-    }
-    return this.#taggedList;
+    const start = () => {
+      this.#taggedAt = Date.now();
+      return (this.#taggedList = this.#fetchTagged().catch(() => []));
+    };
+    if (!this.#taggedList || now - this.#taggedAt >= TAGGED_CACHE_MS) return start();
+    return joinShared(this.#taggedList, start);
   }
 
   /** The newest posts carrying the `lassecash` tag, straight from Hive. */
@@ -1478,11 +1480,14 @@ export class MagiBackend implements Backend {
   async #callLedger(wanted: Set<string>, limit: number): Promise<PoolLedgerEntry[]> {
     const key = [...wanted].sort().join(",") + "|" + limit;
     const hit = this.#ledgerMemo.get(key);
-    if (hit && Date.now() - hit.at < 60_000) return hit.rows;
-    const rows = this.#callLedgerWalk(wanted, limit);
-    this.#ledgerMemo.set(key, { at: Date.now(), rows });
-    rows.catch(() => { if (this.#ledgerMemo.get(key)?.rows === rows) this.#ledgerMemo.delete(key); });
-    return rows;
+    const start = () => {
+      const rows = this.#callLedgerWalk(wanted, limit);
+      this.#ledgerMemo.set(key, { at: Date.now(), rows });
+      rows.catch(() => { if (this.#ledgerMemo.get(key)?.rows === rows) this.#ledgerMemo.delete(key); });
+      return rows;
+    };
+    if (hit && Date.now() - hit.at < 60_000) return joinShared(hit.rows, start);
+    return start();
   }
 
   async #callLedgerWalk(wanted: Set<string>, limit: number): Promise<PoolLedgerEntry[]> {
@@ -1939,18 +1944,26 @@ export class MagiBackend implements Backend {
 
   #contentCached(author: string, permlink: string): Promise<Content | null> {
     const key = `${author}/${permlink}`;
-    let p = this.#contentCache.get(key);
-    if (!p) {
-      // A FAILED read is not remembered (2026-11-11). It used to be cached as
-      // null, and a server isolate lives for hours, so one Hive outage left
-      // every feed card titleless and imageless long after Hive was back.
-      // Only a real answer — including "no such post" — is kept.
-      p = this.content(author, permlink).catch(() => {
-        this.#contentCache.delete(key);
-        return null;
+    const p = this.#contentCache.get(key);
+    if (p) {
+      return joinShared(p, () => {
+        if (this.#contentCache.get(key) === p) this.#contentCache.delete(key);
+        return this.#contentCached(author, permlink);
       });
-      this.#contentCache.set(key, p);
     }
+    return this.#contentStart(key, author, permlink);
+  }
+
+  #contentStart(key: string, author: string, permlink: string): Promise<Content | null> {
+    // A FAILED read is not remembered (2026-11-11). It used to be cached as
+    // null, and a server isolate lives for hours, so one Hive outage left
+    // every feed card titleless and imageless long after Hive was back.
+    // Only a real answer — including "no such post" — is kept.
+    const p = this.content(author, permlink).catch(() => {
+      this.#contentCache.delete(key);
+      return null;
+    });
+    this.#contentCache.set(key, p);
     return p;
   }
 

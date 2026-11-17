@@ -15,6 +15,7 @@
  */
 import { error } from "@sveltejs/kit";
 import { CONTRACT_ID, CONTENT_CACHE, serverBackend } from "./content.js";
+import { joinShared } from "$api/shared-promise.js";
 import {
   buildMarketTrades, marketTicker, reconciles, supplyFigures, SUPPLY_KEYS,
   type MarketReplay, type MarketTicker, type SupplyFigures,
@@ -58,13 +59,16 @@ async function build(): Promise<MarketSnapshot> {
 
 export async function marketSnapshot(): Promise<MarketSnapshot> {
   if (cached && Date.now() - cached.nowMs < TTL_MS) return cached;
-  if (!inflight) {
-    inflight = build().then(
-      (s) => { cached = s; inflight = undefined; return s; },
-      (e) => { inflight = undefined; throw e; },
+  const start = () => {
+    const p: Promise<MarketSnapshot> = build().then(
+      (s) => { cached = s; if (inflight === p) inflight = undefined; return s; },
+      (e) => { if (inflight === p) inflight = undefined; throw e; },
     );
-  }
-  return inflight;
+    return (inflight = p);
+  };
+  // joinShared: a build begun by a request that has since ended cannot be
+  // awaited on Workers (2026-11-17); start our own instead.
+  return inflight ? joinShared(inflight, start) : start();
 }
 
 let supplyCached: { at: number; figures: SupplyFigures } | undefined;
