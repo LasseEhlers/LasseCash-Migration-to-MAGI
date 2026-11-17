@@ -444,6 +444,13 @@
         {awaitingPayout.length} post{awaitingPayout.length > 1 ? "s have" : " has"} closed and not been settled.
       </strong>
       Anyone can trigger a payout — an absent author must never strand their curators.
+      <!-- Each one links to its post, where the payout button is: the notice
+           used to name a count and leave the reader to hunt (Lasse, 17 Nov). -->
+      <ul class="settle-list">
+        {#each awaitingPayout as p (p.author + "/" + p.permlink)}
+          <li><a href={postPath(p.author, p.permlink)}>{p.title || p.permlink}</a> <span class="dim">· settle it on the post page →</span></li>
+        {/each}
+      </ul>
     </div>
   {/if}
 
@@ -708,4 +715,7 @@
   .votednote { position: relative; z-index: 1; margin: 0 0 .6rem; font-size: .8rem; color: var(--gold); }
   .votednote .link { background: none; border: 0; padding: 0; margin-left: .4rem; font: inherit;
                      color: var(--gold); text-decoration: underline; cursor: pointer; }
+  .settle-list { margin: .5rem 0 0; padding-left: 1.1rem; }
+  .settle-list li { margin: .2rem 0; }
+  .settle-list a { color: var(--gold); }
 </style>
