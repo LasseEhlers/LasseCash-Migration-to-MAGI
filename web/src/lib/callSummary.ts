@@ -85,7 +85,17 @@ export function describeCall(action: string, payload: string, contract?: string)
   // by the backend, because "you received" and "you sent" are the same call
   // seen from opposite ends and the list is useless if it cannot tell them
   // apart.
-  if (action === "+transfer") return `${amt(f[1])} LASSECASH from ${who(f[2]) || "another account"}`;
+  // The backend appends the SENDER as the LAST field: `to|amount[|memo]|sender`.
+  // Until 2026-11-18 this read field 2 as the sender, so a send carrying a
+  // memo (field 2) named the memo as the sender — "from Thanks for settling…"
+  // on @andy4475's first gift. The memo is everything between amount and
+  // sender (ours strips `|`, another client's might not).
+  if (action === "+transfer") {
+    const sender = f.length >= 3 ? f[f.length - 1] : "";
+    const memo = f.length >= 4 ? f.slice(2, -1).join("|") : "";
+    return `${amt(f[1])} LASSECASH from ${who(sender) || "another account"}`
+      + (memo ? ` — "${memo}"` : "");
+  }
   if (action === "+ledger" || action === "ledger") {
     const [from, to, amount, asset] = f;
     const unit = (asset ?? "").toUpperCase();
