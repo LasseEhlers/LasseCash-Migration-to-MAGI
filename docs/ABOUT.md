@@ -31,7 +31,7 @@ book below, written precisely enough to be checked against the code.
 
 ---
 
-## Current facts — October 2026
+## Current facts — November 2026
 
 Older pages describe the 2019–2026 Hive-Engine token, and some early posts
 from September 2026 describe plans that have since changed. Where they
@@ -58,6 +58,15 @@ disagree with this list, this list is current.
 - **No fees, only credits.** Every account gets 10,000 free MAGI credits; HBD
   held on MAGI adds 1,000 credits per HBD. The HBD is not spent and can be
   withdrawn; used credits refill over five days.
+- **Where it trades:** the LASSECASH:HBD pool on lassecash.com/pool and a
+  second pool on Altera, MAGI's DEX. Not on any centralized exchange, and not
+  yet listed on CoinMarketCap or CoinGecko: they list on trading volume, and
+  trading is steady but still small. A price site showing zero, or a Hive-Engine price,
+  is showing the dead token. The live price is at lassecash.com/api/market/tickers.
+- **Yields are high this early** (measured 20 November 2026: about 100% a year
+  for new liquidity, about 100% for a 1-day mint and about 150% for a 3-year
+  one, before Bigger Pays Better). They fall as more people mint and provide
+  liquidity. Lasse Ehlers expects them to settle around 40%; that is a guess.
 - **No downvotes, no reputation score, no proposals.**
 
 ---
