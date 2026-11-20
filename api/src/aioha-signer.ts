@@ -1511,7 +1511,7 @@ export class AiohaSigner implements Signer {
       if (drawMilli !== null) {
         const room = Math.trunc(avail) - drawMilli - AiohaSigner.PROBE_MARGIN_MILLI;
         const floor = Math.max(Math.ceil(need * 1.3), tableFloor);
-        if (room < floor) return AiohaSigner.rcRefusal(floor + drawMilli + AiohaSigner.PROBE_MARGIN_MILLI, Math.trunc(avail), this.wallet.maxRc?.());
+        if (room < floor) return AiohaSigner.rcRefusal(floor + drawMilli + AiohaSigner.PROBE_MARGIN_MILLI, Math.trunc(avail), this.wallet.maxRc?.(), drawMilli);
         return Math.min(sized, room);
       }
     }
@@ -1543,13 +1543,19 @@ export class AiohaSigner implements Signer {
   static confirmUnreadableRc?: ((needs: number) => Promise<boolean>) | undefined;
 
   /** The one wording for "you are out of RC", so every path explains the meter. */
-  static rcRefusal(needed: number, avail: number, max?: number | null): TxResult {
+  static rcRefusal(needed: number, avail: number, max?: number | null, drawMilli = 0): TxResult {
     // 1 RC == 1 milli-HBD in capacity terms (capacity = HBD milli + 10,000
     // free), so the gap converts to an exact HBD figure — telling someone
     // "you need ~10,468" means nothing if they have never touched HBD;
     // "deposit about 0.47 more HBD" is something they can actually go do.
     const gapHbd = (Math.ceil((needed - avail) / 10) / 100).toFixed(2);
-    const head = `Needs ~${needed.toLocaleString()} credits, you have ${avail.toLocaleString()}. `;
+    // AN HBD-PAYING CALL: MOST OF "NEEDED" IS THE HBD ITSELF. On 2026-11-20 a
+    // 10 HBD buy read "Needs ~12,800 credits" and looked like a 12,800-credit
+    // swap; the swap costs ~500, the other 10,000 is the HBD leaving the meter.
+    const paid = drawMilli > 0
+      ? ` (${Number((drawMilli / 1000).toFixed(3)).toLocaleString()} HBD of it is what you pay; on MAGI, HBD is credits)`
+      : "";
+    const head = `Needs ~${needed.toLocaleString()} credits${paid}, you have ${avail.toLocaleString()}. `;
     // WAITING ONLY HELPS IF THE CALL FITS THE ACCOUNT'S CAPACITY. Credits thaw
     // back toward the capacity (HBD + 10,000), never past it, so an account with
     // little HBD that needs more than it can ever hold would wait forever.
@@ -1558,13 +1564,12 @@ export class AiohaSigner implements Signer {
       return {
         ok: false, height: 0,
         msg: head + `That is more than your meter can hold (${max.toLocaleString()}), so waiting `
-          + `will not help. Add ~${forever} HBD on MAGI (Wallet → Move funds); it works at once.`,
+          + `will not help. Add ~${forever} HBD on MAGI.`,
       };
     }
     return {
       ok: false, height: 0,
-      msg: head + `Add ~${gapHbd} HBD on MAGI (Wallet → Move funds) to fix it at once, `
-        + `or wait: credits refill over 5 days.`,
+      msg: head + `Add ~${gapHbd} HBD on MAGI, or wait for credits to refill.`,
     };
   }
 

@@ -221,4 +221,9 @@ test("a call that fits the capacity still offers waiting as the free way out", (
   assert.match(fits.msg, /or wait/i);
   // Capacity unknown: do not claim waiting is hopeless.
   assert.match(AiohaSigner.rcRefusal(5_000, 100, null).msg, /or wait/i);
+  // An HBD-paying call says how much of "needed" is the HBD itself (2026-11-20).
+  const buy = AiohaSigner.rcRefusal(12_800, 12_164, 32_344, 10_000);
+  assert.match(buy.msg, /Needs ~12,800 credits \(10 HBD of it is what you pay; on MAGI, HBD is credits\), you have 12,164/);
+  assert.match(buy.msg, /Add ~0\.64 HBD/);
+  assert.doesNotMatch(AiohaSigner.rcRefusal(5_000, 100, null).msg, /what you pay/);
 });
