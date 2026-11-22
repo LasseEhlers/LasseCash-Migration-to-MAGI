@@ -331,6 +331,8 @@
       <a href="https://www.youtube.com/@LasseCashNews" target="_blank" rel="noopener">Crypto World News</a>
       ·
       <a href="https://lassemusic.com" target="_blank" rel="noopener">Lasse Music</a>
+      ·
+      <a href="https://lasseehlers.com/" target="_blank" rel="noopener">Lasse Ehlers</a>
     </span>
     {#if chain.info}
       <span class="mono">height {chain.info.height.toLocaleString()}</span>
