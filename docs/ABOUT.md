@@ -406,7 +406,7 @@ The pre-launch test deployments were therefore the entire safety margin, and the
 
 ### If a fatal bug is found anyway — what happens, stated before launch
 
-LasseCash is one person, [Lasse Ehlers](https://lasseehlers.com/). What follows is his commitment, stated in advance so it can be checked against what he actually does.
+LasseCash was created by [Lasse Ehlers](https://lasseehlers.com/) on Steem-Engine in 2019, moved to Hive-Engine in 2020 and migrated to MAGI in 2026; the tokenomics are his design from 2019. What follows is his commitment, stated in advance so it can be checked against what he actually does.
 
 **No bug can cost anyone their LASSECASH permanently.** LASSECASH is this contract's own ledger. Every balance, every mint and every L-Share is a state key that stays readable forever, even in a broken contract. If a consensus bug ever makes the core unusable, the recovery is a **hardfork in the plain sense**: a fixed contract is deployed, a migration snapshot is taken from the broken contract's state at a named height, published as a Merkle tree exactly like the launch snapshot, and everyone claims again on the same claim page. No case-by-case judgement, no trust required — the same procedure this migration used, run a second time. This is possible before the key burn and after it; the burned key removes fixing-in-place, not recovery.
 
