@@ -35,11 +35,25 @@ export interface IndexedTx {
   ops: { type: string; data: { action?: string; payload?: string } | null }[];
 }
 
-export interface IndexStore {
+/**
+ * One contract OUTPUT as the node reports it: what each call returned
+ * (`swapped for <out> HBD`, `paid author <units>`). Stored so the pool ledger,
+ * the chart and the market API can join calls to their results without
+ * walking the node (2026-11-24). `inputs` name the transactions or operations
+ * it covers; see resultsByOp in magi-backend.ts for the join.
+ */
+export interface IndexedOutput {
+  id: string;
+  block_height: number;
+  inputs: string[];
+  results: { ok: boolean; ret: string | null }[];
+}
+
+export interface IndexStore<T extends { id: string } = IndexedTx> {
   /** Which of these ids are already stored. */
   known(ids: string[]): Promise<Set<string>>;
   /** Insert or replace, by id. */
-  upsert(txs: IndexedTx[]): Promise<void>;
+  upsert(rows: T[]): Promise<void>;
   getMeta(key: string): Promise<string | null>;
   setMeta(key: string, value: string): Promise<void>;
 }
@@ -60,13 +74,16 @@ export const INDEX_PAGE = 100;
  *
  * `fetchPage(offset)` returns up to INDEX_PAGE transactions, newest first.
  */
-export async function syncIndex(
-  fetchPage: (offset: number) => Promise<IndexedTx[]>,
-  store: IndexStore,
+export async function syncIndex<T extends { id: string } = IndexedTx>(
+  fetchPage: (offset: number) => Promise<T[]>,
+  store: IndexStore<T>,
   maxPages = 20,
+  /** Keeps two logs (transactions, outputs) apart in one meta table. */
+  metaPrefix = "",
 ): Promise<SyncResult> {
   const out: SyncResult = { pages: 0, seen: 0, added: 0, complete: false };
-  const backfilled = (await store.getMeta("backfill_done")) === "1";
+  const DONE = metaPrefix + "backfill_done", OFFSET = metaPrefix + "backfill_offset";
+  const backfilled = (await store.getMeta(DONE)) === "1";
 
   // 1. The head: walk until a page reaches something already stored.
   let offset = 0;
@@ -91,7 +108,7 @@ export async function syncIndex(
   // from where the last call stopped. Offsets shift as new transactions
   // arrive, so resuming re-reads a little; upserts make that harmless.
   if (!backfilled && !reachedEnd) {
-    let resume = Number((await store.getMeta("backfill_offset")) ?? 0);
+    let resume = Number((await store.getMeta(OFFSET)) ?? 0);
     if (resume < offset) resume = offset;
     for (; out.pages < maxPages; resume += INDEX_PAGE) {
       const rows = await fetchPage(resume);
@@ -103,10 +120,10 @@ export async function syncIndex(
       out.added += fresh.length;
       if (rows.length < INDEX_PAGE) { reachedEnd = true; break; }
     }
-    await store.setMeta("backfill_offset", String(resume));
+    await store.setMeta(OFFSET, String(resume));
   }
 
-  if (reachedEnd && !backfilled) await store.setMeta("backfill_done", "1");
+  if (reachedEnd && !backfilled) await store.setMeta(DONE, "1");
   out.complete = reachedEnd || backfilled;
   return out;
 }

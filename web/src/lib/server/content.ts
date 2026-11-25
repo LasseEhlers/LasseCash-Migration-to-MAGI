@@ -30,6 +30,7 @@ import type { Content, PostMeta } from "$api/types.js";
 import { isCrossRequestError } from "$api/shared-promise.js";
 import { coverImage, excerpt } from "$lib/markdown.js";
 import { bareName, postPath, postUrl } from "$lib/site.js";
+import { indexDb } from "./index-db.js";
 
 /**
  * The About text, inlined at BUILD time from the one source file in `docs/`.
@@ -58,13 +59,43 @@ const CHAIN_URL = env("VITE_CHAIN_URL") || "http://localhost:8080";
 /** True when the server is pointed at a real MAGI node. */
 export const WALLET_MODE = CONTRACT_ID !== "";
 
+/**
+ * The server reads the transaction index from D1 DIRECTLY (2026-11-24): the
+ * backend asks for SERVER_INDEX_URL like the browser does, and this shim
+ * answers that path from the database instead of going over the network.
+ * Every other URL (the MAGI nodes) passes straight through. With no binding
+ * it answers 503, and the backend walks the node as it always did.
+ */
+const SERVER_INDEX_URL = "index:/api/index/txs";
+async function serverFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+  if (!url.startsWith("index:")) return fetch(input, init);
+  const db = indexDb();
+  const unavailable = () => new Response(JSON.stringify({ complete: false }), { status: 503 });
+  if (!db) return unavailable();
+  try {
+    const { syncIfStale, D1IndexStore, D1OutputStore } = await import("./tx-index.js");
+    const { complete, outputsComplete } = await syncIfStale(db);
+    const path = url.slice("index:".length);
+    if (path.startsWith("/api/index/outputs")) {
+      const outputs = await new D1OutputStore(db).list();
+      return new Response(JSON.stringify({ complete: outputsComplete, outputs }));
+    }
+    const actions = (new URL(path, "http://x").searchParams.get("actions") ?? "").split(",").filter(Boolean);
+    const txs = await new D1IndexStore(db).list(actions);
+    return new Response(JSON.stringify({ complete, txs }));
+  } catch {
+    return unavailable();
+  }
+}
+
 let backend: Backend | undefined;
 /** The server's one backend — shared with the market endpoints. */
 export function serverBackend(): Backend { return chain(); }
 function chain(): Backend {
   if (!backend) {
     backend = WALLET_MODE
-      ? new MagiBackend({ contractId: CONTRACT_ID })
+      ? new MagiBackend({ contractId: CONTRACT_ID, indexUrl: SERVER_INDEX_URL, fetch: serverFetch })
       : new DevBackend({ url: CHAIN_URL });
   }
   return backend;

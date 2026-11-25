@@ -17,7 +17,7 @@
  * backfills.
  */
 import {
-  MagiBackend, syncIndex, type IndexedTx, type IndexStore, type SyncResult,
+  MagiBackend, syncIndex, type IndexedOutput, type IndexedTx, type IndexStore, type SyncResult,
 } from "$api/index.js";
 import { CONTRACT_ID } from "./content.js";
 
@@ -45,7 +45,18 @@ const SCHEMA = [
      body TEXT NOT NULL)`,
   `CREATE INDEX IF NOT EXISTS tx_height ON tx (height DESC)`,
   `CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT NOT NULL)`,
+  // Contract outputs, verbatim (2026-11-24): what each call RETURNED. The pool
+  // ledger joins calls to these, so the Chart, Pool and market API need no
+  // node walk. Same rule as tx: nothing derived, droppable, rebuilt on demand.
+  `CREATE TABLE IF NOT EXISTS out (
+     id TEXT PRIMARY KEY,
+     height INTEGER NOT NULL,
+     body TEXT NOT NULL)`,
+  `CREATE INDEX IF NOT EXISTS out_height ON out (height DESC)`,
 ];
+
+/** Meta keys of the outputs log, kept apart from the transaction log's. */
+export const OUT_PREFIX = "out_";
 
 /** ",post,vote," — so a filter is one LIKE and needs no JSON parsing. */
 const actionList = (t: IndexedTx) =>
@@ -93,20 +104,57 @@ export class D1IndexStore implements IndexStore {
   }
 }
 
+/** The outputs log. Shares the meta table under OUT_PREFIX. */
+export class D1OutputStore implements IndexStore<IndexedOutput> {
+  constructor(private readonly db: D1Like) {}
+
+  async known(ids: string[]): Promise<Set<string>> {
+    if (!ids.length) return new Set();
+    const q = `SELECT id FROM out WHERE id IN (${ids.map(() => "?").join(",")})`;
+    const { results } = await this.db.prepare(q).bind(...ids).all<{ id: string }>();
+    return new Set(results.map((r) => r.id));
+  }
+
+  async upsert(rows: IndexedOutput[]): Promise<void> {
+    if (!rows.length) return;
+    const stmt = this.db.prepare("INSERT OR REPLACE INTO out (id, height, body) VALUES (?, ?, ?)");
+    await this.db.batch(rows.map((o) => stmt.bind(o.id, o.block_height ?? 0, JSON.stringify(o))));
+  }
+
+  getMeta(k: string) { return new D1IndexStore(this.db).getMeta(k); }
+  setMeta(k: string, v: string) { return new D1IndexStore(this.db).setMeta(k, v); }
+
+  /** Newest first. */
+  async list(): Promise<IndexedOutput[]> {
+    const { results } = await this.db
+      .prepare("SELECT body FROM out ORDER BY height DESC, id DESC")
+      .all<{ body: string }>();
+    return results.map((r) => JSON.parse(r.body) as IndexedOutput);
+  }
+}
+
 /**
  * Catch up with the chain if the last sync is older than SYNC_EVERY_MS.
  * Returns whether the index covers the whole history.
  */
-export async function syncIfStale(db: D1Like): Promise<{ complete: boolean; synced?: SyncResult }> {
+export async function syncIfStale(db: D1Like): Promise<{
+  complete: boolean; outputsComplete: boolean; synced?: SyncResult; syncedOutputs?: SyncResult;
+}> {
   const store = new D1IndexStore(db);
   await store.ensureSchema();
   const last = Number((await store.getMeta("synced_at")) ?? 0);
   if (Date.now() - last < SYNC_EVERY_MS) {
-    return { complete: (await store.getMeta("backfill_done")) === "1" };
+    return {
+      complete: (await store.getMeta("backfill_done")) === "1",
+      outputsComplete: (await store.getMeta(OUT_PREFIX + "backfill_done")) === "1",
+    };
   }
   // Claim the slot first, so a burst of requests does not all walk the node.
   await store.setMeta("synced_at", String(Date.now()));
   const node = new MagiBackend({ contractId: CONTRACT_ID });
+  // Transactions first, then outputs: an output can only name a transaction
+  // that already exists, so this order never leaves a result without its call.
   const synced = await syncIndex((o) => node.fetchTxPage(o), store);
-  return { complete: synced.complete, synced };
+  const syncedOutputs = await syncIndex((o) => node.fetchOutputPage(o), new D1OutputStore(db), 10, OUT_PREFIX);
+  return { complete: synced.complete, outputsComplete: syncedOutputs.complete, synced, syncedOutputs };
 }

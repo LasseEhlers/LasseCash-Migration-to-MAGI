@@ -79,3 +79,24 @@ test("an empty chain is complete and stores nothing", async () => {
   assert.equal(r.complete, true);
   assert.equal(s.txs.size, 0);
 });
+
+test("the outputs log syncs under its own meta keys, beside the transactions", async () => {
+  type Out = { id: string; block_height: number; inputs: string[]; results: { ok: boolean; ret: string | null }[] };
+  const outs: Out[] = Array.from({ length: 250 }, (_, i) => ({
+    id: `o${i + 1}`, block_height: i + 1, inputs: [`tx${i + 1}`], results: [{ ok: true, ret: "voted" }],
+  }));
+  const rows = new Map<string, Out>();
+  const meta = new Map<string, string>();
+  const store = {
+    known: async (ids: string[]) => new Set(ids.filter((i) => rows.has(i))),
+    upsert: async (rs: Out[]) => { for (const r of rs) rows.set(r.id, r); },
+    getMeta: async (k: string) => meta.get(k) ?? null,
+    setMeta: async (k: string, v: string) => { meta.set(k, v); },
+  };
+  meta.set("backfill_done", "1"); // the TRANSACTION log is done; outputs are not
+  const page = async (o: number) => [...outs].reverse().slice(o, o + INDEX_PAGE);
+  const r = await syncIndex(page, store, 20, "out_");
+  assert.equal(r.complete, true);
+  assert.equal(rows.size, 250);
+  assert.equal(meta.get("out_backfill_done"), "1");
+});

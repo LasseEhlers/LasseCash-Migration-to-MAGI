@@ -15,7 +15,7 @@
 import { NATIVE_ROUTER_ID } from "./native-pool.js";
 import { MAPPED_BALANCE_PREFIX } from "./magi-pools.js";
 import { magiFetch } from "./magi-nodes.js";
-import type { IndexedTx } from "./indexer.js";
+import type { IndexedOutput, IndexedTx } from "./indexer.js";
 import type { AccountCall } from "./position-history.js";
 import { BackendError, type AccountActivity, type AccountOp, type PoolOp, type PoolLedgerEntry, type Backend, type Signer } from "./backend.js";
 import * as engine from "./engine.js";
@@ -118,6 +118,16 @@ export class MagiBackend implements Backend {
     return data.findTransaction ?? [];
   }
 
+  /** One page of the contract's OUTPUTS, newest first — the index's second log. */
+  async fetchOutputPage(offset: number, limit = 100): Promise<IndexedOutput[]> {
+    const data = await this.query<{ findContractOutput: IndexedOutput[] | null }>(
+      `query($c: String!, $o: Int!, $l: Int!) { findContractOutput(filterOptions: {byContract: $c, offset: $o, limit: $l}) {
+        id block_height inputs results { ok ret } } }`,
+      { c: this.#contractId, o: offset, l: limit },
+    );
+    return data.findContractOutput ?? [];
+  }
+
   /**
    * The whole history from the index, or null when it cannot vouch for the
    * whole history (not configured, unreachable, or still backfilling).
@@ -130,6 +140,19 @@ export class MagiBackend implements Backend {
       if (!res.ok) return null;
       const body = (await res.json()) as { complete?: boolean; txs?: DiscoverTx[] };
       return body.complete && Array.isArray(body.txs) ? body.txs : null;
+    } catch {
+      return null;
+    }
+  }
+
+  /** Every contract output from the index, or null unless it vouches for all of them. */
+  async #fromIndexOutputs(): Promise<IndexedOutput[] | null> {
+    if (!this.#indexUrl) return null;
+    try {
+      const res = await this.#fetch(this.#indexUrl.replace(/\/txs$/, "/outputs"));
+      if (!res.ok) return null;
+      const body = (await res.json()) as { complete?: boolean; outputs?: IndexedOutput[] };
+      return body.complete && Array.isArray(body.outputs) ? body.outputs : null;
     } catch {
       return null;
     }
@@ -1396,6 +1419,12 @@ export class MagiBackend implements Backend {
   async poolOps(limit = POOL_WALK_LIMIT): Promise<PoolOp[]> {
     // Both swap spellings: the 2026-09 rename left the old ones in history.
     const wanted = new Set(["add_liquidity", "remove_liquidity", "swap_lassecash_hbd", "swap_hbd_lassecash", "swap_lc_hbd", "swap_hbd_lc"]);
+    // The index first: the whole history in one request (2026-11-24).
+    const indexed = await this.#fromIndex([...wanted]);
+    if (indexed) {
+      return buildCallLedger(indexed as IndexedTx[], [], wanted)
+        .map(({ time, height, action, payload, signer }) => ({ time, height, action, payload, signer }));
+    }
     const out: PoolOp[] = [];
     const PAGE = 100;
     for (let offset = 0; offset < limit; offset += PAGE) {
@@ -1491,6 +1520,14 @@ export class MagiBackend implements Backend {
   }
 
   async #callLedgerWalk(wanted: Set<string>, limit: number): Promise<PoolLedgerEntry[]> {
+    // THE INDEX FIRST (2026-11-24). It holds the whole transaction log AND every
+    // contract output, so the join needs no node walk at all — the Chart, the
+    // Pool history and the market API stopped waiting 5-20 s on deep pages.
+    // `limit` only bounded the cost of walking the node; the index has the
+    // whole history, and a replay wants all of it (the 501st-transaction bug).
+    const [itx, iout] = await Promise.all([this.#fromIndex(), this.#fromIndexOutputs()]);
+    if (itx && iout) return buildCallLedger(itx as IndexedTx[], iout, wanted);
+
     const PAGE = 100;
 
     type Tx = {
@@ -1520,8 +1557,6 @@ export class MagiBackend implements Backend {
     }
     if (txs.length === 0) return [];
 
-    const callCount = new Map<string, number>();
-    for (const tx of txs) callCount.set(tx.id, (tx.ops ?? []).filter((o) => o.type === "call").length);
     const oldestHeight = Math.min(...txs.map((t) => Number(t.anchr_height) || 0));
 
     // Outputs land a beat after their transactions, so walk until the page is
@@ -1549,30 +1584,7 @@ export class MagiBackend implements Backend {
       if (stop) break;
     }
 
-    const byOp = resultsByOp(outputs, callCount);
-    const out: PoolLedgerEntry[] = [];
-    for (const tx of txs) {
-      if (tx.status !== "CONFIRMED") continue;
-      let callIdx = 0;
-      for (const [opIdx, op] of (tx.ops ?? []).entries()) {
-        if (op.type !== "call") continue;
-        const i = callIdx++;
-        const action = op.data?.action;
-        if (!action || !wanted.has(action)) continue;
-        const r = resultFor(byOp, tx.id, opIdx, i);
-        out.push({
-          time: tx.anchr_ts,
-          height: Number(tx.anchr_height) || 0,
-          action: action as PoolOp["action"],
-          payload: op.data?.payload ?? "",
-          signer: (tx.required_auths ?? [])[0] ?? (tx.required_posting_auths ?? [])[0] ?? "",
-          txId: tx.id,
-          ok: r?.ok ?? false,
-          ret: r?.ret ?? "",
-        });
-      }
-    }
-    return out.reverse();
+    return buildCallLedger(txs, outputs, wanted);
   }
 
 
@@ -2504,6 +2516,49 @@ function firstImage(body: string): string | null {
 /** One contract transaction as discovery reads it, status included. */
 /** A contract call's result as an output reports it. */
 export interface OpResult { ok: boolean; ret: string }
+
+/**
+ * Calls joined to their contract outputs, oldest first — the pure half of the
+ * pool and payout ledgers. `txs` newest first, as the node and the index both
+ * answer. FAILED transactions are dropped; a call with no matching output
+ * surfaces as `ok:false, ret:""` rather than a guess.
+ */
+export function buildCallLedger(
+  txs: {
+    id: string; anchr_ts?: string | null; anchr_height?: number | null; status?: string | null;
+    required_auths?: string[] | null; required_posting_auths?: string[] | null;
+    ops?: { type: string; data?: { action?: string; payload?: string } | null }[] | null;
+  }[],
+  outputs: { inputs?: string[] | null; results?: { ok: boolean; ret: string | null }[] | null }[],
+  wanted: Set<string>,
+): PoolLedgerEntry[] {
+  const callCount = new Map<string, number>();
+  for (const tx of txs) callCount.set(tx.id, (tx.ops ?? []).filter((o) => o.type === "call").length);
+  const byOp = resultsByOp(outputs, callCount);
+  const out: PoolLedgerEntry[] = [];
+  for (const tx of txs) {
+    if (tx.status !== "CONFIRMED") continue;
+    let callIdx = 0;
+    for (const [opIdx, op] of (tx.ops ?? []).entries()) {
+      if (op.type !== "call") continue;
+      const i = callIdx++;
+      const action = op.data?.action;
+      if (!action || !wanted.has(action)) continue;
+      const r = resultFor(byOp, tx.id, opIdx, i);
+      out.push({
+        time: tx.anchr_ts ?? "",
+        height: Number(tx.anchr_height) || 0,
+        action: action as PoolOp["action"],
+        payload: op.data?.payload ?? "",
+        signer: (tx.required_auths ?? [])[0] ?? (tx.required_posting_auths ?? [])[0] ?? "",
+        txId: tx.id,
+        ok: r?.ok ?? false,
+        ret: r?.ret ?? "",
+      });
+    }
+  }
+  return out.reverse();
+}
 
 /**
  * Which result belongs to which operation, across every output shape MAGI
