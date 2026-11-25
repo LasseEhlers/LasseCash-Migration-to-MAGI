@@ -492,17 +492,17 @@ export class MagiBackend implements Backend {
      * not. Any other place that reads a `bal_` row for a figure people see
      * must be checked against this.
      */
-    const burnedUnits = st["cfg_token"]
-      ? (
-          BigInt(await this.tokenBalance(st["cfg_token"], "hive:null")) +
-          BigInt(st["bal_hive:null"] || "0")
-        ).toString()
-      : st["bal_hive:null"];
-
+    // The burn balance and the board's shares depend only on the first read,
+    // not on each other, so they go out together: two round trips to the
+    // node instead of three on every page that shows live figures.
     const board = (st["gov_board"] ?? "").split("|").filter(Boolean);
-    const shr = board.length
-      ? await this.state(board.map((a) => "shr_" + a))
-      : {};
+    const [nullBalance, shr] = await Promise.all([
+      st["cfg_token"] ? this.tokenBalance(st["cfg_token"], "hive:null") : Promise.resolve(null),
+      board.length ? this.state(board.map((a) => "shr_" + a)) : Promise.resolve({} as Record<string, string>),
+    ]);
+    const burnedUnits = nullBalance !== null
+      ? (BigInt(nullBalance) + BigInt(st["bal_hive:null"] || "0")).toString()
+      : st["bal_hive:null"];
     const group = engine.consensusGroup(
       board.map((a) => ({ account: a, shares: shr["shr_" + a] ?? "0" })),
     ).map((m) => m.account);
