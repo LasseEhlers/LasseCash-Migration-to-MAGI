@@ -586,11 +586,16 @@
     <button class="ghost older" onclick={() => (olderOpen += OLDER_PAGE)}>
       Show older posts ({older.length - olderOpen} more)
     </button>
+  {:else if shown.length}
+    <!-- The feed holds the newest 50 on purpose: every build replays history
+         from a node. Say so, so nobody thinks older posts are gone. -->
+    <p class="feed-end">The feed shows the newest posts. Older posts are on each author's profile, click their name.</p>
   {/if}
 </div>
 
 <style>
   .older { display: block; margin: 1rem auto 0; }
+  .feed-end { text-align: center; color: var(--dim); font-size: 0.85rem; margin: 1.5rem 0 0.5rem; }
   /* A compact strip, deliberately NOT the full card: it keeps Trending above
      the fold and reads as a different thing rather than a duplicate. One
      column at every width, so it behaves identically on a phone. */
